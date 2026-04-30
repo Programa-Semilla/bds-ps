@@ -75,7 +75,7 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 - [X] T019 [P] Add `src/FundingPlatform.Infrastructure/Persistence/Configurations/SupplierBranchConfiguration.cs` per `data-model.md` (filtered unique index on `(SupplierId)` where `IsDefault = 1`).
 - [X] T020 [P] Modify `src/FundingPlatform.Infrastructure/Persistence/Configurations/QuotationConfiguration.cs` — add `Property(q => q.SupplierBranchId).IsRequired()` + `HasIndex(q => q.SupplierBranchId)`.
 - [X] T021 Modify `src/FundingPlatform.Domain/Entities/Quotation.cs` — add `int SupplierBranchId { get; private set; }` and require it in the constructor used by `Item.AddQuotation`. Update `Item.AddQuotation` accordingly.
-- [ ] T022 [P] Add `tests/FundingPlatform.Tests.Integration/Persistence/SupplierRepositoryTests.cs` covering: `GetByLegalIdWithBranchesAsync` returns supplier + branches; lookup is case-insensitive after normalization; `ListForAdminAsync` filters by status, legalId substring, name substring, and has-incomplete-compliance.
+- [X] T022 [P] Add `tests/FundingPlatform.Tests.Integration/Persistence/SupplierRepositoryTests.cs` covering: `GetByLegalIdWithBranchesAsync` returns supplier + branches; lookup is case-insensitive after normalization; `ListForAdminAsync` filters by status, legalId substring, name substring, and has-incomplete-compliance.
 
 ### Application services
 
@@ -87,7 +87,7 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 ### Migration parity test (SC-003)
 
-- [ ] T028 Add `tests/FundingPlatform.Tests.Integration/Persistence/SupplierMigrationTests.cs` covering: (a) seed the OLD schema state (legacy columns populated) via raw SQL; (b) run the migration; (c) assert every supplier is `Verified` with sentinel verifier; (d) assert every supplier has exactly one default branch with `BranchName = N'Sede principal'`; (e) assert every quotation has a non-null `SupplierBranchId` matching its supplier; (f) compute `SupplierScore` for every existing item before-and-after migration and assert byte-for-byte parity per SC-003; (g) capture wall-clock duration of the migration block and assert it completes in under 60 seconds against the test dataset, per SC-006. Test fails if either assertion (parity or timing) is not met.
+- [X] T028 Add `tests/FundingPlatform.Tests.Integration/Persistence/SupplierMigrationTests.cs` covering: (a) seed the OLD schema state (legacy columns populated) via raw SQL; (b) run the migration; (c) assert every supplier is `Verified` with sentinel verifier; (d) assert every supplier has exactly one default branch with `BranchName = N'Sede principal'`; (e) assert every quotation has a non-null `SupplierBranchId` matching its supplier; (f) compute `SupplierScore` for every existing item before-and-after migration and assert byte-for-byte parity per SC-003; (g) capture wall-clock duration of the migration block and assert it completes in under 60 seconds against the test dataset, per SC-006. Test fails if either assertion (parity or timing) is not met.
 
 ### Controller shells
 
@@ -113,14 +113,14 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 ### Implementation for User Story 1
 
-- [ ] T033 [US1] Implement `SupplierCatalogService.SearchByLegalIdAsync(string legalId, int currentApplicantId, int currentApplicationId)` body — normalize, route through visibility rules (Verified visible to all, PendingReview visible only to creator, Draft same, Rejected returns `Rejected` discriminator) per contracts/permission-matrix.md.
-- [ ] T034 [US1] Implement `SupplierController.GET /Application/{appId}/Item/{itemId}/Supplier/Search?legalId=...` — calls the service, picks the right partial (`_LookupHit.cshtml` / `_LookupEmpty.cshtml` / `_LookupRejected.cshtml`), enforces `VerifyOwnershipAsync(appId)`. Path: `src/FundingPlatform.Web/Controllers/SupplierController.cs`.
-- [ ] T035 [US1] Add `src/FundingPlatform.Web/Views/Supplier/_LookupHit.cshtml` partial — renders supplier name, electronic-invoice and three compliance flags as read-only Tabler badges, branch picker (radio list) reusing `_BranchPicker.cshtml`, and the "Pendiente de verificación" badge when applicable.
-- [ ] T036 [US1] Add `src/FundingPlatform.Web/Views/Supplier/_BranchPicker.cshtml` partial — renders one radio per `BranchSummary`, collapses to a single "Use Sede principal" line when only one branch (per spec edge case "Single-branch suppliers"), and an "Agregar nueva sucursal" button stub (US2 fills the body).
-- [ ] T037 [US1] Implement `ApplicationService.AddQuotationToExistingBranchAsync(int appId, int itemId, int branchId, decimal price, string currency, DateOnly validUntil, Stream fileStream, string fileName, string contentType, long fileSize)` — load supplier (with branches), validate branch belongs to the supplier, write Quotation with both `SupplierId` and `SupplierBranchId` from the same loaded branch (preserves invariant). Path: `src/FundingPlatform.Application/Services/ApplicationService.cs`.
-- [ ] T038 [US1] Modify `src/FundingPlatform.Web/Controllers/SupplierController.cs` `POST /Add` — branch the request handler on `model.SelectedBranchId.HasValue` and dispatch to `AddQuotationToExistingBranchAsync`. Keep stub paths for US2/US3 (501 NotImplemented).
-- [ ] T039 [US1] Modify `src/FundingPlatform.Web/Views/Supplier/Add.cshtml` — rewrite as a step-flow: legal-ID input + 250ms-debounce JS hook (vanilla, ~10 lines) that fetches the `/Search` partial; lookup-result region renders `_LookupHit.cshtml` for hits, `_LookupEmpty.cshtml` for misses, `_LookupRejected.cshtml` for rejected. Reuses Tabler form classes per spec 008 conventions.
-- [ ] T040 [US1] Modify `src/FundingPlatform.Web/ViewModels/AddSupplierViewModel.cs` per contracts/http-routes.md §1 (drop compliance + e-invoice + flat contact fields, add `LookupResult`, `SelectedBranchId?`, `NewBranch?`, `NewSupplier?`, keep `Price/Currency/ValidUntil/QuotationFile`).
+- [X] T033 [US1] Implement `SupplierCatalogService.SearchByLegalIdAsync(string legalId, int currentApplicantId, int currentApplicationId)` body — normalize, route through visibility rules (Verified visible to all, PendingReview visible only to creator, Draft same, Rejected returns `Rejected` discriminator) per contracts/permission-matrix.md.
+- [X] T034 [US1] Implement `SupplierController.GET /Application/{appId}/Item/{itemId}/Supplier/Search?legalId=...` — calls the service, picks the right partial (`_LookupHit.cshtml` / `_LookupEmpty.cshtml` / `_LookupRejected.cshtml`), enforces `VerifyOwnershipAsync(appId)`. Path: `src/FundingPlatform.Web/Controllers/SupplierController.cs`.
+- [X] T035 [US1] Add `src/FundingPlatform.Web/Views/Supplier/_LookupHit.cshtml` partial — renders supplier name, electronic-invoice and three compliance flags as read-only Tabler badges, branch picker (radio list) reusing `_BranchPicker.cshtml`, and the "Pendiente de verificación" badge when applicable.
+- [X] T036 [US1] Add `src/FundingPlatform.Web/Views/Supplier/_BranchPicker.cshtml` partial — renders one radio per `BranchSummary`, collapses to a single "Use Sede principal" line when only one branch (per spec edge case "Single-branch suppliers"), and an "Agregar nueva sucursal" button stub (US2 fills the body).
+- [X] T037 [US1] Implement `ApplicationService.AddQuotationToExistingBranchAsync(int appId, int itemId, int branchId, decimal price, string currency, DateOnly validUntil, Stream fileStream, string fileName, string contentType, long fileSize)` — load supplier (with branches), validate branch belongs to the supplier, write Quotation with both `SupplierId` and `SupplierBranchId` from the same loaded branch (preserves invariant). Path: `src/FundingPlatform.Application/Services/ApplicationService.cs`.
+- [X] T038 [US1] Modify `src/FundingPlatform.Web/Controllers/SupplierController.cs` `POST /Add` — branch the request handler on `model.SelectedBranchId.HasValue` and dispatch to `AddQuotationToExistingBranchAsync`. Keep stub paths for US2/US3 (501 NotImplemented).
+- [X] T039 [US1] Modify `src/FundingPlatform.Web/Views/Supplier/Add.cshtml` — rewrite as a step-flow: legal-ID input + 250ms-debounce JS hook (vanilla, ~10 lines) that fetches the `/Search` partial; lookup-result region renders `_LookupHit.cshtml` for hits, `_LookupEmpty.cshtml` for misses, `_LookupRejected.cshtml` for rejected. Reuses Tabler form classes per spec 008 conventions.
+- [X] T040 [US1] Modify `src/FundingPlatform.Web/ViewModels/AddSupplierViewModel.cs` per contracts/http-routes.md §1 (drop compliance + e-invoice + flat contact fields, add `LookupResult`, `SelectedBranchId?`, `NewBranch?`, `NewSupplier?`, keep `Price/Currency/ValidUntil/QuotationFile`).
 
 **Checkpoint**: User Story 1 fully functional. E2E test passes.
 
@@ -134,14 +134,14 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T041 [US2] Add `tests/FundingPlatform.Tests.E2E/Tests/Suppliers/ApplicantAddsNewBranchTests.cs` covering all three acceptance scenarios from spec User Story 2 (new branch persists with `CreatedByApplicantId`, quotation links to new branch, supplier-level fields are not touched even if the form contains them).
+- [X] T041 [US2] Add `tests/FundingPlatform.Tests.E2E/Tests/Suppliers/ApplicantAddsNewBranchTests.cs` covering all three acceptance scenarios from spec User Story 2 (new branch persists with `CreatedByApplicantId`, quotation links to new branch, supplier-level fields are not touched even if the form contains them).
 
 ### Implementation for User Story 2
 
-- [ ] T042 [US2] Implement `SupplierCatalogService.AddBranchUnderExistingSupplierAsync(int supplierId, AddBranchInput input, int createdByApplicantId)` body — loads `Supplier` aggregate via `GetByIdWithBranchesAsync`, calls `Supplier.AddBranch(...)` with `IsDefault = false`, persists, returns new branch `Id`. Path: `src/FundingPlatform.Application/Suppliers/Services/SupplierCatalogService.cs`.
-- [ ] T043 [US2] Modify `src/FundingPlatform.Web/Views/Supplier/_BranchPicker.cshtml` — make the "Agregar nueva sucursal" button reveal the `AddBranchInputViewModel` form (collapsible panel) using the existing Tabler accordion pattern; ensure form fields bind to `model.NewBranch.*`.
-- [ ] T044 [US2] Modify `src/FundingPlatform.Web/Controllers/SupplierController.cs` `POST /Add` — add the branch dispatch path: when `model.NewBranch != null && model.LookupResult?.SupplierId is int sid`, call `AddBranchUnderExistingSupplierAsync(sid, ...)`, get the returned branch ID, then call `AddQuotationToExistingBranchAsync(...)`.
-- [ ] T045 [US2] Update `src/FundingPlatform.Web/ViewModels/AddBranchInputViewModel.cs` (new file or extracted from `AddSupplierViewModel`) with the data-annotations specified in contracts §1.
+- [X] T042 [US2] Implement `SupplierCatalogService.AddBranchUnderExistingSupplierAsync(int supplierId, AddBranchInput input, int createdByApplicantId)` body — loads `Supplier` aggregate via `GetByIdWithBranchesAsync`, calls `Supplier.AddBranch(...)` with `IsDefault = false`, persists, returns new branch `Id`. Path: `src/FundingPlatform.Application/Suppliers/Services/SupplierCatalogService.cs`.
+- [X] T043 [US2] Modify `src/FundingPlatform.Web/Views/Supplier/_BranchPicker.cshtml` — make the "Agregar nueva sucursal" button reveal the `AddBranchInputViewModel` form (collapsible panel) using the existing Tabler accordion pattern; ensure form fields bind to `model.NewBranch.*`.
+- [X] T044 [US2] Modify `src/FundingPlatform.Web/Controllers/SupplierController.cs` `POST /Add` — add the branch dispatch path: when `model.NewBranch != null && model.LookupResult?.SupplierId is int sid`, call `AddBranchUnderExistingSupplierAsync(sid, ...)`, get the returned branch ID, then call `AddQuotationToExistingBranchAsync(...)`.
+- [X] T045 [US2] Update `src/FundingPlatform.Web/ViewModels/AddBranchInputViewModel.cs` (new file or extracted from `AddSupplierViewModel`) with the data-annotations specified in contracts §1.
 
 **Checkpoint**: User Stories 1 AND 2 work independently. E2E for both green.
 
@@ -155,18 +155,18 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T046 [US3] Add `tests/FundingPlatform.Tests.E2E/Tests/Suppliers/ApplicantCreatesDraftSupplierTests.cs` covering all three acceptance scenarios (Draft with applicant ownership, cross-applicant invisibility, edit-while-draft permitted).
-- [ ] T047 [US3] Add `tests/FundingPlatform.Tests.Integration/Web/SupplierController_DraftCreationTests.cs` covering the `SqlException 2627` recovery path (R4): WebApplicationFactory + simulated unique-constraint collision, assert 303 redirect with `?supplierId={existing}&banner=concurrent` query string.
+- [X] T046 [US3] Add `tests/FundingPlatform.Tests.E2E/Tests/Suppliers/ApplicantCreatesDraftSupplierTests.cs` covering all three acceptance scenarios (Draft with applicant ownership, cross-applicant invisibility, edit-while-draft permitted).
+- [X] T047 [US3] Add `tests/FundingPlatform.Tests.Integration/Web/SupplierController_DraftCreationTests.cs` covering the `SqlException 2627` recovery path (R4): WebApplicationFactory + simulated unique-constraint collision, assert 303 redirect with `?supplierId={existing}&banner=concurrent` query string.
 
 ### Implementation for User Story 3
 
-- [ ] T048 [US3] Implement `SupplierCatalogService.CreateDraftWithBranchAsync(string legalId, string name, AddBranchInput firstBranch, int createdByApplicantId)` body — normalize legal ID, call `Supplier.CreateDraft(...)` with the first branch as default, persist; on `DbUpdateException` whose inner is `SqlException(Number == 2627)`, query the existing supplier and return `Result.RetryWithExisting(existingSupplierId)`. Path: `src/FundingPlatform.Application/Suppliers/Services/SupplierCatalogService.cs`.
-- [ ] T049 [US3] Add `src/FundingPlatform.Web/Views/Supplier/_LookupEmpty.cshtml` partial — renders the new-supplier form (name + the `_NewBranchForm.cshtml` partial scoped to `model.NewSupplier.FirstBranch`). Hide compliance and e-invoice fields completely (do not render them, even hidden).
-- [ ] T050 [US3] Modify `src/FundingPlatform.Web/Controllers/SupplierController.cs` `POST /Add` — add the new-supplier dispatch path: when `model.NewSupplier != null`, call `CreateDraftWithBranchAsync(...)`. On `Result.Success(int supplierId)`, load the default branch, call `AddQuotationToExistingBranchAsync(...)`. On `Result.RetryWithExisting(int existingId)`, redirect 303 to `Add?supplierId={existingId}&banner=concurrent`.
-- [ ] T051 [US3] Modify `src/FundingPlatform.Web/Controllers/SupplierController.cs` `GET /Add` — handle `?supplierId={int}&banner=concurrent` query: pre-load the existing supplier, render the lookup hit partial, and surface the localized `LookupConcurrentBanner` string above the form.
-- [ ] T052 [US3] Add `src/FundingPlatform.Web/Controllers/SupplierController.cs` `POST /{supplierId}/EditDraft` action with `[Authorize(Roles = "Applicant")]` — guards that supplier is `Draft`, applicant is creator, parent application is `Draft`. Calls `Supplier.RenameByApplicant`. View: `src/FundingPlatform.Web/Views/Supplier/EditDraft.cshtml` (small form with only `Name`).
-- [ ] T053 [US3] Add `src/FundingPlatform.Web/Controllers/SupplierController.cs` `POST /Branch/{branchId}/Edit` action — guards that branch was created by applicant + parent application is `Draft` + supplier is `Draft`. Calls `Supplier.EditBranch(...)`. View: `src/FundingPlatform.Web/Views/Supplier/EditBranch.cshtml`.
-- [ ] T054 [US3] Add `src/FundingPlatform.Web/ViewModels/NewSupplierInputViewModel.cs` (or co-locate in `AddSupplierViewModel.cs`) per contracts §1 — name + first-branch payload only.
+- [X] T048 [US3] Implement `SupplierCatalogService.CreateDraftWithBranchAsync(string legalId, string name, AddBranchInput firstBranch, int createdByApplicantId)` body — normalize legal ID, call `Supplier.CreateDraft(...)` with the first branch as default, persist; on `DbUpdateException` whose inner is `SqlException(Number == 2627)`, query the existing supplier and return `Result.RetryWithExisting(existingSupplierId)`. Path: `src/FundingPlatform.Application/Suppliers/Services/SupplierCatalogService.cs`.
+- [X] T049 [US3] Add `src/FundingPlatform.Web/Views/Supplier/_LookupEmpty.cshtml` partial — renders the new-supplier form (name + the `_NewBranchForm.cshtml` partial scoped to `model.NewSupplier.FirstBranch`). Hide compliance and e-invoice fields completely (do not render them, even hidden).
+- [X] T050 [US3] Modify `src/FundingPlatform.Web/Controllers/SupplierController.cs` `POST /Add` — add the new-supplier dispatch path: when `model.NewSupplier != null`, call `CreateDraftWithBranchAsync(...)`. On `Result.Success(int supplierId)`, load the default branch, call `AddQuotationToExistingBranchAsync(...)`. On `Result.RetryWithExisting(int existingId)`, redirect 303 to `Add?supplierId={existingId}&banner=concurrent`.
+- [X] T051 [US3] Modify `src/FundingPlatform.Web/Controllers/SupplierController.cs` `GET /Add` — handle `?supplierId={int}&banner=concurrent` query: pre-load the existing supplier, render the lookup hit partial, and surface the localized `LookupConcurrentBanner` string above the form.
+- [X] T052 [US3] Add `src/FundingPlatform.Web/Controllers/SupplierController.cs` `POST /{supplierId}/EditDraft` action with `[Authorize(Roles = "Applicant")]` — guards that supplier is `Draft`, applicant is creator, parent application is `Draft`. Calls `Supplier.RenameByApplicant`. View: `src/FundingPlatform.Web/Views/Supplier/EditDraft.cshtml` (small form with only `Name`).
+- [X] T053 [US3] Add `src/FundingPlatform.Web/Controllers/SupplierController.cs` `POST /Branch/{branchId}/Edit` action — guards that branch was created by applicant + parent application is `Draft` + supplier is `Draft`. Calls `Supplier.EditBranch(...)`. View: `src/FundingPlatform.Web/Views/Supplier/EditBranch.cshtml`.
+- [X] T054 [US3] Add `src/FundingPlatform.Web/ViewModels/NewSupplierInputViewModel.cs` (or co-locate in `AddSupplierViewModel.cs`) per contracts §1 — name + first-branch payload only.
 
 **Checkpoint**: User Stories 1, 2, and 3 all work. Cross-applicant invisibility verified. Draft edits work.
 
@@ -180,14 +180,14 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T055 [US4] Add `tests/FundingPlatform.Tests.E2E/Tests/Suppliers/SubmitFlipsDraftToPendingTests.cs` covering all four acceptance scenarios (status flip atomic with submit, applicant edit revoked, admin queue surfaces it, reviewer-side pending badge + zero-compliance score).
+- [X] T055 [US4] Add `tests/FundingPlatform.Tests.E2E/Tests/Suppliers/SubmitFlipsDraftToPendingTests.cs` covering all four acceptance scenarios (status flip atomic with submit, applicant edit revoked, admin queue surfaces it, reviewer-side pending badge + zero-compliance score).
 
 ### Implementation for User Story 4
 
-- [ ] T056 [US4] Modify `src/FundingPlatform.Application/Services/ApplicationService.cs` `SubmitAsync` — before the existing submit transition, walk every quotation's supplier; for each `(Status == Draft && CreatedByApplicantId == application.ApplicantId)`, call `supplier.SubmitForReview()` and update via repository. All inside the existing submission transaction.
-- [ ] T057 [US4] Modify `src/FundingPlatform.Application/Services/ReviewService.cs` — change the data-load query to project `(Quotation, Supplier, SupplierBranch)` triples, pass triples to `SupplierScore.ComputeForItem`. Path: `src/FundingPlatform.Application/Services/ReviewService.cs`.
-- [ ] T058 [US4] Add `src/FundingPlatform.Web/Views/Review/_PendingVerificationBadge.cshtml` partial — Tabler-style badge with localized "Pendiente de verificación" copy. Conditional render in `Review/Details.cshtml` next to existing recommendation/preselect badges when `score.IsSupplierVerified == false && supplier.VerificationStatus != Rejected`.
-- [ ] T059 [US4] Modify `src/FundingPlatform.Web/Views/Review/Details.cshtml` (and any partials it uses for quotation rows) — render `_PendingVerificationBadge.cshtml` per the rule above. Existing pre-select / recommended badge logic untouched (only `IsRecommended` rule changed inside `SupplierScore`).
+- [X] T056 [US4] Modify `src/FundingPlatform.Application/Services/ApplicationService.cs` `SubmitAsync` — before the existing submit transition, walk every quotation's supplier; for each `(Status == Draft && CreatedByApplicantId == application.ApplicantId)`, call `supplier.SubmitForReview()` and update via repository. All inside the existing submission transaction.
+- [X] T057 [US4] Modify `src/FundingPlatform.Application/Services/ReviewService.cs` — change the data-load query to project `(Quotation, Supplier, SupplierBranch)` triples, pass triples to `SupplierScore.ComputeForItem`. Path: `src/FundingPlatform.Application/Services/ReviewService.cs`.
+- [X] T058 [US4] Add `src/FundingPlatform.Web/Views/Review/_PendingVerificationBadge.cshtml` partial — Tabler-style badge with localized "Pendiente de verificación" copy. Conditional render in `Review/Details.cshtml` next to existing recommendation/preselect badges when `score.IsSupplierVerified == false && supplier.VerificationStatus != Rejected`.
+- [X] T059 [US4] Modify `src/FundingPlatform.Web/Views/Review/Details.cshtml` (and any partials it uses for quotation rows) — render `_PendingVerificationBadge.cshtml` per the rule above. Existing pre-select / recommended badge logic untouched (only `IsRecommended` rule changed inside `SupplierScore`).
 
 **Checkpoint**: User Story 4 fully functional. Submit-time atomicity verified. Reviewer view shows pending badge correctly.
 
@@ -201,21 +201,21 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T060 [US5] Add `tests/FundingPlatform.Tests.E2E/PageObjects/Admin/AdminSuppliersListPage.cs` with `OpenSupplierAsync(int supplierId)`, `SetStatusFilter(SupplierVerificationStatus s)` actions.
-- [ ] T061 [US5] Add `tests/FundingPlatform.Tests.E2E/PageObjects/Admin/AdminSupplierDetailPage.cs` with `ToggleComplianceAsync(string flag)`, `VerifyAsync()`, `RejectAsync(string reason)` actions.
-- [ ] T062 [US5] Add `tests/FundingPlatform.Tests.E2E/Tests/Admin/Suppliers/AdminVerifiesPendingTests.cs` covering all four acceptance scenarios from spec User Story 5 (verify path persists name + verifier+timestamp, reject without reason blocked, reject with reason persists + banner appears, edits to a Verified supplier reflect on next reviewer render).
-- [ ] T063 [US5] Add `tests/FundingPlatform.Tests.Integration/Web/AdminSuppliersController_AuthorizationTests.cs` — assert 403 for non-admin role on every admin route per contracts/permission-matrix.md.
+- [X] T060 [US5] Add `tests/FundingPlatform.Tests.E2E/PageObjects/Admin/AdminSuppliersListPage.cs` with `OpenSupplierAsync(int supplierId)`, `SetStatusFilter(SupplierVerificationStatus s)` actions.
+- [X] T061 [US5] Add `tests/FundingPlatform.Tests.E2E/PageObjects/Admin/AdminSupplierDetailPage.cs` with `ToggleComplianceAsync(string flag)`, `VerifyAsync()`, `RejectAsync(string reason)` actions.
+- [X] T062 [US5] Add `tests/FundingPlatform.Tests.E2E/Tests/Admin/Suppliers/AdminVerifiesPendingTests.cs` covering all four acceptance scenarios from spec User Story 5 (verify path persists name + verifier+timestamp, reject without reason blocked, reject with reason persists + banner appears, edits to a Verified supplier reflect on next reviewer render).
+- [X] T063 [US5] Add `tests/FundingPlatform.Tests.Integration/Web/AdminSuppliersController_AuthorizationTests.cs` — assert 403 for non-admin role on every admin route per contracts/permission-matrix.md.
 
 ### Implementation for User Story 5
 
-- [ ] T064 [US5] Implement `AdminSuppliersController.GET /Admin/Suppliers/{supplierId:int}` (Detail) — calls `ISupplierRepository.GetByIdWithBranchesAsync` + `CountReferencingApplicationsAsync`. Renders `Views/Admin/Suppliers/Detail.cshtml`. Path: `src/FundingPlatform.Web/Controllers/Admin/AdminSuppliersController.cs`.
-- [ ] T065 [US5] Implement `AdminSuppliersController.POST /Admin/Suppliers/{supplierId}/Verify` — loads the aggregate, calls `Supplier.Verify(currentAdminUserId)`, persists. Returns 303 to `Detail`.
-- [ ] T066 [US5] Implement `AdminSuppliersController.POST /Admin/Suppliers/{supplierId}/Reject` with `AdminRejectSupplierViewModel { SupplierId, [Required, MaxLength(1000)] Reason }` — guards reason non-empty, calls `Supplier.Reject(currentAdminUserId, reason)`. Returns 303 to `Detail`. ModelState error → re-render Detail with inline error.
-- [ ] T067 [US5] Add `src/FundingPlatform.Web/Views/Admin/Suppliers/Detail.cshtml` — top: identity panel (read-only by default; edit form for US6 lands here too); branches table (read-only by default; edit modal lands here in US6); referencing-applications list; bottom: Verify / Reject action bar with reason textarea.
-- [ ] T068 [US5] Add `src/FundingPlatform.Web/Views/Review/_RejectedSuppliersBanner.cshtml` partial — Tabler alert with the localized "Esta postulación referencia {count} proveedor(es) rechazado(s)…" copy. Render at the top of `Review/Details.cshtml` when `Model.RejectedSupplierCount > 0`.
-- [ ] T069 [US5] Modify `src/FundingPlatform.Application/Services/ReviewService.cs` — surface `RejectedSupplierCount` on the application detail view-model so the banner renders. Update view-model accordingly.
-- [ ] T070 [US5] Add a controller-side guard on `SupplierController.POST /Add` (and the QuotationController equivalent if any) refusing to write a Quotation whose target Supplier `VerificationStatus == Rejected`. UI also blocks the path: `_LookupRejected.cshtml` does not offer a save action.
-- [ ] T071 [US5] Add `src/FundingPlatform.Web/Views/Supplier/_LookupRejected.cshtml` partial — error alert with the localized `LookupRejectedMessage` copy and a "contactar al equipo" hint. No form actions.
+- [X] T064 [US5] Implement `AdminSuppliersController.GET /Admin/Suppliers/{supplierId:int}` (Detail) — calls `ISupplierRepository.GetByIdWithBranchesAsync` + `CountReferencingApplicationsAsync`. Renders `Views/Admin/Suppliers/Detail.cshtml`. Path: `src/FundingPlatform.Web/Controllers/Admin/AdminSuppliersController.cs`.
+- [X] T065 [US5] Implement `AdminSuppliersController.POST /Admin/Suppliers/{supplierId}/Verify` — loads the aggregate, calls `Supplier.Verify(currentAdminUserId)`, persists. Returns 303 to `Detail`.
+- [X] T066 [US5] Implement `AdminSuppliersController.POST /Admin/Suppliers/{supplierId}/Reject` with `AdminRejectSupplierViewModel { SupplierId, [Required, MaxLength(1000)] Reason }` — guards reason non-empty, calls `Supplier.Reject(currentAdminUserId, reason)`. Returns 303 to `Detail`. ModelState error → re-render Detail with inline error.
+- [X] T067 [US5] Add `src/FundingPlatform.Web/Views/Admin/Suppliers/Detail.cshtml` — top: identity panel (read-only by default; edit form for US6 lands here too); branches table (read-only by default; edit modal lands here in US6); referencing-applications list; bottom: Verify / Reject action bar with reason textarea.
+- [X] T068 [US5] Add `src/FundingPlatform.Web/Views/Review/_RejectedSuppliersBanner.cshtml` partial — Tabler alert with the localized "Esta postulación referencia {count} proveedor(es) rechazado(s)…" copy. Render at the top of `Review/Details.cshtml` when `Model.RejectedSupplierCount > 0`.
+- [X] T069 [US5] Modify `src/FundingPlatform.Application/Services/ReviewService.cs` — surface `RejectedSupplierCount` on the application detail view-model so the banner renders. Update view-model accordingly.
+- [X] T070 [US5] Add a controller-side guard on `SupplierController.POST /Add` (and the QuotationController equivalent if any) refusing to write a Quotation whose target Supplier `VerificationStatus == Rejected`. UI also blocks the path: `_LookupRejected.cshtml` does not offer a save action.
+- [X] T071 [US5] Add `src/FundingPlatform.Web/Views/Supplier/_LookupRejected.cshtml` partial — error alert with the localized `LookupRejectedMessage` copy and a "contactar al equipo" hint. No form actions.
 
 **Checkpoint**: User Story 5 fully functional. Admin can verify and reject. Banner appears on the reviewer screen. Rejected suppliers cannot be reused.
 
@@ -229,14 +229,14 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T072 [US6] Add `tests/FundingPlatform.Tests.E2E/Tests/Admin/Suppliers/AdminEditsVerifiedTests.cs` covering the single acceptance scenario.
+- [X] T072 [US6] Add `tests/FundingPlatform.Tests.E2E/Tests/Admin/Suppliers/AdminEditsVerifiedTests.cs` covering the single acceptance scenario.
 
 ### Implementation for User Story 6
 
-- [ ] T073 [US6] Implement `AdminSuppliersController.POST /Admin/Suppliers/{supplierId}/Edit` with `AdminEditSupplierViewModel { SupplierId, Name, HasElectronicInvoice, IsCompliantCCSS, IsCompliantHacienda, IsCompliantSICOP }` — calls `Supplier.EditByAdmin(...)`, persists. Returns 303 to Detail.
-- [ ] T074 [US6] Implement `AdminSuppliersController.POST /Admin/Suppliers/{supplierId}/Branch/{branchId}/Edit` with `AdminEditBranchViewModel` (full branch field set) — calls `Supplier.EditBranch(...)`. Returns 303 to Detail.
-- [ ] T075 [US6] Modify `src/FundingPlatform.Web/Views/Admin/Suppliers/Detail.cshtml` — wire identity-panel inline-edit form to `Edit` action; add per-branch edit modal/inline-form bound to `Branch.Edit` action.
-- [ ] T076 [US6] Add `src/FundingPlatform.Web/ViewModels/Admin/AdminEditSupplierViewModel.cs` and `AdminEditBranchViewModel.cs`.
+- [X] T073 [US6] Implement `AdminSuppliersController.POST /Admin/Suppliers/{supplierId}/Edit` with `AdminEditSupplierViewModel { SupplierId, Name, HasElectronicInvoice, IsCompliantCCSS, IsCompliantHacienda, IsCompliantSICOP }` — calls `Supplier.EditByAdmin(...)`, persists. Returns 303 to Detail.
+- [X] T074 [US6] Implement `AdminSuppliersController.POST /Admin/Suppliers/{supplierId}/Branch/{branchId}/Edit` with `AdminEditBranchViewModel` (full branch field set) — calls `Supplier.EditBranch(...)`. Returns 303 to Detail.
+- [X] T075 [US6] Modify `src/FundingPlatform.Web/Views/Admin/Suppliers/Detail.cshtml` — wire identity-panel inline-edit form to `Edit` action; add per-branch edit modal/inline-form bound to `Branch.Edit` action.
+- [X] T076 [US6] Add `src/FundingPlatform.Web/ViewModels/Admin/AdminEditSupplierViewModel.cs` and `AdminEditBranchViewModel.cs`.
 
 **Checkpoint**: User Stories 1–6 work end-to-end.
 
@@ -250,14 +250,14 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T077 [US7] Add `tests/FundingPlatform.Tests.E2E/Tests/Admin/Suppliers/AdminFiltersQueueTests.cs` covering all three acceptance scenarios.
+- [X] T077 [US7] Add `tests/FundingPlatform.Tests.E2E/Tests/Admin/Suppliers/AdminFiltersQueueTests.cs` covering all three acceptance scenarios.
 
 ### Implementation for User Story 7
 
-- [ ] T078 [US7] Implement `AdminSuppliersController.GET /Admin/Suppliers` — parses query string into `SupplierAdminFilter` + `page` + `pageSize` (default 25 per spec 010), calls `ISupplierRepository.ListForAdminAsync`, returns paged view-model.
-- [ ] T079 [US7] Add `src/FundingPlatform.Web/ViewModels/Admin/AdminSupplierListViewModel.cs` with `Items, Filter, Page, TotalCount, PageSize`.
-- [ ] T080 [US7] Add `src/FundingPlatform.Web/Views/Admin/Suppliers/Index.cshtml` — Tabler-table layout, top-of-page filter form (status select, legal-ID input, name input, has-incomplete-compliance toggle), bottom `_PaginationFooter` partial reused from spec 010.
-- [ ] T081 [US7] Add a "Suppliers" entry to the admin sidebar/navbar partial (existing in Views/Shared/Admin or equivalent — confirm during work; matches the spec 009 pattern). File: `src/FundingPlatform.Web/Views/Shared/_AdminSidebar.cshtml` or whichever the project uses.
+- [X] T078 [US7] Implement `AdminSuppliersController.GET /Admin/Suppliers` — parses query string into `SupplierAdminFilter` + `page` + `pageSize` (default 25 per spec 010), calls `ISupplierRepository.ListForAdminAsync`, returns paged view-model.
+- [X] T079 [US7] Add `src/FundingPlatform.Web/ViewModels/Admin/AdminSupplierListViewModel.cs` with `Items, Filter, Page, TotalCount, PageSize`.
+- [X] T080 [US7] Add `src/FundingPlatform.Web/Views/Admin/Suppliers/Index.cshtml` — Tabler-table layout, top-of-page filter form (status select, legal-ID input, name input, has-incomplete-compliance toggle), bottom `_PaginationFooter` partial reused from spec 010.
+- [X] T081 [US7] Add a "Suppliers" entry to the admin sidebar/navbar partial (existing in Views/Shared/Admin or equivalent — confirm during work; matches the spec 009 pattern). File: `src/FundingPlatform.Web/Views/Shared/_AdminSidebar.cshtml` or whichever the project uses.
 
 **Checkpoint**: All 7 user stories functional and independently demonstrable.
 
