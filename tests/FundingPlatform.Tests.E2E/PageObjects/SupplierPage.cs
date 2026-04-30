@@ -135,10 +135,13 @@ public class SupplierPage : BasePage
         await Microsoft.Playwright.Assertions.Expect(Page.Locator("input[type=checkbox][name=HasElectronicInvoice]")).ToHaveCountAsync(0);
     }
 
-    public async Task FillQuotationFieldsAsync(decimal price, string validUntil, string filePath, string currency = "USD")
+    public async Task FillQuotationFieldsAsync(decimal price, string validUntil, string filePath, string? currency = null)
     {
         await PriceInput.FillAsync(price.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        await CurrencyInput.FillAsync(currency);
+        if (currency is not null)
+        {
+            await CurrencyInput.FillAsync(currency);
+        }
         await ValidUntilInput.FillAsync(validUntil);
         await QuotationFileInput.SetInputFilesAsync(filePath);
     }
@@ -217,6 +220,6 @@ public class SupplierPage : BasePage
         }
         // Rejected outcome: no save action. Caller will see the alert.
 
-        await FillQuotationFieldsAsync(price, validUntil, filePath, currency ?? "USD");
+        await FillQuotationFieldsAsync(price, validUntil, filePath, currency);
     }
 }

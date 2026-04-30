@@ -136,6 +136,18 @@ public class ApplicantReusesVerifiedSupplierTests : AuthenticatedTestBase
         await supplier.SubmitAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
 
+        // Submission requires MinQuotationsPerItem (default 2) — add a throwaway second
+        // supplier so the application is submittable. Only the first supplier (above) is
+        // the one this seed flow will end up Verifying for the test assertions.
+        await Page.Locator($"a:has-text('{UiCopy.AddSupplier}')").First.ClickAsync();
+        var secondSupplier = new SupplierPage(Page);
+        await secondSupplier.SearchByLegalIdAsync($"3-101-FILLER-{_uniqueId.ToUpper()}");
+        await secondSupplier.FillNewSupplierFormAsync(
+            name: $"Filler Co {_uniqueId}", branchName: "Sede principal", contact: "F", email: "f@e.com");
+        await secondSupplier.FillQuotationFieldsAsync(1100m, "2027-12-31", _testFilePath);
+        await secondSupplier.SubmitAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+
         // Fill impact so we can submit.
         await Page.Locator($"a:has-text('{UiCopy.Impact}')").First.ClickAsync();
         await PickFirstImpactTemplateAsync();
@@ -159,7 +171,10 @@ public class ApplicantReusesVerifiedSupplierTests : AuthenticatedTestBase
         await LoginAsync(Page, adminEmail, password);
         var adminList = new AdminSuppliersListPage(Page);
         await adminList.GoToAsync(BaseUrl);
-        // The default filter is PendingReview, so our supplier should be in row 1.
+        // Default filter is PendingReview. Two suppliers from this seed are in
+        // PendingReview (target + filler). Filter by the target legal ID so we
+        // open the correct row regardless of UpdatedAt ordering.
+        await adminList.SearchByLegalIdAsync(legalId);
         var firstRow = adminList.Rows.First;
         await Expect(firstRow).ToBeVisibleAsync();
         var supplierIdAttr = await firstRow.GetAttributeAsync("data-testid");
