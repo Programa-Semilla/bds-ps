@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-04-29
+Last updated: 2026-04-30
 
 ## Sessions
 
@@ -18,6 +18,7 @@ Last updated: 2026-04-29
 | 10 | 2026-04-26 | admin-reports | spec-created | 010 |
 | 11 | 2026-04-27 | warm-modern-facelift | spec-created | 011 |
 | 12 | 2026-04-29 | es-cr-localization | spec-created | 012 |
+| 13 | 2026-04-30 | supplier-catalog | spec-created | 013 |
 
 ## Open Threads
 
@@ -104,6 +105,11 @@ Last updated: 2026-04-29
 - Page-title direction — `[Page] - Capital Semilla` (matches today) vs. reversed (from #12)
 - Hard-pin culture via constant in middleware vs. config-overridable hatch (from #12)
 - JS namespace rename final identifier — `PlatformMotion` recommended vs. `AppMotion` / `SeedMotion` (from #12)
+- Cascade-delete a Draft supplier when its parent application is deleted — spec assumes yes; pin during planning (from #13)
+- Hard-block reviewer from picking a Rejected supplier vs. soft-discourage via banner — spec assumes soft (from #13)
+- PendingReview suppliers when their parent application is sent back to draft — spec assumes they do not revert to Draft; admin retains control (from #13)
+- Applicant notification when their draft supplier is verified or rejected — out of v1 scope; potential follow-up wow-moment per spec 011 patterns (from #13)
+- Admin queue count badge on the admin dashboard — out of v1 scope; cheap follow-up if queue lag becomes a UX bottleneck (from #13)
 
 ## Closed Threads
 
