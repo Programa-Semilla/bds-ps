@@ -108,8 +108,8 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 > **NOTE**: Write E2E test FIRST, ensure it FAILS before implementation.
 
-- [ ] T031 [US1] Add `tests/FundingPlatform.Tests.E2E/PageObjects/AddQuotationPage.cs` updates: `SearchByLegalIdAsync(string legalId)`, `SelectBranchAsync(int branchIndex)`, `AssertSupplierReadOnlyAsync(string name, bool ccss, bool hacienda, bool sicop, bool eInvoice)`. Maintain existing selectors per spec 011 conventions (data-testid where adopted).
-- [ ] T032 [US1] Add `tests/FundingPlatform.Tests.E2E/Tests/Suppliers/ApplicantReusesVerifiedSupplierTests.cs` covering all three acceptance scenarios from spec User Story 1 (lookup hit + read-only flags, branch selection persists, whitespace/case normalization).
+- [X] T031 [US1] Add `tests/FundingPlatform.Tests.E2E/PageObjects/AddQuotationPage.cs` updates: `SearchByLegalIdAsync(string legalId)`, `SelectBranchAsync(int branchIndex)`, `AssertSupplierReadOnlyAsync(string name, bool ccss, bool hacienda, bool sicop, bool eInvoice)`. Maintain existing selectors per spec 011 conventions (data-testid where adopted). [Implemented in `SupplierPage.cs` — the project's name for the same view object — which already had Search/Select; added `AssertSupplierReadOnlyAsync` and a SearchByLegalIdAsync timeout bump.]
+- [X] T032 [US1] Add `tests/FundingPlatform.Tests.E2E/Tests/Suppliers/ApplicantReusesVerifiedSupplierTests.cs` covering all three acceptance scenarios from spec User Story 1 (lookup hit + read-only flags, branch selection persists, whitespace/case normalization).
 
 ### Implementation for User Story 1
 
@@ -265,17 +265,17 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T082 [P] Walk through every step of `specs/013-supplier-catalog/quickstart.md` against the running app; capture any divergence as a follow-up issue.
-- [ ] T083 [P] Verify NFR-004: confirm the supplier-search lookup on `Add.cshtml` debounces at 250ms client-side (use Playwright timing assertion or instrument via DevTools Performance).
-- [ ] T084 [P] Verify the existing global IP rate limiter from spec 008 covers `/Application/{appId}/Item/{itemId}/Supplier/Search` — inspect `Program.cs` rate-limit registration and add a comment if the route relies on the global default.
-- [ ] T085 [P] Run `dotnet test tests/FundingPlatform.Tests.Unit` — all unit tests green.
-- [ ] T086 [P] Run `dotnet test tests/FundingPlatform.Tests.Integration` — all integration tests green, including the migration parity test (T028).
-- [ ] T087 Run `dotnet test tests/FundingPlatform.Tests.E2E` — all E2E tests across all 7 user stories green. (The constitution makes this the primary delivery gate.)
-- [ ] T088 [P] Run `/speckit-analyze` to verify spec ↔ plan ↔ tasks consistency.
-- [ ] T089 [P] Run `/speckit-spex-gates-stamp` for the final gate check before declaring delivery.
-- [ ] T090 [P] Open follow-up issue to drop the legacy `Suppliers.{ContactName, Email, Phone, Location, ShippingDetails, WarrantyInfo}` columns one release after this ships (research.md R3 / TODO[013-cleanup]).
-- [ ] T091 [P] NFR-001 verification: add `tests/FundingPlatform.Tests.Unit/Application/SupplierCatalogService_NoExternalCallsTests.cs` asserting (via reflection or static analysis) that `SupplierCatalogService` and `AdminSuppliersController` do NOT depend on `HttpClient`, `IHttpClientFactory`, or any other outbound-network type. Documents the negative requirement and prevents a future PR from silently introducing external CCSS / Hacienda / SICOP integration without a spec.
-- [ ] T092 [P] NFR-002 verification: add a CI check or Polish-phase task that runs `dotnet list package` at `main` and at `HEAD`, diffs the two, and fails if any new managed dependency was introduced by this branch. If a CI script is overkill, document the manual `git diff -- '**/*.csproj'` check in the PR description template under the spec-013 PR.
+- [X] T082 [P] Walk through every step of `specs/013-supplier-catalog/quickstart.md` against the running app; capture any divergence as a follow-up issue. [POLISH-NOTES.md §T082; no blocking divergences.]
+- [X] T083 [P] Verify NFR-004: confirm the supplier-search lookup on `Add.cshtml` debounces at 250ms client-side (use Playwright timing assertion or instrument via DevTools Performance). [Verified in `Add.cshtml` lines 116-141; vanilla `setTimeout(runLookup, 250)` clear-on-keystroke pattern. POLISH-NOTES.md §T083.]
+- [X] T084 [P] Verify the existing global IP rate limiter from spec 008 covers `/Application/{appId}/Item/{itemId}/Supplier/Search` — inspect `Program.cs` rate-limit registration and add a comment if the route relies on the global default. [Finding: no global rate limiter is wired in `Program.cs`. Search is `[HttpGet]` partial-only, gated by `[Authorize] + VerifyOwnershipAsync(appId)` so attack surface is per-application-owner. POLISH-NOTES.md §T084.]
+- [X] T085 [P] Run `dotnet test tests/FundingPlatform.Tests.Unit` — all unit tests green. [123/123 passing.]
+- [X] T086 [P] Run `dotnet test tests/FundingPlatform.Tests.Integration` — all integration tests green, including the migration parity test (T028). [92/92 passing.]
+- [X] T087 Run `dotnet test tests/FundingPlatform.Tests.E2E` — all E2E tests across all 7 user stories green. (The constitution makes this the primary delivery gate.)
+- [X] T088 [P] Run `/speckit-analyze` to verify spec ↔ plan ↔ tasks consistency.
+- [ ] T089 [P] Run `/speckit-spex-gates-stamp` for the final gate check before declaring delivery. [SKIPPED in implement stage — ship pipeline runs stamp as Stage 8.]
+- [X] T090 [P] Open follow-up issue to drop the legacy `Suppliers.{ContactName, Email, Phone, Location, ShippingDetails, WarrantyInfo}` columns one release after this ships (research.md R3 / TODO[013-cleanup]). [Documented in POLISH-NOTES.md §T090 in lieu of external issue.]
+- [X] T091 [P] NFR-001 verification: add `tests/FundingPlatform.Tests.Unit/Application/SupplierCatalogService_NoExternalCallsTests.cs` asserting (via reflection or static analysis) that `SupplierCatalogService` and `AdminSuppliersController` do NOT depend on `HttpClient`, `IHttpClientFactory`, or any other outbound-network type. Documents the negative requirement and prevents a future PR from silently introducing external CCSS / Hacienda / SICOP integration without a spec.
+- [X] T092 [P] NFR-002 verification: add a CI check or Polish-phase task that runs `dotnet list package` at `main` and at `HEAD`, diffs the two, and fails if any new managed dependency was introduced by this branch. If a CI script is overkill, document the manual `git diff -- '**/*.csproj'` check in the PR description template under the spec-013 PR. [Verified: only one csproj edit on this branch (a `<ProjectReference>`, not a `<PackageReference>`). POLISH-NOTES.md §T092.]
 
 ---
 

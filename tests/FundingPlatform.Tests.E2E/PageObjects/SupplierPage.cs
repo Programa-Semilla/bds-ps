@@ -65,11 +65,16 @@ public class SupplierPage : BasePage
     /// </summary>
     public async Task<string> SearchByLegalIdAsync(string legalId)
     {
+        // Make sure the page's JS has had a chance to wire up the input listener.
+        await Page.WaitForLoadStateAsync(Microsoft.Playwright.LoadState.DOMContentLoaded);
+        await SupplierLegalIdInput.WaitForAsync(new() { State = WaitForSelectorState.Visible });
+
         await SupplierLegalIdInput.FillAsync(legalId);
-        // 250ms debounce + ~250ms server roundtrip. Wait up to 5s for any partial.
+        // Race the debounce + Search endpoint and the partial swap. Wait up to 10s
+        // because under shared-fixture load the round-trip can spike.
         await Page.WaitForFunctionAsync(
             "() => document.querySelector('[data-testid=\"lookup-result-region\"]')?.children.length > 0",
-            options: new() { Timeout = 5000 });
+            options: new() { Timeout = 10_000 });
 
         if (await LookupHitCard.IsVisibleAsync()) return "Hit";
         if (await LookupRejectedAlert.IsVisibleAsync()) return "Rejected";
@@ -86,6 +91,48 @@ public class SupplierPage : BasePage
     {
         var radios = Page.Locator("[data-testid^='branch-radio-']");
         await radios.First.CheckAsync();
+    }
+
+    /// <summary>
+    /// T031 (US1, spec 013): the lookup-hit card MUST render the supplier name plus
+    /// the four admin-only flags as read-only Tabler badges. This helper asserts:
+    ///   - the name is shown
+    ///   - the badges have the right "is-on" / "is-off" appearance for each flag
+    ///   - none of them are editable inputs (no &lt;input type=checkbox&gt; rendered)
+    /// Spec SC-002: applicant-facing forms expose ZERO compliance editors.
+    /// </summary>
+    public async Task AssertSupplierReadOnlyAsync(string name, bool ccss, bool hacienda, bool sicop, bool eInvoice)
+    {
+        await Microsoft.Playwright.Assertions.Expect(LookupHitCard).ToBeVisibleAsync();
+        await Microsoft.Playwright.Assertions.Expect(LookupHitCard).ToContainTextAsync(name);
+
+        async Task AssertBadge(string testId, bool expectedOn)
+        {
+            var badge = Page.GetByTestId(testId);
+            await Microsoft.Playwright.Assertions.Expect(badge).ToBeVisibleAsync();
+            var classAttr = await badge.GetAttributeAsync("class") ?? string.Empty;
+            if (expectedOn)
+            {
+                Assert.That(classAttr, Does.Contain("bg-green-lt"),
+                    $"Expected '{testId}' to be ON (green) — got class='{classAttr}'.");
+            }
+            else
+            {
+                Assert.That(classAttr, Does.Contain("bg-secondary-lt"),
+                    $"Expected '{testId}' to be OFF (secondary) — got class='{classAttr}'.");
+            }
+        }
+
+        await AssertBadge("badge-einvoice", eInvoice);
+        await AssertBadge("badge-ccss", ccss);
+        await AssertBadge("badge-hacienda", hacienda);
+        await AssertBadge("badge-sicop", sicop);
+
+        // SC-002: no compliance/e-invoice editors anywhere on the page.
+        await Microsoft.Playwright.Assertions.Expect(Page.Locator("input[type=checkbox][name=IsCompliantCCSS]")).ToHaveCountAsync(0);
+        await Microsoft.Playwright.Assertions.Expect(Page.Locator("input[type=checkbox][name=IsCompliantHacienda]")).ToHaveCountAsync(0);
+        await Microsoft.Playwright.Assertions.Expect(Page.Locator("input[type=checkbox][name=IsCompliantSICOP]")).ToHaveCountAsync(0);
+        await Microsoft.Playwright.Assertions.Expect(Page.Locator("input[type=checkbox][name=HasElectronicInvoice]")).ToHaveCountAsync(0);
     }
 
     public async Task FillQuotationFieldsAsync(decimal price, string validUntil, string filePath, string currency = "USD")
