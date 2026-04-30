@@ -87,12 +87,12 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 
 ### Migration parity test (SC-003)
 
-- [ ] T028 Add `tests/FundingPlatform.Tests.Integration/Persistence/SupplierMigrationTests.cs` covering: (a) seed the OLD schema state (legacy columns populated) via raw SQL; (b) run the migration; (c) assert every supplier is `Verified` with sentinel verifier; (d) assert every supplier has exactly one default branch with `BranchName = N'Sede principal'`; (e) assert every quotation has a non-null `SupplierBranchId` matching its supplier; (f) compute `SupplierScore` for every existing item before-and-after migration and assert byte-for-byte parity per SC-003.
+- [ ] T028 Add `tests/FundingPlatform.Tests.Integration/Persistence/SupplierMigrationTests.cs` covering: (a) seed the OLD schema state (legacy columns populated) via raw SQL; (b) run the migration; (c) assert every supplier is `Verified` with sentinel verifier; (d) assert every supplier has exactly one default branch with `BranchName = N'Sede principal'`; (e) assert every quotation has a non-null `SupplierBranchId` matching its supplier; (f) compute `SupplierScore` for every existing item before-and-after migration and assert byte-for-byte parity per SC-003; (g) capture wall-clock duration of the migration block and assert it completes in under 60 seconds against the test dataset, per SC-006. Test fails if either assertion (parity or timing) is not met.
 
 ### Controller shells
 
 - [ ] T029 [P] Modify `src/FundingPlatform.Web/Controllers/SupplierController.cs` — add empty action stubs (`Search`, `EditDraft`, `Branch.{Edit}`) returning `StatusCode(501)` so the routes exist for tests to negotiate against. Keep existing `GET/POST Add` stubs.
-- [ ] T030 [P] Add `src/FundingPlatform.Web/Controllers/Admin/AdminSuppliersController.cs` with `[Authorize(Roles = "Admin")]` and empty stubs (`Index`, `Detail`, `Edit`, `Branch.Edit`, `Verify`, `Reject`) returning `StatusCode(501)`.
+- [ ] T030 [P] Add `src/FundingPlatform.Web/Controllers/Admin/AdminSuppliersController.cs` with `[Authorize(Roles = "Admin")]` and empty stubs (`Index`, `Detail`, `Edit`, `Branch.Edit`, `Verify`, `Reject`) returning `StatusCode(501)`. Do NOT add a `Delete` action and do NOT add a `Create` action — FR-036 (forbid delete with quotation refs) and FR-037 (forbid direct admin create) are enforced by absence; add a class-level XML doc comment stating "FR-036 / FR-037: this controller intentionally exposes no Delete or Create actions in v1".
 
 **Checkpoint**: Schema + domain + score + repository + scaffolding + migration test green. User stories can begin in parallel after this phase.
 
@@ -274,6 +274,8 @@ This is a single-monolith ASP.NET MVC project with Clean Architecture layers:
 - [ ] T088 [P] Run `/speckit-analyze` to verify spec ↔ plan ↔ tasks consistency.
 - [ ] T089 [P] Run `/speckit-spex-gates-stamp` for the final gate check before declaring delivery.
 - [ ] T090 [P] Open follow-up issue to drop the legacy `Suppliers.{ContactName, Email, Phone, Location, ShippingDetails, WarrantyInfo}` columns one release after this ships (research.md R3 / TODO[013-cleanup]).
+- [ ] T091 [P] NFR-001 verification: add `tests/FundingPlatform.Tests.Unit/Application/SupplierCatalogService_NoExternalCallsTests.cs` asserting (via reflection or static analysis) that `SupplierCatalogService` and `AdminSuppliersController` do NOT depend on `HttpClient`, `IHttpClientFactory`, or any other outbound-network type. Documents the negative requirement and prevents a future PR from silently introducing external CCSS / Hacienda / SICOP integration without a spec.
+- [ ] T092 [P] NFR-002 verification: add a CI check or Polish-phase task that runs `dotnet list package` at `main` and at `HEAD`, diffs the two, and fails if any new managed dependency was introduced by this branch. If a CI script is overkill, document the manual `git diff -- '**/*.csproj'` check in the PR description template under the spec-013 PR.
 
 ---
 
@@ -377,6 +379,8 @@ The reviewer-screen pieces (US4's badge + US5's banner) intersect with `Review/D
 ## Notes
 
 - Constitution III makes E2E tests non-negotiable; tasks T031, T032, T041, T046, T055, T060–T063, T072, T077 carry the project gate.
+- NFR-001 (no external API integration) and NFR-002 (no new managed dependencies) are negative requirements verified by T091 / T092 in Polish.
+- SC-006 (migration <60s) is asserted inside T028 alongside SC-003 byte-for-byte parity.
 - Constitution IV makes dacpac the schema source of truth; tasks T004–T008 are the only place schema changes live.
 - Constitution II makes the Supplier aggregate the single owner of branch CRUD; T010's `AddBranch` / `EditBranch` enforces invariants. Application code never instantiates `SupplierBranch` directly.
 - Each task names exact file paths so an implementer can pick up any task in isolation.
