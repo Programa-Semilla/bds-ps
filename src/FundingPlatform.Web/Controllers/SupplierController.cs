@@ -256,69 +256,15 @@ public class SupplierController : Controller
         }
     }
 
-    [HttpPost("{supplierId:int}/EditDraft")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EditDraft(int appId, int itemId, int supplierId, EditDraftSupplierViewModel model)
-    {
-        await VerifyOwnershipAsync(appId);
-        var applicantId = await GetCurrentApplicantIdAsync();
-        await _supplierCatalogService.AssertEditableByApplicantAsync(supplierId, applicantId, appId);
-
-        if (!ModelState.IsValid)
-        {
-            model.ApplicationId = appId;
-            model.ItemId = itemId;
-            model.SupplierId = supplierId;
-            return View(model);
-        }
-
-        var supplier = await _supplierRepository.GetByIdWithBranchesAsync(supplierId)
-            ?? throw new InvalidOperationException($"Supplier {supplierId} not found.");
-
-        supplier.RenameByApplicant(model.Name);
-        await _supplierRepository.UpdateAsync(supplier);
-        await _supplierRepository.SaveChangesAsync();
-
-        TempData["SuccessMessage"] = "Proveedor actualizado.";
-        return RedirectToAction("Details", "Application", new { id = appId });
-    }
-
-    [HttpPost("{supplierId:int}/Branch/{branchId:int}/Edit")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EditBranch(
-        int appId, int itemId, int supplierId, int branchId, EditBranchByApplicantViewModel model)
-    {
-        await VerifyOwnershipAsync(appId);
-        var applicantId = await GetCurrentApplicantIdAsync();
-        await _supplierCatalogService.AssertEditableByApplicantAsync(supplierId, applicantId, appId);
-
-        var supplier = await _supplierRepository.GetByIdWithBranchesAsync(supplierId)
-            ?? throw new InvalidOperationException($"Supplier {supplierId} not found.");
-
-        var branch = supplier.Branches.FirstOrDefault(b => b.Id == branchId);
-        if (branch is null) return NotFound();
-        if (branch.CreatedByApplicantId != applicantId)
-            throw new UnauthorizedAccessException("Cannot edit a branch you did not create.");
-
-        if (!ModelState.IsValid)
-        {
-            model.ApplicationId = appId;
-            model.ItemId = itemId;
-            model.SupplierId = supplierId;
-            model.BranchId = branchId;
-            return View(model);
-        }
-
-        supplier.EditBranch(branchId,
-            model.BranchName, model.ContactName, model.Email, model.Phone,
-            model.AddressLine, model.Province, model.ShippingDetails, model.WarrantyInfo);
-
-        await _supplierRepository.UpdateAsync(supplier);
-        await _supplierRepository.SaveChangesAsync();
-
-        TempData["SuccessMessage"] = "Sucursal actualizada.";
-        return RedirectToAction("Details", "Application", new { id = appId });
-    }
+    // Spec 013 US3 acceptance scenario 3 ("applicant returns to edit own Draft") is
+    // delivered today by re-running the Add flow on the application's items page —
+    // applicants edit their Draft supplier inline before submission. Dedicated
+    // EditDraft/EditBranch endpoints are intentionally NOT exposed in v1: they would
+    // require their own GET surfaces, views, and link affordances, none of which are
+    // built. The domain methods Supplier.RenameByApplicant and Supplier.EditBranch
+    // remain available to drive a future dedicated edit screen without controller
+    // changes. (Deep-review fix: removed unreachable POST handlers that crashed on
+    // ModelState validation failure due to missing view files.)
 
     private async Task<int> GetCurrentApplicantIdAsync()
     {

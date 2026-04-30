@@ -18,6 +18,10 @@ public interface ISupplierRepository
     Task<int> CountReferencingApplicationsAsync(int supplierId);
     Task UpdateAsync(Supplier supplier);
     Task SaveChangesAsync();
+
+    // Spec 013: batch-load helper used by ApplicationService.SubmitAsync to avoid
+    // N+1 round-trips when flipping multiple Draft suppliers to PendingReview.
+    Task<IReadOnlyList<Supplier>> ListByIdsWithBranchesAsync(IReadOnlyCollection<int> supplierIds);
 }
 
 /// <summary>

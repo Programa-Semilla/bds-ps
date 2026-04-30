@@ -82,25 +82,28 @@ public class ApplicationService
 
         try
         {
-            // Spec 013 FR-024: collect every distinct Draft supplier created by this
-            // applicant and referenced by a quotation on this application, then flip
-            // each to PendingReview inside the same transaction as the submit.
-            var ownedDraftSupplierIds = application.Items
+            // Spec 013 FR-024: collect every distinct supplier referenced by a quotation
+            // on this application, batch-load them in a single round-trip, and flip the
+            // ones that are owned Drafts to PendingReview inside the same submit
+            // transaction. The actual ownership-and-status filter is applied in-memory
+            // below — the variable name reflects the load set, not the flip set.
+            var referencedSupplierIds = application.Items
                 .SelectMany(i => i.Quotations)
                 .Select(q => q.SupplierId)
                 .Distinct()
                 .ToList();
 
-            foreach (var supplierId in ownedDraftSupplierIds)
+            if (referencedSupplierIds.Count > 0)
             {
-                var supplier = await _supplierRepository.GetByIdWithBranchesAsync(supplierId);
-                if (supplier is null) continue;
-
-                if (supplier.VerificationStatus == SupplierVerificationStatus.Draft
-                    && supplier.CreatedByApplicantId == application.ApplicantId)
+                var suppliers = await _supplierRepository.ListByIdsWithBranchesAsync(referencedSupplierIds);
+                foreach (var supplier in suppliers)
                 {
-                    supplier.SubmitForReview();
-                    await _supplierRepository.UpdateAsync(supplier);
+                    if (supplier.VerificationStatus == SupplierVerificationStatus.Draft
+                        && supplier.CreatedByApplicantId == application.ApplicantId)
+                    {
+                        supplier.SubmitForReview();
+                        await _supplierRepository.UpdateAsync(supplier);
+                    }
                 }
             }
 
@@ -230,10 +233,22 @@ public class ApplicationService
         await _documentRepository.AddAsync(document);
         await _applicationRepository.SaveChangesAsync();
 
-        item.AddQuotation(supplier, branch, document, price, validUntil, currency);
+        try
+        {
+            item.AddQuotation(supplier, branch, document, price, validUntil, currency);
 
-        await _applicationRepository.UpdateAsync(application);
-        await _applicationRepository.SaveChangesAsync();
+            await _applicationRepository.UpdateAsync(application);
+            await _applicationRepository.SaveChangesAsync();
+        }
+        catch
+        {
+            // Spec 013: best-effort cleanup of the just-saved Document row and the
+            // file on disk if the Quotation save fails. Avoids orphaned Document
+            // rows and orphaned files when the (item, supplier) UNIQUE constraint
+            // or any other invariant rejects the Quotation insert.
+            try { await _fileStorageService.DeleteFileAsync(storagePath); } catch { /* best-effort */ }
+            throw;
+        }
     }
 
     public async Task ReplaceQuotationDocumentAsync(ReplaceQuotationDocumentCommand cmd, Stream fileStream)

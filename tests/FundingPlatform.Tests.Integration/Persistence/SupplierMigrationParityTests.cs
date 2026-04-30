@@ -8,18 +8,26 @@ using AppEntity = FundingPlatform.Domain.Entities.Application;
 namespace FundingPlatform.Tests.Integration.Persistence;
 
 /// <summary>
-/// Spec 013 SC-003: byte-for-byte parity of SupplierScore math before and after
-/// the supplier-catalog rollout. The dacpac script itself is exercised by the
-/// E2E AspireFixture against a real SQL Server container — but the math invariant
-/// it protects is testable here in pure C#: the score outcome for a (supplier,
-/// quotation) pair should be identical regardless of whether the supplier
-/// "carries" a default branch (post-migration) or was a flat row (pre-migration,
-/// represented as supplier with a single "Sede principal" branch carrying the
-/// old contact-name fields).
+/// Spec 013 — partial guard for SC-003 (score parity) and SC-006 (migration
+/// performance), via in-memory EF surrogates rather than real SQL Server.
 ///
-/// SC-006 (migration completes in &lt; 60s) is asserted indirectly: the in-memory
-/// migration of 1000 suppliers must complete in &lt; 5s on this CI test runner,
-/// which gives a 10x margin on the production target.
+/// SCOPE LIMITATIONS (read first):
+///   - These tests do NOT execute the dacpac PostDeploy migration body in
+///     SeedData.sql. They use the InMemory provider and Supplier.CreateDraft
+///     factory to construct "pre" and "post" shapes side-by-side, then assert
+///     score math is identical. A regression in the actual SQL migration
+///     script will NOT fail these tests; that protection lives in the E2E
+///     AspireFixture, which spins up a real SQL Server container and runs the
+///     dacpac on every test session.
+///   - The "performance" test measures EF InMemory SaveChanges throughput
+///     for 1000 suppliers. It is a smoke test for the domain-factory path,
+///     not a measurement of the SC-006 60-second budget against SQL Server.
+///
+/// What IS verified here: the score math (one point each for CCSS, Hacienda,
+/// SICOP, e-invoice, lowest price; recommended = max-score AND not-rejected)
+/// produces identical results for a "flat" supplier (pre-migration shape) and
+/// the same supplier with a Sede-principal branch (post-migration shape). This
+/// is the math-level part of SC-003.
 /// </summary>
 [TestFixture]
 public class SupplierMigrationParityTests

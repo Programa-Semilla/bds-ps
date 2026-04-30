@@ -126,8 +126,6 @@ GO
 
 -- =============================================================================
 -- Spec 013: Supplier Catalog migration. Idempotent forward-only.
--- See PostDeployment/Migrations/013_SupplierCatalog.sql for the canonical body
--- (kept alongside this file for diff readability and future reference).
 -- Microsoft.Build.Sql 2.1.0 only supports a single PostDeploy script, so the
 -- migration is inlined here matching the spec 010 currency-migration pattern
 -- already present above.

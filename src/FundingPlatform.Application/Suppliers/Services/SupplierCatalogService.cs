@@ -187,19 +187,19 @@ public class SupplierCatalogService
         // Avoid a SqlClient project reference in the Application layer by detecting
         // the SQL Server unique-constraint exception via its type name and the
         // dynamic Number property. Numbers: 2627 (UNIQUE constraint), 2601 (duplicate
-        // key in unique index).
-        var inner = ex.InnerException;
-        while (inner is not null)
+        // key in unique index). Walk the entire exception chain starting at ex itself
+        // so we catch both EF-wrapped (DbUpdateException -> SqlException) and direct
+        // SqlException paths.
+        for (Exception? cur = ex; cur is not null; cur = cur.InnerException)
         {
-            if (inner.GetType().Name == "SqlException")
+            if (cur.GetType().Name == "SqlException")
             {
-                var numberProp = inner.GetType().GetProperty("Number");
-                if (numberProp?.GetValue(inner) is int number && (number == 2627 || number == 2601))
+                var numberProp = cur.GetType().GetProperty("Number");
+                if (numberProp?.GetValue(cur) is int number && (number == 2627 || number == 2601))
                 {
                     return true;
                 }
             }
-            inner = inner.InnerException;
         }
         return false;
     }

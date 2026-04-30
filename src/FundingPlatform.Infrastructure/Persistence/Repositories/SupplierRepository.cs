@@ -102,6 +102,16 @@ public class SupplierRepository : ISupplierRepository
             .CountAsync();
     }
 
+    public async Task<IReadOnlyList<Supplier>> ListByIdsWithBranchesAsync(IReadOnlyCollection<int> supplierIds)
+    {
+        ArgumentNullException.ThrowIfNull(supplierIds);
+        if (supplierIds.Count == 0) return Array.Empty<Supplier>();
+        return await _context.Suppliers
+            .Include(s => s.Branches)
+            .Where(s => supplierIds.Contains(s.Id))
+            .ToListAsync();
+    }
+
     public Task UpdateAsync(Supplier supplier)
     {
         _context.Suppliers.Update(supplier);
