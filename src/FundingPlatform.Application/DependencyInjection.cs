@@ -1,5 +1,6 @@
 using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
+using FundingPlatform.Application.Suppliers.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<ApplicantResponseService>();
         services.AddScoped<FundingAgreementService>();
         services.AddScoped<SignedUploadService>();
+        services.AddScoped<SupplierCatalogService>();
 
         // Spec 011 — facelift projection services + copy providers (FR-024..FR-060, research §7).
         services.AddSingleton<IStageMappingProvider, StageMappingProvider>();

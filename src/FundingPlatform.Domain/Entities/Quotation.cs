@@ -5,6 +5,14 @@ public class Quotation
     public int Id { get; private set; }
     public int ItemId { get; private set; }
     public int SupplierId { get; private set; }
+
+    /// <summary>
+    /// Spec 013: branch reference. Invariant (enforced at the application layer):
+    /// SupplierBranch.SupplierId == this.SupplierId. The aggregate that loads the
+    /// branch writes both fields atomically from the same source.
+    /// </summary>
+    public int SupplierBranchId { get; private set; }
+
     public decimal Price { get; private set; }
     public DateOnly ValidUntil { get; private set; }
     public int DocumentId { get; private set; }
@@ -12,13 +20,21 @@ public class Quotation
     public DateTime CreatedAt { get; private set; }
 
     public Supplier Supplier { get; private set; } = null!;
+    public SupplierBranch SupplierBranch { get; private set; } = null!;
     public Document Document { get; private set; } = null!;
 
     private Quotation() { }
 
-    public Quotation(int supplierId, int documentId, decimal price, DateOnly validUntil, string currency)
+    public Quotation(
+        int supplierId,
+        int supplierBranchId,
+        int documentId,
+        decimal price,
+        DateOnly validUntil,
+        string currency)
     {
         SupplierId = supplierId;
+        SupplierBranchId = supplierBranchId;
         DocumentId = documentId;
         Price = price;
         ValidUntil = validUntil;

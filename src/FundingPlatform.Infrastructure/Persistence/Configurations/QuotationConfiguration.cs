@@ -14,6 +14,7 @@ public class QuotationConfiguration : IEntityTypeConfiguration<Quotation>
 
         builder.Property(q => q.ItemId).IsRequired();
         builder.Property(q => q.SupplierId).IsRequired();
+        builder.Property(q => q.SupplierBranchId).IsRequired();
         builder.Property(q => q.Price).IsRequired().HasColumnType("decimal(18,2)");
         builder.Property(q => q.ValidUntil).IsRequired();
         builder.Property(q => q.DocumentId).IsRequired();
@@ -27,9 +28,17 @@ public class QuotationConfiguration : IEntityTypeConfiguration<Quotation>
             .IsUnique()
             .HasDatabaseName("UX_Quotations_ItemId_SupplierId");
 
+        builder.HasIndex(q => q.SupplierBranchId)
+            .HasDatabaseName("IX_Quotations_SupplierBranchId");
+
         builder.HasOne(q => q.Supplier)
             .WithMany()
             .HasForeignKey(q => q.SupplierId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(q => q.SupplierBranch)
+            .WithMany()
+            .HasForeignKey(q => q.SupplierBranchId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(q => q.Document)

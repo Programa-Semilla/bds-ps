@@ -123,3 +123,79 @@ BEGIN
         (@JobCreationId, N'JobType',             N'Job Type',             0, 1, 3);
 END;
 GO
+
+-- =============================================================================
+-- Spec 013: Supplier Catalog migration. Idempotent forward-only.
+-- See PostDeployment/Migrations/013_SupplierCatalog.sql for the canonical body
+-- (kept alongside this file for diff readability and future reference).
+-- Microsoft.Build.Sql 2.1.0 only supports a single PostDeploy script, so the
+-- migration is inlined here matching the spec 010 currency-migration pattern
+-- already present above.
+-- =============================================================================
+IF EXISTS (SELECT 1 FROM sys.columns
+           WHERE object_id = OBJECT_ID(N'dbo.Suppliers') AND name = N'ContactName')
+   AND NOT EXISTS (SELECT 1 FROM [dbo].[SupplierBranches])
+   AND EXISTS (SELECT 1 FROM [dbo].[Suppliers])
+BEGIN
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @SystemAdminId NVARCHAR(450) = (
+            SELECT TOP 1 [Id] FROM [dbo].[AspNetUsers]
+            WHERE [IsSystemSentinel] = 1
+        );
+
+        IF @SystemAdminId IS NULL
+            THROW 50010, 'Migration 013: system admin sentinel not found. Spec 009 must be deployed first.', 1;
+
+        UPDATE [dbo].[Suppliers]
+        SET VerificationStatus = 2,
+            VerifiedByUserId   = @SystemAdminId,
+            VerifiedAt         = SYSUTCDATETIME(),
+            UpdatedAt          = SYSUTCDATETIME();
+
+        INSERT INTO [dbo].[SupplierBranches]
+            (SupplierId, BranchName, ContactName, Email, Phone,
+             AddressLine, Province, ShippingDetails, WarrantyInfo,
+             IsDefault, CreatedByApplicantId, CreatedAt, UpdatedAt)
+        SELECT s.Id,
+               N'Sede principal',
+               s.ContactName, s.Email, s.Phone,
+               s.Location, NULL, s.ShippingDetails, s.WarrantyInfo,
+               1, NULL, SYSUTCDATETIME(), SYSUTCDATETIME()
+        FROM [dbo].[Suppliers] s;
+
+        UPDATE q
+        SET q.SupplierBranchId = b.Id
+        FROM [dbo].[Quotations] q
+        INNER JOIN [dbo].[SupplierBranches] b
+                ON b.SupplierId = q.SupplierId
+               AND b.IsDefault = 1
+        WHERE q.SupplierBranchId IS NULL OR q.SupplierBranchId = 0;
+
+        IF EXISTS (SELECT 1 FROM [dbo].[Quotations]
+                   WHERE SupplierBranchId IS NULL OR SupplierBranchId = 0)
+            THROW 50011, 'Migration 013: at least one Quotation has a NULL or 0 SupplierBranchId after backfill.', 1;
+
+        IF EXISTS (
+            SELECT 1
+            FROM [dbo].[Quotations] q
+            INNER JOIN [dbo].[SupplierBranches] b ON q.SupplierBranchId = b.Id
+            WHERE q.SupplierId <> b.SupplierId)
+            THROW 50012, 'Migration 013: at least one Quotation has SupplierId != Branch.SupplierId.', 1;
+
+        IF EXISTS (
+            SELECT s.Id
+            FROM [dbo].[Suppliers] s
+            LEFT JOIN [dbo].[SupplierBranches] b ON b.SupplierId = s.Id AND b.IsDefault = 1
+            WHERE b.Id IS NULL)
+            THROW 50013, 'Migration 013: at least one Supplier is missing a default branch.', 1;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        ;THROW;
+    END CATCH;
+END;
+GO

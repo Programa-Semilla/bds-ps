@@ -2,7 +2,12 @@ using System.Security.Claims;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
+using FundingPlatform.Application.Suppliers.DTOs;
+using FundingPlatform.Application.Suppliers.Services;
+using FundingPlatform.Domain.Enums;
+using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.Persistence;
+using FundingPlatform.Web.Resources;
 using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,21 +21,27 @@ namespace FundingPlatform.Web.Controllers;
 public class SupplierController : Controller
 {
     private readonly ApplicationService _applicationService;
+    private readonly SupplierCatalogService _supplierCatalogService;
+    private readonly ISupplierRepository _supplierRepository;
     private readonly AppDbContext _dbContext;
     private readonly IOptions<AdminReportsOptions> _adminReportsOptions;
 
     public SupplierController(
         ApplicationService applicationService,
+        SupplierCatalogService supplierCatalogService,
+        ISupplierRepository supplierRepository,
         AppDbContext dbContext,
         IOptions<AdminReportsOptions> adminReportsOptions)
     {
         _applicationService = applicationService;
+        _supplierCatalogService = supplierCatalogService;
+        _supplierRepository = supplierRepository;
         _dbContext = dbContext;
         _adminReportsOptions = adminReportsOptions;
     }
 
     [HttpGet("Add")]
-    public async Task<IActionResult> Add(int appId, int itemId)
+    public async Task<IActionResult> Add(int appId, int itemId, int? supplierId, string? banner)
     {
         await VerifyOwnershipAsync(appId);
 
@@ -39,10 +50,59 @@ public class SupplierController : Controller
             ApplicationId = appId,
             ItemId = itemId,
             Currency = (_adminReportsOptions.Value.DefaultCurrency ?? string.Empty).ToUpperInvariant(),
-            ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(3))
+            ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(3)),
         };
 
+        // R4: redirect-to-existing recovery — pre-load the supplier and show the
+        // "concurrent" banner so the applicant can pick a branch or add a new one.
+        if (supplierId is int sid)
+        {
+            var applicantId = await GetCurrentApplicantIdAsync();
+            var supplier = await _supplierRepository.GetByIdWithBranchesAsync(sid);
+            if (supplier is not null)
+            {
+                viewModel.SupplierLegalId = supplier.LegalId;
+                viewModel.LookupResult = await _supplierCatalogService.SearchByLegalIdAsync(
+                    supplier.LegalId, applicantId);
+            }
+            viewModel.ShowConcurrentBanner = string.Equals(banner, "concurrent", StringComparison.OrdinalIgnoreCase);
+        }
+
         return View(viewModel);
+    }
+
+    /// <summary>
+    /// Spec 013 (US1): server-rendered HTML partial for the legal-ID lookup. The
+    /// Add page's vanilla-JS debounce hook (250ms) fetches this URL and replaces
+    /// the lookup-result region in the DOM.
+    /// </summary>
+    [HttpGet("Search")]
+    public async Task<IActionResult> Search(int appId, int itemId, string? legalId)
+    {
+        await VerifyOwnershipAsync(appId);
+
+        if (string.IsNullOrWhiteSpace(legalId))
+        {
+            return BadRequest();
+        }
+
+        var applicantId = await GetCurrentApplicantIdAsync();
+        var result = await _supplierCatalogService.SearchByLegalIdAsync(legalId, applicantId);
+
+        return result.Outcome switch
+        {
+            SupplierLookupOutcome.Hit => PartialView("_LookupHit", result.Supplier!),
+            SupplierLookupOutcome.Rejected => PartialView("_LookupRejected"),
+            _ => PartialView("_LookupEmpty",
+                new NewSupplierInputViewModel
+                {
+                    Name = string.Empty,
+                    FirstBranch = new AddBranchInputViewModel
+                    {
+                        BranchName = SuppliersResources.Branch_Default,
+                    },
+                }),
+        };
     }
 
     [HttpPost("Add")]
@@ -50,61 +110,214 @@ public class SupplierController : Controller
     public async Task<IActionResult> Add(int appId, int itemId, AddSupplierViewModel model)
     {
         await VerifyOwnershipAsync(appId);
+        model.ApplicationId = appId;
+        model.ItemId = itemId;
+
+        if (model.QuotationFile is null || model.QuotationFile.Length == 0)
+        {
+            ModelState.AddModelError(nameof(model.QuotationFile), "Se requiere el archivo de la cotización.");
+            return View(model);
+        }
+
+        // Re-run lookup so the view can re-render the right partial on validation error.
+        var applicantId = await GetCurrentApplicantIdAsync();
+        if (!string.IsNullOrWhiteSpace(model.SupplierLegalId))
+        {
+            model.LookupResult = await _supplierCatalogService.SearchByLegalIdAsync(
+                model.SupplierLegalId, applicantId);
+        }
+
+        try
+        {
+            // Branch dispatch (mutually exclusive paths).
+            if (model.SelectedBranchId.HasValue && model.LookupResult?.Supplier is not null)
+            {
+                // US1: existing branch reuse.
+                if (model.LookupResult.Supplier.VerificationStatus == SupplierVerificationStatus.Rejected)
+                {
+                    ModelState.AddModelError(string.Empty, SuppliersResources.LookupRejectedMessage);
+                    return View(model);
+                }
+
+                using var stream = model.QuotationFile.OpenReadStream();
+                await _applicationService.AddQuotationToExistingBranchAsync(
+                    appId, itemId,
+                    model.LookupResult.Supplier.Id,
+                    model.SelectedBranchId.Value,
+                    model.Price, model.Currency, model.ValidUntil,
+                    stream, model.QuotationFile.FileName,
+                    model.QuotationFile.ContentType, model.QuotationFile.Length);
+
+                TempData["SuccessMessage"] = "Cotización agregada con éxito.";
+                return RedirectToAction("Details", "Application", new { id = appId });
+            }
+
+            if (model.NewBranch is not null && model.LookupResult?.Supplier is not null)
+            {
+                // US2: add a new branch under the existing supplier, then quote against it.
+                if (!ModelState.IsValid)
+                {
+                    return View(model);
+                }
+
+                if (model.LookupResult.Supplier.VerificationStatus == SupplierVerificationStatus.Rejected)
+                {
+                    ModelState.AddModelError(string.Empty, SuppliersResources.LookupRejectedMessage);
+                    return View(model);
+                }
+
+                var newBranchId = await _supplierCatalogService.AddBranchUnderExistingSupplierAsync(
+                    model.LookupResult.Supplier.Id,
+                    new AddBranchInput
+                    {
+                        BranchName = model.NewBranch.BranchName,
+                        ContactName = model.NewBranch.ContactName,
+                        Email = model.NewBranch.Email,
+                        Phone = model.NewBranch.Phone,
+                        AddressLine = model.NewBranch.AddressLine,
+                        Province = model.NewBranch.Province,
+                        ShippingDetails = model.NewBranch.ShippingDetails,
+                        WarrantyInfo = model.NewBranch.WarrantyInfo,
+                    },
+                    applicantId);
+
+                using var stream = model.QuotationFile.OpenReadStream();
+                await _applicationService.AddQuotationToExistingBranchAsync(
+                    appId, itemId,
+                    model.LookupResult.Supplier.Id,
+                    newBranchId,
+                    model.Price, model.Currency, model.ValidUntil,
+                    stream, model.QuotationFile.FileName,
+                    model.QuotationFile.ContentType, model.QuotationFile.Length);
+
+                TempData["SuccessMessage"] = "Sucursal y cotización agregadas con éxito.";
+                return RedirectToAction("Details", "Application", new { id = appId });
+            }
+
+            if (model.NewSupplier is not null)
+            {
+                // US3: brand-new Draft supplier.
+                if (string.IsNullOrWhiteSpace(model.NewSupplier.Name)
+                    || string.IsNullOrWhiteSpace(model.NewSupplier.FirstBranch?.BranchName))
+                {
+                    ModelState.AddModelError(string.Empty, "Completa la información del nuevo proveedor.");
+                    return View(model);
+                }
+
+                var firstBranch = new AddBranchInput
+                {
+                    BranchName = model.NewSupplier.FirstBranch.BranchName,
+                    ContactName = model.NewSupplier.FirstBranch.ContactName,
+                    Email = model.NewSupplier.FirstBranch.Email,
+                    Phone = model.NewSupplier.FirstBranch.Phone,
+                    AddressLine = model.NewSupplier.FirstBranch.AddressLine,
+                    Province = model.NewSupplier.FirstBranch.Province,
+                    ShippingDetails = model.NewSupplier.FirstBranch.ShippingDetails,
+                    WarrantyInfo = model.NewSupplier.FirstBranch.WarrantyInfo,
+                };
+
+                var result = await _supplierCatalogService.CreateDraftWithBranchAsync(
+                    model.SupplierLegalId, model.NewSupplier.Name, firstBranch, applicantId);
+
+                if (result.Outcome == CreateDraftOutcome.RetryWithExisting)
+                {
+                    return RedirectToAction(nameof(Add), new { appId, itemId, supplierId = result.SupplierId, banner = "concurrent" });
+                }
+
+                // Load the created supplier and pluck its default branch.
+                var newSupplier = await _supplierRepository.GetByIdWithBranchesAsync(result.SupplierId)
+                    ?? throw new InvalidOperationException($"Newly created supplier {result.SupplierId} not loadable.");
+                var defaultBranch = newSupplier.Branches.First(b => b.IsDefault);
+
+                using var stream = model.QuotationFile.OpenReadStream();
+                await _applicationService.AddQuotationToExistingBranchAsync(
+                    appId, itemId,
+                    newSupplier.Id, defaultBranch.Id,
+                    model.Price, model.Currency, model.ValidUntil,
+                    stream, model.QuotationFile.FileName,
+                    model.QuotationFile.ContentType, model.QuotationFile.Length);
+
+                TempData["SuccessMessage"] = "Proveedor y cotización agregados con éxito.";
+                return RedirectToAction("Details", "Application", new { id = appId });
+            }
+
+            ModelState.AddModelError(string.Empty, "Selecciona una sucursal, agrega una nueva, o crea un proveedor nuevo.");
+            return View(model);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return View(model);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return View(model);
+        }
+    }
+
+    [HttpPost("{supplierId:int}/EditDraft")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditDraft(int appId, int itemId, int supplierId, EditDraftSupplierViewModel model)
+    {
+        await VerifyOwnershipAsync(appId);
+        var applicantId = await GetCurrentApplicantIdAsync();
+        await _supplierCatalogService.AssertEditableByApplicantAsync(supplierId, applicantId, appId);
 
         if (!ModelState.IsValid)
         {
             model.ApplicationId = appId;
             model.ItemId = itemId;
+            model.SupplierId = supplierId;
             return View(model);
         }
 
-        if (model.QuotationFile is null || model.QuotationFile.Length == 0)
+        var supplier = await _supplierRepository.GetByIdWithBranchesAsync(supplierId)
+            ?? throw new InvalidOperationException($"Supplier {supplierId} not found.");
+
+        supplier.RenameByApplicant(model.Name);
+        await _supplierRepository.UpdateAsync(supplier);
+        await _supplierRepository.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = "Proveedor actualizado.";
+        return RedirectToAction("Details", "Application", new { id = appId });
+    }
+
+    [HttpPost("{supplierId:int}/Branch/{branchId:int}/Edit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditBranch(
+        int appId, int itemId, int supplierId, int branchId, EditBranchByApplicantViewModel model)
+    {
+        await VerifyOwnershipAsync(appId);
+        var applicantId = await GetCurrentApplicantIdAsync();
+        await _supplierCatalogService.AssertEditableByApplicantAsync(supplierId, applicantId, appId);
+
+        var supplier = await _supplierRepository.GetByIdWithBranchesAsync(supplierId)
+            ?? throw new InvalidOperationException($"Supplier {supplierId} not found.");
+
+        var branch = supplier.Branches.FirstOrDefault(b => b.Id == branchId);
+        if (branch is null) return NotFound();
+        if (branch.CreatedByApplicantId != applicantId)
+            throw new UnauthorizedAccessException("Cannot edit a branch you did not create.");
+
+        if (!ModelState.IsValid)
         {
-            ModelState.AddModelError(nameof(model.QuotationFile), "Se requiere el archivo de la cotización.");
             model.ApplicationId = appId;
             model.ItemId = itemId;
+            model.SupplierId = supplierId;
+            model.BranchId = branchId;
             return View(model);
         }
 
-        try
-        {
-            var command = new AddSupplierQuotationCommand
-            {
-                ApplicationId = appId,
-                ItemId = itemId,
-                SupplierLegalId = model.SupplierLegalId,
-                SupplierName = model.SupplierName,
-                ContactName = model.ContactName,
-                Email = model.Email,
-                Phone = model.Phone,
-                Location = model.Location,
-                HasElectronicInvoice = model.HasElectronicInvoice,
-                ShippingDetails = model.ShippingDetails,
-                WarrantyInfo = model.WarrantyInfo,
-                IsCompliantCCSS = model.IsCompliantCCSS,
-                IsCompliantHacienda = model.IsCompliantHacienda,
-                IsCompliantSICOP = model.IsCompliantSICOP,
-                Price = model.Price,
-                Currency = model.Currency,
-                ValidUntil = model.ValidUntil,
-                FileName = model.QuotationFile.FileName,
-                FileContentType = model.QuotationFile.ContentType,
-                FileSize = model.QuotationFile.Length
-            };
+        supplier.EditBranch(branchId,
+            model.BranchName, model.ContactName, model.Email, model.Phone,
+            model.AddressLine, model.Province, model.ShippingDetails, model.WarrantyInfo);
 
-            using var stream = model.QuotationFile.OpenReadStream();
-            await _applicationService.AddSupplierQuotationAsync(command, stream);
+        await _supplierRepository.UpdateAsync(supplier);
+        await _supplierRepository.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = "Proveedor y cotización agregados con éxito.";
-            return RedirectToAction("Details", "Application", new { id = appId });
-        }
-        catch (InvalidOperationException ex)
-        {
-            ModelState.AddModelError(string.Empty, ex.Message);
-            model.ApplicationId = appId;
-            model.ItemId = itemId;
-            return View(model);
-        }
+        TempData["SuccessMessage"] = "Sucursal actualizada.";
+        return RedirectToAction("Details", "Application", new { id = appId });
     }
 
     private async Task<int> GetCurrentApplicantIdAsync()

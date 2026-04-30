@@ -47,18 +47,41 @@ public class Item
     }
 
     /// <summary>
-    /// Adds a quotation for the specified supplier. Prevents duplicate suppliers on the same item.
+    /// Adds a quotation for the specified supplier branch. Prevents duplicate
+    /// suppliers on the same item per the (item, supplier) UNIQUE constraint
+    /// (research.md R1 — branches do not split a supplier into multiple quote
+    /// sources). The branch must belong to the supplier; caller asserts via
+    /// `branch.SupplierId == supplier.Id` before invoking.
     /// </summary>
-    /// <exception cref="InvalidOperationException">Thrown when the supplier already has a quotation on this item.</exception>
-    public void AddQuotation(Supplier supplier, Document document, decimal price, DateOnly validUntil, string currency)
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the supplier already has a quotation on this item OR the
+    /// branch belongs to a different supplier.
+    /// </exception>
+    public void AddQuotation(
+        Supplier supplier,
+        SupplierBranch branch,
+        Document document,
+        decimal price,
+        DateOnly validUntil,
+        string currency)
     {
+        ArgumentNullException.ThrowIfNull(supplier);
+        ArgumentNullException.ThrowIfNull(branch);
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (branch.SupplierId != 0 && branch.SupplierId != supplier.Id)
+        {
+            throw new InvalidOperationException(
+                $"Branch {branch.Id} (supplier {branch.SupplierId}) does not belong to supplier {supplier.Id}.");
+        }
+
         if (_quotations.Any(q => q.SupplierId == supplier.Id))
         {
             throw new InvalidOperationException(
                 $"Supplier '{supplier.Name}' already has a quotation on this item.");
         }
 
-        var quotation = new Quotation(supplier.Id, document.Id, price, validUntil, currency);
+        var quotation = new Quotation(supplier.Id, branch.Id, document.Id, price, validUntil, currency);
         _quotations.Add(quotation);
         UpdatedAt = DateTime.UtcNow;
     }

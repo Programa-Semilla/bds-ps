@@ -1,0 +1,98 @@
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Application.Suppliers.DTOs.SupplierDetailViewDto
+
+@{
+    var branches = Model.Branches;
+    var defaultBranch = branches.FirstOrDefault(b => b.IsDefault);
+    var collapsed = branches.Count == 1;
+}
+
+<div class="card mb-3" data-testid="branch-picker">
+    <div class="card-body">
+        <h5 class="card-title">@SuppliersResources.BranchPicker_Title</h5>
+
+        @if (collapsed && defaultBranch is not null)
+        {
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="SelectedBranchId"
+                       id="branch-@defaultBranch.Id" value="@defaultBranch.Id" checked
+                       data-testid="branch-radio-@defaultBranch.Id" />
+                <label class="form-check-label" for="branch-@defaultBranch.Id">
+                    Usar @defaultBranch.BranchName
+                    @if (!string.IsNullOrWhiteSpace(defaultBranch.ContactName))
+                    {
+                        <span class="text-muted">— @defaultBranch.ContactName</span>
+                    }
+                </label>
+            </div>
+        }
+        else
+        {
+            @foreach (var branch in branches)
+            {
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="SelectedBranchId"
+                           id="branch-@branch.Id" value="@branch.Id"
+                           data-testid="branch-radio-@branch.Id" />
+                    <label class="form-check-label" for="branch-@branch.Id">
+                        <strong>@branch.BranchName</strong>
+                        @if (branch.IsDefault)
+                        {
+                            <span class="badge bg-blue-lt ms-1">Principal</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(branch.ContactName))
+                        {
+                            <div class="text-muted small">@branch.ContactName · @branch.Email · @branch.Province</div>
+                        }
+                    </label>
+                </div>
+            }
+        }
+
+        <div class="mt-3">
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    data-testid="add-new-branch-toggle"
+                    onclick="document.getElementById('new-branch-panel').classList.toggle('d-none');">
+                <i class="ti ti-plus"></i> @SuppliersResources.BranchPicker_AddNew
+            </button>
+        </div>
+
+        <div id="new-branch-panel" class="d-none mt-3" data-testid="new-branch-panel">
+            <h6>@SuppliersResources.BranchPicker_AddNew</h6>
+            <div class="row">
+                <div class="col-md-6 mb-2">
+                    <label class="form-label">Nombre de la sucursal</label>
+                    <input name="NewBranch.BranchName" class="form-control" data-testid="new-branch-name" />
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="form-label">Persona de contacto</label>
+                    <input name="NewBranch.ContactName" class="form-control" data-testid="new-branch-contact" />
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="form-label">Correo electrónico</label>
+                    <input name="NewBranch.Email" type="email" class="form-control" data-testid="new-branch-email" />
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="form-label">Teléfono</label>
+                    <input name="NewBranch.Phone" type="tel" class="form-control" data-testid="new-branch-phone" />
+                </div>
+                <div class="col-md-8 mb-2">
+                    <label class="form-label">Dirección</label>
+                    <input name="NewBranch.AddressLine" class="form-control" data-testid="new-branch-address" />
+                </div>
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Provincia</label>
+                    <input name="NewBranch.Province" class="form-control" data-testid="new-branch-province" />
+                </div>
+                <div class="col-md-12 mb-2">
+                    <label class="form-label">Detalles de envío</label>
+                    <textarea name="NewBranch.ShippingDetails" class="form-control" rows="2" data-testid="new-branch-shipping"></textarea>
+                </div>
+                <div class="col-md-12 mb-2">
+                    <label class="form-label">Información de garantía</label>
+                    <textarea name="NewBranch.WarrantyInfo" class="form-control" rows="2" data-testid="new-branch-warranty"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
