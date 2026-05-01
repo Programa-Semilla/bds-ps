@@ -281,31 +281,61 @@ internal static class SignedUploadEndpointsTestSeeder
         return (appId, applicantUserId, pendingId);
     }
 
-    private sealed class InMemoryFileStorage : FundingPlatform.Domain.Interfaces.IFileStorageService
+    private sealed class InMemoryFileStorage : FundingPlatform.Application.Abstractions.Storage.IObjectStorage
     {
         private readonly Dictionary<string, byte[]> _store = new();
-        private int _seq;
 
-        public async Task<string> SaveFileAsync(System.IO.Stream fileStream, string fileName, string contentType)
+        public async Task<FundingPlatform.Application.Abstractions.Storage.StoredObject> UploadAsync(
+            FundingPlatform.Application.Abstractions.Storage.FileCategory category,
+            FundingPlatform.Application.Abstractions.Storage.ObjectKey key,
+            System.IO.Stream content, string contentType, long? contentLength, CancellationToken ct)
         {
             using var ms = new System.IO.MemoryStream();
-            await fileStream.CopyToAsync(ms);
-            var path = $"/mem/{++_seq}-{fileName}";
-            _store[path] = ms.ToArray();
-            return path;
+            await content.CopyToAsync(ms, ct);
+            _store[key.Value] = ms.ToArray();
+            return new FundingPlatform.Application.Abstractions.Storage.StoredObject(
+                Container: key.Container, Key: key.Value, SizeBytes: ms.Length,
+                ContentType: contentType, CreatedAt: DateTimeOffset.UtcNow,
+                Provider: FundingPlatform.Application.Abstractions.Storage.StorageProviderName.LocalFilesystem);
         }
 
-        public Task DeleteFileAsync(string storagePath)
+        public Task<System.IO.Stream> OpenReadAsync(
+            FundingPlatform.Application.Abstractions.Storage.FileCategory category,
+            FundingPlatform.Application.Abstractions.Storage.ObjectKey key,
+            CancellationToken ct)
         {
-            _store.Remove(storagePath);
+            if (!_store.TryGetValue(key.Value, out var bytes))
+                throw new FundingPlatform.Application.Abstractions.Storage.ObjectNotFoundException(
+                    key.Container, key.Value);
+            return Task.FromResult<System.IO.Stream>(new System.IO.MemoryStream(bytes));
+        }
+
+        public Task<bool> ExistsAsync(
+            FundingPlatform.Application.Abstractions.Storage.FileCategory category,
+            FundingPlatform.Application.Abstractions.Storage.ObjectKey key,
+            CancellationToken ct) => Task.FromResult(_store.ContainsKey(key.Value));
+
+        public Task DeleteAsync(
+            FundingPlatform.Application.Abstractions.Storage.FileCategory category,
+            FundingPlatform.Application.Abstractions.Storage.ObjectKey key,
+            CancellationToken ct)
+        {
+            _store.Remove(key.Value);
             return Task.CompletedTask;
         }
 
-        public Task<System.IO.Stream> GetFileAsync(string storagePath)
+        public Task<FundingPlatform.Application.Abstractions.Storage.StorageHandle> ResolveServingHandleAsync(
+            FundingPlatform.Application.Abstractions.Storage.FileCategory category,
+            FundingPlatform.Application.Abstractions.Storage.ObjectKey key,
+            FundingPlatform.Application.Abstractions.Storage.ServingMode preferred,
+            CancellationToken ct)
         {
-            if (!_store.TryGetValue(storagePath, out var bytes))
-                throw new FileNotFoundException(storagePath);
-            return Task.FromResult<System.IO.Stream>(new System.IO.MemoryStream(bytes));
+            if (!_store.TryGetValue(key.Value, out var bytes))
+                throw new FundingPlatform.Application.Abstractions.Storage.ObjectNotFoundException(
+                    key.Container, key.Value);
+            return Task.FromResult<FundingPlatform.Application.Abstractions.Storage.StorageHandle>(
+                new FundingPlatform.Application.Abstractions.Storage.BackendStreamHandle(
+                    new System.IO.MemoryStream(bytes), "application/pdf", bytes.Length));
         }
     }
 }

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
 using FundingPlatform.Application.FundingAgreements.Commands;
@@ -30,7 +31,13 @@ public class FundingAgreementController : Controller
     private readonly IApplicationRepository _applicationRepository;
     private readonly IFundingAgreementHtmlRenderer _htmlRenderer;
     private readonly IFundingAgreementPdfRenderer _pdfRenderer;
-    private readonly IFileStorageService _fileStorage;
+    // Spec 014 / T028 — migrated from IFileStorageService. The category for the
+    // generated PDF is SignedFundingAgreement: it's the artefact the applicant
+    // downloads and signs, and it must live alongside the signed copies (FR-013
+    // legal-hold candidate per spec/research notes). Generic generator artefacts
+    // (e.g. quotation PDFs created by other surfaces) belong to GeneratedArtifact;
+    // the funding-agreement document is privileged.
+    private readonly IObjectStorage _objectStorage;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IOptions<FunderOptions> _funderOptions;
     private readonly IOptions<FundingAgreementOptions> _agreementOptions;
@@ -38,6 +45,7 @@ public class FundingAgreementController : Controller
     private readonly ILogger<FundingAgreementController> _logger;
 
     private const string SignedPdfRequiredMessage = "Se requiere un archivo PDF firmado.";
+    private const FileCategory AgreementCategory = FileCategory.SignedFundingAgreement;
 
     public FundingAgreementController(
         FundingAgreementService service,
@@ -45,7 +53,7 @@ public class FundingAgreementController : Controller
         IApplicationRepository applicationRepository,
         IFundingAgreementHtmlRenderer htmlRenderer,
         IFundingAgreementPdfRenderer pdfRenderer,
-        IFileStorageService fileStorage,
+        IObjectStorage objectStorage,
         UserManager<ApplicationUser> userManager,
         IOptions<FunderOptions> funderOptions,
         IOptions<FundingAgreementOptions> agreementOptions,
@@ -57,7 +65,7 @@ public class FundingAgreementController : Controller
         _applicationRepository = applicationRepository;
         _htmlRenderer = htmlRenderer;
         _pdfRenderer = pdfRenderer;
-        _fileStorage = fileStorage;
+        _objectStorage = objectStorage;
         _userManager = userManager;
         _funderOptions = funderOptions;
         _agreementOptions = agreementOptions;
@@ -169,20 +177,42 @@ public class FundingAgreementController : Controller
         }
 
         var fileName = $"FundingAgreement-{application.Id}.pdf";
-        var priorStoragePath = application.FundingAgreement?.StoragePath;
+        var priorBlobKey = application.FundingAgreement?.BlobKey;
 
-        string storagePath;
+        // Spec 014 / T028 — build the canonical ObjectKey from the
+        // signed-funding-agreement aggregate. EntityId is the application id
+        // (the agreement's natural owner); the deterministic suffix is a fresh
+        // GUID for every (re)generation so prior versions remain reachable in
+        // the manifest while the active key gets recorded on the entity.
+        var ownerSegment = application.Applicant?.UserId is { Length: > 0 } applicantUserId
+            ? $"applicants/{applicantUserId}"
+            : "admin";
+        var key = ObjectKey.Build(
+            AgreementCategory,
+            ownerSegment,
+            entityId: application.Id.ToString(),
+            deterministicSuffix: Guid.NewGuid().ToString("N")[..16],
+            extension: ".pdf");
+
+        StoredObject stored;
         using (var pdfStream = new MemoryStream(pdfBytes))
         {
-            storagePath = await _fileStorage.SaveFileAsync(pdfStream, fileName, "application/pdf");
+            stored = await _objectStorage.UploadAsync(
+                AgreementCategory,
+                key,
+                pdfStream,
+                "application/pdf",
+                pdfBytes.LongLength,
+                HttpContext.RequestAborted);
         }
+        var storagePath = stored.Key;
 
         var persist = await _service.PersistGenerationAsync(
             application, userId, fileName, pdfBytes.LongLength, storagePath);
 
         if (!persist.Success)
         {
-            try { await _fileStorage.DeleteFileAsync(storagePath); }
+            try { await _objectStorage.DeleteAsync(AgreementCategory, key, HttpContext.RequestAborted); }
             catch (Exception cleanupEx)
             {
                 _logger.LogError(cleanupEx,
@@ -205,14 +235,27 @@ public class FundingAgreementController : Controller
             return RedirectToRoute(new { controller = "FundingAgreement", action = "Details", applicationId });
         }
 
-        if (!string.IsNullOrWhiteSpace(priorStoragePath))
+        // Record the canonical blob key on the agreement entity so downstream
+        // consumers (download, regeneration, migration tool) can resolve it.
+        if (application.FundingAgreement is not null)
         {
-            try { await _fileStorage.DeleteFileAsync(priorStoragePath); }
+            application.FundingAgreement.RecordBlob(stored.Key);
+            await _applicationRepository.UpdateAsync(application);
+            await _applicationRepository.SaveChangesAsync();
+        }
+
+        if (!string.IsNullOrWhiteSpace(priorBlobKey) && priorBlobKey != stored.Key)
+        {
+            try
+            {
+                var prior = ObjectKey.Parse(priorBlobKey);
+                await _objectStorage.DeleteAsync(AgreementCategory, prior, HttpContext.RequestAborted);
+            }
             catch (Exception cleanupEx)
             {
                 _logger.LogWarning(cleanupEx,
-                    "Failed to delete prior funding agreement file. storagePath={StoragePath}",
-                    priorStoragePath);
+                    "Failed to delete prior funding agreement blob. blobKey={BlobKey}",
+                    priorBlobKey);
             }
         }
 
@@ -261,9 +304,43 @@ public class FundingAgreementController : Controller
         await _applicationRepository.UpdateAsync(application);
         await _applicationRepository.SaveChangesAsync();
 
-        var stream = await _fileStorage.GetFileAsync(agreement.StoragePath);
+        // Spec 014 / T028 — resolve via IObjectStorage.ResolveServingHandleAsync.
+        // Default ServingMode.BackendStream so the application boundary remains
+        // the only authorisation point (FR-018); SAS URLs are never emitted to
+        // applicants for the agreement category.
+        var rawKey = agreement.BlobKey ?? agreement.StoragePath;
+        ObjectKey key;
+        try
+        {
+            key = ObjectKey.Parse(rawKey);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex,
+                "Funding agreement download could not parse storage key '{RawKey}' as ObjectKey. " +
+                "Pre-014 rows are owned by the migration tool (T040).",
+                rawKey);
+            return NotFound();
+        }
+
+        BackendStreamHandle backendHandle;
+        try
+        {
+            var handle = await _objectStorage.ResolveServingHandleAsync(
+                AgreementCategory,
+                key,
+                ServingMode.BackendStream,
+                HttpContext.RequestAborted);
+            backendHandle = (BackendStreamHandle)handle;
+        }
+        catch (ObjectNotFoundException)
+        {
+            LogUnauthorized(applicationId, "Download", "blob-missing");
+            return NotFound();
+        }
+
         Response.Headers.CacheControl = "private, no-cache";
-        return File(stream, agreement.ContentType,
+        return File(backendHandle.Content, agreement.ContentType,
             fileDownloadName: $"FundingAgreement-{application.Id}.pdf");
     }
 

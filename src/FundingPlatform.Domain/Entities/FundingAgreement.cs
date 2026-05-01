@@ -12,6 +12,13 @@ public class FundingAgreement
     public string ContentType { get; private set; } = string.Empty;
     public long Size { get; private set; }
     public string StoragePath { get; private set; } = string.Empty;
+
+    /// <summary>Spec 014 / T029 — canonical object-storage key for the generated PDF.</summary>
+    public string? BlobKey { get; private set; }
+
+    /// <summary>Spec 014 / T029 — pre-014 absolute filesystem path (backfilled).</summary>
+    public string? LegacyPath { get; private set; }
+
     public DateTime GeneratedAtUtc { get; private set; }
     public string GeneratedByUserId { get; private set; } = string.Empty;
     public int GeneratedVersion { get; private set; } = 1;
@@ -66,6 +73,17 @@ public class FundingAgreement
         GeneratedAtUtc = DateTime.UtcNow;
         GeneratedByUserId = regeneratingUserId;
         GeneratedVersion++;
+    }
+
+    /// <summary>
+    /// Spec 014 / T029 — record the canonical object-storage key for the generated PDF.
+    /// Behavior method per Constitution Principle II.
+    /// </summary>
+    public void RecordBlob(string blobKey)
+    {
+        if (string.IsNullOrWhiteSpace(blobKey))
+            throw new InvalidOperationException("RecordBlob requires a non-empty blob key.");
+        BlobKey = blobKey;
     }
 
     internal SignedUpload AcceptSignedUpload(

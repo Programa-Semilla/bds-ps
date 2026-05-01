@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
 using FundingPlatform.Application.Interfaces;
@@ -37,20 +38,26 @@ public class SignedUploadService
 
     private readonly IApplicationRepository _applicationRepository;
     private readonly ISignedUploadRepository _signedUploadRepository;
-    private readonly IFileStorageService _fileStorage;
+    // Spec 014 / T028 — signed PDFs stream through IObjectStorage with the
+    // SignedFundingAgreement category. The legacy IFileStorageService dependency
+    // is gone from this service; controllers, services, and the migration tool
+    // converge on the same port.
+    private readonly IObjectStorage _objectStorage;
     private readonly IOptions<SignedUploadOptions> _options;
     private readonly ILogger<SignedUploadService> _logger;
+
+    private const FileCategory SignedCategory = FileCategory.SignedFundingAgreement;
 
     public SignedUploadService(
         IApplicationRepository applicationRepository,
         ISignedUploadRepository signedUploadRepository,
-        IFileStorageService fileStorage,
+        IObjectStorage objectStorage,
         IOptions<SignedUploadOptions> options,
         ILogger<SignedUploadService> logger)
     {
         _applicationRepository = applicationRepository;
         _signedUploadRepository = signedUploadRepository;
-        _fileStorage = fileStorage;
+        _objectStorage = objectStorage;
         _options = options;
         _logger = logger;
     }
@@ -178,7 +185,14 @@ public class SignedUploadService
             return Validation(UserFacingErrorCode.SignedUploadAlreadyPending);
 
         command.Content.Position = 0;
-        var storagePath = await _fileStorage.SaveFileAsync(command.Content, command.FileName, command.ContentType);
+        // Spec 014 / T028 — signed PDF -> SignedFundingAgreement container.
+        // OwnerSegment is the applicant's authenticated user id; entity id is the
+        // funding-agreement id (the natural parent aggregate).
+        var key = BuildSignedKey(application, command.UserId, command.FileName);
+        var stored = await _objectStorage.UploadAsync(
+            SignedCategory, key, command.Content, command.ContentType,
+            command.Size, CancellationToken.None);
+        var storagePath = stored.Key;
 
         try
         {
@@ -191,10 +205,12 @@ public class SignedUploadService
                     command.FileName,
                     command.Size,
                     storagePath);
+                // T029 — record the canonical blob key on the new upload entity.
+                upload.RecordBlob(stored.Key);
             }
             catch (InvalidOperationException ex)
             {
-                await TryDeleteAsync(storagePath);
+                await TryDeleteAsync(key);
                 return ValidationFromDomain(ex.Message);
             }
 
@@ -220,12 +236,12 @@ public class SignedUploadService
         }
         catch (Exception ex) when (IsConcurrencyException(ex))
         {
-            await TryDeleteAsync(storagePath);
+            await TryDeleteAsync(key);
             return Conflict();
         }
         catch
         {
-            await TryDeleteAsync(storagePath);
+            await TryDeleteAsync(key);
             throw;
         }
     }
@@ -253,7 +269,11 @@ public class SignedUploadService
             return Validation(UserFacingErrorCode.SignedUploadStaleAgreementVersion);
 
         command.Content.Position = 0;
-        var storagePath = await _fileStorage.SaveFileAsync(command.Content, command.FileName, command.ContentType);
+        var key = BuildSignedKey(application, command.UserId, command.FileName);
+        var stored = await _objectStorage.UploadAsync(
+            SignedCategory, key, command.Content, command.ContentType,
+            command.Size, CancellationToken.None);
+        var storagePath = stored.Key;
 
         try
         {
@@ -267,10 +287,11 @@ public class SignedUploadService
                     command.FileName,
                     command.Size,
                     storagePath);
+                newUpload.RecordBlob(stored.Key);
             }
             catch (InvalidOperationException ex)
             {
-                await TryDeleteAsync(storagePath);
+                await TryDeleteAsync(key);
                 return ValidationFromDomain(ex.Message);
             }
 
@@ -291,12 +312,12 @@ public class SignedUploadService
         }
         catch (Exception ex) when (IsConcurrencyException(ex))
         {
-            await TryDeleteAsync(storagePath);
+            await TryDeleteAsync(key);
             return Conflict();
         }
         catch
         {
-            await TryDeleteAsync(storagePath);
+            await TryDeleteAsync(key);
             throw;
         }
     }
@@ -453,7 +474,32 @@ public class SignedUploadService
         if (upload is null)
             return new SignedAgreementStreamResult(false, null, null, null);
 
-        var stream = await _fileStorage.GetFileAsync(upload.StoragePath);
+        // Spec 014 / T028 — read via IObjectStorage. BlobKey is preferred (post-014 rows);
+        // legacy StoragePath rows are owned by the migration tool (T040).
+        var rawKey = upload.BlobKey ?? upload.StoragePath;
+        ObjectKey readKey;
+        try
+        {
+            readKey = ObjectKey.Parse(rawKey);
+        }
+        catch (ArgumentException)
+        {
+            _logger.LogWarning(
+                "Signed upload {SignedUploadId} could not be parsed as a canonical ObjectKey; " +
+                "value='{RawKey}'. Run the storage migration tool (T040) before serving.",
+                upload.Id, rawKey);
+            return new SignedAgreementStreamResult(false, null, null, null);
+        }
+
+        Stream stream;
+        try
+        {
+            stream = await _objectStorage.OpenReadAsync(SignedCategory, readKey, CancellationToken.None);
+        }
+        catch (ObjectNotFoundException)
+        {
+            return new SignedAgreementStreamResult(false, null, null, null);
+        }
         return new SignedAgreementStreamResult(true, stream, upload.FileName, upload.ContentType);
     }
 
@@ -508,15 +554,30 @@ public class SignedUploadService
         return null;
     }
 
-    private async Task TryDeleteAsync(string storagePath)
+    private async Task TryDeleteAsync(ObjectKey key)
     {
-        try { await _fileStorage.DeleteFileAsync(storagePath); }
+        try { await _objectStorage.DeleteAsync(SignedCategory, key, CancellationToken.None); }
         catch (Exception ex)
         {
             _logger.LogWarning(ex,
-                "Failed to clean up signed-upload file after persistence failure. storagePath={StoragePath}",
-                storagePath);
+                "Failed to clean up signed-upload blob after persistence failure. blobKey={BlobKey}",
+                key.Value);
         }
+    }
+
+    private static ObjectKey BuildSignedKey(AppEntity application, string uploaderUserId, string fileName)
+    {
+        var ownerSegment = string.IsNullOrWhiteSpace(uploaderUserId)
+            ? "applicants/unknown"
+            : $"applicants/{uploaderUserId}";
+        var ext = System.IO.Path.GetExtension(fileName);
+        if (string.IsNullOrWhiteSpace(ext)) ext = ".pdf";
+        return ObjectKey.Build(
+            FileCategory.SignedFundingAgreement,
+            ownerSegment,
+            entityId: application.FundingAgreement!.Id.ToString(),
+            deterministicSuffix: Guid.NewGuid().ToString("N")[..16],
+            extension: ext);
     }
 
     private static bool IsConcurrencyException(Exception ex) =>

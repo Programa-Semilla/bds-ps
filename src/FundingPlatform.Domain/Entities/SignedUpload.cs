@@ -12,6 +12,21 @@ public class SignedUpload
     public string ContentType { get; private set; } = "application/pdf";
     public long Size { get; private set; }
     public string StoragePath { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Spec 014 / T029 — canonical <c>ObjectKey</c> string for the signed PDF in the
+    /// configured object storage backend. Nullable while the migration is in flight;
+    /// once <see cref="LegacyPath"/> is null and <see cref="BlobKey"/> is non-null,
+    /// the row has been fully migrated. New rows set this on creation.
+    /// </summary>
+    public string? BlobKey { get; private set; }
+
+    /// <summary>
+    /// Spec 014 / T029 — pre-014 absolute filesystem path. Populated by the
+    /// post-deploy backfill script for rows that existed before the migration.
+    /// </summary>
+    public string? LegacyPath { get; private set; }
+
     public DateTime UploadedAtUtc { get; private set; }
     public SignedUploadStatus Status { get; private set; } = SignedUploadStatus.Pending;
     public byte[] RowVersion { get; private set; } = [];
@@ -39,6 +54,20 @@ public class SignedUpload
         StoragePath = storagePath;
         UploadedAtUtc = DateTime.UtcNow;
         Status = SignedUploadStatus.Pending;
+    }
+
+    /// <summary>
+    /// Spec 014 / T029 — record the canonical object-storage key for this signed upload.
+    /// Behavior method (Constitution Principle II) so the column is encapsulated rather
+    /// than set via a public setter. The key is validated by the value object before being
+    /// flattened to its string form for persistence; we accept the value object so callers
+    /// cannot smuggle an arbitrary string in.
+    /// </summary>
+    public void RecordBlob(string blobKey)
+    {
+        if (string.IsNullOrWhiteSpace(blobKey))
+            throw new InvalidOperationException("RecordBlob requires a non-empty blob key.");
+        BlobKey = blobKey;
     }
 
     internal void MarkSuperseded() => Transition(SignedUploadStatus.Superseded);
