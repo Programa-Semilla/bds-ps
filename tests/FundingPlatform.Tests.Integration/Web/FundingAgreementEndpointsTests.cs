@@ -46,7 +46,7 @@ public class FundingAgreementEndpointsTests
             Assert.That(application, Is.Not.Null);
 
             var result = await service.PersistGenerationAsync(
-                application!, "admin-user", "agreement.pdf", size: 1024, storagePath: "/store/agreement.pdf");
+                application!, "admin-user", "agreement.pdf", size: 1024, blobKey: "/store/agreement.pdf");
 
             Assert.That(result.Success, Is.True);
             Assert.That(result.Agreement, Is.Not.Null);
@@ -460,7 +460,7 @@ public class FundingAgreementEndpointsTests
             Assert.That(agreements, Has.Count.EqualTo(1), "Regeneration must mutate, not duplicate.");
             Assert.That(agreements[0].FileName, Is.EqualTo("b.pdf"));
             Assert.That(agreements[0].Size, Is.EqualTo(200));
-            Assert.That(agreements[0].StoragePath, Is.EqualTo("/store/b.pdf"));
+            Assert.That(agreements[0].BlobKey, Is.EqualTo("/store/b.pdf"));
             Assert.That(agreements[0].GeneratedByUserId, Is.EqualTo("reviewer-1"));
             Assert.That(agreements[0].GeneratedAtUtc, Is.GreaterThanOrEqualTo(originalGeneratedAt));
         }

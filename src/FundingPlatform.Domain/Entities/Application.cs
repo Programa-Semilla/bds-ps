@@ -386,7 +386,7 @@ public class Application
         string fileName,
         string contentType,
         long size,
-        string storagePath,
+        string blobKey,
         string generatingUserId)
     {
         if (!CanGenerateFundingAgreement(out var errors))
@@ -406,7 +406,7 @@ public class Application
             fileName,
             contentType,
             size,
-            storagePath,
+            blobKey,
             generatingUserId);
         UpdatedAt = DateTime.UtcNow;
 
@@ -421,7 +421,7 @@ public class Application
         string fileName,
         string contentType,
         long size,
-        string storagePath,
+        string blobKey,
         string regeneratingUserId)
     {
         if (!CanRegenerateFundingAgreement(out var errors))
@@ -430,7 +430,7 @@ public class Application
                 $"Cannot regenerate Funding Agreement: {string.Join(" ", errors)}");
         }
 
-        _fundingAgreement!.Replace(fileName, contentType, size, storagePath, regeneratingUserId);
+        _fundingAgreement!.Replace(fileName, contentType, size, blobKey, regeneratingUserId);
         UpdatedAt = DateTime.UtcNow;
 
         return _fundingAgreement;
@@ -528,7 +528,7 @@ public class Application
         int generatedVersionAtUpload,
         string fileName,
         long size,
-        string storagePath)
+        string blobKey)
     {
         var agreement = _fundingAgreement
             ?? throw new InvalidOperationException("Cannot submit signed upload: no Funding Agreement exists.");
@@ -538,7 +538,7 @@ public class Application
                 $"Cannot submit signed upload: application is in '{State}' state, expected 'ResponseFinalized'.");
 
         var upload = agreement.AcceptSignedUpload(
-            uploaderUserId, generatedVersionAtUpload, fileName, size, storagePath);
+            uploaderUserId, generatedVersionAtUpload, fileName, size, blobKey);
         UpdatedAt = DateTime.UtcNow;
         return upload;
     }
@@ -551,7 +551,7 @@ public class Application
         int generatedVersionAtUpload,
         string fileName,
         long size,
-        string storagePath)
+        string blobKey)
     {
         var agreement = _fundingAgreement
             ?? throw new InvalidOperationException("Cannot replace signed upload: no Funding Agreement exists.");
@@ -561,7 +561,7 @@ public class Application
                 $"Cannot replace signed upload: application is in '{State}' state, expected 'ResponseFinalized'.");
 
         var upload = agreement.ReplacePendingUpload(
-            uploaderUserId, generatedVersionAtUpload, fileName, size, storagePath);
+            uploaderUserId, generatedVersionAtUpload, fileName, size, blobKey);
         UpdatedAt = DateTime.UtcNow;
         return upload;
     }

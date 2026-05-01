@@ -36,7 +36,7 @@ public class FundingAgreementPersistenceTests
                 fileName: "agreement.pdf",
                 contentType: "application/pdf",
                 size: 1024,
-                storagePath: "/store/agreement.pdf",
+                blobKey: "/store/agreement.pdf",
                 generatingUserId: "admin-user");
 
             await ctx.SaveChangesAsync();
@@ -52,7 +52,7 @@ public class FundingAgreementPersistenceTests
             Assert.That(loaded.FundingAgreement!.FileName, Is.EqualTo("agreement.pdf"));
             Assert.That(loaded.FundingAgreement!.ContentType, Is.EqualTo("application/pdf"));
             Assert.That(loaded.FundingAgreement!.Size, Is.EqualTo(1024));
-            Assert.That(loaded.FundingAgreement!.StoragePath, Is.EqualTo("/store/agreement.pdf"));
+            Assert.That(loaded.FundingAgreement!.BlobKey, Is.EqualTo("/store/agreement.pdf"));
             Assert.That(loaded.FundingAgreement!.GeneratedByUserId, Is.EqualTo("admin-user"));
         }
     }

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Azure.Storage.Blobs;
 using FundingPlatform.Tests.E2E.Constants;
 using FundingPlatform.Tests.E2E.PageObjects;
 using Microsoft.Playwright;
@@ -14,6 +15,13 @@ public class AuthenticatedTestBase : PageTest
 
     protected string BaseUrl => _fixture.BaseUrl;
     protected string ConnectionString => _fixture.ConnectionString;
+
+    /// <summary>
+    /// Spec 014 — exposes a configured <see cref="BlobServiceClient"/> so tests/seeders
+    /// can write placeholder blobs to Azurite at the same canonical keys recorded on
+    /// the seeded SQL rows. Returns null when the fixture fell back to filesystem mode.
+    /// </summary>
+    protected BlobServiceClient? CreateBlobServiceClient() => _fixture.CreateBlobServiceClient();
 
     public override BrowserNewContextOptions ContextOptions()
     {

@@ -20,7 +20,6 @@ public class FundingAgreementConfiguration : IEntityTypeConfiguration<FundingAgr
         builder.Property(f => f.FileName).IsRequired().HasMaxLength(260);
         builder.Property(f => f.ContentType).IsRequired().HasMaxLength(100);
         builder.Property(f => f.Size).IsRequired();
-        builder.Property(f => f.StoragePath).IsRequired().HasMaxLength(500);
         // Spec 014 — canonical object-storage key, always populated on insert.
         builder.Property(f => f.BlobKey).IsRequired().HasMaxLength(1024);
         builder.Property(f => f.GeneratedAtUtc).IsRequired();

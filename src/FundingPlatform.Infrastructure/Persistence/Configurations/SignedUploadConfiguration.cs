@@ -18,7 +18,6 @@ public class SignedUploadConfiguration : IEntityTypeConfiguration<SignedUpload>
         builder.Property(u => u.FileName).IsRequired().HasMaxLength(260);
         builder.Property(u => u.ContentType).IsRequired().HasMaxLength(100);
         builder.Property(u => u.Size).IsRequired();
-        builder.Property(u => u.StoragePath).IsRequired().HasMaxLength(1024);
         // Spec 014 — canonical object-storage key, always populated on insert.
         builder.Property(u => u.BlobKey).IsRequired().HasMaxLength(1024);
         builder.Property(u => u.UploadedAtUtc).IsRequired();

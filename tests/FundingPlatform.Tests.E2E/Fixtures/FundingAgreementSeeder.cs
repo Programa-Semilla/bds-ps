@@ -1,3 +1,4 @@
+using Azure.Storage.Blobs;
 using Microsoft.Data.SqlClient;
 
 namespace FundingPlatform.Tests.E2E.Fixtures;
@@ -8,39 +9,52 @@ namespace FundingPlatform.Tests.E2E.Fixtures;
 /// ResponseFinalized-plus-agreement or AgreementExecuted starting state but cannot rely
 /// on a Syncfusion license being present in the test environment.
 ///
-/// The Web app runs in-process from the repo (not containerized), so a placeholder file
-/// written to a process-accessible path (e.g. /tmp) is reachable by the file-storage
-/// service via its <c>File.OpenRead(StoragePath)</c> path.
+/// Spec 014: rows reference a canonical <c>BlobKey</c> in the format
+/// <c>{container}/{owner-segment}/{entity-id}/{suffix}.pdf</c>. When a
+/// <see cref="BlobServiceClient"/> is provided, a placeholder PDF is uploaded to that
+/// key inside Azurite so download paths backed by <c>IObjectStorage</c> resolve.
 /// </summary>
 public static class FundingAgreementSeeder
 {
+    private const string GeneratedArtifactsContainer = "generated-artifacts";
+    private const string SignedFundingAgreementsContainer = "signed-funding-agreements";
+
     private static readonly byte[] PlaceholderPdfBytes =
         System.Text.Encoding.UTF8.GetBytes("%PDF-1.4\nseeded placeholder\n%%EOF\n");
 
     /// <summary>
     /// Inserts a FundingAgreement row for the given application (if none exists yet)
-    /// and writes a placeholder PDF file at an OS temp path. Returns the storage path.
+    /// and optionally uploads a placeholder PDF to Azurite at the canonical blob key.
+    /// Returns the persisted blob key.
     /// </summary>
     public static async Task<string> SeedGeneratedAgreementAsync(
-        string connectionString, int applicationId, string generatedByUserEmail)
+        string connectionString,
+        int applicationId,
+        string generatedByUserEmail,
+        BlobServiceClient? blobs = null)
     {
         using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync();
 
-        // Idempotent: if an agreement already exists for this application, return its path.
-        var existingPath = await TryGetAgreementStoragePathAsync(conn, applicationId);
-        if (existingPath is not null) return existingPath;
-
-        var pdfPath = Path.Combine(Path.GetTempPath(), $"fa-seed-{Guid.NewGuid():N}.pdf");
-        await File.WriteAllBytesAsync(pdfPath, PlaceholderPdfBytes);
+        // Idempotent: if an agreement already exists for this application, return its key.
+        var existingKey = await TryGetAgreementBlobKeyAsync(conn, applicationId);
+        if (existingKey is not null) return existingKey;
 
         var userId = await GetUserIdByEmailAsync(conn, generatedByUserEmail);
+        var applicantUserId = await GetApplicantUserIdByApplicationAsync(conn, applicationId);
+
+        var blobKey = BuildBlobKey(
+            container: GeneratedArtifactsContainer,
+            ownerUserId: applicantUserId,
+            entityId: applicationId.ToString());
+
+        await TryUploadPlaceholderAsync(blobs, GeneratedArtifactsContainer, blobKey);
 
         const string sql = @"
 INSERT INTO dbo.FundingAgreements
-    (ApplicationId, FileName, ContentType, Size, StoragePath, GeneratedAtUtc, GeneratedByUserId, GeneratedVersion)
+    (ApplicationId, FileName, ContentType, Size, BlobKey, GeneratedAtUtc, GeneratedByUserId, GeneratedVersion)
 VALUES
-    (@appId, @fileName, @contentType, @size, @storagePath, @generatedAt, @userId, 1);
+    (@appId, @fileName, @contentType, @size, @blobKey, @generatedAt, @userId, 1);
 SELECT SCOPE_IDENTITY();";
 
         using var cmd = new SqlCommand(sql, conn);
@@ -48,30 +62,28 @@ SELECT SCOPE_IDENTITY();";
         cmd.Parameters.AddWithValue("@fileName", $"FundingAgreement-{applicationId}.pdf");
         cmd.Parameters.AddWithValue("@contentType", "application/pdf");
         cmd.Parameters.AddWithValue("@size", PlaceholderPdfBytes.LongLength);
-        cmd.Parameters.AddWithValue("@storagePath", pdfPath);
+        cmd.Parameters.AddWithValue("@blobKey", blobKey);
         cmd.Parameters.AddWithValue("@generatedAt", DateTime.UtcNow);
         cmd.Parameters.AddWithValue("@userId", userId);
 
         await cmd.ExecuteScalarAsync();
-        return pdfPath;
+        return blobKey;
     }
 
     /// <summary>
     /// Extends <see cref="SeedGeneratedAgreementAsync"/> by inserting an Approved signed
     /// upload with a decision row and flipping the application state to AgreementExecuted (6).
-    /// Returns the signed-upload storage path.
+    /// Returns the signed-upload blob key.
     /// </summary>
     public static async Task<string> SeedExecutedAgreementAsync(
         string connectionString,
         int applicationId,
         string generatedByUserEmail,
         string applicantUserEmail,
-        string reviewerUserEmail)
+        string reviewerUserEmail,
+        BlobServiceClient? blobs = null)
     {
-        await SeedGeneratedAgreementAsync(connectionString, applicationId, generatedByUserEmail);
-
-        var signedPdfPath = Path.Combine(Path.GetTempPath(), $"fa-signed-seed-{Guid.NewGuid():N}.pdf");
-        await File.WriteAllBytesAsync(signedPdfPath, PlaceholderPdfBytes);
+        await SeedGeneratedAgreementAsync(connectionString, applicationId, generatedByUserEmail, blobs);
 
         using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync();
@@ -80,12 +92,19 @@ SELECT SCOPE_IDENTITY();";
         var reviewerUserId = await GetUserIdByEmailAsync(conn, reviewerUserEmail);
         var agreementId = await GetFundingAgreementIdAsync(conn, applicationId);
 
+        var signedBlobKey = BuildBlobKey(
+            container: SignedFundingAgreementsContainer,
+            ownerUserId: applicantUserId,
+            entityId: agreementId.ToString());
+
+        await TryUploadPlaceholderAsync(blobs, SignedFundingAgreementsContainer, signedBlobKey);
+
         // Status = 4 (Approved) per SignedUploadStatus enum.
         const string insertUploadSql = @"
 INSERT INTO dbo.SignedUploads
-    (FundingAgreementId, UploaderUserId, GeneratedVersionAtUpload, FileName, ContentType, Size, StoragePath, UploadedAtUtc, Status)
+    (FundingAgreementId, UploaderUserId, GeneratedVersionAtUpload, FileName, ContentType, Size, BlobKey, UploadedAtUtc, Status)
 VALUES
-    (@agreementId, @uploaderUserId, 1, @fileName, 'application/pdf', @size, @storagePath, @uploadedAt, 4);
+    (@agreementId, @uploaderUserId, 1, @fileName, 'application/pdf', @size, @blobKey, @uploadedAt, 4);
 SELECT SCOPE_IDENTITY();";
 
         int uploadId;
@@ -95,7 +114,7 @@ SELECT SCOPE_IDENTITY();";
             cmd.Parameters.AddWithValue("@uploaderUserId", applicantUserId);
             cmd.Parameters.AddWithValue("@fileName", $"signed-{applicationId}.pdf");
             cmd.Parameters.AddWithValue("@size", PlaceholderPdfBytes.LongLength);
-            cmd.Parameters.AddWithValue("@storagePath", signedPdfPath);
+            cmd.Parameters.AddWithValue("@blobKey", signedBlobKey);
             cmd.Parameters.AddWithValue("@uploadedAt", DateTime.UtcNow);
             var scalar = await cmd.ExecuteScalarAsync();
             uploadId = Convert.ToInt32(scalar);
@@ -125,7 +144,7 @@ UPDATE dbo.Applications SET State = 6, UpdatedAt = @now WHERE Id = @appId;";
             await cmd.ExecuteNonQueryAsync();
         }
 
-        return signedPdfPath;
+        return signedBlobKey;
     }
 
     /// <summary>
@@ -134,7 +153,9 @@ UPDATE dbo.Applications SET State = 6, UpdatedAt = @now WHERE Id = @appId;";
     /// neutralize queue rows seeded by sibling test classes (ApplicantResponseTests,
     /// FinalizeReviewTests) that share the same per-fixture SQL container.
     /// </summary>
-    public static async Task ClearGenerateAgreementQueueAsync(string connectionString)
+    public static async Task ClearGenerateAgreementQueueAsync(
+        string connectionString,
+        BlobServiceClient? blobs = null)
     {
         using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync();
@@ -169,30 +190,75 @@ WHERE a.State = 5 AND fa.Id IS NULL";
 
         const string insertSql = @"
 INSERT INTO dbo.FundingAgreements
-    (ApplicationId, FileName, ContentType, Size, StoragePath, GeneratedAtUtc, GeneratedByUserId, GeneratedVersion)
+    (ApplicationId, FileName, ContentType, Size, BlobKey, GeneratedAtUtc, GeneratedByUserId, GeneratedVersion)
 VALUES
-    (@appId, @fileName, 'application/pdf', @size, @storagePath, @generatedAt, @userId, 1)";
+    (@appId, @fileName, 'application/pdf', @size, @blobKey, @generatedAt, @userId, 1)";
 
         foreach (var appId in pendingIds)
         {
-            var pdfPath = Path.Combine(Path.GetTempPath(), $"fa-queue-clear-{Guid.NewGuid():N}.pdf");
-            await File.WriteAllBytesAsync(pdfPath, PlaceholderPdfBytes);
+            // Owner segment falls back to the placeholder GeneratedBy user id when the
+            // applicant user id is missing — this row only exists to neutralize queue
+            // visibility, not to be downloaded, so the lookup is best-effort.
+            var applicantUserId = await TryGetApplicantUserIdByApplicationAsync(conn, appId)
+                ?? anyUserId;
+
+            var blobKey = BuildBlobKey(
+                container: GeneratedArtifactsContainer,
+                ownerUserId: applicantUserId,
+                entityId: appId.ToString());
+
+            await TryUploadPlaceholderAsync(blobs, GeneratedArtifactsContainer, blobKey);
 
             using var cmd = new SqlCommand(insertSql, conn);
             cmd.Parameters.AddWithValue("@appId", appId);
             cmd.Parameters.AddWithValue("@fileName", $"FundingAgreement-{appId}.pdf");
             cmd.Parameters.AddWithValue("@size", PlaceholderPdfBytes.LongLength);
-            cmd.Parameters.AddWithValue("@storagePath", pdfPath);
+            cmd.Parameters.AddWithValue("@blobKey", blobKey);
             cmd.Parameters.AddWithValue("@generatedAt", DateTime.UtcNow);
             cmd.Parameters.AddWithValue("@userId", anyUserId);
             await cmd.ExecuteNonQueryAsync();
         }
     }
 
-    private static async Task<string?> TryGetAgreementStoragePathAsync(SqlConnection conn, int applicationId)
+    /// <summary>
+    /// Builds a deterministic blob key in the FR-014 canonical shape:
+    /// <c>{container}/applicants/{owner-user-id}/{entity-id}/{guid-N}.pdf</c>. All
+    /// segments are lower-cased so the result round-trips through <c>ObjectKey.Parse</c>.
+    /// </summary>
+    private static string BuildBlobKey(string container, string ownerUserId, string entityId)
+    {
+        var owner = ownerUserId.Trim().ToLowerInvariant();
+        var entity = entityId.Trim().ToLowerInvariant();
+        var suffix = Guid.NewGuid().ToString("N");
+        return $"{container}/applicants/{owner}/{entity}/{suffix}.pdf";
+    }
+
+    private static async Task TryUploadPlaceholderAsync(
+        BlobServiceClient? blobs,
+        string containerName,
+        string blobKey)
+    {
+        if (blobs is null) return;
+
+        var container = blobs.GetBlobContainerClient(containerName);
+        await container.CreateIfNotExistsAsync();
+
+        // Strip the leading container segment from the key — Azure SDK addresses blobs
+        // by their name within the container, not by the full canonical key string.
+        var prefix = containerName + "/";
+        var blobName = blobKey.StartsWith(prefix, StringComparison.Ordinal)
+            ? blobKey[prefix.Length..]
+            : blobKey;
+
+        var blob = container.GetBlobClient(blobName);
+        using var stream = new MemoryStream(PlaceholderPdfBytes);
+        await blob.UploadAsync(stream, overwrite: true);
+    }
+
+    private static async Task<string?> TryGetAgreementBlobKeyAsync(SqlConnection conn, int applicationId)
     {
         using var cmd = new SqlCommand(
-            "SELECT StoragePath FROM dbo.FundingAgreements WHERE ApplicationId = @appId", conn);
+            "SELECT BlobKey FROM dbo.FundingAgreements WHERE ApplicationId = @appId", conn);
         cmd.Parameters.AddWithValue("@appId", applicationId);
         var result = await cmd.ExecuteScalarAsync();
         return result is null || result == DBNull.Value ? null : (string)result;
@@ -207,6 +273,26 @@ VALUES
         if (result is null || result == DBNull.Value)
             throw new InvalidOperationException($"User not found by email: {email}");
         return (string)result;
+    }
+
+    private static async Task<string> GetApplicantUserIdByApplicationAsync(SqlConnection conn, int applicationId)
+    {
+        var userId = await TryGetApplicantUserIdByApplicationAsync(conn, applicationId);
+        if (userId is null)
+            throw new InvalidOperationException($"Applicant user id not found for application {applicationId}");
+        return userId;
+    }
+
+    private static async Task<string?> TryGetApplicantUserIdByApplicationAsync(SqlConnection conn, int applicationId)
+    {
+        using var cmd = new SqlCommand(
+            @"SELECT ap.UserId
+              FROM dbo.Applications a
+              INNER JOIN dbo.Applicants ap ON ap.Id = a.ApplicantId
+              WHERE a.Id = @appId", conn);
+        cmd.Parameters.AddWithValue("@appId", applicationId);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is null || result == DBNull.Value ? null : (string)result;
     }
 
     private static async Task<int> GetFundingAgreementIdAsync(SqlConnection conn, int applicationId)

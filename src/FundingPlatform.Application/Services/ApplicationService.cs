@@ -242,10 +242,8 @@ public class ApplicationService
         var key = BuildQuotationKey(application, fileName);
         var stored = await _objectStorage.UploadAsync(
             QuotationCategory, key, fileStream, contentType, fileSize, CancellationToken.None);
-        var storagePath = stored.Key;
 
-        var document = new Document(fileName, storagePath, fileSize, contentType);
-        document.RecordBlob(stored.Key);
+        var document = new Document(fileName, stored.Key, fileSize, contentType);
         await _documentRepository.AddAsync(document);
         await _applicationRepository.SaveChangesAsync();
 
@@ -283,10 +281,8 @@ public class ApplicationService
         var newKey = BuildQuotationKey(application, cmd.FileName);
         var stored = await _objectStorage.UploadAsync(
             QuotationCategory, newKey, fileStream, cmd.FileContentType, cmd.FileSize, CancellationToken.None);
-        var storagePath = stored.Key;
 
-        var newDocument = new Document(cmd.FileName, storagePath, cmd.FileSize, cmd.FileContentType);
-        newDocument.RecordBlob(stored.Key);
+        var newDocument = new Document(cmd.FileName, stored.Key, cmd.FileSize, cmd.FileContentType);
         await _documentRepository.AddAsync(newDocument);
         await _applicationRepository.SaveChangesAsync();
 

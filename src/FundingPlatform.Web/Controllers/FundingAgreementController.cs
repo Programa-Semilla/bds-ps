@@ -206,10 +206,9 @@ public class FundingAgreementController : Controller
                 pdfBytes.LongLength,
                 HttpContext.RequestAborted);
         }
-        var storagePath = stored.Key;
 
         var persist = await _service.PersistGenerationAsync(
-            application, userId, fileName, pdfBytes.LongLength, storagePath);
+            application, userId, fileName, pdfBytes.LongLength, stored.Key);
 
         if (!persist.Success)
         {
@@ -217,8 +216,8 @@ public class FundingAgreementController : Controller
             catch (Exception cleanupEx)
             {
                 _logger.LogError(cleanupEx,
-                    "Failed to clean up orphaned PDF after persistence failure. storagePath={StoragePath}",
-                    storagePath);
+                    "Failed to clean up orphaned PDF after persistence failure. blobKey={BlobKey}",
+                    stored.Key);
             }
 
             var firstError = persist.Errors.FirstOrDefault();
@@ -234,15 +233,6 @@ public class FundingAgreementController : Controller
                 ? _errorTranslator.Translate(UserFacingErrorCode.AgreementGenerationFailed)
                 : _errorTranslator.Translate(firstError);
             return RedirectToRoute(new { controller = "FundingAgreement", action = "Details", applicationId });
-        }
-
-        // Record the canonical blob key on the agreement entity so downstream
-        // consumers (download, regeneration, migration tool) can resolve it.
-        if (application.FundingAgreement is not null)
-        {
-            application.FundingAgreement.RecordBlob(stored.Key);
-            await _applicationRepository.UpdateAsync(application);
-            await _applicationRepository.SaveChangesAsync();
         }
 
         if (!string.IsNullOrWhiteSpace(priorBlobKey) && priorBlobKey != stored.Key)

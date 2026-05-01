@@ -5,7 +5,6 @@ CREATE TABLE [dbo].[FundingAgreements]
     [FileName]          NVARCHAR(260)  NOT NULL,
     [ContentType]       NVARCHAR(100)  NOT NULL,
     [Size]              BIGINT         NOT NULL,
-    [StoragePath]       NVARCHAR(500)  NOT NULL,
     [BlobKey]           NVARCHAR(1024) NOT NULL,
     [GeneratedAtUtc]    DATETIME2(3)   NOT NULL,
     [GeneratedByUserId] NVARCHAR(450)  NOT NULL,

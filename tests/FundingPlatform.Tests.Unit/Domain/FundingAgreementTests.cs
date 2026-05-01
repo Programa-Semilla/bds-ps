@@ -49,9 +49,9 @@ public class FundingAgreementTests
     }
 
     [Test]
-    public void Create_WithEmptyStoragePath_Throws()
+    public void Create_WithEmptyBlobKey_Throws()
     {
-        Assert.Throws<InvalidOperationException>(() => Invoke(storagePath: ""));
+        Assert.Throws<InvalidOperationException>(() => Invoke(blobKey: ""));
     }
 
     [Test]
@@ -71,7 +71,7 @@ public class FundingAgreementTests
         Assert.That(agreement.FileName, Is.EqualTo("agreement.pdf"));
         Assert.That(agreement.ContentType, Is.EqualTo("application/pdf"));
         Assert.That(agreement.Size, Is.EqualTo(123L));
-        Assert.That(agreement.StoragePath, Is.EqualTo("/storage/agreement.pdf"));
+        Assert.That(agreement.BlobKey, Is.EqualTo("/storage/agreement.pdf"));
         Assert.That(agreement.GeneratedByUserId, Is.EqualTo("user-1"));
         Assert.That(agreement.GeneratedAtUtc, Is.GreaterThanOrEqualTo(before).And.LessThanOrEqualTo(after));
     }
@@ -81,7 +81,7 @@ public class FundingAgreementTests
         string fileName = "agreement.pdf",
         string contentType = "application/pdf",
         long size = 123,
-        string storagePath = "/storage/agreement.pdf",
+        string blobKey = "/storage/agreement.pdf",
         string userId = "user-1")
     {
         var ctor = typeof(FundingAgreement).GetConstructor(
@@ -94,7 +94,7 @@ public class FundingAgreementTests
         {
             return (FundingAgreement)ctor.Invoke(new object[]
             {
-                applicationId, fileName, contentType, size, storagePath, userId
+                applicationId, fileName, contentType, size, blobKey, userId
             });
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)

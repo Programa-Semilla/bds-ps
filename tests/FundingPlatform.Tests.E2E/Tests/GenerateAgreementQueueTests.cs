@@ -49,7 +49,7 @@ public class GenerateAgreementQueueTests : AuthenticatedTestBase
     [Test, Order(1)]
     public async Task GenerateAgreementTab_Empty_ShowsEmptyState()
     {
-        await FundingAgreementSeeder.ClearGenerateAgreementQueueAsync(ConnectionString);
+        await FundingAgreementSeeder.ClearGenerateAgreementQueueAsync(ConnectionString, CreateBlobServiceClient());
 
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var reviewerEmail = $"ga_empty_{uniqueId}@example.com";
@@ -153,9 +153,9 @@ public class GenerateAgreementQueueTests : AuthenticatedTestBase
 
         // Seed the agreement via SQL (bypasses Syncfusion — same approach as SigningWayfindingTests).
         // This simulates what "Generate agreement" would do in a licensed environment.
-        var seededPdf = await FundingAgreementSeeder.SeedGeneratedAgreementAsync(
-            ConnectionString, applicationId, adminEmail);
-        _seededFiles.Add(seededPdf);
+        var seededBlobKey = await FundingAgreementSeeder.SeedGeneratedAgreementAsync(
+            ConnectionString, applicationId, adminEmail, CreateBlobServiceClient());
+        _seededFiles.Add(seededBlobKey);
 
         // Reload the page and confirm the Download link is now present (agreement seeded)
         await Page.ReloadAsync();

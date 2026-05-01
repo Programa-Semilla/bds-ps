@@ -11,7 +11,6 @@ public class FundingAgreement
     public string FileName { get; private set; } = string.Empty;
     public string ContentType { get; private set; } = string.Empty;
     public long Size { get; private set; }
-    public string StoragePath { get; private set; } = string.Empty;
 
     /// <summary>Spec 014 — canonical object-storage key for the generated PDF. Always populated.</summary>
     public string BlobKey { get; private set; } = string.Empty;
@@ -35,16 +34,16 @@ public class FundingAgreement
         string fileName,
         string contentType,
         long size,
-        string storagePath,
+        string blobKey,
         string generatedByUserId)
     {
-        Validate(fileName, contentType, size, storagePath, generatedByUserId);
+        Validate(fileName, contentType, size, blobKey, generatedByUserId);
 
         ApplicationId = applicationId;
         FileName = fileName;
         ContentType = contentType;
         Size = size;
-        StoragePath = storagePath;
+        BlobKey = blobKey;
         GeneratedAtUtc = DateTime.UtcNow;
         GeneratedByUserId = generatedByUserId;
         GeneratedVersion = 1;
@@ -54,33 +53,22 @@ public class FundingAgreement
         string fileName,
         string contentType,
         long size,
-        string storagePath,
+        string blobKey,
         string regeneratingUserId)
     {
         if (IsLocked)
             throw new InvalidOperationException(
                 "Funding agreement is locked: a signed upload has been submitted.");
 
-        Validate(fileName, contentType, size, storagePath, regeneratingUserId);
+        Validate(fileName, contentType, size, blobKey, regeneratingUserId);
 
         FileName = fileName;
         ContentType = contentType;
         Size = size;
-        StoragePath = storagePath;
+        BlobKey = blobKey;
         GeneratedAtUtc = DateTime.UtcNow;
         GeneratedByUserId = regeneratingUserId;
         GeneratedVersion++;
-    }
-
-    /// <summary>
-    /// Spec 014 — record the canonical object-storage key for the generated PDF.
-    /// Behavior method per Constitution Principle II.
-    /// </summary>
-    public void RecordBlob(string blobKey)
-    {
-        if (string.IsNullOrWhiteSpace(blobKey))
-            throw new InvalidOperationException("RecordBlob requires a non-empty blob key.");
-        BlobKey = blobKey;
     }
 
     internal SignedUpload AcceptSignedUpload(
@@ -88,7 +76,7 @@ public class FundingAgreement
         int generatedVersionAtUpload,
         string fileName,
         long size,
-        string storagePath)
+        string blobKey)
     {
         if (PendingUpload is not null)
             throw new InvalidOperationException(
@@ -99,7 +87,7 @@ public class FundingAgreement
                 "Signed upload references a superseded agreement version; please re-download the latest agreement.");
 
         var upload = new SignedUpload(
-            Id, uploaderUserId, generatedVersionAtUpload, fileName, size, storagePath);
+            Id, uploaderUserId, generatedVersionAtUpload, fileName, size, blobKey);
         _signedUploads.Add(upload);
         return upload;
     }
@@ -109,7 +97,7 @@ public class FundingAgreement
         int generatedVersionAtUpload,
         string fileName,
         long size,
-        string storagePath)
+        string blobKey)
     {
         var pending = PendingUpload
             ?? throw new InvalidOperationException("No pending signed upload to replace.");
@@ -121,7 +109,7 @@ public class FundingAgreement
         pending.MarkSuperseded();
 
         var upload = new SignedUpload(
-            Id, uploaderUserId, generatedVersionAtUpload, fileName, size, storagePath);
+            Id, uploaderUserId, generatedVersionAtUpload, fileName, size, blobKey);
         _signedUploads.Add(upload);
         return upload;
     }
@@ -157,7 +145,7 @@ public class FundingAgreement
         string fileName,
         string contentType,
         long size,
-        string storagePath,
+        string blobKey,
         string userId)
     {
         if (string.IsNullOrWhiteSpace(fileName))
@@ -170,8 +158,8 @@ public class FundingAgreement
         if (size <= 0)
             throw new InvalidOperationException("FundingAgreement size must be greater than zero.");
 
-        if (string.IsNullOrWhiteSpace(storagePath))
-            throw new InvalidOperationException("FundingAgreement requires a non-empty storage path.");
+        if (string.IsNullOrWhiteSpace(blobKey))
+            throw new InvalidOperationException("FundingAgreement requires a non-empty blob key.");
 
         if (string.IsNullOrWhiteSpace(userId))
             throw new InvalidOperationException("FundingAgreement requires a non-empty generating user id.");

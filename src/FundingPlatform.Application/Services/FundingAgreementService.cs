@@ -80,7 +80,7 @@ public class FundingAgreementService
         string userId,
         string fileName,
         long size,
-        string storagePath)
+        string blobKey)
     {
         try
         {
@@ -88,12 +88,12 @@ public class FundingAgreementService
             if (application.FundingAgreement is null)
             {
                 agreement = application.GenerateFundingAgreement(
-                    fileName, "application/pdf", size, storagePath, userId);
+                    fileName, "application/pdf", size, blobKey, userId);
             }
             else
             {
                 agreement = application.RegenerateFundingAgreement(
-                    fileName, "application/pdf", size, storagePath, userId);
+                    fileName, "application/pdf", size, blobKey, userId);
             }
 
             await _applicationRepository.UpdateAsync(application);

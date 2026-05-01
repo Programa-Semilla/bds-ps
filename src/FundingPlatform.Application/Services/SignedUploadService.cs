@@ -192,7 +192,6 @@ public class SignedUploadService
         var stored = await _objectStorage.UploadAsync(
             SignedCategory, key, command.Content, command.ContentType,
             command.Size, CancellationToken.None);
-        var storagePath = stored.Key;
 
         try
         {
@@ -204,9 +203,7 @@ public class SignedUploadService
                     command.GeneratedVersion,
                     command.FileName,
                     command.Size,
-                    storagePath);
-                // T029 — record the canonical blob key on the new upload entity.
-                upload.RecordBlob(stored.Key);
+                    stored.Key);
             }
             catch (InvalidOperationException ex)
             {
@@ -273,7 +270,6 @@ public class SignedUploadService
         var stored = await _objectStorage.UploadAsync(
             SignedCategory, key, command.Content, command.ContentType,
             command.Size, CancellationToken.None);
-        var storagePath = stored.Key;
 
         try
         {
@@ -286,8 +282,7 @@ public class SignedUploadService
                     command.GeneratedVersion,
                     command.FileName,
                     command.Size,
-                    storagePath);
-                newUpload.RecordBlob(stored.Key);
+                    stored.Key);
             }
             catch (InvalidOperationException ex)
             {
