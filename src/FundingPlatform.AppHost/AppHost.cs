@@ -21,6 +21,25 @@ if (!ephemeralStorage)
            .WithReference(sqlServer);
 }
 
+// Spec 014 (T014): Azure Storage / Azurite. Provider defaults to Azurite for
+// local-dev parity (FR-006); production overrides Storage:Provider=AzureBlob.
+var storageProvider = builder.Configuration["Storage:Provider"] ?? "Azurite";
+
+IResourceBuilder<Aspire.Hosting.ApplicationModel.IResourceWithConnectionString>? blobsResource = null;
+if (string.Equals(storageProvider, "Azurite", StringComparison.OrdinalIgnoreCase))
+{
+    var storage = builder.AddAzureStorage("storage")
+        .RunAsEmulator(emu =>
+        {
+            if (!ephemeralStorage)
+            {
+                emu.WithDataVolume("fundingplatform-blobdata");
+            }
+        });
+
+    blobsResource = storage.AddBlobs("blobs");
+}
+
 var syncfusionLicense = builder.Configuration["Syncfusion:LicenseKey"] ?? "Ngo9BigBOggjHTQxAR8/V1JHaF1cXmhMYVJpR2NbeU5xdF9DZVZURGY/P1ZhSXxVdkFhXX1cdXFQRmJVU019XEE=";
 var localeCode = builder.Configuration["FundingAgreement:LocaleCode"] ?? "es-CR";
 var currencyIsoCode = builder.Configuration["FundingAgreement:CurrencyIsoCode"] ?? "COP";
@@ -62,6 +81,16 @@ var webApp = builder.AddProject<Projects.FundingPlatform_Web>("webapp")
 if (!string.IsNullOrEmpty(adminDefaultPassword))
 {
     webApp.WithEnvironment("Admin__DefaultPassword", adminDefaultPassword);
+}
+
+// Spec 014 (T014): wire Storage provider configuration to the Web project.
+webApp.WithEnvironment("Storage__Provider", storageProvider);
+if (blobsResource is not null)
+{
+    webApp.WithReference(blobsResource).WaitFor(blobsResource);
+    // Ensure the resolved connection string from the Aspire emulator is surfaced
+    // under the Storage:ConnectionString key the platform consumes.
+    webApp.WithEnvironment("Storage__ConnectionString", blobsResource.Resource.ConnectionStringExpression);
 }
 
 builder.Build().Run();

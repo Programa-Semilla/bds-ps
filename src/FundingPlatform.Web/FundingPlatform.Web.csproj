@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.2.2" />
+    <PackageReference Include="Aspire.Azure.Storage.Blobs" Version="13.2.2" />
+    <PackageReference Include="Azure.Identity" Version="1.18.0" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -13,4 +13,7 @@
     <Project Path="tests/FundingPlatform.Tests.Integration/FundingPlatform.Tests.Integration.csproj" />
     <Project Path="tests/FundingPlatform.Tests.Unit/FundingPlatform.Tests.Unit.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/FundingPlatform.StorageMigration/FundingPlatform.StorageMigration.csproj" />
+  </Folder>
 </Solution>

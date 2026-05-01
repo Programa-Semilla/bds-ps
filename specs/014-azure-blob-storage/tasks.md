@@ -31,11 +31,11 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 **Purpose**: Bring the new NuGet dependencies, project skeleton, and configuration surface online before any storage code lands.
 
-- [ ] T001 Add `<PackageReference Include="Aspire.Hosting.Azure.Storage" />` to `src/FundingPlatform.AppHost/FundingPlatform.AppHost.csproj` (version aligned with existing `Aspire.Hosting.SqlServer` 13.2.x).
-- [ ] T002 Add `<PackageReference Include="Aspire.Azure.Storage.Blobs" />` and `<PackageReference Include="Azure.Identity" />` to `src/FundingPlatform.Web/FundingPlatform.Web.csproj`. (Pulls in `Azure.Storage.Blobs` transitively.)
-- [ ] T003 [P] Create the `tools/FundingPlatform.StorageMigration/` console project (`dotnet new console -lang C# -f net10.0`), reference `FundingPlatform.Application` and `FundingPlatform.Infrastructure`, add to `FundingPlatform.slnx`. Include `Aspire.Azure.Storage.Blobs`, `Azure.Identity`, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.Json`.
-- [ ] T004 [P] Create `src/FundingPlatform.Application/Abstractions/Storage/` directory and add empty placeholder files (`IObjectStorage.cs`, `StoredObject.cs`, `StorageHandle.cs`, `FileCategory.cs`, `ObjectKey.cs`, `StorageOptions.cs`) so subsequent tasks land cleanly.
-- [ ] T005 [P] Create `src/FundingPlatform.Infrastructure/Storage/` directory; ensure existing `FundingPlatform.Infrastructure/FileStorage/LocalFileStorageService.cs` is left in place untouched until T053.
+- [x] T001 Add `<PackageReference Include="Aspire.Hosting.Azure.Storage" />` to `src/FundingPlatform.AppHost/FundingPlatform.AppHost.csproj` (version aligned with existing `Aspire.Hosting.SqlServer` 13.2.x).
+- [x] T002 Add `<PackageReference Include="Aspire.Azure.Storage.Blobs" />` and `<PackageReference Include="Azure.Identity" />` to `src/FundingPlatform.Web/FundingPlatform.Web.csproj`. (Pulls in `Azure.Storage.Blobs` transitively.)
+- [x] T003 [P] Create the `tools/FundingPlatform.StorageMigration/` console project (`dotnet new console -lang C# -f net10.0`), reference `FundingPlatform.Application` and `FundingPlatform.Infrastructure`, add to `FundingPlatform.slnx`. Include `Aspire.Azure.Storage.Blobs`, `Azure.Identity`, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.Json`.
+- [x] T004 [P] Create `src/FundingPlatform.Application/Abstractions/Storage/` directory and add empty placeholder files (`IObjectStorage.cs`, `StoredObject.cs`, `StorageHandle.cs`, `FileCategory.cs`, `ObjectKey.cs`, `StorageOptions.cs`) so subsequent tasks land cleanly.
+- [x] T005 [P] Create `src/FundingPlatform.Infrastructure/Storage/` directory; ensure existing `FundingPlatform.Infrastructure/FileStorage/LocalFileStorageService.cs` is left in place untouched until T053.
 
 **Checkpoint**: solution restores; `dotnet build FundingPlatform.slnx` succeeds with empty placeholders.
 
@@ -49,35 +49,35 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 ### Application-layer types
 
-- [ ] T006 [P] Implement `FileCategory` enum (`SignedFundingAgreement`, `SupplierCatalogImport`, `ApplicationAttachment`, `GeneratedArtifact`) with `[Description]` attributes mapping each to its container name in `src/FundingPlatform.Application/Abstractions/Storage/FileCategory.cs`.
-- [ ] T007 [P] Implement `ObjectKey` value object with `Build(category, ownerSegment, entityId, suffix, extension)`, `Parse(string)`, `ToString()` and validation (lowercase, no `..`, length ≤ 1024) in `src/FundingPlatform.Application/Abstractions/Storage/ObjectKey.cs`.
-- [ ] T008 [P] Implement `StoredObject` record (Container, Key, SizeBytes, ContentType, CreatedAt, Provider) in `src/FundingPlatform.Application/Abstractions/Storage/StoredObject.cs`. Add `StorageProviderName` enum in same file or sibling.
-- [ ] T009 [P] Implement `StorageHandle` abstract record + `BackendStreamHandle`, `TimeLimitedUrlHandle` and `ServingMode` enum in `src/FundingPlatform.Application/Abstractions/Storage/StorageHandle.cs`.
-- [ ] T010 [P] Implement `StorageOptions` POCO matching `data-model.md` § StorageOptions in `src/FundingPlatform.Application/Abstractions/Storage/StorageOptions.cs`. Include nested `StorageRetryBudgetOptions`, `StorageLocalFilesystemOptions`, `StorageCategoryOptions` (carries `MaxSizeBytes`, `ServingMode`, `UrlExpirySeconds`, and a `RetentionPolicy` seam string defaulting to `"none"` per FR-023), `StorageTestFallbackOptions`. Add `IValidateOptions<StorageOptions>` for FR-021/FR-019/FR-011/FR-012 validation (URL expiry must be ≤ 15 minutes; LocalFilesystem must reject `ServingMode=TimeLimitedUrl`).
-- [ ] T011 [US-Foundation] Define `IObjectStorage` interface and the four exception types (`ObjectNotFoundException`, `OversizeException`, `LocalProviderUrlNotSupportedException`, `ObjectStorageOperationException` with a `Reason` enum carrying `RetryExhausted`/`Backend`) in `src/FundingPlatform.Application/Abstractions/Storage/IObjectStorage.cs` plus a sibling `Exceptions.cs`. Depends on T006–T010.
+- [x] T006 [P] Implement `FileCategory` enum (`SignedFundingAgreement`, `SupplierCatalogImport`, `ApplicationAttachment`, `GeneratedArtifact`) with `[Description]` attributes mapping each to its container name in `src/FundingPlatform.Application/Abstractions/Storage/FileCategory.cs`.
+- [x] T007 [P] Implement `ObjectKey` value object with `Build(category, ownerSegment, entityId, suffix, extension)`, `Parse(string)`, `ToString()` and validation (lowercase, no `..`, length ≤ 1024) in `src/FundingPlatform.Application/Abstractions/Storage/ObjectKey.cs`.
+- [x] T008 [P] Implement `StoredObject` record (Container, Key, SizeBytes, ContentType, CreatedAt, Provider) in `src/FundingPlatform.Application/Abstractions/Storage/StoredObject.cs`. Add `StorageProviderName` enum in same file or sibling.
+- [x] T009 [P] Implement `StorageHandle` abstract record + `BackendStreamHandle`, `TimeLimitedUrlHandle` and `ServingMode` enum in `src/FundingPlatform.Application/Abstractions/Storage/StorageHandle.cs`.
+- [x] T010 [P] Implement `StorageOptions` POCO matching `data-model.md` § StorageOptions in `src/FundingPlatform.Application/Abstractions/Storage/StorageOptions.cs`. Include nested `StorageRetryBudgetOptions`, `StorageLocalFilesystemOptions`, `StorageCategoryOptions` (carries `MaxSizeBytes`, `ServingMode`, `UrlExpirySeconds`, and a `RetentionPolicy` seam string defaulting to `"none"` per FR-023), `StorageTestFallbackOptions`. Add `IValidateOptions<StorageOptions>` for FR-021/FR-019/FR-011/FR-012 validation (URL expiry must be ≤ 15 minutes; LocalFilesystem must reject `ServingMode=TimeLimitedUrl`).
+- [x] T011 [US-Foundation] Define `IObjectStorage` interface and the four exception types (`ObjectNotFoundException`, `OversizeException`, `LocalProviderUrlNotSupportedException`, `ObjectStorageOperationException` with a `Reason` enum carrying `RetryExhausted`/`Backend`) in `src/FundingPlatform.Application/Abstractions/Storage/IObjectStorage.cs` plus a sibling `Exceptions.cs`. Depends on T006–T010.
 
 ### Diagnostics wrapper
 
-- [ ] T012 Implement `ObjectStorageDiagnostics` in `src/FundingPlatform.Infrastructure/Storage/ObjectStorageDiagnostics.cs`. Wraps a delegate per operation, emits the structured log event from `data-model.md` § Logging shape with `event`, `container`, `key`, `sizeBytes`, `durationMs`, `outcome`, `provider`, `errorCode`. MUST NOT log blob contents or signed URLs. Depends on T011.
+- [x] T012 Implement `ObjectStorageDiagnostics` in `src/FundingPlatform.Infrastructure/Storage/ObjectStorageDiagnostics.cs`. Wraps a delegate per operation, emits the structured log event from `data-model.md` § Logging shape with `event`, `container`, `key`, `sizeBytes`, `durationMs`, `outcome`, `provider`, `errorCode`. MUST NOT log blob contents or signed URLs. Depends on T011.
 
 ### DI / configuration
 
-- [ ] T013 Implement `ObjectStorageRegistration.AddObjectStorage(this IServiceCollection, IConfiguration)` in `src/FundingPlatform.Infrastructure/Storage/ObjectStorageRegistration.cs`. Reads `Storage:Provider`, validates the options, registers the corresponding singleton implementation, and registers `ObjectStorageDiagnostics`. Throws fail-fast on misconfiguration (FR-012). Wire it into `src/FundingPlatform.Infrastructure/DependencyInjection.cs`.
+- [x] T013 Implement `ObjectStorageRegistration.AddObjectStorage(this IServiceCollection, IConfiguration)` in `src/FundingPlatform.Infrastructure/Storage/ObjectStorageRegistration.cs`. Reads `Storage:Provider`, validates the options, registers the corresponding singleton implementation, and registers `ObjectStorageDiagnostics`. Throws fail-fast on misconfiguration (FR-012). Wire it into `src/FundingPlatform.Infrastructure/DependencyInjection.cs`.
 
 ### Aspire orchestration
 
-- [ ] T014 Update `src/FundingPlatform.AppHost/AppHost.cs` to: (a) read `Storage:Provider` (default `Azurite`); (b) when not in `EphemeralStorage` and provider is `Azurite`, call `builder.AddAzureStorage("storage").RunAsEmulator(emu => emu.WithDataVolume("fundingplatform-blobdata")).AddBlobs("blobs")`; (c) when `EphemeralStorage=true` and provider is `Azurite`, run the emulator without a volume so each fixture run starts fresh; (d) push the storage reference into the Web project via `WithReference`; (e) propagate the relevant `Storage:*` env vars to the Web project.
+- [x] T014 Update `src/FundingPlatform.AppHost/AppHost.cs` to: (a) read `Storage:Provider` (default `Azurite`); (b) when not in `EphemeralStorage` and provider is `Azurite`, call `builder.AddAzureStorage("storage").RunAsEmulator(emu => emu.WithDataVolume("fundingplatform-blobdata")).AddBlobs("blobs")`; (c) when `EphemeralStorage=true` and provider is `Azurite`, run the emulator without a volume so each fixture run starts fresh; (d) push the storage reference into the Web project via `WithReference`; (e) propagate the relevant `Storage:*` env vars to the Web project.
 
 ### Database schema
 
-- [ ] T015 [P] Edit `src/FundingPlatform.Database/dbo/Tables/FundingAgreementSignatures.sql` (and the equivalent tables for SupplierCatalogImports, ApplicationAttachments, GeneratedAgreementArtifacts as confirmed in research.md R8) to add nullable `BlobKey nvarchar(1024) NULL` and nullable `LegacyPath nvarchar(1024) NULL` columns.
-- [ ] T016 [P] Add post-deployment script `src/FundingPlatform.Database/Scripts/Post-Deploy/014-backfill-legacy-paths.sql` that copies the existing absolute-path columns into `LegacyPath` where `LegacyPath IS NULL` (per `data-model.md`). Include it in the post-deploy publish profile.
+- [x] T015 [P] Edit `src/FundingPlatform.Database/dbo/Tables/FundingAgreementSignatures.sql` (and the equivalent tables for SupplierCatalogImports, ApplicationAttachments, GeneratedAgreementArtifacts as confirmed in research.md R8) to add nullable `BlobKey nvarchar(1024) NULL` and nullable `LegacyPath nvarchar(1024) NULL` columns.  *Adapted: actual table names are `dbo.SignedUploads`, `dbo.FundingAgreements`, `dbo.Documents` per current dacpac.*
+- [x] T016 [P] Add post-deployment script `src/FundingPlatform.Database/Scripts/Post-Deploy/014-backfill-legacy-paths.sql` that copies the existing absolute-path columns into `LegacyPath` where `LegacyPath IS NULL` (per `data-model.md`). Include it in the post-deploy publish profile.
 
 ### Foundational unit tests
 
-- [ ] T017 [P] Unit tests for `ObjectKey.Build`/`Parse`/validation rules (round-trip, illegal characters, length cap, default extension) in `tests/FundingPlatform.Tests.Unit/Storage/ObjectKeyTests.cs`. Depends on T007.
-- [ ] T018 [P] Unit tests for `StorageOptions` binding + validation (provider must be valid; LocalFilesystem requires `RootPath`; production environment + connection-string warns; per-category `MaxSizeBytes` defaults applied) in `tests/FundingPlatform.Tests.Unit/Storage/StorageOptionsTests.cs`. Depends on T010.
-- [ ] T019 [P] Unit tests for `ObjectStorageDiagnostics` log shape (single event per call, all required fields, content not leaked, error path tagged `RetryExhausted`) using an `ITestOutputHelper`-backed logger or `FakeLogger` in `tests/FundingPlatform.Tests.Unit/Storage/ObjectStorageDiagnosticsTests.cs`. Depends on T012.
+- [x] T017 [P] Unit tests for `ObjectKey.Build`/`Parse`/validation rules (round-trip, illegal characters, length cap, default extension) in `tests/FundingPlatform.Tests.Unit/Storage/ObjectKeyTests.cs`. Depends on T007.
+- [x] T018 [P] Unit tests for `StorageOptions` binding + validation (provider must be valid; LocalFilesystem requires `RootPath`; production environment + connection-string warns; per-category `MaxSizeBytes` defaults applied) in `tests/FundingPlatform.Tests.Unit/Storage/StorageOptionsTests.cs`. Depends on T010.
+- [x] T019 [P] Unit tests for `ObjectStorageDiagnostics` log shape (single event per call, all required fields, content not leaked, error path tagged `RetryExhausted`) using an `ITestOutputHelper`-backed logger or `FakeLogger` in `tests/FundingPlatform.Tests.Unit/Storage/ObjectStorageDiagnosticsTests.cs`. Depends on T012.
 
 **Checkpoint**: foundation compiles, validation rules tested, dacpac builds. AppHost starts with the new options surface (Azurite resource visible in dashboard) but no implementation routes traffic to it yet.
 

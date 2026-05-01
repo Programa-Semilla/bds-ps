@@ -6,6 +6,8 @@ CREATE TABLE [dbo].[FundingAgreements]
     [ContentType]       NVARCHAR(100)  NOT NULL,
     [Size]              BIGINT         NOT NULL,
     [StoragePath]       NVARCHAR(500)  NOT NULL,
+    [BlobKey]           NVARCHAR(1024) NULL,
+    [LegacyPath]        NVARCHAR(1024) NULL,
     [GeneratedAtUtc]    DATETIME2(3)   NOT NULL,
     [GeneratedByUserId] NVARCHAR(450)  NOT NULL,
     [GeneratedVersion]  INT            NOT NULL CONSTRAINT DF_FundingAgreements_GeneratedVersion DEFAULT(1),

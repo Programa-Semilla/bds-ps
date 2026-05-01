@@ -9,6 +9,7 @@ using FundingPlatform.Infrastructure.FileStorage;
 using FundingPlatform.Infrastructure.Identity;
 using FundingPlatform.Infrastructure.Persistence.Reports;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
+using FundingPlatform.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -40,6 +41,8 @@ public static class DependencyInjection
 
         services.AddSingleton<IFundingAgreementPdfRenderer, SyncfusionFundingAgreementPdfRenderer>();
         services.AddSingleton<SyncfusionLicenseValidator>();
+
+        services.AddObjectStorage(configuration);
 
         return services;
     }
