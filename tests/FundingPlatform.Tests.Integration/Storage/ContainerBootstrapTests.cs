@@ -54,7 +54,9 @@ public class ContainerBootstrapTests
         foreach (var name in FileCategoryExtensions.AllContainerNames)
         {
             var container = _fixture.Client!.GetBlobContainerClient(name);
-            Assert.That(await container.ExistsAsync(), Is.True, $"Container '{name}' missing.");
+            // ExistsAsync returns Response<bool>; unwrap .Value for the assertion
+            // so NUnit doesn't compare the response wrapper to a primitive.
+            Assert.That((await container.ExistsAsync()).Value, Is.True, $"Container '{name}' missing.");
         }
     }
 
@@ -77,6 +79,6 @@ public class ContainerBootstrapTests
         await hosted.StartAsync(CancellationToken.None);
 
         foreach (var name in FileCategoryExtensions.AllContainerNames)
-            Assert.That(await _fixture.Client!.GetBlobContainerClient(name).ExistsAsync(), Is.True);
+            Assert.That((await _fixture.Client!.GetBlobContainerClient(name).ExistsAsync()).Value, Is.True);
     }
 }

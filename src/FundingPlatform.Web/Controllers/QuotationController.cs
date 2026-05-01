@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
@@ -6,6 +7,7 @@ using FundingPlatform.Application.Suppliers.Services;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.Persistence;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -63,6 +65,7 @@ public class QuotationController : Controller
 
     [HttpPost("Add")]
     [ValidateAntiForgeryToken]
+    [UploadSizeGuard(FileCategory.ApplicationAttachment)]
     public async Task<IActionResult> Add(int appId, int itemId, AddQuotationViewModel model)
     {
         await VerifyOwnershipAsync(appId);
@@ -132,6 +135,7 @@ public class QuotationController : Controller
 
     [HttpPost("{quotationId}/Replace")]
     [ValidateAntiForgeryToken]
+    [UploadSizeGuard(FileCategory.ApplicationAttachment)]
     public async Task<IActionResult> Replace(int appId, int itemId, int quotationId, IFormFile quotationFile)
     {
         await VerifyOwnershipAsync(appId);

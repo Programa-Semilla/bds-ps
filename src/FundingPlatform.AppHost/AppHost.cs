@@ -25,6 +25,26 @@ if (!ephemeralStorage)
 // local-dev parity (FR-006); production overrides Storage:Provider=AzureBlob.
 var storageProvider = builder.Configuration["Storage:Provider"] ?? "Azurite";
 
+// Spec 014 (T036) / FR-008 — opt-in fallback to LocalFilesystem. When the
+// operator (typically a CI runner) has explicitly enabled this flag, the
+// AppHost honours Provider=LocalFilesystem outright and provisions a temp
+// directory so the Web project boots without Azure or Azurite. Default
+// posture stays strict: production deployments do not see this flag.
+var allowFilesystemFallback = string.Equals(
+    builder.Configuration["Storage:TestFallback:AllowFilesystem"],
+    "true",
+    StringComparison.OrdinalIgnoreCase);
+
+string? localFilesystemRoot = null;
+if (allowFilesystemFallback &&
+    string.Equals(storageProvider, "LocalFilesystem", StringComparison.OrdinalIgnoreCase))
+{
+    localFilesystemRoot = Path.Combine(
+        Path.GetTempPath(),
+        $"fundingplatform-storage-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(localFilesystemRoot);
+}
+
 IResourceBuilder<Aspire.Hosting.ApplicationModel.IResourceWithConnectionString>? blobsResource = null;
 if (string.Equals(storageProvider, "Azurite", StringComparison.OrdinalIgnoreCase))
 {
@@ -91,6 +111,19 @@ if (blobsResource is not null)
     // Ensure the resolved connection string from the Aspire emulator is surfaced
     // under the Storage:ConnectionString key the platform consumes.
     webApp.WithEnvironment("Storage__ConnectionString", blobsResource.Resource.ConnectionStringExpression);
+}
+
+// Spec 014 (T036) — propagate the test-fallback flag so the Web project can
+// honour it when Azurite is unreachable. When the operator forced
+// Provider=LocalFilesystem with the flag enabled, push the temp root we
+// provisioned above into config so LocalFilesystemObjectStorage has somewhere
+// safe to read/write without leaking outside the test sandbox.
+webApp.WithEnvironment(
+    "Storage__TestFallback__AllowFilesystem",
+    allowFilesystemFallback ? "true" : "false");
+if (!string.IsNullOrEmpty(localFilesystemRoot))
+{
+    webApp.WithEnvironment("Storage__LocalFilesystem__RootPath", localFilesystemRoot);
 }
 
 builder.Build().Run();

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
@@ -7,6 +8,7 @@ using FundingPlatform.Application.Suppliers.Services;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.Persistence;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.Resources;
 using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -107,6 +109,7 @@ public class SupplierController : Controller
 
     [HttpPost("Add")]
     [ValidateAntiForgeryToken]
+    [UploadSizeGuard(FileCategory.ApplicationAttachment)]
     public async Task<IActionResult> Add(int appId, int itemId, AddSupplierViewModel model)
     {
         await VerifyOwnershipAsync(appId);

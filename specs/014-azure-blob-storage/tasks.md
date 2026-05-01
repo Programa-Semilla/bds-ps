@@ -122,8 +122,8 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 ### Tests for User Story 1
 
-- [ ] T032 [P] [US1] E2E (Playwright): applicant signs a funding agreement → uploads signed PDF via the existing UI flow → AppHost restart → applicant downloads the same PDF; assert byte-for-byte match. Test file `tests/FundingPlatform.Tests.E2E/Storage/SignedFundingAgreementUploadDownloadTests.cs`. Depends on T028.
-- [ ] T033 [P] [US1] E2E: unauthenticated request to a known blob path returns 401/403 from the application; the signed URL never appears in the HTML response. Test file `tests/FundingPlatform.Tests.E2E/Storage/SignedFundingAgreementAuthorizationTests.cs`. Depends on T028.
+- [x] T032 [P] [US1] E2E (Playwright): applicant signs a funding agreement → uploads signed PDF via the existing UI flow → AppHost restart → applicant downloads the same PDF; assert byte-for-byte match. Test file `tests/FundingPlatform.Tests.E2E/Storage/SignedFundingAgreementUploadDownloadTests.cs`. Depends on T028.
+- [x] T033 [P] [US1] E2E: unauthenticated request to a known blob path returns 401/403 from the application; the signed URL never appears in the HTML response. Test file `tests/FundingPlatform.Tests.E2E/Storage/SignedFundingAgreementAuthorizationTests.cs`. Depends on T028.
 - [x] T034 [P] [US1] Integration test for the production guard: simulate `Environment=Production` + connection string → health check returns `Degraded` and startup logs the configured warning, in `tests/FundingPlatform.Tests.Integration/Storage/ProductionGuardTests.cs`. Depends on T030.
 
 **Checkpoint**: signed-PDF flows go end-to-end through `IObjectStorage`. Local Azurite, ephemeral test Azurite, and a manually-pointed Azure account all work without code changes.
@@ -138,15 +138,15 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 ### Implementation
 
-- [ ] T035 [US3] Extend `tests/FundingPlatform.Tests.E2E/AspireFixture.cs` (and any sibling Integration fixture) to: (a) wait for the Azurite resource to be healthy before yielding; (b) pre-create the four containers from FR-013; (c) expose helpers for tests to compute keys and seed blobs. Depends on T014, T023.
-- [ ] T036 [P] [US3] Implement the `Storage:TestFallback:AllowFilesystem` flag (FR-008): when set to `true` AND Azurite cannot start within a configured timeout, the fixture switches the Web project to `LocalFilesystem` with a temp directory and logs a warning. Update `AspireFixture` accordingly. Depends on T035.
+- [x] T035 [US3] Extend `tests/FundingPlatform.Tests.E2E/AspireFixture.cs` (and any sibling Integration fixture) to: (a) wait for the Azurite resource to be healthy before yielding; (b) pre-create the four containers from FR-013; (c) expose helpers for tests to compute keys and seed blobs. Depends on T014, T023.
+- [x] T036 [P] [US3] Implement the `Storage:TestFallback:AllowFilesystem` flag (FR-008): when set to `true` AND Azurite cannot start within a configured timeout, the fixture switches the Web project to `LocalFilesystem` with a temp directory and logs a warning. Update `AspireFixture` accordingly. Depends on T035.
 
 ### Tests for User Story 3
 
-- [ ] T037 [P] [US3] Integration test that runs against `EphemeralStorage=true` with Azurite, uploads a fixture PDF, downloads it, asserts byte equality, in `tests/FundingPlatform.Tests.Integration/Storage/HermeticAzuriteRoundtripTests.cs`. Depends on T035.
-- [ ] T038 [P] [US3] Integration test that forces Azurite startup failure (point the fixture at a port that's blocked), enables `Storage:TestFallback:AllowFilesystem=true`, and confirms the suite still passes against `LocalFilesystem` with the warning emitted, in `tests/FundingPlatform.Tests.Integration/Storage/TestFallbackTests.cs`. Depends on T036.
-- [ ] T039 [P] [US3] E2E confirms a clean run with no Azure credentials by asserting absence of `AZURE_*` env vars at fixture start in `tests/FundingPlatform.Tests.E2E/Storage/HermeticEnvironmentTests.cs`. Depends on T035.
-- [ ] T039a [US3] CI parity (FR-009): add a GitHub Actions workflow snippet (or update existing) under `.github/workflows/` to ensure pipelines run the same Aspire-Azurite-backed Integration + E2E suites with no shared Azure secret; document in `quickstart.md` § CI. Depends on T035.
+- [x] T037 [P] [US3] Integration test that runs against `EphemeralStorage=true` with Azurite, uploads a fixture PDF, downloads it, asserts byte equality, in `tests/FundingPlatform.Tests.Integration/Storage/HermeticAzuriteRoundtripTests.cs`. Depends on T035.
+- [x] T038 [P] [US3] Integration test that forces Azurite startup failure (point the fixture at a port that's blocked), enables `Storage:TestFallback:AllowFilesystem=true`, and confirms the suite still passes against `LocalFilesystem` with the warning emitted, in `tests/FundingPlatform.Tests.Integration/Storage/TestFallbackTests.cs`. Depends on T036.
+- [x] T039 [P] [US3] E2E confirms a clean run with no Azure credentials by asserting absence of `AZURE_*` env vars at fixture start in `tests/FundingPlatform.Tests.E2E/Storage/HermeticEnvironmentTests.cs`. Depends on T035.
+- [x] T039a [US3] CI parity (FR-009): add a GitHub Actions workflow snippet (or update existing) under `.github/workflows/` to ensure pipelines run the same Aspire-Azurite-backed Integration + E2E suites with no shared Azure secret; document in `quickstart.md` § CI. Depends on T035.
 
 **Checkpoint**: integration + E2E green on a developer laptop with no Azure secrets configured. Delivery bar (full personally-executed E2E green run) becomes achievable for this branch.
 
@@ -183,14 +183,14 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 ### Implementation
 
-- [ ] T047 [US5] Implement an `IUploadSizeGuard` (or controller filter) that, for each `FileCategory`, reads `Storage:Categories:{name}:MaxSizeBytes` from the resolved `StorageOptions` and rejects oversized uploads at the controller boundary BEFORE streaming to `IObjectStorage`. Place in `src/FundingPlatform.Web/Filters/UploadSizeGuardAttribute.cs`. Depends on T010.
-- [ ] T048 [US5] Apply `UploadSizeGuard` to every upload action in `FundingAgreementController`, `SupplierController`, `QuotationController` (or whichever controllers handle `ApplicationAttachment`). Depends on T047, T028.
-- [ ] T049 [P] [US5] Localize the rejection message in es-CR + any other resource files used by the project; reuse existing localization infrastructure from spec 012.
+- [x] T047 [US5] Implement an `IUploadSizeGuard` (or controller filter) that, for each `FileCategory`, reads `Storage:Categories:{name}:MaxSizeBytes` from the resolved `StorageOptions` and rejects oversized uploads at the controller boundary BEFORE streaming to `IObjectStorage`. Place in `src/FundingPlatform.Web/Filters/UploadSizeGuardAttribute.cs`. Depends on T010.
+- [x] T048 [US5] Apply `UploadSizeGuard` to every upload action in `FundingAgreementController`, `SupplierController`, `QuotationController` (or whichever controllers handle `ApplicationAttachment`). Depends on T047, T028.
+- [x] T049 [P] [US5] Localize the rejection message in es-CR + any other resource files used by the project; reuse existing localization infrastructure from spec 012.
 
 ### Tests for User Story 5
 
-- [ ] T050 [P] [US5] E2E: submit a 25 MiB file to the signed-PDF endpoint with the cap at 20 MiB → assert the localized error, and that no blob was created in Azurite, in `tests/FundingPlatform.Tests.E2E/Storage/SignedFundingAgreementOversizeRejectionTests.cs`. Depends on T048.
-- [ ] T051 [P] [US5] Integration test parameterized across all four categories asserting per-category caps are enforced, in `tests/FundingPlatform.Tests.Integration/Storage/PerCategoryOversizeTests.cs`. Depends on T048.
+- [x] T050 [P] [US5] E2E: submit a 25 MiB file to the signed-PDF endpoint with the cap at 20 MiB → assert the localized error, and that no blob was created in Azurite, in `tests/FundingPlatform.Tests.E2E/Storage/SignedFundingAgreementOversizeRejectionTests.cs`. Depends on T048.
+- [x] T051 [P] [US5] Integration test parameterized across all four categories asserting per-category caps are enforced, in `tests/FundingPlatform.Tests.Integration/Storage/PerCategoryOversizeTests.cs`. Depends on T048.
 
 **Checkpoint**: oversize rejection is enforced uniformly; the controller boundary is the only place a cap is checked.
 

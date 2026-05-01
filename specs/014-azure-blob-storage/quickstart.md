@@ -126,7 +126,39 @@ After the manifest reports every entry as `Uploaded` or `Skipped-Existing`, flip
 # 5. download the same signed PDF — bytes match
 ```
 
-## 7. Troubleshooting
+## 7. CI parity (FR-009)
+
+The repo has no GitHub Actions workflows checked in (`.github/workflows/` is
+absent at the time of writing, per the convention that automation is owned
+by a separate ops repo). When CI is wired up, the integration + E2E suites
+MUST run the same Aspire-Azurite-backed pipeline as developer laptops, with
+no shared Azure secret. Any runner with Docker satisfies the prerequisite.
+
+Run on a Linux runner:
+
+```bash
+# Restore + build once.
+dotnet restore FundingPlatform.slnx
+dotnet build FundingPlatform.slnx --configuration Release --no-restore
+
+# Schema + Application units (no Azure dependency).
+dotnet test tests/FundingPlatform.Tests.Unit \
+    --configuration Release --no-build
+
+# Integration suite — Azurite via the AzuriteFixture (Docker required).
+dotnet test tests/FundingPlatform.Tests.Integration \
+    --configuration Release --no-build
+
+# E2E suite — Aspire orchestrator boots the Web project + Azurite + SQL Server.
+dotnet test tests/FundingPlatform.Tests.E2E \
+    --configuration Release --no-build
+```
+
+When the workflow lands, mirror these three invocations and require the job
+to fail if `AZURE_*` credentials leak into the runner environment (the
+`HermeticEnvironmentTests` fixture asserts this in-band).
+
+## 8. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|

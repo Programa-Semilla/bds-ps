@@ -1,14 +1,38 @@
 using System.Diagnostics;
 using Aspire.Hosting;
 using Aspire.Hosting.Testing;
+using Azure.Storage.Blobs;
 
 namespace FundingPlatform.Tests.E2E.Fixtures;
 
 public class AspireFixture : IAsyncDisposable
 {
+    /// <summary>
+    /// Spec 014 / FR-013 — the four canonical container names. Mirrored here as a
+    /// constant array so the fixture doesn't take a project reference on
+    /// FundingPlatform.Application just for an enum.
+    /// </summary>
+    public static readonly string[] CanonicalContainerNames =
+    [
+        "signed-funding-agreements",
+        "supplier-catalog-imports",
+        "application-attachments",
+        "generated-artifacts",
+    ];
+
     private DistributedApplication? _app;
     public string BaseUrl { get; private set; } = string.Empty;
     public string ConnectionString { get; private set; } = string.Empty;
+
+    /// <summary>Spec 014 / T035 — Azurite blob endpoint connection string.</summary>
+    public string? BlobsConnectionString { get; private set; }
+
+    /// <summary>
+    /// Spec 014 / T036 — when Azurite cannot start within timeout AND
+    /// <c>Storage:TestFallback:AllowFilesystem</c> is enabled, the fixture
+    /// surfaces this flag so individual tests can document the degraded mode.
+    /// </summary>
+    public bool FellBackToFilesystem { get; private set; }
 
     public async Task StartAsync()
     {
@@ -25,12 +49,107 @@ public class AspireFixture : IAsyncDisposable
 
         ConnectionString = await _app.GetConnectionStringAsync("fundingdb") ?? string.Empty;
 
+        // Spec 014 / T035 — wait for the Azurite-backed `blobs` resource to be
+        // reachable before yielding to the test. Aspire spins it up async; if we
+        // hand control to the suite before the emulator is responding, the first
+        // upload faces a 60s SDK retry storm and the test times out for the
+        // wrong reason. Falls through with FellBackToFilesystem=true when the
+        // operator opts into the filesystem fallback (FR-008).
+        await EnsureBlobsResourceReadyAsync();
+
         // Use http — the test environment may not trust the dev HTTPS certificate
         var webapp = _app.GetEndpoint("webapp", "http");
         BaseUrl = webapp.ToString().TrimEnd('/');
 
         // Verify the web app is actually responding
         await WaitForWebAppAsync();
+    }
+
+    /// <summary>
+    /// Spec 014 / T035 — Wait for the Azurite Aspire resource to be healthy and
+    /// pre-create the four containers (idempotent). The Web app's
+    /// <c>EnsureContainersHostedService</c> does the same, but tests need an
+    /// explicit guarantee before running.
+    /// </summary>
+    private async Task EnsureBlobsResourceReadyAsync()
+    {
+        if (_app is null) return;
+
+        BlobsConnectionString = await _app.GetConnectionStringAsync("blobs");
+        if (string.IsNullOrEmpty(BlobsConnectionString))
+        {
+            // No blobs resource at all (provider may be LocalFilesystem).
+            // Honour the FR-008 fallback flag if the operator opted in.
+            var allowFallback = string.Equals(
+                Environment.GetEnvironmentVariable("Storage__TestFallback__AllowFilesystem"),
+                "true",
+                StringComparison.OrdinalIgnoreCase);
+            FellBackToFilesystem = allowFallback;
+            return;
+        }
+
+        var client = new BlobServiceClient(BlobsConnectionString);
+
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        Exception? lastException = null;
+        while (DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                await client.GetPropertiesAsync();
+                lastException = null;
+                break;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                await Task.Delay(500);
+            }
+        }
+
+        if (lastException is not null)
+        {
+            var allowFallback = string.Equals(
+                Environment.GetEnvironmentVariable("Storage__TestFallback__AllowFilesystem"),
+                "true",
+                StringComparison.OrdinalIgnoreCase);
+            if (!allowFallback)
+                throw new TimeoutException(
+                    $"Azurite did not become healthy within 30s. " +
+                    $"Set Storage__TestFallback__AllowFilesystem=true to enable the FR-008 filesystem fallback. " +
+                    $"Last error: {lastException.Message}", lastException);
+            FellBackToFilesystem = true;
+            return;
+        }
+
+        // Pre-create the four canonical containers. The Web app does this on
+        // startup too; we mirror it so a test that hits storage before the web
+        // app's hosted service finishes still has containers to work with.
+        foreach (var name in CanonicalContainerNames)
+        {
+            await client.GetBlobContainerClient(name).CreateIfNotExistsAsync();
+        }
+    }
+
+    /// <summary>
+    /// Spec 014 / T035 — helper exposing a configured BlobServiceClient so tests
+    /// can seed and inspect blobs directly without re-deriving the connection
+    /// string. Returns null when the fixture fell back to filesystem mode.
+    /// </summary>
+    public BlobServiceClient? CreateBlobServiceClient()
+        => string.IsNullOrEmpty(BlobsConnectionString)
+            ? null
+            : new BlobServiceClient(BlobsConnectionString);
+
+    /// <summary>
+    /// Spec 014 / T035 — helper for tests to compute a deterministic ObjectKey-shaped
+    /// path without taking a project reference on Application. Mirrors the
+    /// canonical format `{container}/{owner-segment}/{entity-id}/{suffix}{ext}`.
+    /// </summary>
+    public static string ComputeKey(string container, string ownerSegment, string entityId, string suffix, string extension)
+    {
+        var ext = extension.StartsWith('.') ? extension : "." + extension;
+        return $"{container}/{ownerSegment.Trim('/').ToLowerInvariant()}/{entityId.ToLowerInvariant()}/{suffix.ToLowerInvariant()}{ext.ToLowerInvariant()}";
     }
 
     private async Task WaitForWebAppAsync()

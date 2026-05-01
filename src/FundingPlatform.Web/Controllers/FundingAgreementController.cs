@@ -12,6 +12,7 @@ using FundingPlatform.Application.SignedUploads.Commands;
 using FundingPlatform.Application.SignedUploads.Queries;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -347,6 +348,7 @@ public class FundingAgreementController : Controller
     [HttpPost("Upload")]
     [ValidateAntiForgeryToken]
     [RequestFormLimits(MultipartBodyLengthLimit = 50L * 1024 * 1024)]
+    [UploadSizeGuard(FileCategory.SignedFundingAgreement)]
     public async Task<IActionResult> Upload(int applicationId, UploadSignedAgreementViewModel model)
     {
         if (!ModelState.IsValid || model.File is null || model.File.Length == 0)
@@ -376,6 +378,7 @@ public class FundingAgreementController : Controller
     [HttpPost("ReplaceUpload")]
     [ValidateAntiForgeryToken]
     [RequestFormLimits(MultipartBodyLengthLimit = 50L * 1024 * 1024)]
+    [UploadSizeGuard(FileCategory.SignedFundingAgreement)]
     public async Task<IActionResult> ReplaceUpload(
         int applicationId, int signedUploadId, UploadSignedAgreementViewModel model)
     {
