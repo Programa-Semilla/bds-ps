@@ -169,8 +169,16 @@ public sealed class LocalFilesystemObjectStorage : IObjectStorage
     {
         var combined = Path.Combine(_rootPath, key.Value.Replace('/', Path.DirectorySeparatorChar));
         var rooted = Path.GetFullPath(combined);
+        // Append a directory separator before the prefix check so a root of
+        // "/data" doesn't accidentally match "/data2/..." (i.e. ensure the
+        // resolved path is strictly *inside* the root, not just sharing the
+        // root's leading characters).
         var rootedRoot = Path.GetFullPath(_rootPath);
-        if (!rooted.StartsWith(rootedRoot, StringComparison.Ordinal))
+        var rootedRootWithSep = rootedRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? rootedRoot
+            : rootedRoot + Path.DirectorySeparatorChar;
+        if (!rooted.Equals(rootedRoot, StringComparison.Ordinal) &&
+            !rooted.StartsWith(rootedRootWithSep, StringComparison.Ordinal))
             throw new InvalidOperationException("Resolved path escaped the configured root.");
         return rooted;
     }

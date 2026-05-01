@@ -48,12 +48,19 @@ public sealed class EnsureContainersHostedService : IHostedService
                     cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 // FR-027: verify the container is not publicly accessible.
+                // PublicAccessType.None is the safe baseline. Azurite reports
+                // PublicAccessType.None for emulator-created containers; on
+                // real Azure, only Blob and Container values are unsafe — any
+                // other (None, or older SDKs reporting an unknown sentinel)
+                // is treated as private.
                 var access = await container.GetAccessPolicyAsync(cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
-                if (access.Value.BlobPublicAccess != PublicAccessType.None)
+                var publicAccess = access.Value.BlobPublicAccess;
+                if (publicAccess == PublicAccessType.Blob ||
+                    publicAccess == PublicAccessType.BlobContainer)
                 {
                     throw new InvalidOperationException(
-                        $"Container '{name}' has public access enabled ({access.Value.BlobPublicAccess}). " +
+                        $"Container '{name}' has public access enabled ({publicAccess}). " +
                         "Disable anonymous access before starting the platform (FR-027).");
                 }
             }

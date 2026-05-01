@@ -17,7 +17,10 @@ public sealed class StorageProductionGuardHealthCheck : IHealthCheck
     private readonly IOptions<StorageOptions> _options;
     private readonly IHostEnvironment _environment;
     private readonly ILogger<StorageProductionGuardHealthCheck> _logger;
-    private bool _warningEmitted;
+    // Health checks may run concurrently from multiple probe sources; the
+    // de-dup flag is written via Interlocked so a race only ever produces one
+    // warning at most.
+    private int _warningEmitted;
 
     public StorageProductionGuardHealthCheck(
         IOptions<StorageOptions> options,
@@ -40,12 +43,11 @@ public sealed class StorageProductionGuardHealthCheck : IHealthCheck
 
         if (isProduction && isAzureBlob && hasConnectionString)
         {
-            if (!_warningEmitted)
+            if (Interlocked.CompareExchange(ref _warningEmitted, 1, 0) == 0)
             {
                 _logger.LogWarning(
                     "Storage:Provider=AzureBlob in Production with a connection string configured. " +
                     "Production deployments MUST use managed identity (FR-011). Health check will report Degraded.");
-                _warningEmitted = true;
             }
 
             return Task.FromResult(HealthCheckResult.Degraded(

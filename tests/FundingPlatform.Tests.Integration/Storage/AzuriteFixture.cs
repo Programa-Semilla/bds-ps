@@ -21,7 +21,10 @@ public sealed class AzuriteFixture : IAsyncDisposable
         if (!IsDockerAvailable())
             return false;
 
-        var port = 10000 + Random.Shared.Next(0, 5000);
+        // Bind to an OS-allocated ephemeral port so parallel test workers do
+        // not race on a fixed range. Random.Next(0, 5000) was prone to
+        // collisions when xUnit launched multiple AzuriteFixtures concurrently.
+        var port = AllocateEphemeralPort();
 
         var name = $"ps-014-azurite-{Guid.NewGuid():N}".Substring(0, 24);
         var psi = new ProcessStartInfo("docker", string.Join(' ',
@@ -83,6 +86,20 @@ public sealed class AzuriteFixture : IAsyncDisposable
         if (proc is not null)
         {
             await proc.WaitForExitAsync();
+        }
+    }
+
+    private static int AllocateEphemeralPort()
+    {
+        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            return ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        }
+        finally
+        {
+            listener.Stop();
         }
     }
 
