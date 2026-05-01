@@ -283,3 +283,71 @@ to the user before the stamp gate:**
 These are **expected deferrals** per the partial-implementation contract, not
 review failures. The stamp gate should refuse to stamp until the orchestrator
 either lands the deferred work or explicitly accepts the partial scope.
+
+---
+
+## SC-003 Verification
+
+Date: 2026-05-01 (Phase 8 polish, T054).
+
+Command run:
+
+```
+grep -rn 'FileStream\|File\.OpenRead\|File\.OpenWrite\|new FileStream' src/ --include='*.cs'
+```
+
+Result (annotated):
+
+```
+src/FundingPlatform.Infrastructure/Storage/LocalFilesystemObjectStorage.cs:54:    new FileStream(...)        # expected: local provider implementation
+src/FundingPlatform.Infrastructure/Storage/LocalFilesystemObjectStorage.cs:102:   new FileStream(...)        # expected: local provider implementation
+src/FundingPlatform.Infrastructure/Storage/LocalFilesystemObjectStorage.cs:158:   new FileStream(...)        # expected: local provider implementation
+src/FundingPlatform.Web/Controllers/QuotationController.cs:117:                model.QuotationFile.OpenReadStream()   # IFormFile.OpenReadStream — false-positive substring match on "File.OpenRead"
+src/FundingPlatform.Web/Controllers/QuotationController.cs:166:                quotationFile.OpenReadStream()         # idem
+src/FundingPlatform.Web/Controllers/SupplierController.cs:145:                model.QuotationFile.OpenReadStream()   # idem
+src/FundingPlatform.Web/Controllers/SupplierController.cs:187:                model.QuotationFile.OpenReadStream()   # idem
+src/FundingPlatform.Web/Controllers/SupplierController.cs:235:                model.QuotationFile.OpenReadStream()   # idem
+src/FundingPlatform.Web/Controllers/Admin/AdminReportsController.cs (4×):       new CsvFileStreamResult(...)           # class name contains "FileStream" — not a System.IO.FileStream
+src/FundingPlatform.Web/Controllers/Admin/AdminReportsController.cs:222:        internal sealed class CsvFileStreamResult : IActionResult   # class declaration
+src/FundingPlatform.Web/Controllers/Admin/AdminReportsController.cs:227:        public CsvFileStreamResult(...)                # constructor
+src/FundingPlatform.Web/Controllers/FundingAgreementController.cs:362:           model.File.OpenReadStream()            # IFormFile.OpenReadStream — false-positive
+src/FundingPlatform.Web/Controllers/FundingAgreementController.cs:393:           model.File.OpenReadStream()            # idem
+```
+
+Migration tool (expected per scope):
+
+```
+tools/FundingPlatform.StorageMigration/MigrationManifest.cs:48:    new FileStream(...)   # expected: writes the JSONL manifest
+tools/FundingPlatform.StorageMigration/Program.cs:607:            new FileStream(...)   # expected: reads the legacy on-disk source file
+```
+
+**Conclusion**: SC-003 is satisfied. The only legitimate `System.IO` filesystem
+access in `src/` is inside `LocalFilesystemObjectStorage` (the local provider
+impl). The other matches are either `IFormFile.OpenReadStream()` (a stream
+opened on the HTTP request body — not the filesystem) or the unrelated
+`CsvFileStreamResult` class name. The migration tool legitimately uses
+`FileStream` to read legacy on-disk files and append to its JSONL manifest.
+
+## Pending: Personal E2E Run
+
+The constitution's delivery bar (CLAUDE.md / memory) requires the full
+Playwright E2E suite to be personally executed and confirmed green before
+spec 014 can be marked delivered. This subagent does **not** run it from
+inside its sandbox: the suite needs a Linux desktop with Docker, Playwright
+browsers installed, and roughly 5 minutes of wallclock against an Azurite
+container. We have verified the suite **compiles** (`dotnet build
+tests/FundingPlatform.Tests.E2E/FundingPlatform.Tests.E2E.csproj` is green).
+
+To complete delivery, the user must run the following on their workstation
+and paste the run timestamp + final summary line back into this section:
+
+```
+dotnet test tests/FundingPlatform.Tests.E2E
+```
+
+Tick the box once the run is green:
+
+- [ ] T059 — full E2E suite personally executed and green (paste timestamp + result here)
+
+Until that box is ticked, T059 in [tasks.md](tasks.md) remains open even if
+all other Phase 8 tasks are complete.

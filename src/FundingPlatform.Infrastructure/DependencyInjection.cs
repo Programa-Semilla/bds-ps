@@ -5,7 +5,6 @@ using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Application.Options;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.DocumentGeneration;
-using FundingPlatform.Infrastructure.FileStorage;
 using FundingPlatform.Infrastructure.Identity;
 using FundingPlatform.Infrastructure.Persistence.Reports;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
@@ -29,7 +28,6 @@ public static class DependencyInjection
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<IFundingAgreementRepository, FundingAgreementRepository>();
         services.AddScoped<Application.Interfaces.ISignedUploadRepository, SignedUploadRepository>();
-        services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IUserAdministrationService, UserAdministrationService>();
 
         services.Configure<FunderOptions>(configuration.GetSection(FunderOptions.SectionName));
@@ -43,12 +41,6 @@ public static class DependencyInjection
         services.AddSingleton<SyncfusionLicenseValidator>();
 
         services.AddObjectStorage(configuration);
-
-        // Spec 014 (T024): bridge legacy IFileStorageService callers to the new
-        // IObjectStorage abstraction. This registration replaces the previous
-        // LocalFileStorageService one above, since this is registered last.
-        // T053 deletes both IFileStorageService and this facade.
-        services.AddScoped<IFileStorageService, Storage.Legacy.FileStorageServiceFacade>();
 
         return services;
     }
