@@ -16,9 +16,12 @@ else
 {
     // Bind /var/opt/mssql to a tmpfs so SQL Server's data dir lives in RAM and
     // dies with the container — prevents Docker from creating an anonymous
-    // volume per test run that piles up on the host (issue observed
-    // 2026-05-01: hundreds of dangling volumes after repeat fixture runs).
-    sqlBuilder = sqlBuilder.WithContainerRuntimeArgs("--tmpfs", "/var/opt/mssql");
+    // volume per test run that piles up on the host. The mssql user inside
+    // the container is uid 10001; without uid=10001 the tmpfs is root-owned
+    // and SQL Server cannot initialize, leaving sqlpackage to retry forever
+    // against an empty endpoint (observed 2026-05-01).
+    sqlBuilder = sqlBuilder.WithContainerRuntimeArgs(
+        "--tmpfs", "/var/opt/mssql:uid=10001,mode=755");
 }
 
 var sqlServer = sqlBuilder.AddDatabase("fundingdb");
