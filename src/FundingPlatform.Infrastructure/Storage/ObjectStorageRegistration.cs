@@ -4,6 +4,7 @@ using FundingPlatform.Application.Abstractions.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -50,6 +51,12 @@ public static class ObjectStorageRegistration
 
             services.AddSingleton<IObjectStorage, AzureBlobObjectStorage>();
             services.AddHostedService<EnsureContainersHostedService>();
+
+            // FR-011 production guard.
+            services.AddHealthChecks()
+                .AddCheck<StorageProductionGuardHealthCheck>(
+                    "storage-production-guard",
+                    failureStatus: HealthStatus.Degraded);
         }
         else
         {
