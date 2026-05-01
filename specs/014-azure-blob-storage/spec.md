@@ -119,7 +119,7 @@ A user attempts to upload a file larger than the configured cap for that file ca
 - **FR-005**: In production, the default and recommended provider MUST be `AzureBlob`.
 - **FR-006**: For local development, the default provider MUST be `Azurite`, started and wired up automatically by the AppHost so a developer running `dotnet run --project src/FundingPlatform.AppHost` gets a working storage stack with no extra setup.
 - **FR-007**: `LocalFilesystem` MUST remain available as an explicit opt-in for offline scenarios, configured by setting `Storage:Provider=LocalFilesystem` and `Storage:LocalFilesystem:RootPath`.
-- **FR-008**: Automated tests (Integration and E2E) MUST default to `Azurite` provisioned by the test fixture, and MAY fall back to `LocalFilesystem` only when explicitly configured to do so.
+- **FR-008**: Automated tests (Integration and E2E) MUST default to `Azurite` provisioned by the test fixture. Falling back to `LocalFilesystem` is permitted ONLY when an explicit opt-in is configured (e.g., `Storage:TestFallback:AllowFilesystem=true`); the test fixture MUST log a warning when fallback is used and MUST NOT silently switch providers if Azurite fails to start.
 - **FR-009**: CI pipelines MUST run the same test stack as local automated tests, with Azurite provisioned in the pipeline.
 
 #### Configuration & credentials
@@ -155,7 +155,12 @@ A user attempts to upload a file larger than the configured cap for that file ca
 
 #### Large file handling
 - **FR-020**: Upload and download paths MUST stream rather than buffer in memory for any payload above a configured threshold (default 1 MiB). Memory usage during a single upload or download of a 100 MiB file MUST remain bounded.
-- **FR-021**: Each category MUST have a configurable upload size cap. The default cap for signed funding agreements MUST equal the existing `SignedUpload:MaxSizeBytes` (20 MiB). Caps for other categories MUST have explicit defaults documented.
+- **FR-021**: Each category MUST have a configurable upload size cap with the following explicit defaults:
+  - Signed funding agreements: 20 MiB (matches existing `SignedUpload:MaxSizeBytes`).
+  - Supplier catalog imports: 50 MiB (admin-only bulk import; CSV/XLSX may be large).
+  - Application attachments: 20 MiB.
+  - Generated artifact PDFs: 20 MiB (set by the platform itself; the cap protects against runaway PDF generation).
+  - Each cap MUST be overridable via configuration (`Storage:Categories:{name}:MaxSizeBytes`).
 - **FR-022**: Oversize uploads MUST be rejected before any byte is persisted to the backend.
 
 #### Lifecycle, observability, security
@@ -191,7 +196,7 @@ A user attempts to upload a file larger than the configured cap for that file ca
 - **SC-003**: 100% of existing call sites that touch `File.OpenRead`/`File.OpenWrite`/`FileStream` against platform storage paths are migrated to use the abstraction (verified by repository search returning zero matches outside the `LocalFilesystem` provider implementation and tests).
 - **SC-004**: Switching the active provider in any environment is achievable by a single configuration change and an AppHost restart, with no source modifications and zero impact on downstream code paths that consume the abstraction.
 - **SC-005**: The full Integration and E2E test suites pass on a machine with no Azure credentials, exercising real storage operations against Azurite (not stubs/mocks).
-- **SC-006**: Memory usage during a 100 MiB upload or download stays within twice the configured streaming buffer size, and never grows linearly with payload size.
+- **SC-006**: Memory usage during a 100 MiB upload or download stays within a small constant multiple (≤ 4×) of the configured streaming threshold from FR-020, and never grows linearly with payload size.
 - **SC-007**: For every file the platform handled prior to this feature, the one-shot migration command places it in the configured cloud backend or reports the exact failure reason; the manifest covers 100% of source files.
 - **SC-008**: The Aspire dashboard for a local AppHost run shows the Azurite resource healthy and reachable within 30 seconds of AppHost start.
 - **SC-009**: An accidental misconfiguration (provider set to `AzureBlob` without a usable account reference) causes AppHost startup to fail with a single clear error, never silently degrades to a different provider.
