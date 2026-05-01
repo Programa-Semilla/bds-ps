@@ -12,6 +12,14 @@ if (!ephemeralStorage)
 {
     sqlBuilder = sqlBuilder.WithDataVolume("fundingplatform-sqldata");
 }
+else
+{
+    // Bind /var/opt/mssql to a tmpfs so SQL Server's data dir lives in RAM and
+    // dies with the container — prevents Docker from creating an anonymous
+    // volume per test run that piles up on the host (issue observed
+    // 2026-05-01: hundreds of dangling volumes after repeat fixture runs).
+    sqlBuilder = sqlBuilder.WithContainerRuntimeArgs("--tmpfs", "/var/opt/mssql");
+}
 
 var sqlServer = sqlBuilder.AddDatabase("fundingdb");
 
@@ -54,6 +62,12 @@ if (string.Equals(storageProvider, "Azurite", StringComparison.OrdinalIgnoreCase
             if (!ephemeralStorage)
             {
                 emu.WithDataVolume("fundingplatform-blobdata");
+            }
+            else
+            {
+                // tmpfs the Azurite data dir so test runs don't accumulate
+                // anonymous Docker volumes (mirrors the SQL-side fix above).
+                emu.WithContainerRuntimeArgs("--tmpfs", "/data");
             }
         });
 
