@@ -69,22 +69,49 @@ A warning is logged. Tests still pass; provider parity coverage is reduced.
 
 ## 5. Migrating existing on-disk files
 
-Run the one-shot migration command before flipping the production environment from `LocalFilesystem` to `AzureBlob`.
+Run the one-shot migration command before flipping the production environment from `LocalFilesystem` to `AzureBlob`. The tool MUST run while the platform is still serving from `LocalFilesystem`; do not toggle `Storage:Provider` until the manifest reports every entry as `Uploaded` or `Skipped-Existing`.
 
 ```bash
-dotnet run --project tools/FundingPlatform.StorageMigration -- \
+# Migrate (default subcommand)
+dotnet run --project tools/FundingPlatform.StorageMigration -- migrate \
   --legacy-root /var/lib/funding/uploads \
   --provider AzureBlob \
-  --account-reference <storage-account-name> \
-  --manifest-out tools/FundingPlatform.StorageMigration/manifests/$(date -u +%FT%TZ).jsonl
+  --account-reference https://<storage-account>.blob.core.windows.net/ \
+  --db-connection-string "<sql-connection-string>" \
+  --manifest-out tools/FundingPlatform.StorageMigration/manifests/$(date -u +%FT%TZ).jsonl \
+  --parallelism 4
 ```
 
 The tool:
-- Walks `--legacy-root`.
-- Resolves each file to a `(FileCategory, ObjectKey)` using the database row for the legacy path.
-- Calls `IObjectStorage.UploadAsync` (idempotent: skips entries already present).
-- Writes a JSON Lines manifest with outcomes.
-- Exits non-zero if any entry failed.
+- Walks `--legacy-root` (read-only — never deletes or moves the source).
+- Resolves each file to a `(FileCategory, ObjectKey)` by looking up its owning row in the database (matched by `LegacyPath` / `StoragePath` or filename).
+- Computes the deterministic blob-key suffix per FR-014 (SHA-256 of the legacy absolute path, first 16 hex chars).
+- Calls `IObjectStorage.ExistsAsync` first, then `UploadAsync` only if absent, then a second `ExistsAsync` to verify the upload actually settled (per research.md §R6 atomicity).
+- Appends a JSON Lines manifest entry per file (one entry per line, schema in `data-model.md § Migration manifest`).
+- Exits 0 when every entry is `Uploaded` or `Skipped-Existing`; exits non-zero (1) if any entry is `Failed`.
+
+### Idempotency
+
+Re-running the migration is safe: every entry that is already present at its computed key is reported as `Skipped-Existing`, no bytes are re-uploaded, and the run still exits 0. A partially-failed run can be re-driven against the same source — only the missing keys are re-uploaded.
+
+`--parallelism N` is hard-capped at 8; the default of `1` is recommended unless source enumeration dominates the run time.
+
+### Manifest output path
+
+By convention manifests land under `tools/FundingPlatform.StorageMigration/manifests/{utcTimestamp}.jsonl` so operators can grep / diff them. Each line is one self-contained JSON document with `legacyPath`, `category`, `ownerSegment`, `entityId`, `deterministicSuffix`, `extension`, `computedKey`, `outcome`, `sizeBytes`, `completedAt`, and an optional `error` field. The manifest is the audit trail for the cutover; archive it alongside the deployment notes.
+
+### Verifying a previous run
+
+After cutover (or before flipping providers), confirm every `Uploaded` manifest entry is still present in the configured backend:
+
+```bash
+dotnet run --project tools/FundingPlatform.StorageMigration -- verify \
+  --provider AzureBlob \
+  --account-reference https://<storage-account>.blob.core.windows.net/ \
+  --manifest-in tools/FundingPlatform.StorageMigration/manifests/2026-05-01T18:42:00Z.jsonl
+```
+
+Exit code 0 means no drift; non-zero lists every key that has gone missing since the manifest was written.
 
 After the manifest reports every entry as `Uploaded` or `Skipped-Existing`, flip `Storage:Provider` to `AzureBlob` and restart the Web project.
 

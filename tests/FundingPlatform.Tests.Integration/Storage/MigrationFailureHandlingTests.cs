@@ -54,9 +54,12 @@ public class MigrationFailureHandlingTests
     public void Teardown()
     {
         // Restore any chmod-000 file before deletion, otherwise rmdir fails.
-        foreach (var f in Directory.EnumerateFiles(_legacyRoot, "*", SearchOption.AllDirectories))
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
         {
-            try { File.SetUnixFileMode(f, UnixFileMode.UserRead | UnixFileMode.UserWrite); } catch { }
+            foreach (var f in Directory.EnumerateFiles(_legacyRoot, "*", SearchOption.AllDirectories))
+            {
+                try { File.SetUnixFileMode(f, UnixFileMode.UserRead | UnixFileMode.UserWrite); } catch { }
+            }
         }
         try { Directory.Delete(_legacyRoot, recursive: true); }
         catch { /* best-effort */ }
@@ -88,8 +91,12 @@ public class MigrationFailureHandlingTests
         await File.WriteAllBytesAsync(bad, Encoding.UTF8.GetBytes("locked"));
         await File.WriteAllBytesAsync(ok2, Encoding.UTF8.GetBytes("good-2"));
 
-        // Strip read permission. UnixFileMode.None = 000.
+        // Strip read permission. UnixFileMode.None = 000. Guarded by the
+        // POSIX runtime check above; suppressed because the analyzer can't
+        // see through Assert.Ignore.
+#pragma warning disable CA1416
         File.SetUnixFileMode(bad, UnixFileMode.None);
+#pragma warning restore CA1416
 
         var resolver = new LegacyRowResolver();
         resolver.AddManually(ok, FileCategory.SignedFundingAgreement, "applicants/u1", "ok-1");

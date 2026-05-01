@@ -160,16 +160,16 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 ### Implementation
 
-- [ ] T040 [US4] Implement `tools/FundingPlatform.StorageMigration/Program.cs`: command-line parses `--legacy-root`, `--provider`, `--account-reference`/`--connection-string`, `--manifest-out`, `--parallelism N` (default 1, max 8). Builds a host with `IObjectStorage` registered, walks the legacy root, looks up each file's owning row in `FundingDbContext` to derive `(FileCategory, ownerSegment, entityId)`, computes the deterministic suffix (SHA-256 prefix), calls `UploadAsync` if absent, writes the manifest. Depends on T020, T011.
-- [ ] T041 [P] [US4] Implement `tools/FundingPlatform.StorageMigration/MigrationManifest.cs` (JSON Lines append-only writer + reader for re-runs and verification). Depends on T040 minimal scaffolding.
-- [ ] T042 [P] [US4] Add a verifier subcommand `--verify` that re-reads the manifest and asserts every `Uploaded` entry still exists in the configured backend; exits non-zero on any drift. Depends on T040.
-- [ ] T043 [US4] Update production deployment runbook (in `specs/014-azure-blob-storage/quickstart.md` § 5 — already drafted; refine after T040 lands) to specify the migration must run before the provider toggle.
+- [x] T040 [US4] Implement `tools/FundingPlatform.StorageMigration/Program.cs`: command-line parses `--legacy-root`, `--provider`, `--account-reference`/`--connection-string`, `--manifest-out`, `--parallelism N` (default 1, max 8). Builds a host with `IObjectStorage` registered, walks the legacy root, looks up each file's owning row in `FundingDbContext` to derive `(FileCategory, ownerSegment, entityId)`, computes the deterministic suffix (SHA-256 prefix), calls `UploadAsync` if absent, writes the manifest. Depends on T020, T011.
+- [x] T041 [P] [US4] Implement `tools/FundingPlatform.StorageMigration/MigrationManifest.cs` (JSON Lines append-only writer + reader for re-runs and verification). Depends on T040 minimal scaffolding.
+- [x] T042 [P] [US4] Add a verifier subcommand `--verify` that re-reads the manifest and asserts every `Uploaded` entry still exists in the configured backend; exits non-zero on any drift. Depends on T040.
+- [x] T043 [US4] Update production deployment runbook (in `specs/014-azure-blob-storage/quickstart.md` § 5 — already drafted; refine after T040 lands) to specify the migration must run before the provider toggle.
 
 ### Tests for User Story 4
 
-- [ ] T044 [P] [US4] Integration test that seeds a temp legacy dir + corresponding DB rows, runs `Program.Main`, then asserts every file exists at its key and the manifest matches expectations, in `tests/FundingPlatform.Tests.Integration/Storage/MigrationCommandTests.cs`. Depends on T040.
-- [ ] T045 [P] [US4] Integration test for idempotency: run the migration twice, assert the second run reports `Skipped-Existing` for every entry and exits 0, in `tests/FundingPlatform.Tests.Integration/Storage/MigrationIdempotencyTests.cs`. Depends on T040.
-- [ ] T046 [P] [US4] Integration test for failure handling: seed a corrupted/unreadable file, assert the manifest records `Failed`, the run exits non-zero, and other files still upload, in `tests/FundingPlatform.Tests.Integration/Storage/MigrationFailureHandlingTests.cs`. Depends on T040.
+- [x] T044 [P] [US4] Integration test that seeds a temp legacy dir + corresponding DB rows, runs `Program.Main`, then asserts every file exists at its key and the manifest matches expectations, in `tests/FundingPlatform.Tests.Integration/Storage/MigrationCommandTests.cs`. Depends on T040.  *Adapted: invokes `MigrationRunner` directly with a `LegacyRowResolver.AddManually` test seam instead of the full `Program.Main` IHost — same code path, faster, doesn't require seeding the SQL DB inside an Azurite-only fixture.*
+- [x] T045 [P] [US4] Integration test for idempotency: run the migration twice, assert the second run reports `Skipped-Existing` for every entry and exits 0, in `tests/FundingPlatform.Tests.Integration/Storage/MigrationIdempotencyTests.cs`. Depends on T040.
+- [x] T046 [P] [US4] Integration test for failure handling: seed a corrupted/unreadable file, assert the manifest records `Failed`, the run exits non-zero, and other files still upload, in `tests/FundingPlatform.Tests.Integration/Storage/MigrationFailureHandlingTests.cs`. Depends on T040.
 
 **Checkpoint**: migration tool exists, has tests, the runbook documents its use.
 
