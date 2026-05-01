@@ -19,9 +19,8 @@ public class SignedUploadConfiguration : IEntityTypeConfiguration<SignedUpload>
         builder.Property(u => u.ContentType).IsRequired().HasMaxLength(100);
         builder.Property(u => u.Size).IsRequired();
         builder.Property(u => u.StoragePath).IsRequired().HasMaxLength(1024);
-        // Spec 014 / T029 — nullable while migration is in flight.
-        builder.Property(u => u.BlobKey).HasMaxLength(1024).IsRequired(false);
-        builder.Property(u => u.LegacyPath).HasMaxLength(1024).IsRequired(false);
+        // Spec 014 — canonical object-storage key, always populated on insert.
+        builder.Property(u => u.BlobKey).IsRequired().HasMaxLength(1024);
         builder.Property(u => u.UploadedAtUtc).IsRequired();
         builder.Property(u => u.Status).IsRequired().HasConversion<int>();
 

@@ -22,7 +22,6 @@ description: "Task list for 014-azure-blob-storage"
 
 Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 - App: `src/FundingPlatform.AppHost/`, `src/FundingPlatform.Application/`, `src/FundingPlatform.Infrastructure/`, `src/FundingPlatform.Web/`, `src/FundingPlatform.Database/`
-- Tools: `tools/FundingPlatform.StorageMigration/`
 - Tests: `tests/FundingPlatform.Tests.Unit/`, `tests/FundingPlatform.Tests.Integration/`, `tests/FundingPlatform.Tests.E2E/`
 
 ---
@@ -33,7 +32,6 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 - [x] T001 Add `<PackageReference Include="Aspire.Hosting.Azure.Storage" />` to `src/FundingPlatform.AppHost/FundingPlatform.AppHost.csproj` (version aligned with existing `Aspire.Hosting.SqlServer` 13.2.x).
 - [x] T002 Add `<PackageReference Include="Aspire.Azure.Storage.Blobs" />` and `<PackageReference Include="Azure.Identity" />` to `src/FundingPlatform.Web/FundingPlatform.Web.csproj`. (Pulls in `Azure.Storage.Blobs` transitively.)
-- [x] T003 [P] Create the `tools/FundingPlatform.StorageMigration/` console project (`dotnet new console -lang C# -f net10.0`), reference `FundingPlatform.Application` and `FundingPlatform.Infrastructure`, add to `FundingPlatform.slnx`. Include `Aspire.Azure.Storage.Blobs`, `Azure.Identity`, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.Json`.
 - [x] T004 [P] Create `src/FundingPlatform.Application/Abstractions/Storage/` directory and add empty placeholder files (`IObjectStorage.cs`, `StoredObject.cs`, `StorageHandle.cs`, `FileCategory.cs`, `ObjectKey.cs`, `StorageOptions.cs`) so subsequent tasks land cleanly.
 - [x] T005 [P] Create `src/FundingPlatform.Infrastructure/Storage/` directory; ensure existing `FundingPlatform.Infrastructure/FileStorage/LocalFileStorageService.cs` is left in place untouched until T053.
 
@@ -70,8 +68,7 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 ### Database schema
 
-- [x] T015 [P] Edit `src/FundingPlatform.Database/dbo/Tables/FundingAgreementSignatures.sql` (and the equivalent tables for SupplierCatalogImports, ApplicationAttachments, GeneratedAgreementArtifacts as confirmed in research.md R8) to add nullable `BlobKey nvarchar(1024) NULL` and nullable `LegacyPath nvarchar(1024) NULL` columns.  *Adapted: actual table names are `dbo.SignedUploads`, `dbo.FundingAgreements`, `dbo.Documents` per current dacpac.*
-- [x] T016 [P] Add post-deployment script `src/FundingPlatform.Database/Scripts/Post-Deploy/014-backfill-legacy-paths.sql` that copies the existing absolute-path columns into `LegacyPath` where `LegacyPath IS NULL` (per `data-model.md`). Include it in the post-deploy publish profile.
+- [x] T015 [P] Edit `src/FundingPlatform.Database/Tables/dbo.SignedUploads.sql`, `src/FundingPlatform.Database/Tables/dbo.FundingAgreements.sql`, and `src/FundingPlatform.Database/Tables/dbo.Documents.sql` to add `BlobKey nvarchar(1024) NOT NULL`. The platform is greenfield; new rows populate `BlobKey` synchronously when the file is uploaded.
 
 ### Foundational unit tests
 
@@ -95,7 +92,6 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 - [x] T021 [US2] Implement `LocalFilesystemObjectStorage` in `src/FundingPlatform.Infrastructure/Storage/LocalFilesystemObjectStorage.cs`. Maps `(category, key)` to `{RootPath}/{container}/{key}`, performs atomic writes via temp-file-then-rename, throws `LocalProviderUrlNotSupportedException` on `ServingMode.TimeLimitedUrl`. Depends on T011, T012.
 - [x] T022 [US2] Wire `AddObjectStorage` into `src/FundingPlatform.Web/Program.cs` (or wherever the Web composition root lives — confirm via grep). Bind `StorageOptions` from configuration. Depends on T013, T020, T021.
 - [x] T023 [US2] Container bootstrap: on Web app startup, call a hosted service that ensures the four containers from FR-013 exist (Azurite + AzureBlob only). Implementation: `src/FundingPlatform.Infrastructure/Storage/EnsureContainersHostedService.cs`. Depends on T020.
-- [x] T024 [US2] Add a `FileStorageServiceFacade : IFileStorageService` adapter at `src/FundingPlatform.Infrastructure/Storage/Legacy/FileStorageServiceFacade.cs` that delegates to `IObjectStorage` using `FileCategory.GeneratedArtifact` (placeholder until callers migrate per their own stories). Register it so existing call sites keep compiling between stages. Depends on T020.
 
 ### Tests for User Story 2
 
@@ -152,29 +148,6 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 ---
 
-## Phase 6: User Story 4 (Priority: P2) — Existing on-disk files migrate cleanly
-
-**Goal**: One-shot migration tool that moves every legacy file into the configured cloud backend, idempotently, with an auditable manifest.
-
-**Independent Test**: Seed a temp dir with N known files matching the legacy layout, run the migration, observe every file present at its computed key, the source untouched, and a manifest covering 100% of files.
-
-### Implementation
-
-- [x] T040 [US4] Implement `tools/FundingPlatform.StorageMigration/Program.cs`: command-line parses `--legacy-root`, `--provider`, `--account-reference`/`--connection-string`, `--manifest-out`, `--parallelism N` (default 1, max 8). Builds a host with `IObjectStorage` registered, walks the legacy root, looks up each file's owning row in `FundingDbContext` to derive `(FileCategory, ownerSegment, entityId)`, computes the deterministic suffix (SHA-256 prefix), calls `UploadAsync` if absent, writes the manifest. Depends on T020, T011.
-- [x] T041 [P] [US4] Implement `tools/FundingPlatform.StorageMigration/MigrationManifest.cs` (JSON Lines append-only writer + reader for re-runs and verification). Depends on T040 minimal scaffolding.
-- [x] T042 [P] [US4] Add a verifier subcommand `--verify` that re-reads the manifest and asserts every `Uploaded` entry still exists in the configured backend; exits non-zero on any drift. Depends on T040.
-- [x] T043 [US4] Update production deployment runbook (in `specs/014-azure-blob-storage/quickstart.md` § 5 — already drafted; refine after T040 lands) to specify the migration must run before the provider toggle.
-
-### Tests for User Story 4
-
-- [x] T044 [P] [US4] Integration test that seeds a temp legacy dir + corresponding DB rows, runs `Program.Main`, then asserts every file exists at its key and the manifest matches expectations, in `tests/FundingPlatform.Tests.Integration/Storage/MigrationCommandTests.cs`. Depends on T040.  *Adapted: invokes `MigrationRunner` directly with a `LegacyRowResolver.AddManually` test seam instead of the full `Program.Main` IHost — same code path, faster, doesn't require seeding the SQL DB inside an Azurite-only fixture.*
-- [x] T045 [P] [US4] Integration test for idempotency: run the migration twice, assert the second run reports `Skipped-Existing` for every entry and exits 0, in `tests/FundingPlatform.Tests.Integration/Storage/MigrationIdempotencyTests.cs`. Depends on T040.
-- [x] T046 [P] [US4] Integration test for failure handling: seed a corrupted/unreadable file, assert the manifest records `Failed`, the run exits non-zero, and other files still upload, in `tests/FundingPlatform.Tests.Integration/Storage/MigrationFailureHandlingTests.cs`. Depends on T040.
-
-**Checkpoint**: migration tool exists, has tests, the runbook documents its use.
-
----
-
 ## Phase 7: User Story 5 (Priority: P2) — Oversized uploads rejected before touching storage
 
 **Goal**: Per-category caps (FR-021) wired through controllers; no oversize bytes ever reach the backend regardless of provider.
@@ -198,8 +171,8 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [x] T052 [P] Migrate `SupplierController.cs`, `QuotationController.cs`, and any remaining `IFileStorageService` callers (per research.md R8 inventory) to `IObjectStorage`. After this task, the facade has no remaining callers.  *Adapted: SupplierController and QuotationController do not call IFileStorageService directly — both flow through `ApplicationService.AddQuotationToExistingBranchAsync` / `ReplaceQuotationDocumentAsync` / `RemoveQuotationAsync`. Migration landed at the ApplicationService level with `FileCategory.ApplicationAttachment`; `Document` entity gained `BlobKey`/`LegacyPath` columns + `RecordBlob(...)` behaviour method (Constitution Principle II).*
-- [x] T053 Delete `src/FundingPlatform.Domain/Interfaces/IFileStorageService.cs`, `src/FundingPlatform.Infrastructure/FileStorage/LocalFileStorageService.cs`, and `src/FundingPlatform.Infrastructure/Storage/Legacy/FileStorageServiceFacade.cs`. Remove their DI registrations. Update any using directives that referenced them.
+- [x] T052 [P] Migrate `SupplierController.cs`, `QuotationController.cs`, and any remaining `IFileStorageService` callers (per research.md R7 inventory) to `IObjectStorage`. After this task, no caller depends on the legacy interface.  *Adapted: SupplierController and QuotationController do not call IFileStorageService directly — both flow through `ApplicationService.AddQuotationToExistingBranchAsync` / `ReplaceQuotationDocumentAsync` / `RemoveQuotationAsync`. Migration landed at the ApplicationService level with `FileCategory.ApplicationAttachment`; `Document` entity gained a `BlobKey` column + `RecordBlob(...)` behaviour method (Constitution Principle II).*
+- [x] T053 Delete `src/FundingPlatform.Domain/Interfaces/IFileStorageService.cs` and `src/FundingPlatform.Infrastructure/FileStorage/LocalFileStorageService.cs`. Remove their DI registrations. Update any using directives that referenced them.
 - [x] T054 Verify SC-003: run `grep -rn 'FileStream\|File\.OpenRead\|File\.OpenWrite' src/ --include='*.cs'` and confirm zero matches outside `LocalFilesystemObjectStorage` and tests. Document the result in `specs/014-azure-blob-storage/REVIEW-CODE.md` (will be appended by the review-code stage).
 - [x] T055 [P] Run the streaming-memory benchmark (custom test harness in `tests/FundingPlatform.Tests.Integration/Storage/StreamingMemoryTests.cs`) for a 100 MiB upload + download against Azurite; assert peak managed memory ≤ 2 × `StreamingThresholdBytes`. Confirms SC-006.
 - [x] T056 [P] Update `CLAUDE.md` "Configuration knobs" table with the new `Storage:*` keys (`Storage:Provider`, `Storage:Categories:{name}:MaxSizeBytes`, `Storage:Categories:{name}:UrlExpirySeconds`, `Storage:Categories:{name}:RetentionPolicy`) and remove or mark deprecated the existing `FileStorage:Path` entry. Also document in the operator runbook that `LocalFilesystem` provider does not provide encryption-at-rest (FR-026 — host responsibility) and that `signed-funding-agreements` is the legal-hold candidate (FR-023).
@@ -218,11 +191,10 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 ### Phase Dependencies
 
 - **Setup (Phase 1)**: independent — must finish before Phase 2.
-- **Foundational (Phase 2)**: blocks all user-story phases. T011 depends on T006–T010; T013 depends on T011, T012; T014 depends on T013; T015–T016 are dacpac changes parallel to the .NET work.
+- **Foundational (Phase 2)**: blocks all user-story phases. T011 depends on T006–T010; T013 depends on T011, T012; T014 depends on T013; T015 is a dacpac change parallel to the .NET work.
 - **US2 (Phase 3)**: depends on Phase 2 (especially T013, T014).
 - **US1 (Phase 4)**: depends on Phase 2 + T020/T021 from US2 (it runs the same impls against Azure).
 - **US3 (Phase 5)**: depends on Phase 2 + T020/T021/T023.
-- **US4 (Phase 6)**: depends on US2 (for `IObjectStorage` impls) + T015 (for `BlobKey`).
 - **US5 (Phase 7)**: depends on T010 (options) and T028 (controller migration baseline).
 - **Polish (Phase 8)**: depends on all stories.
 
@@ -233,14 +205,13 @@ Repo-rooted paths anchored at `/mnt/D/repos/bds-ps`:
 
 ### Parallel Opportunities
 
-- T003–T005 (project skeleton + placeholders): all parallel after T001/T002.
+- T004–T005 (project skeleton + placeholders): all parallel after T001/T002.
 - T006–T010 (foundation types): all parallel.
-- T015–T016 (dacpac) are parallel to T006–T013.
+- T015 (dacpac) is parallel to T006–T013.
 - T017–T019 (foundation unit tests): parallel after their respective targets land.
 - T025–T027 (US2 integration tests): parallel.
 - T032–T034 (US1 tests): parallel.
 - T037–T039 (US3 tests): parallel.
-- T044–T046 (US4 tests): parallel.
 - T050–T051 (US5 tests): parallel.
 - T055–T058 (polish): parallel.
 
@@ -255,8 +226,7 @@ T007 (ObjectKey.cs)
 T008 (StoredObject.cs)
 T009 (StorageHandle.cs)
 T010 (StorageOptions.cs)
-T015 (dacpac BlobKey columns)
-T016 (post-deploy backfill script)
+T015 (dacpac BlobKey NOT NULL columns)
 
 # Then sequentially:
 T011 (IObjectStorage + exceptions, depends on T006–T010)
@@ -277,24 +247,23 @@ The constitution treats integration-test-with-real-backend as a delivery require
 3. US1 (production AzureBlob via the same impl) — confirms parity.
 4. US3 (hermetic test fixture) — gives the team back a green E2E run.
 
-Stop here, validate, deploy if ready. US4 (migration) and US5 (oversize) are P2 and can be added incrementally without breaking US1–US3.
+Stop here, validate, deploy if ready. US5 (oversize) is P2 and can be added incrementally without breaking US1–US3.
 
 ### Incremental Delivery
 
-After MVP, US4 lands the migration tool (separately runnable, low risk to the running platform) and US5 enforces oversize rejection at the controller boundary. Polish (T052–T059) cleans up the facade and confirms SC-003 / SC-006.
+After MVP, US5 enforces oversize rejection at the controller boundary. Polish (T052–T059) confirms SC-003 / SC-006.
 
 ### Parallel Team Strategy
 
 A two-developer team after Phase 2:
 - Dev A: US2 → US1 (storage impls + retrofit signed-PDF flow).
 - Dev B: US3 (test fixture) in parallel with US2.
-- Either dev: US4 + US5 once US1 is stable.
+- Either dev: US5 once US1 is stable.
 
 ---
 
 ## Notes
 
 - [P] markers are conservative — same-file edits inside the same controller are NOT parallel.
-- The facade (T024) is a deliberate temporary; T053 deletes it.
 - Every commit should leave the build green; per CLAUDE.md "commit and push at every phase checkpoint without prompting".
-- Before flipping production from `LocalFilesystem` to `AzureBlob`, the migration manifest from US4 MUST report 100% success.
+- The platform is greenfield: no legacy on-disk corpus, no migration tool, no transition window. `BlobKey` is `NOT NULL` from day one.

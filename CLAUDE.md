@@ -74,7 +74,7 @@ brainstorm/                        Working scratchpad for in-flight design explo
 
 ## Specs
 
-`specs/NNN-slug/` is the source of truth for feature intent — spec.md, plan.md, tasks.md, and contracts. Read the spec before changing behavior in that area. Active specs span 001-core-model-submission through 013-supplier-catalog.
+`specs/NNN-slug/` is the source of truth for feature intent — spec.md, plan.md, tasks.md, and contracts. Read the spec before changing behavior in that area. Active specs span 001-core-model-submission through 014-azure-blob-storage.
 
 <!-- MANUAL ADDITIONS START -->
 

@@ -9,7 +9,7 @@ This document resolves the technical unknowns identified in plan.md Phase 0 befo
 
 **Decision**: Use the first-party Aspire integration triplet:
 - `Aspire.Hosting.Azure.Storage` on `FundingPlatform.AppHost` for orchestration (provisions Azurite locally, references an Azure Storage account in production via `azd` parameter binding).
-- `Aspire.Azure.Storage.Blobs` on `FundingPlatform.Web` (and on the migration tool) for the client integration — adds a configured `BlobServiceClient`/`BlobContainerClient`, OTel spans, and health-checks out of the box.
+- `Aspire.Azure.Storage.Blobs` on `FundingPlatform.Web` for the client integration — adds a configured `BlobServiceClient`/`BlobContainerClient`, OTel spans, and health-checks out of the box.
 - `Azure.Storage.Blobs` is pulled in transitively but consumed directly for typed `BlobClient` operations.
 - `Azure.Identity` for `DefaultAzureCredential` in production.
 
@@ -39,13 +39,11 @@ This document resolves the technical unknowns identified in plan.md Phase 0 befo
 - Lowercase, ASCII-only. Container names match the Azure naming rules (lowercase, 3–63 chars, hyphens, no double hyphens) — already consistent with FR-013 names.
 - `owner-segment`: `applicants/{applicantId}` (GUID, dashed lowercase) or `admin`.
 - `entity-id`: the GUID of the owning aggregate (FundingApplication, Quotation, SupplierCatalogImportBatch, etc.) in dashed lowercase form.
-- `deterministic-suffix`:
-  - **New writes**: GUID of the storage record itself (e.g., the `FundingAgreementSignature.BlobKey` GUID seed, generated when the row is created).
-  - **Migrated legacy files**: `sha256(legacy-absolute-path).Substring(0, 16)` — first 16 hex chars; written into the manifest along with the legacy path so the mapping is auditable.
+- `deterministic-suffix`: GUID of the storage record itself (e.g., the `FundingAgreementSignature.BlobKey` GUID seed, generated when the row is created). The platform is greenfield — there is no legacy corpus to address with a content-derived suffix.
 - `ext`: original extension from the upload, lowercased; if absent, `.bin`.
 - Total key length capped at 1024 bytes (Azure Blob max is 1024 chars, leave headroom).
 
-**Rationale**: Keys are deterministic from domain identifiers (FR-014), human-debuggable, and resistant to filename collision. The hash suffix for legacy files keeps migration idempotent.
+**Rationale**: Keys are deterministic from domain identifiers (FR-014), human-debuggable, and resistant to filename collision.
 
 **Alternatives considered**:
 - **Hash-only keys** (`{category}/{sha256(content)}`): rejected — not reconstructable from domain identifiers without scanning the blob first.
@@ -81,22 +79,7 @@ In production deployments, `RunAsEmulator()` is replaced by `ProvisionAsExisting
 - **`OpenWriteAsync()` / append blob model**: rejected — append blobs aren't suited for one-shot uploads; OpenWrite requires manual flush discipline.
 - **Manual chunking via REST**: rejected — re-implements SDK behavior with no benefit.
 
-## R6 — Migration command safety
-
-**Decision**:
-- Read-only against the legacy filesystem (no deletes, no moves). The on-disk layout remains until an operator deliberately removes it after the manifest reports success.
-- Per-file: compute `ObjectKey`, call `IObjectStorage.ExistsAsync`. If present, append `Skipped-Existing` to manifest and continue. If absent, stream upload via `IObjectStorage.UploadAsync`, then verify with a second `ExistsAsync` and content-length match before appending `Uploaded`.
-- Manifest is JSON Lines (one entry per file: `{ legacyPath, category, key, outcome, sha256-suffix, sizeBytes, completedAt, error? }`) so a partial run is still inspectable.
-- Exit code: 0 if every entry is `Uploaded` or `Skipped-Existing`; non-zero if any `Failed`.
-- Concurrency: single-threaded by default (predictable, low blast radius); `--parallelism N` flag with hard cap of 8 documented.
-
-**Rationale**: Idempotency requirement (FR-024 acceptance scenario 2). Verification (`ExistsAsync` after upload) catches the rare case where the SDK reports success but the blob isn't queryable (race against retry storms).
-
-**Alternatives considered**:
-- **Move-on-success**: rejected — destroys the rollback path. Operator runbook handles cleanup as a separate, explicit step.
-- **Parallel uploads by default**: rejected — funding platform's file count is small (low thousands); serial is observably fast enough and safer.
-
-## R7 — Test fixture changes
+## R6 — Test fixture changes
 
 **Decision**: Extend `AspireFixture` so that `EphemeralStorage=true` (already used for SQL) also:
 - Provisions an Azurite container with `--cleanup` (fresh state).
@@ -109,30 +92,21 @@ In production deployments, `RunAsEmulator()` is replaced by `ProvisionAsExisting
 **Alternatives considered**:
 - **Per-test Azurite**: rejected — startup cost compounds; Azurite isolation between tests is achieved via per-test key prefixes (test name + GUID), not per-test containers.
 
-## R8 — Existing call-site inventory
+## R7 — Existing call-site inventory
 
-**Decision**: Repository search `grep -rn 'FileStream|File\.Open|File\.Write|File\.Read' src/ --include='*.cs'` returns the following call sites that touch on-disk storage and MUST be migrated:
+**Decision**: Repository search `grep -rn 'FileStream|File\.Open|File\.Write|File\.Read' src/ --include='*.cs'` identifies the call sites that need to use the new abstraction:
 
-| Path | Today's behavior | Migration |
-|------|------------------|-----------|
-| `src/FundingPlatform.Infrastructure/FileStorage/LocalFileStorageService.cs` | Implements `IFileStorageService` against `FileStorage:Path`. | Replaced by `LocalFilesystemObjectStorage` + deleted at end of feature. |
-| `src/FundingPlatform.Web/Controllers/FundingAgreementController.cs` | Uses `IFileStorageService.SaveFileAsync` for signed PDF upload, and `GetFileAsync` for download. | Switched to `IObjectStorage.UploadAsync(FileCategory.SignedFundingAgreement, ...)` and `ResolveServingHandleAsync(...)`. |
-| `src/FundingPlatform.Web/Controllers/SupplierController.cs` | Uses `IFileStorageService` for catalog uploads. | Switched to `FileCategory.SupplierCatalogImport`. |
-| `src/FundingPlatform.Web/Controllers/QuotationController.cs` | Uses `IFileStorageService` for attachments. | Switched to `FileCategory.ApplicationAttachment`. |
-| `src/FundingPlatform.Web/Helpers/IllustrationHelper.cs` | Reads stock images from `wwwroot` — **not** platform storage. | NO change (those are static UI assets, not in scope). |
-| `src/FundingPlatform.Web/Controllers/Admin/AdminReportsController.cs` | Streams report bytes directly to `Response.Body`, never writes to disk. | NO change. |
+| Path | Migration target |
+|------|------------------|
+| `src/FundingPlatform.Web/Controllers/FundingAgreementController.cs` | `IObjectStorage.UploadAsync(FileCategory.SignedFundingAgreement, …)` for the generated agreement and `ResolveServingHandleAsync(…)` for downloads. |
+| `src/FundingPlatform.Application/Services/SignedUploadService.cs` | `FileCategory.SignedFundingAgreement` for signed-PDF intake. |
+| `src/FundingPlatform.Application/Services/ApplicationService.cs` | `FileCategory.ApplicationAttachment` for quotation documents. |
 
-Generated PDFs (Syncfusion) are produced in memory and currently passed straight to `IFileStorageService`; they migrate by virtue of the controller change above.
+Static UI assets (`wwwroot`) and admin report streams (Response.Body) are not platform storage and are out of scope.
 
-**Rationale**: Captures the scope of "every call site" so tasks.md can map work 1:1.
+**Rationale**: Captures every call site so tasks.md can map work 1:1.
 
-## R9 — Backwards-compatibility window
-
-**Decision**: A short `FileStorageServiceFacade : IFileStorageService` class adapts old call sites to the new port for the lifetime of the implementation phase, but every call site is migrated within the same feature branch. The facade is deleted in the final task. No transition period escapes this branch.
-
-**Rationale**: Avoids merging a half-migrated branch (Constitution VI: complexity must be current need only). The facade only exists so the work can land in stages without breaking the build between stages.
-
-## R10 — Out-of-scope confirmations
+## R8 — Out-of-scope confirmations
 
 The following are explicitly NOT addressed in this feature and are deferred:
 - CDN / public asset distribution (already out of scope per spec).

@@ -26,7 +26,6 @@
     <ProjectReference Include="..\..\src\FundingPlatform.Infrastructure\FundingPlatform.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\FundingPlatform.Application\FundingPlatform.Application.csproj" />
     <ProjectReference Include="..\..\src\FundingPlatform.Web\FundingPlatform.Web.csproj" />
-    <ProjectReference Include="..\..\tools\FundingPlatform.StorageMigration\FundingPlatform.StorageMigration.csproj" />
   </ItemGroup>
 
 </Project>

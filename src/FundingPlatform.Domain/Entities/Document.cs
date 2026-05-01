@@ -6,11 +6,8 @@ public class Document
     public string OriginalFileName { get; private set; } = string.Empty;
     public string StoragePath { get; private set; } = string.Empty;
 
-    /// <summary>Spec 014 / T052 — canonical object-storage key for the uploaded file.</summary>
-    public string? BlobKey { get; private set; }
-
-    /// <summary>Spec 014 / T052 — pre-014 absolute filesystem path (backfilled).</summary>
-    public string? LegacyPath { get; private set; }
+    /// <summary>Spec 014 — canonical object-storage key for the uploaded file. Always populated.</summary>
+    public string BlobKey { get; private set; } = string.Empty;
 
     public long FileSize { get; private set; }
     public string ContentType { get; private set; } = string.Empty;
@@ -28,7 +25,7 @@ public class Document
     }
 
     /// <summary>
-    /// Spec 014 / T052 — record the canonical object-storage key for the document.
+    /// Spec 014 — record the canonical object-storage key for the document.
     /// Behavior method per Constitution Principle II.
     /// </summary>
     public void RecordBlob(string blobKey)

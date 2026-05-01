@@ -351,3 +351,7 @@ Tick the box once the run is green:
 
 Until that box is ticked, T059 in [tasks.md](tasks.md) remains open even if
 all other Phase 8 tasks are complete.
+
+---
+
+**Post-revision: migration tooling dropped 2026-05-01; not-in-production simplification.** The `tools/FundingPlatform.StorageMigration` console project, its three integration tests, the post-deploy backfill script, and every `LegacyPath` column / property / EF configuration have been deleted. `BlobKey` is now `NVARCHAR(1024) NOT NULL` on `dbo.Documents`, `dbo.FundingAgreements`, and `dbo.SignedUploads`, and is non-nullable on the corresponding entities. Controllers/services no longer carry the "if `BlobKey is null` then read `StoragePath`" fallback or the "Skipping delete of pre-014 quotation document" warning path. The findings above (1024-vs-512 width deviation, facade default-category mis-routing, migration-tool stub status, post-deploy `:r`-include) are preserved for audit-trail honesty even though several no longer apply to the live code.

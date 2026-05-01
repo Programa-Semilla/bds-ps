@@ -9,8 +9,7 @@
 
 ### Session 2026-05-01
 
-- Q: What is the canonical object key format the platform writes? → A: `{category}/{owner-segment}/{entity-id}/{deterministic-suffix}.{ext}`, where `owner-segment` is the applicant or admin scope (`applicants/{applicantId}` for applicant-owned files, `admin` for global admin uploads), `entity-id` is the domain id (e.g., funding-application id, signed-agreement id, supplier-import batch id), and `deterministic-suffix` is a stable token persisted on the owning entity (existing entity GUID for new files; for migrated legacy files, a SHA-256 hash of the source path truncated to 16 hex chars).
-- Q: Migration approach for existing on-disk files (dual-read transition vs. one-shot before first cloud deploy)? → A: One-shot migration before the first cloud-provider deployment, no dual-read transition. The provider toggles only after the migration manifest reports zero failures. Lower environments may run migration repeatedly because it is idempotent.
+- Q: What is the canonical object key format the platform writes? → A: `{category}/{owner-segment}/{entity-id}/{deterministic-suffix}.{ext}`, where `owner-segment` is the applicant or admin scope (`applicants/{applicantId}` for applicant-owned files, `admin` for global admin uploads), `entity-id` is the domain id (e.g., funding-application id, signed-agreement id, supplier-import batch id), and `deterministic-suffix` is the owning entity's GUID, persisted on the row when the file is uploaded.
 - Q: Retry budget for transient cloud failures? → A: Use the storage SDK's default exponential-backoff retry policy with a hard cap of 3 retries and a total budget of 30 seconds per operation. After exhaustion, the abstraction surfaces a non-retryable error and the caller decides user-facing messaging.
 - Q: Default retention policy for each container? → A: No platform-enforced retention policy. The abstraction exposes a configuration seam (FR-023) but ships with the seam set to "no policy" for every container. Operations team sets retention via Azure portal or infrastructure-as-code outside this feature; signed funding agreements are explicitly flagged as candidates for legal-hold-style policies in the operator runbook.
 - Q: Where is connection-string authentication permitted? → A: Connection strings are permitted only in local development (Azurite) and lower environments (dev / staging) via Aspire connection-string references. Production deployment templates MUST use managed identity exclusively; a `Storage:Provider=AzureBlob` startup with a connection string in `Production` environment MUST log a warning and SHOULD be rejected by deployment gating.
@@ -65,22 +64,6 @@ The integration test fixture and the E2E (Playwright) fixture each boot an isola
 
 ---
 
-### User Story 4 - Existing on-disk files migrate cleanly into the new backend (Priority: P2)
-
-The platform already has files on the local filesystem from the period before this feature shipped (signed agreements, supplier catalog imports, attachments). An operator runs a one-shot migration that copies every existing local file into the configured cloud backend under the new naming convention, verifies the copy, and lets the platform serve those files transparently afterwards.
-
-**Why this priority**: Without migration, switching to the cloud provider would orphan historical records that the platform must remain able to retrieve (audit, dispute resolution). Lower than P1 because it is a one-time concern that runs after the abstraction itself is in place.
-
-**Independent Test**: Seed a fresh environment with N known local files, run the migration command, confirm every file is present in the destination backend at the expected key, the on-disk source is unchanged, and the platform can re-download each file via the existing UI.
-
-**Acceptance Scenarios**:
-
-1. **Given** the local filesystem contains N pre-existing files across the supported categories, **When** the migration runs against the configured cloud backend, **Then** every file appears in the correct container under a deterministic key and a manifest of source-path → blob-key is emitted.
-2. **Given** the migration is run a second time over the same source, **When** it encounters files already present at the destination key, **Then** it skips them rather than overwriting and reports the skip in its manifest.
-3. **Given** a corrupted source file (unreadable), **When** the migration encounters it, **Then** it records the failure in the manifest, continues with the remainder, and exits non-zero so an operator notices.
-
----
-
 ### User Story 5 - Oversized uploads are rejected before they touch storage (Priority: P2)
 
 A user attempts to upload a file larger than the configured cap for that file category. The platform rejects the upload with a clear, localized error before streaming any bytes to the storage backend, regardless of provider.
@@ -96,8 +79,7 @@ A user attempts to upload a file larger than the configured cap for that file ca
 
 ### Edge Cases
 
-- **Missing blob on download**: If a download is requested for a key that does not exist in the configured backend (e.g., a stale URL, a deleted file, a record that points at a path migrated incorrectly), the platform returns a clear 404-equivalent error with a stable error code, logs the operation outcome with the requested key (sanitized), and does not leak whether the requester was authorized to see it had it existed.
-- **Provider switch mid-environment**: If configuration is changed from one provider to another without running migration, downloads of historically-uploaded blobs fail predictably (404) and the operator-facing error logs the configured provider so the misconfiguration is diagnosable.
+- **Missing blob on download**: If a download is requested for a key that does not exist in the configured backend (e.g., a stale URL, a deleted file), the platform returns a clear 404-equivalent error with a stable error code, logs the operation outcome with the requested key (sanitized), and does not leak whether the requester was authorized to see it had it existed.
 - **Connection failure / transient outage**: Storage operations against the cloud backend retry transient failures using exponential backoff. The retry budget is **at most 3 retries with a 30-second total budget per operation** (the storage SDK's default policy, capped if the SDK default is more permissive). After the budget is exhausted, the abstraction surfaces a non-retryable error; the application decides between user-facing retry messaging and a hard failure.
 - **Streaming of large files**: Upload and download of any file above a configured streaming threshold MUST avoid buffering the entire payload in memory, regardless of provider.
 - **Path collisions**: Two different logical entities MUST NOT be able to resolve to the same blob key. The naming convention guarantees uniqueness even when human-supplied filenames collide.
@@ -137,10 +119,9 @@ A user attempts to upload a file larger than the configured cap for that file ca
   - `category` is the container name (FR-013) or, in `LocalFilesystem` mode, the top-level directory under `Storage:LocalFilesystem:RootPath`.
   - `owner-segment` is `applicants/{applicantId}` for applicant-owned files and `admin` for global admin uploads (e.g., supplier catalog imports). Future tenant scopes append to this segment without breaking older keys.
   - `entity-id` is the platform's domain id for the owning aggregate (e.g., funding-application id, signed-agreement id, supplier-import batch id).
-  - `deterministic-suffix` is a stable token persisted on the owning entity. New files use the existing entity GUID stored in the database. Migrated legacy files use a SHA-256 of the source path truncated to 16 hex characters; the platform records the suffix it used in the migration manifest (FR-024) so the legacy file is reproducibly addressable.
+  - `deterministic-suffix` is the owning entity's GUID, persisted on the row when the file is uploaded.
   - `ext` is the original file extension (lower-cased; `.pdf`, `.csv`, `.xlsx`, etc.).
   - Keys MUST be reconstructable from the platform's domain identifiers without consulting a separate index. Two distinct domain entities MUST NOT resolve to the same key.
-- **FR-015**: Existing on-disk files from the pre-feature implementation MUST be migrated into the configured cloud backend by the one-shot migration command (FR-024) **before** the production environment is switched from `LocalFilesystem` to `AzureBlob`. The platform does NOT support dual-read fallback that serves blobs from both the local filesystem and cloud storage in the same environment. Lower environments MAY run the migration repeatedly because it is idempotent (FR-024).
 - **FR-016**: Containers MUST be created by the platform on demand if they do not exist, and MUST be private (no anonymous public access).
 
 #### Download / serving model
@@ -165,13 +146,6 @@ A user attempts to upload a file larger than the configured cap for that file ca
 
 #### Lifecycle, observability, security
 - **FR-023**: The abstraction MUST expose a per-container lifecycle/retention seam (a configuration surface that can carry retention values or `"no policy"`). The seam ships with `"no policy"` for every container; the operations team configures retention values via Azure portal or infrastructure-as-code outside this feature. The operator runbook MUST flag `signed-funding-agreements` as a candidate for legal-hold-style policies.
-- **FR-024**: A one-shot migration command MUST be provided that:
-  - Walks the existing local filesystem layout.
-  - Computes the new key for each file using the naming convention from FR-014.
-  - Uploads each file to the configured backend using the abstraction.
-  - Skips files already present at the destination key (idempotent).
-  - Emits a manifest of `source-path → destination-key → outcome`.
-  - Exits non-zero if any file failed.
 - **FR-025**: Every storage operation (upload, download, exists, delete, URL issuance) MUST log: operation type, container, key, size (where known), duration, outcome (success/error code), and provider name. Logs MUST NOT include blob contents or full signed URLs.
 - **FR-026**: At-rest encryption is assumed via Azure defaults for `AzureBlob` and `Azurite`. The `LocalFilesystem` provider MUST document that encryption-at-rest is the host's responsibility and MUST NOT be the production default (FR-005 enforces this).
 - **FR-027**: All containers used by the platform MUST disallow anonymous public access. The platform MUST refuse to start (or surface a clear health-check failure) if it detects that a configured container has anonymous access enabled.
@@ -185,7 +159,6 @@ A user attempts to upload a file larger than the configured cap for that file ca
 - **Stored Object**: A binary payload identified by `(container, key)`. Carries metadata: size in bytes, content type, created-at, the logical owner (tenant/applicant/feature scope), and the provider that produced it. Maps 1:1 to a blob in `AzureBlob`/`Azurite` and to a file under a deterministic relative path in `LocalFilesystem`.
 - **File Category**: A logical bucket (e.g., signed funding agreements, supplier catalog imports, application attachments, generated artifacts) that determines the container, the upload size cap, the serving model (stream vs. URL), and the retention seam.
 - **Storage Provider Configuration**: The active provider name, its credentials/resource reference, the local-mode root path (when applicable), and per-category overrides (caps, serving model, retention seam values).
-- **Migration Manifest**: An auditable record produced by the one-shot migration listing every source file, its computed destination key, the outcome (uploaded / skipped-existing / failed), and the timestamp.
 
 ## Success Criteria *(mandatory)*
 
@@ -197,7 +170,6 @@ A user attempts to upload a file larger than the configured cap for that file ca
 - **SC-004**: Switching the active provider in any environment is achievable by a single configuration change and an AppHost restart, with no source modifications and zero impact on downstream code paths that consume the abstraction.
 - **SC-005**: The full Integration and E2E test suites pass on a machine with no Azure credentials, exercising real storage operations against Azurite (not stubs/mocks).
 - **SC-006**: Memory usage during a 100 MiB upload or download stays within a small constant multiple (≤ 4×) of the configured streaming threshold from FR-020, and never grows linearly with payload size.
-- **SC-007**: For every file the platform handled prior to this feature, the one-shot migration command places it in the configured cloud backend or reports the exact failure reason; the manifest covers 100% of source files.
 - **SC-008**: The Aspire dashboard for a local AppHost run shows the Azurite resource healthy and reachable within 30 seconds of AppHost start.
 - **SC-009**: An accidental misconfiguration (provider set to `AzureBlob` without a usable account reference) causes AppHost startup to fail with a single clear error, never silently degrades to a different provider.
 
@@ -205,7 +177,7 @@ A user attempts to upload a file larger than the configured cap for that file ca
 
 - The platform's deployment target is a single Azure Storage account per environment, with separate storage accounts for production vs. lower environments rather than reusing a single account across stages.
 - Managed identity is available in production. The platform's Azure deployment templates (out of scope for this spec but assumed by the operations team) will assign the necessary `Storage Blob Data Contributor` role to the platform's identity on the target account.
-- Existing on-disk file layout under the platform's storage root is stable enough that a one-shot migration can enumerate it without coordinating with running platform instances. Migration is run during a maintenance window or before the first cloud-provider deployment.
+- The platform is not yet in production; there is no legacy on-disk corpus to migrate. The storage abstraction is the day-one design and every row is created with a populated `BlobKey` from the moment the feature ships.
 - Docker is available on developer machines and CI agents (Aspire already requires it for the SQL Server container).
 - Files handled by the platform are bounded by the existing 20 MiB default per category. The streaming requirement is in place to keep the abstraction safe if the cap is raised later, not because today's traffic includes 100 MiB files.
 - The `FundingAgreement:CurrencyIsoCode`, `FundingAgreement:LocaleCode`, and similar configuration keys are independent of storage and are unaffected.

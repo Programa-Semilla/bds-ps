@@ -67,55 +67,7 @@ dotnet test tests/FundingPlatform.Tests.Integration -- \
 
 A warning is logged. Tests still pass; provider parity coverage is reduced.
 
-## 5. Migrating existing on-disk files
-
-Run the one-shot migration command before flipping the production environment from `LocalFilesystem` to `AzureBlob`. The tool MUST run while the platform is still serving from `LocalFilesystem`; do not toggle `Storage:Provider` until the manifest reports every entry as `Uploaded` or `Skipped-Existing`.
-
-```bash
-# Migrate (default subcommand)
-dotnet run --project tools/FundingPlatform.StorageMigration -- migrate \
-  --legacy-root /var/lib/funding/uploads \
-  --provider AzureBlob \
-  --account-reference https://<storage-account>.blob.core.windows.net/ \
-  --db-connection-string "<sql-connection-string>" \
-  --manifest-out tools/FundingPlatform.StorageMigration/manifests/$(date -u +%FT%TZ).jsonl \
-  --parallelism 4
-```
-
-The tool:
-- Walks `--legacy-root` (read-only — never deletes or moves the source).
-- Resolves each file to a `(FileCategory, ObjectKey)` by looking up its owning row in the database (matched by `LegacyPath` / `StoragePath` or filename).
-- Computes the deterministic blob-key suffix per FR-014 (SHA-256 of the legacy absolute path, first 16 hex chars).
-- Calls `IObjectStorage.ExistsAsync` first, then `UploadAsync` only if absent, then a second `ExistsAsync` to verify the upload actually settled (per research.md §R6 atomicity).
-- Appends a JSON Lines manifest entry per file (one entry per line, schema in `data-model.md § Migration manifest`).
-- Exits 0 when every entry is `Uploaded` or `Skipped-Existing`; exits non-zero (1) if any entry is `Failed`.
-
-### Idempotency
-
-Re-running the migration is safe: every entry that is already present at its computed key is reported as `Skipped-Existing`, no bytes are re-uploaded, and the run still exits 0. A partially-failed run can be re-driven against the same source — only the missing keys are re-uploaded.
-
-`--parallelism N` is hard-capped at 8; the default of `1` is recommended unless source enumeration dominates the run time.
-
-### Manifest output path
-
-By convention manifests land under `tools/FundingPlatform.StorageMigration/manifests/{utcTimestamp}.jsonl` so operators can grep / diff them. Each line is one self-contained JSON document with `legacyPath`, `category`, `ownerSegment`, `entityId`, `deterministicSuffix`, `extension`, `computedKey`, `outcome`, `sizeBytes`, `completedAt`, and an optional `error` field. The manifest is the audit trail for the cutover; archive it alongside the deployment notes.
-
-### Verifying a previous run
-
-After cutover (or before flipping providers), confirm every `Uploaded` manifest entry is still present in the configured backend:
-
-```bash
-dotnet run --project tools/FundingPlatform.StorageMigration -- verify \
-  --provider AzureBlob \
-  --account-reference https://<storage-account>.blob.core.windows.net/ \
-  --manifest-in tools/FundingPlatform.StorageMigration/manifests/2026-05-01T18:42:00Z.jsonl
-```
-
-Exit code 0 means no drift; non-zero lists every key that has gone missing since the manifest was written.
-
-After the manifest reports every entry as `Uploaded` or `Skipped-Existing`, flip `Storage:Provider` to `AzureBlob` and restart the Web project.
-
-## 6. Smoke test
+## 5. Smoke test
 
 ```bash
 # inside the AppHost dashboard, open the Web project URL
@@ -126,7 +78,7 @@ After the manifest reports every entry as `Uploaded` or `Skipped-Existing`, flip
 # 5. download the same signed PDF — bytes match
 ```
 
-## 7. CI parity (FR-009)
+## 6. CI parity (FR-009)
 
 The repo has no GitHub Actions workflows checked in (`.github/workflows/` is
 absent at the time of writing, per the convention that automation is owned
@@ -158,12 +110,10 @@ When the workflow lands, mirror these three invocations and require the job
 to fail if `AZURE_*` credentials leak into the runner environment (the
 `HermeticEnvironmentTests` fixture asserts this in-band).
 
-## 8. Troubleshooting
+## 7. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | AppHost startup error: "Storage provider 'AzureBlob' configured but no account reference" | `Storage:Provider=AzureBlob` without an account / connection string. | Add the account reference (managed identity in prod) or switch to Azurite locally. |
 | Logs show `ObjectStorage.Upload outcome=RetryExhausted` | Azure transient outage exceeded the 30 s budget. | Retry the user action; if persistent, check the Azure Storage account health. |
 | `LocalProviderUrlNotSupportedException` | Caller asked for a `TimeLimitedUrl` against the LocalFilesystem provider. | Switch the request to `BackendStream` or run against `Azurite`/`AzureBlob`. |
-| Migration manifest contains `Failed` entries | Source file unreadable or destination upload failed. | Inspect the `error` field per entry, fix the underlying issue, re-run (the run is idempotent). |
-| Quotation-document delete logs `Skipping delete of pre-014 quotation document` | A row in `Documents` still has a legacy absolute filesystem path on `StoragePath` and no `BlobKey`. The runtime cannot safely delete it via the storage abstraction. | Run the migration tool (T040) before removing the row; the tool re-uploads the file and writes the canonical `BlobKey`. Until then the on-disk file is owned by the migration tool and the runtime delete is a no-op. |

@@ -276,3 +276,8 @@ US3 hermetic fixture, US4 migration tool body, US5 oversize guard, Phase 8
 polish including SC-003 verification) is properly tracked in
 [tasks.md](tasks.md) and is the orchestrator's responsibility to surface to
 the user before the stamp gate.
+
+
+---
+
+**Post-revision: migration tooling dropped 2026-05-01; not-in-production simplification.** The migration tool, transition column (`LegacyPath`), post-deploy backfill script, and SHA-256 path-suffix branch have all been removed from the live code and live spec. The reviewer findings above are preserved as the historical audit trail — several no longer apply to the current state.

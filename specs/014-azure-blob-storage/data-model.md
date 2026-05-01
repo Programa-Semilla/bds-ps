@@ -31,7 +31,7 @@ Concrete string with parser. Implements FR-014.
 |-------|--------|-------|
 | `OwnerSegment` | `applicants/{applicantId}` or `admin` | Rendered at write time. |
 | `EntityId` | Owning aggregate's GUID | Mandatory. |
-| `DeterministicSuffix` | Persisted on the owning row (`BlobKey`) | New rows: GUID. Migrated rows: `sha256(legacyPath)[..16]`. |
+| `DeterministicSuffix` | Persisted on the owning row (`BlobKey`) | The owning entity's GUID, generated when the file is uploaded. |
 | `Extension` | Original upload extension, lowercased | Defaults to `.bin`. |
 
 `ObjectKey.Build(category, ownerSegment, entityId, suffix, extension)` returns the canonical string. `ObjectKey.Parse(string)` reverses it for diagnostics. Total length capped at 1024 bytes.
@@ -101,53 +101,16 @@ Storage:
 
 | Table | New column | Purpose |
 |-------|------------|---------|
-| `dbo.FundingAgreementSignatures` | `BlobKey nvarchar(1024) NULL` | Replaces the absolute-path field used today; nullable until the migration completes. |
-| `dbo.SupplierCatalogImports` | `BlobKey nvarchar(1024) NULL` | Same. |
-| `dbo.ApplicationAttachments` (or whichever current entity holds attachment paths — confirmed during R8 audit) | `BlobKey nvarchar(1024) NULL` | Same. |
-| `dbo.GeneratedAgreementArtifacts` | `BlobKey nvarchar(1024) NULL` | Replaces in-database BLOB or path field for system-generated PDFs. |
+| `dbo.FundingAgreements` | `BlobKey nvarchar(1024) NOT NULL` | Canonical key for the generated agreement PDF. Set on insert. |
+| `dbo.SignedUploads` | `BlobKey nvarchar(1024) NOT NULL` | Canonical key for the applicant's signed PDF. Set on insert. |
+| `dbo.Documents` | `BlobKey nvarchar(1024) NOT NULL` | Canonical key for application attachments (quotation documents). Set on insert. |
 
-For each table, a *temporary* nullable `LegacyPath nvarchar(1024) NULL` column is added in the same dacpac change. The post-deployment script copies the existing path into `LegacyPath`, leaves `BlobKey` NULL, and the migration tool fills `BlobKey` and the manifest. After successful production deploy, a follow-up dacpac change (separate spec, deferred) drops `LegacyPath`.
-
-### Post-deployment script
-
-```sql
--- 014-azure-blob-storage migration helper
-IF EXISTS (SELECT 1 FROM dbo.FundingAgreementSignatures WHERE BlobKey IS NULL AND LegacyPath IS NULL)
-BEGIN
-    UPDATE dbo.FundingAgreementSignatures
-    SET LegacyPath = StoragePath  -- existing column
-    WHERE LegacyPath IS NULL;
-END
-```
-
-(Repeated per affected table — concrete script lives in the dacpac.)
+`BlobKey` is `NOT NULL` from day one. There is no legacy on-disk corpus and no transition window; every row is created with a populated key.
 
 ### Constraints
 
-- `BlobKey` is nullable until migration. After migration completes, a separate dacpac change (out of scope here) tightens it to `NOT NULL` and drops `LegacyPath`.
+- `BlobKey` is `NVARCHAR(1024) NOT NULL` on every table, matching `ObjectKey.MaxLengthBytes`.
 - No FK changes. The blob-key column is a plain string the application owns.
-
-## Migration manifest
-
-JSON Lines file, one entry per legacy file:
-
-```json
-{
-  "legacyPath": "/var/lib/funding/uploads/abc.pdf",
-  "category": "SignedFundingAgreement",
-  "ownerSegment": "applicants/12345678-aaaa-bbbb-cccc-1234567890ab",
-  "entityId": "98765432-eeee-ffff-aaaa-1234567890ab",
-  "deterministicSuffix": "a3f9c1d2e4b56789",
-  "extension": ".pdf",
-  "computedKey": "signed-funding-agreements/applicants/12345678-aaaa-bbbb-cccc-1234567890ab/98765432-eeee-ffff-aaaa-1234567890ab/a3f9c1d2e4b56789.pdf",
-  "outcome": "Uploaded" | "Skipped-Existing" | "Failed",
-  "sizeBytes": 184321,
-  "completedAt": "2026-05-02T18:42:11.123Z",
-  "error": null
-}
-```
-
-Manifest path: `tools/FundingPlatform.StorageMigration/manifests/{utcTimestamp}.jsonl`. Saved alongside the binary so operators can grep / diff.
 
 ## Logging shape (FR-025)
 
@@ -170,7 +133,7 @@ Never includes blob contents, signed URL strings, or auth tokens.
 
 ## State transitions
 
-There are no domain-state transitions introduced — files are either present (a single state) or absent. The migration manifest does have outcome states (Uploaded → Skipped-Existing → Failed) but those describe the migration run, not domain state.
+There are no domain-state transitions introduced — files are either present (a single state) or absent.
 
 ## Validation rules
 

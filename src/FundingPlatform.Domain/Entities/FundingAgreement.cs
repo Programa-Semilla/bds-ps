@@ -13,11 +13,8 @@ public class FundingAgreement
     public long Size { get; private set; }
     public string StoragePath { get; private set; } = string.Empty;
 
-    /// <summary>Spec 014 / T029 — canonical object-storage key for the generated PDF.</summary>
-    public string? BlobKey { get; private set; }
-
-    /// <summary>Spec 014 / T029 — pre-014 absolute filesystem path (backfilled).</summary>
-    public string? LegacyPath { get; private set; }
+    /// <summary>Spec 014 — canonical object-storage key for the generated PDF. Always populated.</summary>
+    public string BlobKey { get; private set; } = string.Empty;
 
     public DateTime GeneratedAtUtc { get; private set; }
     public string GeneratedByUserId { get; private set; } = string.Empty;
@@ -76,7 +73,7 @@ public class FundingAgreement
     }
 
     /// <summary>
-    /// Spec 014 / T029 — record the canonical object-storage key for the generated PDF.
+    /// Spec 014 — record the canonical object-storage key for the generated PDF.
     /// Behavior method per Constitution Principle II.
     /// </summary>
     public void RecordBlob(string blobKey)

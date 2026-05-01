@@ -21,9 +21,8 @@ public class FundingAgreementConfiguration : IEntityTypeConfiguration<FundingAgr
         builder.Property(f => f.ContentType).IsRequired().HasMaxLength(100);
         builder.Property(f => f.Size).IsRequired();
         builder.Property(f => f.StoragePath).IsRequired().HasMaxLength(500);
-        // Spec 014 / T029 — nullable while migration is in flight.
-        builder.Property(f => f.BlobKey).HasMaxLength(1024).IsRequired(false);
-        builder.Property(f => f.LegacyPath).HasMaxLength(1024).IsRequired(false);
+        // Spec 014 — canonical object-storage key, always populated on insert.
+        builder.Property(f => f.BlobKey).IsRequired().HasMaxLength(1024);
         builder.Property(f => f.GeneratedAtUtc).IsRequired();
         builder.Property(f => f.GeneratedByUserId).IsRequired().HasMaxLength(450);
         builder.Property(f => f.GeneratedVersion).IsRequired().HasDefaultValue(1);

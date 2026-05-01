@@ -173,3 +173,7 @@ can fail. It does not throw at startup.
 
 ---
 *Full context in linked [spec](spec.md) and [plan](plan.md).*
+
+---
+
+**Post-revision: migration tooling dropped 2026-05-01; not-in-production simplification.** The platform is greenfield. User Story 4, FR-015, FR-024, SC-007, the migration manifest entity, the SHA-256 path-suffix branch, and the `LegacyPath` transition column have all been removed from the live spec. The reviewer findings above are preserved for audit-trail honesty even though several of their questions (one-shot migration cutover, backfill column width, manifest semantics) no longer apply.

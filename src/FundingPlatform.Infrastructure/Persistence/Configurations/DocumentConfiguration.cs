@@ -14,8 +14,7 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
 
         builder.Property(d => d.OriginalFileName).IsRequired().HasMaxLength(500);
         builder.Property(d => d.StoragePath).IsRequired().HasMaxLength(1000);
-        builder.Property(d => d.BlobKey).HasMaxLength(1024).IsRequired(false);
-        builder.Property(d => d.LegacyPath).HasMaxLength(1024).IsRequired(false);
+        builder.Property(d => d.BlobKey).IsRequired().HasMaxLength(1024);
         builder.Property(d => d.FileSize).IsRequired();
         builder.Property(d => d.ContentType).IsRequired().HasMaxLength(100);
         builder.Property(d => d.UploadedAt).IsRequired();

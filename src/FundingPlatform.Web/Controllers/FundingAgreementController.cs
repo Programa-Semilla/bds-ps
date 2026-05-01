@@ -178,7 +178,7 @@ public class FundingAgreementController : Controller
         }
 
         var fileName = $"FundingAgreement-{application.Id}.pdf";
-        var priorBlobKey = application.FundingAgreement?.BlobKey;
+        var priorBlobKey = application.FundingAgreement is { BlobKey.Length: > 0 } existing ? existing.BlobKey : null;
 
         // Spec 014 / T028 — build the canonical ObjectKey from the
         // signed-funding-agreement aggregate. EntityId is the application id
@@ -305,24 +305,11 @@ public class FundingAgreementController : Controller
         await _applicationRepository.UpdateAsync(application);
         await _applicationRepository.SaveChangesAsync();
 
-        // Spec 014 / T028 — resolve via IObjectStorage.ResolveServingHandleAsync.
+        // Spec 014 — resolve via IObjectStorage.ResolveServingHandleAsync.
         // Default ServingMode.BackendStream so the application boundary remains
         // the only authorisation point (FR-018); SAS URLs are never emitted to
         // applicants for the agreement category.
-        var rawKey = agreement.BlobKey ?? agreement.StoragePath;
-        ObjectKey key;
-        try
-        {
-            key = ObjectKey.Parse(rawKey);
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex,
-                "Funding agreement download could not parse storage key '{RawKey}' as ObjectKey. " +
-                "Pre-014 rows are owned by the migration tool (T040).",
-                rawKey);
-            return NotFound();
-        }
+        var key = ObjectKey.Parse(agreement.BlobKey);
 
         BackendStreamHandle backendHandle;
         try

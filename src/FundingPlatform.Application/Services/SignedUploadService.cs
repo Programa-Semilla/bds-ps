@@ -474,22 +474,8 @@ public class SignedUploadService
         if (upload is null)
             return new SignedAgreementStreamResult(false, null, null, null);
 
-        // Spec 014 / T028 — read via IObjectStorage. BlobKey is preferred (post-014 rows);
-        // legacy StoragePath rows are owned by the migration tool (T040).
-        var rawKey = upload.BlobKey ?? upload.StoragePath;
-        ObjectKey readKey;
-        try
-        {
-            readKey = ObjectKey.Parse(rawKey);
-        }
-        catch (ArgumentException)
-        {
-            _logger.LogWarning(
-                "Signed upload {SignedUploadId} could not be parsed as a canonical ObjectKey; " +
-                "value='{RawKey}'. Run the storage migration tool (T040) before serving.",
-                upload.Id, rawKey);
-            return new SignedAgreementStreamResult(false, null, null, null);
-        }
+        // Spec 014 — read via IObjectStorage. BlobKey is always populated on insert.
+        var readKey = ObjectKey.Parse(upload.BlobKey);
 
         Stream stream;
         try

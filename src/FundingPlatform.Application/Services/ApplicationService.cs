@@ -343,28 +343,12 @@ public class ApplicationService
     }
 
     /// <summary>
-    /// Spec 014 / T052 — best-effort delete of a quotation document's blob.
-    /// Pre-014 rows store an absolute filesystem path on <c>StoragePath</c> and
-    /// no <c>BlobKey</c>; those are owned by the migration tool (T040) and are
-    /// skipped with a warning. Post-014 rows always have a parseable <c>BlobKey</c>.
+    /// Spec 014 — best-effort delete of a quotation document's blob.
+    /// Every Document row has a canonical <c>BlobKey</c> populated on insert.
     /// </summary>
     private async Task TryDeleteQuotationBlobAsync(Document document)
     {
-        var rawKey = document.BlobKey ?? document.StoragePath;
-        if (string.IsNullOrWhiteSpace(rawKey)) return;
-
-        ObjectKey key;
-        try
-        {
-            key = ObjectKey.Parse(rawKey);
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex,
-                "Skipping delete of pre-014 quotation document. documentId={DocumentId} storagePath={StoragePath}",
-                document.Id, rawKey);
-            return;
-        }
+        var key = ObjectKey.Parse(document.BlobKey);
 
         var category = key.Container switch
         {
