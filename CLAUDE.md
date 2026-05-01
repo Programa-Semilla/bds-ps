@@ -73,3 +73,10 @@ brainstorm/                        Working scratchpad for in-flight design explo
 <!-- MANUAL ADDITIONS START -->
 
 <!-- MANUAL ADDITIONS END -->
+
+## Active Technologies
+- C# 13 / .NET 10.0 (014-azure-blob-storage)
+- Azure Blob Storage in production / Azurite (Docker container) in dev+test / local filesystem fallback. SQL Server unchanged. (014-azure-blob-storage)
+
+## Recent Changes
+- 014-azure-blob-storage: Added C# 13 / .NET 10.0
