@@ -10,6 +10,8 @@ public class ReviewApplicationViewModel
     public List<ReviewItemViewModel> Items { get; set; } = [];
     public bool HasUnresolvedItems { get; set; }
     public List<string>? UnresolvedItemWarnings { get; set; }
+    /// <summary>Spec 013 FR-052: count of quotations referencing a Rejected supplier.</summary>
+    public int RejectedSupplierCount { get; set; }
 }
 
 public class ReviewItemViewModel
@@ -44,6 +46,9 @@ public class ReviewQuotationViewModel
     public bool ScoreElectronicInvoice { get; set; }
     public bool ScoreLowestPrice { get; set; }
     public bool IsPreSelected { get; set; }
+    /// <summary>Spec 013 FR-051: supplier verification flags surfaced to the reviewer.</summary>
+    public bool IsSupplierVerified { get; set; }
+    public bool IsSupplierRejected { get; set; }
 }
 
 public class ImpactParameterDisplayViewModel

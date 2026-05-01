@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\FundingPlatform.Domain\FundingPlatform.Domain.csproj" />
     <ProjectReference Include="..\..\src\FundingPlatform.Application\FundingPlatform.Application.csproj" />
+    <ProjectReference Include="..\..\src\FundingPlatform.Web\FundingPlatform.Web.csproj" />
   </ItemGroup>
 
 </Project>

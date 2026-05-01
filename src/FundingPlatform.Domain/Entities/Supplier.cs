@@ -1,52 +1,226 @@
+using FundingPlatform.Domain.Enums;
+
 namespace FundingPlatform.Domain.Entities;
 
+/// <summary>
+/// Aggregate root for the centralized supplier catalog (spec 013). Owns its
+/// lifecycle (Draft -> PendingReview -> Verified | Rejected) and a 1:N
+/// collection of branches. All branch CRUD goes through this aggregate.
+/// </summary>
 public class Supplier
 {
+    private readonly List<SupplierBranch> _branches = [];
+
     public int Id { get; private set; }
     public string LegalId { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
-    public string? ContactName { get; private set; }
-    public string? Email { get; private set; }
-    public string? Phone { get; private set; }
-    public string? Location { get; private set; }
+
+    // Admin-only flags (FR-040). Applicants never see these on a form.
     public bool HasElectronicInvoice { get; private set; }
-    public string? ShippingDetails { get; private set; }
-    public string? WarrantyInfo { get; private set; }
     public bool IsCompliantCCSS { get; private set; }
     public bool IsCompliantHacienda { get; private set; }
     public bool IsCompliantSICOP { get; private set; }
+
+    // Lifecycle (FR-021, FR-024, FR-035).
+    public SupplierVerificationStatus VerificationStatus { get; private set; }
+    public int? CreatedByApplicantId { get; private set; }
+    public string? VerifiedByUserId { get; private set; }
+    public DateTime? VerifiedAt { get; private set; }
+    public string? RejectionReason { get; private set; }
+
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
+    public IReadOnlyCollection<SupplierBranch> Branches => _branches.AsReadOnly();
+
     private Supplier() { }
 
-    public Supplier(
+    /// <summary>
+    /// Applicant-initiated factory (FR-021). Creates a Draft supplier with one
+    /// default branch built from the given fields. The applicant has no input on
+    /// compliance flags or the e-invoice flag — those are admin-only at every status.
+    /// </summary>
+    public static Supplier CreateDraft(
         string legalId,
         string name,
-        string? contactName,
-        string? email,
-        string? phone,
-        string? location,
+        int createdByApplicantId,
+        string firstBranchName,
+        string? firstBranchContactName,
+        string? firstBranchEmail,
+        string? firstBranchPhone,
+        string? firstBranchAddressLine,
+        string? firstBranchProvince,
+        string? firstBranchShippingDetails,
+        string? firstBranchWarrantyInfo)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(legalId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var s = new Supplier
+        {
+            LegalId = NormalizeLegalId(legalId),
+            Name = name.Trim(),
+            CreatedByApplicantId = createdByApplicantId,
+            VerificationStatus = SupplierVerificationStatus.Draft,
+            HasElectronicInvoice = false,
+            IsCompliantCCSS = false,
+            IsCompliantHacienda = false,
+            IsCompliantSICOP = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+
+        var defaultBranch = new SupplierBranch(
+            firstBranchName,
+            firstBranchContactName,
+            firstBranchEmail,
+            firstBranchPhone,
+            firstBranchAddressLine,
+            firstBranchProvince,
+            firstBranchShippingDetails,
+            firstBranchWarrantyInfo,
+            isDefault: true,
+            createdByApplicantId: createdByApplicantId);
+        s._branches.Add(defaultBranch);
+        return s;
+    }
+
+    /// <summary>
+    /// Normalizes a legal ID for canonical comparison: trims whitespace and
+    /// uppercases (FR-001, FR-005). Use on every read and write of a legal ID.
+    /// </summary>
+    public static string NormalizeLegalId(string legalId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(legalId);
+        return legalId.Trim().ToUpperInvariant();
+    }
+
+    // ----------- Lifecycle methods (Constitution II: rich domain model) -----------
+
+    /// <summary>
+    /// Application-submission side effect (FR-024). Idempotent on non-Draft
+    /// statuses — a supplier already past Draft is silently left alone.
+    /// </summary>
+    public void SubmitForReview()
+    {
+        if (VerificationStatus != SupplierVerificationStatus.Draft)
+            return;
+        VerificationStatus = SupplierVerificationStatus.PendingReview;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Admin verifies the supplier (FR-035). Records the verifier identity and
+    /// timestamp. Clears any prior RejectionReason. Throws if attempted on a
+    /// Draft supplier (admin must wait for SubmitForReview first).
+    /// </summary>
+    public void Verify(string verifiedByUserId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(verifiedByUserId);
+        if (VerificationStatus == SupplierVerificationStatus.Draft)
+            throw new InvalidOperationException("Cannot verify a Draft supplier; submit for review first.");
+        VerificationStatus = SupplierVerificationStatus.Verified;
+        VerifiedByUserId = verifiedByUserId;
+        VerifiedAt = DateTime.UtcNow;
+        RejectionReason = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Admin rejects the supplier with a required reason (FR-035).
+    /// </summary>
+    public void Reject(string verifiedByUserId, string reason)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(verifiedByUserId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        if (VerificationStatus == SupplierVerificationStatus.Draft)
+            throw new InvalidOperationException("Cannot reject a Draft supplier.");
+        VerificationStatus = SupplierVerificationStatus.Rejected;
+        VerifiedByUserId = verifiedByUserId;
+        VerifiedAt = DateTime.UtcNow;
+        RejectionReason = reason.Trim();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Applicant edits the supplier name while parent application is Draft (FR-022).
+    /// Throws on any non-Draft status — admins use EditByAdmin instead.
+    /// </summary>
+    public void RenameByApplicant(string newName)
+    {
+        if (VerificationStatus != SupplierVerificationStatus.Draft)
+            throw new InvalidOperationException("Applicants cannot rename non-Draft suppliers.");
+        ArgumentException.ThrowIfNullOrWhiteSpace(newName);
+        Name = newName.Trim();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Admin edits identity fields including the four admin-only flags
+    /// (FR-032, FR-033). Permitted at any status; takes effect immediately.
+    /// </summary>
+    public void EditByAdmin(
+        string newName,
         bool hasElectronicInvoice,
-        string? shippingDetails,
-        string? warrantyInfo,
         bool isCompliantCCSS,
         bool isCompliantHacienda,
         bool isCompliantSICOP)
     {
-        LegalId = legalId;
-        Name = name;
-        ContactName = contactName;
-        Email = email;
-        Phone = phone;
-        Location = location;
+        ArgumentException.ThrowIfNullOrWhiteSpace(newName);
+        Name = newName.Trim();
         HasElectronicInvoice = hasElectronicInvoice;
-        ShippingDetails = shippingDetails;
-        WarrantyInfo = warrantyInfo;
         IsCompliantCCSS = isCompliantCCSS;
         IsCompliantHacienda = isCompliantHacienda;
         IsCompliantSICOP = isCompliantSICOP;
-        CreatedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ----------- Branch operations (single source of truth for invariants) -----------
+
+    /// <summary>
+    /// Adds a new branch under the supplier. Enforces the "exactly one default"
+    /// invariant in-process; the DB also enforces it via a filtered unique index.
+    /// </summary>
+    public SupplierBranch AddBranch(
+        string branchName,
+        string? contactName,
+        string? email,
+        string? phone,
+        string? addressLine,
+        string? province,
+        string? shippingDetails,
+        string? warrantyInfo,
+        int? createdByApplicantId,
+        bool isDefault = false)
+    {
+        if (isDefault && _branches.Any(b => b.IsDefault))
+            throw new InvalidOperationException("Supplier already has a default branch.");
+        var branch = new SupplierBranch(
+            branchName, contactName, email, phone, addressLine, province,
+            shippingDetails, warrantyInfo, isDefault, createdByApplicantId);
+        _branches.Add(branch);
+        UpdatedAt = DateTime.UtcNow;
+        return branch;
+    }
+
+    /// <summary>
+    /// Edits a branch's contact fields (FR-014, FR-034). Caller is responsible
+    /// for the role/ownership check before invoking.
+    /// </summary>
+    public void EditBranch(
+        int branchId,
+        string branchName,
+        string? contactName,
+        string? email,
+        string? phone,
+        string? addressLine,
+        string? province,
+        string? shippingDetails,
+        string? warrantyInfo)
+    {
+        var branch = _branches.FirstOrDefault(b => b.Id == branchId)
+            ?? throw new InvalidOperationException($"Branch {branchId} not found on supplier {Id}.");
+        branch.Edit(branchName, contactName, email, phone, addressLine, province, shippingDetails, warrantyInfo);
         UpdatedAt = DateTime.UtcNow;
     }
 }

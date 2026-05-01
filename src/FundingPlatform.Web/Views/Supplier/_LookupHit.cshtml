@@ -1,0 +1,51 @@
+@using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Application.Suppliers.DTOs.SupplierDetailViewDto
+
+<div class="card mb-3" data-testid="supplier-lookup-hit">
+    <div class="card-body">
+        <h4 class="card-title">
+            @Model.Name
+            @if (Model.VerificationStatus == SupplierVerificationStatus.PendingReview)
+            {
+                <span class="badge bg-yellow-lt ms-2" data-testid="pending-verification-badge">
+                    @SuppliersResources.PendingVerificationBadge
+                </span>
+            }
+            @if (Model.VerificationStatus == SupplierVerificationStatus.Draft)
+            {
+                <span class="badge bg-secondary-lt ms-2" data-testid="draft-supplier-badge">Borrador</span>
+            }
+        </h4>
+        <p class="text-muted small mb-3">Cédula jurídica: <strong>@Model.LegalId</strong></p>
+
+        <div class="row g-2 mb-3">
+            <div class="col-auto">
+                <span class="badge @(Model.HasElectronicInvoice ? "bg-green-lt" : "bg-secondary-lt")" data-testid="badge-einvoice">
+                    <i class="ti @(Model.HasElectronicInvoice ? "ti-check" : "ti-x")"></i> Factura electrónica
+                </span>
+            </div>
+            <div class="col-auto">
+                <span class="badge @(Model.IsCompliantCCSS ? "bg-green-lt" : "bg-secondary-lt")" data-testid="badge-ccss">
+                    <i class="ti @(Model.IsCompliantCCSS ? "ti-check" : "ti-x")"></i> CCSS
+                </span>
+            </div>
+            <div class="col-auto">
+                <span class="badge @(Model.IsCompliantHacienda ? "bg-green-lt" : "bg-secondary-lt")" data-testid="badge-hacienda">
+                    <i class="ti @(Model.IsCompliantHacienda ? "ti-check" : "ti-x")"></i> Hacienda
+                </span>
+            </div>
+            <div class="col-auto">
+                <span class="badge @(Model.IsCompliantSICOP ? "bg-green-lt" : "bg-secondary-lt")" data-testid="badge-sicop">
+                    <i class="ti @(Model.IsCompliantSICOP ? "ti-check" : "ti-x")"></i> SICOP
+                </span>
+            </div>
+        </div>
+
+        <small class="text-muted d-block mb-3">
+            Estos indicadores son administrados por el equipo de la plataforma.
+        </small>
+    </div>
+</div>
+
+<partial name="_BranchPicker" model="Model" />

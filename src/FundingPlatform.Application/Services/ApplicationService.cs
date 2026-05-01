@@ -1,6 +1,8 @@
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.DTOs;
+using FundingPlatform.Application.Suppliers.Services;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
@@ -16,6 +18,7 @@ public class ApplicationService
     private readonly IImpactTemplateRepository _impactTemplateRepository;
     private readonly ISystemConfigurationRepository _systemConfigurationRepository;
     private readonly IDocumentRepository _documentRepository;
+    private readonly SupplierCatalogService _supplierCatalogService;
     private readonly ILogger<ApplicationService> _logger;
 
     public ApplicationService(
@@ -26,6 +29,7 @@ public class ApplicationService
         IImpactTemplateRepository impactTemplateRepository,
         ISystemConfigurationRepository systemConfigurationRepository,
         IDocumentRepository documentRepository,
+        SupplierCatalogService supplierCatalogService,
         ILogger<ApplicationService> logger)
     {
         _applicationRepository = applicationRepository;
@@ -35,6 +39,7 @@ public class ApplicationService
         _impactTemplateRepository = impactTemplateRepository;
         _systemConfigurationRepository = systemConfigurationRepository;
         _documentRepository = documentRepository;
+        _supplierCatalogService = supplierCatalogService;
         _logger = logger;
     }
 
@@ -54,6 +59,8 @@ public class ApplicationService
 
     /// <summary>
     /// Submits an application after validating it against business rules.
+    /// Spec 013: also flips every owned Draft supplier (referenced via the application's
+    /// quotations) to PendingReview atomically with the submission (FR-024).
     /// Returns a list of validation errors, or an empty list on success.
     /// </summary>
     public async Task<List<string>> SubmitApplicationAsync(SubmitApplicationCommand cmd, string userId)
@@ -61,7 +68,6 @@ public class ApplicationService
         var application = await _applicationRepository.GetByIdWithDetailsAsync(cmd.ApplicationId)
             ?? throw new InvalidOperationException($"Application {cmd.ApplicationId} not found.");
 
-        // Read MinQuotationsPerItem from system configuration
         var config = await _systemConfigurationRepository.GetByKeyAsync("MinQuotationsPerItem");
         int minQuotations;
         if (config is not null)
@@ -76,6 +82,31 @@ public class ApplicationService
 
         try
         {
+            // Spec 013 FR-024: collect every distinct supplier referenced by a quotation
+            // on this application, batch-load them in a single round-trip, and flip the
+            // ones that are owned Drafts to PendingReview inside the same submit
+            // transaction. The actual ownership-and-status filter is applied in-memory
+            // below — the variable name reflects the load set, not the flip set.
+            var referencedSupplierIds = application.Items
+                .SelectMany(i => i.Quotations)
+                .Select(q => q.SupplierId)
+                .Distinct()
+                .ToList();
+
+            if (referencedSupplierIds.Count > 0)
+            {
+                var suppliers = await _supplierRepository.ListByIdsWithBranchesAsync(referencedSupplierIds);
+                foreach (var supplier in suppliers)
+                {
+                    if (supplier.VerificationStatus == SupplierVerificationStatus.Draft
+                        && supplier.CreatedByApplicantId == application.ApplicantId)
+                    {
+                        supplier.SubmitForReview();
+                        await _supplierRepository.UpdateAsync(supplier);
+                    }
+                }
+            }
+
             application.Submit(minQuotations);
             application.AddVersionHistory(new VersionHistory(userId, "Submitted", "Application submitted for review"));
 
@@ -86,8 +117,6 @@ public class ApplicationService
         }
         catch (InvalidOperationException ex)
         {
-            // Parse the validation errors from the exception message
-            // The format is: "Cannot submit application: error1; error2; ..."
             var message = ex.Message;
             var prefix = "Cannot submit application: ";
             if (message.StartsWith(prefix))
@@ -170,48 +199,56 @@ public class ApplicationService
         await _applicationRepository.SaveChangesAsync();
     }
 
-    public async Task AddSupplierQuotationAsync(AddSupplierQuotationCommand cmd, Stream fileStream)
+    /// <summary>
+    /// Spec 013 (US1): adds a quotation against an existing Verified or
+    /// applicant-owned PendingReview/Draft supplier branch. Writes both
+    /// SupplierId and SupplierBranchId on the new Quotation atomically from the
+    /// same loaded SupplierBranch (preserves the FK invariant).
+    /// </summary>
+    public async Task AddQuotationToExistingBranchAsync(
+        int appId,
+        int itemId,
+        int supplierId,
+        int branchId,
+        decimal price,
+        string currency,
+        DateOnly validUntil,
+        Stream fileStream,
+        string fileName,
+        string contentType,
+        long fileSize)
     {
-        var application = await _applicationRepository.GetByIdWithDetailsAsync(cmd.ApplicationId)
-            ?? throw new InvalidOperationException($"Application {cmd.ApplicationId} not found.");
+        var (supplier, branch) = await _supplierCatalogService
+            .LoadSupplierAndBranchAsync(supplierId, branchId);
 
-        var item = application.Items.FirstOrDefault(i => i.Id == cmd.ItemId)
-            ?? throw new InvalidOperationException($"Item {cmd.ItemId} not found in application {cmd.ApplicationId}.");
+        var application = await _applicationRepository.GetByIdWithDetailsAsync(appId)
+            ?? throw new InvalidOperationException($"Application {appId} not found.");
 
-        // Find or create supplier by LegalId
-        var supplier = await _supplierRepository.GetByLegalIdAsync(cmd.SupplierLegalId);
-        if (supplier is null)
-        {
-            supplier = new Supplier(
-                cmd.SupplierLegalId,
-                cmd.SupplierName,
-                cmd.ContactName,
-                cmd.Email,
-                cmd.Phone,
-                cmd.Location,
-                cmd.HasElectronicInvoice,
-                cmd.ShippingDetails,
-                cmd.WarrantyInfo,
-                cmd.IsCompliantCCSS,
-                cmd.IsCompliantHacienda,
-                cmd.IsCompliantSICOP);
-            await _supplierRepository.AddAsync(supplier);
-            await _applicationRepository.SaveChangesAsync();
-        }
+        var item = application.Items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException($"Item {itemId} not found in application {appId}.");
 
-        // Save file to disk
-        var storagePath = await _fileStorageService.SaveFileAsync(fileStream, cmd.FileName, cmd.FileContentType);
+        var storagePath = await _fileStorageService.SaveFileAsync(fileStream, fileName, contentType);
 
-        // Create and persist the Document first so it gets a database-generated Id
-        var document = new Document(cmd.FileName, storagePath, cmd.FileSize, cmd.FileContentType);
+        var document = new Document(fileName, storagePath, fileSize, contentType);
         await _documentRepository.AddAsync(document);
         await _applicationRepository.SaveChangesAsync();
 
-        // Add quotation to item (this validates duplicate suppliers)
-        item.AddQuotation(supplier, document, cmd.Price, cmd.ValidUntil, cmd.Currency);
+        try
+        {
+            item.AddQuotation(supplier, branch, document, price, validUntil, currency);
 
-        await _applicationRepository.UpdateAsync(application);
-        await _applicationRepository.SaveChangesAsync();
+            await _applicationRepository.UpdateAsync(application);
+            await _applicationRepository.SaveChangesAsync();
+        }
+        catch
+        {
+            // Spec 013: best-effort cleanup of the just-saved Document row and the
+            // file on disk if the Quotation save fails. Avoids orphaned Document
+            // rows and orphaned files when the (item, supplier) UNIQUE constraint
+            // or any other invariant rejects the Quotation insert.
+            try { await _fileStorageService.DeleteFileAsync(storagePath); } catch { /* best-effort */ }
+            throw;
+        }
     }
 
     public async Task ReplaceQuotationDocumentAsync(ReplaceQuotationDocumentCommand cmd, Stream fileStream)
@@ -225,19 +262,16 @@ public class ApplicationService
         var quotation = item.Quotations.FirstOrDefault(q => q.Id == cmd.QuotationId)
             ?? throw new InvalidOperationException($"Quotation {cmd.QuotationId} not found in item {cmd.ItemId}.");
 
-        // Save new file
         var storagePath = await _fileStorageService.SaveFileAsync(fileStream, cmd.FileName, cmd.FileContentType);
         var newDocument = new Document(cmd.FileName, storagePath, cmd.FileSize, cmd.FileContentType);
         await _documentRepository.AddAsync(newDocument);
         await _applicationRepository.SaveChangesAsync();
 
-        // Delete old file
         if (quotation.Document is not null)
         {
             await _fileStorageService.DeleteFileAsync(quotation.Document.StoragePath);
         }
 
-        // Replace document on quotation
         quotation.ReplaceDocument(newDocument.Id);
 
         await _applicationRepository.UpdateAsync(application);
@@ -294,7 +328,6 @@ public class ApplicationService
         var template = await _impactTemplateRepository.GetByIdWithParametersAsync(cmd.ImpactTemplateId)
             ?? throw new InvalidOperationException($"Impact template {cmd.ImpactTemplateId} not found.");
 
-        // Validate required parameters
         foreach (var param in template.Parameters.Where(p => p.IsRequired))
         {
             if (!cmd.ParameterValues.TryGetValue(param.Id, out var value) || string.IsNullOrWhiteSpace(value))

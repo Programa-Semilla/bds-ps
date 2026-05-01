@@ -205,11 +205,13 @@ public class ReviewService
         var reviewItems = application.Items.Select(item =>
         {
             var quotations = item.Quotations.ToList();
-            var scorePairs = quotations
+            // Spec 013 R5: SupplierScore signature now requires (Q, Supplier, Branch).
+            // The branch is reserved for reviewer-UI display use; score math is unchanged.
+            var scoreInputs = quotations
                 .Where(q => q.Supplier is not null)
-                .Select(q => (q, q.Supplier!))
+                .Select(q => (q, q.Supplier!, (SupplierBranch?)q.SupplierBranch))
                 .ToList();
-            var scoreResults = SupplierScore.ComputeForItem(scorePairs);
+            var scoreResults = SupplierScore.ComputeForItem(scoreInputs);
             var scoreMap = scoreResults.ToDictionary(s => s.QuotationId, s => s.Score);
 
             var quotationDtos = quotations.Select(q =>
@@ -230,7 +232,9 @@ public class ReviewService
                     score?.IsCompliantSICOP ?? false,
                     score?.HasElectronicInvoice ?? false,
                     score?.HasLowestPrice ?? false,
-                    score?.IsPreSelected ?? false);
+                    score?.IsPreSelected ?? false,
+                    score?.IsSupplierVerified ?? false,
+                    score?.IsSupplierRejected ?? false);
             })
             .OrderByDescending(q => q.Score)
             .ToList();
@@ -252,12 +256,20 @@ public class ReviewService
                     pv.Value ?? string.Empty)).ToList() ?? []);
         }).ToList();
 
+        // Spec 013 FR-052: count distinct quotations referencing a Rejected supplier
+        // for the reviewer banner.
+        var rejectedSupplierCount = application.Items
+            .SelectMany(i => i.Quotations)
+            .Where(q => q.Supplier?.VerificationStatus == SupplierVerificationStatus.Rejected)
+            .Count();
+
         return new ReviewApplicationDto(
             application.Id,
             $"{application.Applicant.FirstName} {application.Applicant.LastName}",
             application.Applicant.PerformanceScore,
             application.State,
             application.SubmittedAt,
-            reviewItems);
+            reviewItems,
+            rejectedSupplierCount);
     }
 }

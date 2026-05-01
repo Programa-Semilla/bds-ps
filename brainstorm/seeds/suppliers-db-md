@@ -1,0 +1,84 @@
+You are Claude Code acting as a senior product analyst, software architect, and requirements facilitator.
+
+Brainstorm a specification for the following requirement. The source idea was provided in Spanish, but your entire response must be in English.
+
+Context:
+The platform currently allows applicants to create a new request/application and register multiple quotations. Each quotation includes supplier information. Today, supplier data is mostly entered as free text by applicants, and compliance/status checks are also manually selected by applicants. This needs to change.
+
+Core idea:
+We need a centralized internal supplier database that can be reused across applications and quotations. Supplier entry must become structured, reusable, and administratively controlled, while still allowing flexibility when a supplier or supplier office/contact does not yet exist.
+
+Requirement details:
+1. Supplier identification
+   - When an applicant enters a supplier legal ID/tax ID, the system should search the internal supplier database.
+   - If the supplier exists, the system should show the existing supplier information.
+   - Suppliers may have multiple offices/branches/locations under the same legal ID.
+   - Each office/branch may have its own contact person, email, phone, address, province, or other office-specific data.
+
+2. Existing supplier flow
+   - If the supplier legal ID already exists, the applicant should be able to:
+     - Select an existing office/contact record, or
+     - Add a new office/contact under that existing supplier.
+   - The new office/contact should belong to the existing supplier entity.
+
+3. New supplier flow
+   - If the supplier does not exist, the applicant should still be allowed to continue.
+   - While the application is still in draft, the applicant may edit the new supplier information they entered.
+   - The supplier should not be permanently created in the centralized database until the application is submitted.
+   - After submission, the new supplier should be routed to admin users for review/verification.
+   - Once submitted, the applicant should no longer be able to edit that supplier data.
+
+4. Admin control
+   - Admin users should be able to edit supplier information after submission, especially if the applicant made a mistake and contacts admin to correct it.
+   - Admin users are responsible for maintaining supplier records and verifying supplier compliance/status.
+
+5. Compliance/status checks
+   - Applicants should no longer manually mark supplier compliance checks.
+   - These checks currently include:
+     - Caja / social security status
+     - Tax authority / tributación status
+     - SICOP status
+   - These fields must move to the centralized supplier database and be controlled by admin users.
+   - The application/quotation should consume these values from the supplier database.
+   - Existing recommendation/ranking algorithms should continue to use these checks, but the source of the data must change from application/quotation tables to the centralized supplier data model.
+
+6. Data model impact
+   - Identify existing columns that may become obsolete because supplier compliance data will no longer live directly on the quotation/application records.
+   - Propose a new or updated data model that separates:
+     - Supplier legal entity
+     - Supplier office/branch/contact
+     - Draft supplier data entered by applicants
+     - Admin verification/compliance fields
+     - Application/quotation references to suppliers
+
+7. Workflow impact
+   - Analyze draft vs submitted states.
+   - Define when applicant edits are allowed.
+   - Define when supplier records are created or updated.
+   - Define when admin review is required.
+   - Define how applications reference pending or verified supplier records.
+
+8. Algorithm impact
+   - Explain how the existing recommendation logic should be adapted.
+   - The algorithm behavior should remain the same, but it must read compliance fields from the supplier database instead of old quotation/application columns.
+   - Identify migration risks and backward compatibility considerations.
+
+Please brainstorm this as a structured product/technical specification.
+
+Include:
+- Problem statement
+- Goals and non-goals
+- Key user roles
+- Proposed user flows
+- Edge cases
+- Data model suggestions
+- API/backend considerations
+- Frontend/UI behavior
+- Permissions and edit rules
+- Migration considerations
+- Impact on existing recommendation algorithm
+- Open questions
+- Suggested implementation phases
+- Risks and tradeoffs
+
+Be thorough, but keep the output practical for a development team using Claude Code and Speckit.

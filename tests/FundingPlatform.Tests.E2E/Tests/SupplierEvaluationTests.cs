@@ -238,9 +238,14 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
         // Supplier 1: All compliant, e-invoice, highest price -> score 4/5
         var addSupplierLink = Page.Locator("a:has-text('Agregar proveedor')").First;
         await addSupplierLink.ClickAsync();
+        // Spec 013: applicant-form no longer exposes compliance/e-invoice checkboxes.
+        // FillSupplierFormAsync silently drops those args; a follow-up admin step
+        // would be required to set the four flags before scoring this supplier
+        // at the maximum (4 + price = 5/5). For this E2E we accept the post-spec-013
+        // baseline where the supplier lands as Draft with all flags false; the
+        // SupplierScore unit tests cover the score math independently.
         await supplierPage.FillSupplierFormAsync($"SE1-{_uniqueId}", "Full Compliance Corp", 1500m, "2027-12-31", _testFilePath,
             isCompliantCCSS: true, isCompliantHacienda: true, isCompliantSICOP: true);
-        await supplierPage.HasElectronicInvoiceCheckbox.CheckAsync();
         await supplierPage.SubmitAsync();
 
         // Supplier 2: Partial compliance, no e-invoice, lowest price -> score 3/5

@@ -2,6 +2,8 @@ using System.Security.Claims;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
+using FundingPlatform.Application.Suppliers.Services;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.ViewModels;
@@ -17,6 +19,8 @@ namespace FundingPlatform.Web.Controllers;
 public class QuotationController : Controller
 {
     private readonly ApplicationService _applicationService;
+    private readonly SupplierCatalogService _supplierCatalogService;
+    private readonly ISupplierRepository _supplierRepository;
     private readonly ISystemConfigurationRepository _systemConfigurationRepository;
     private readonly AppDbContext _dbContext;
     private readonly IOptions<AdminReportsOptions> _adminReportsOptions;
@@ -25,11 +29,15 @@ public class QuotationController : Controller
 
     public QuotationController(
         ApplicationService applicationService,
+        SupplierCatalogService supplierCatalogService,
+        ISupplierRepository supplierRepository,
         ISystemConfigurationRepository systemConfigurationRepository,
         AppDbContext dbContext,
         IOptions<AdminReportsOptions> adminReportsOptions)
     {
         _applicationService = applicationService;
+        _supplierCatalogService = supplierCatalogService;
+        _supplierRepository = supplierRepository;
         _systemConfigurationRepository = systemConfigurationRepository;
         _dbContext = dbContext;
         _adminReportsOptions = adminReportsOptions;
@@ -85,22 +93,30 @@ public class QuotationController : Controller
 
         try
         {
-            var command = new AddSupplierQuotationCommand
+            // Spec 013: existing-supplier quotation. Use the supplier's default branch
+            // since this entry-point doesn't expose branch selection (callers wanting
+            // branch choice go through SupplierController.Add).
+            var supplier = await _supplierRepository.GetByIdWithBranchesAsync(model.SupplierId)
+                ?? throw new InvalidOperationException($"Supplier {model.SupplierId} not found.");
+
+            if (supplier.VerificationStatus == SupplierVerificationStatus.Rejected)
             {
-                ApplicationId = appId,
-                ItemId = itemId,
-                SupplierLegalId = string.Empty, // Existing supplier
-                SupplierName = model.SupplierName,
-                Price = model.Price,
-                Currency = model.Currency,
-                ValidUntil = model.ValidUntil,
-                FileName = model.QuotationFile.FileName,
-                FileContentType = model.QuotationFile.ContentType,
-                FileSize = model.QuotationFile.Length
-            };
+                ModelState.AddModelError(string.Empty, "El proveedor está rechazado y no puede recibir nuevas cotizaciones.");
+                model.ApplicationId = appId;
+                model.ItemId = itemId;
+                return View(model);
+            }
+
+            var defaultBranch = supplier.Branches.FirstOrDefault(b => b.IsDefault)
+                ?? supplier.Branches.FirstOrDefault()
+                ?? throw new InvalidOperationException($"Supplier {model.SupplierId} has no branches.");
 
             using var stream = model.QuotationFile.OpenReadStream();
-            await _applicationService.AddSupplierQuotationAsync(command, stream);
+            await _applicationService.AddQuotationToExistingBranchAsync(
+                appId, itemId, supplier.Id, defaultBranch.Id,
+                model.Price, model.Currency, model.ValidUntil,
+                stream, model.QuotationFile.FileName,
+                model.QuotationFile.ContentType, model.QuotationFile.Length);
 
             TempData["SuccessMessage"] = "Cotización agregada con éxito.";
             return RedirectToAction("Details", "Application", new { id = appId });

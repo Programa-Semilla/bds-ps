@@ -19,6 +19,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Impact> Impacts => Set<Impact>();
     public DbSet<ImpactParameterValue> ImpactParameterValues => Set<ImpactParameterValue>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<SupplierBranch> SupplierBranches => Set<SupplierBranch>();
     public DbSet<Quotation> Quotations => Set<Quotation>();
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<SystemConfiguration> SystemConfigurations => Set<SystemConfiguration>();

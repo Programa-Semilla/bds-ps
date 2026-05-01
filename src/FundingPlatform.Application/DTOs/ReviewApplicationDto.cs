@@ -8,7 +8,8 @@ public record ReviewApplicationDto(
     decimal? ApplicantPerformanceScore,
     ApplicationState State,
     DateTime? SubmittedAt,
-    List<ReviewItemDto> Items);
+    List<ReviewItemDto> Items,
+    int RejectedSupplierCount = 0);
 
 public record ReviewItemDto(
     int ItemId,
@@ -38,7 +39,9 @@ public record ReviewQuotationDto(
     bool ScoreSICOP,
     bool ScoreElectronicInvoice,
     bool ScoreLowestPrice,
-    bool IsPreSelected);
+    bool IsPreSelected,
+    bool IsSupplierVerified = false,
+    bool IsSupplierRejected = false);
 
 public record ImpactParameterDisplayDto(
     string Name,

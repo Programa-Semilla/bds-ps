@@ -11,6 +11,14 @@
         Title: $"Revisar solicitud N.º {Model.ApplicationId}",
         Subtitle: Model.ApplicantName))
 
+@if (Model.RejectedSupplierCount > 0)
+{
+    <div class="alert alert-danger" role="alert" data-testid="rejected-suppliers-banner">
+        <i class="ti ti-alert-circle"></i>
+        Esta postulación referencia <strong>@Model.RejectedSupplierCount</strong> proveedor(es) rechazado(s) por administración.
+    </div>
+}
+
 @if (Model.UnresolvedItemWarnings is not null)
 {
     <div class="alert alert-warning unresolved-warning" role="alert">
@@ -145,6 +153,20 @@
                                     @if (q.IsRecommended)
                                     {
                                         <span class="recommended-badge status status-green"><i class="ti ti-star"></i> Recomendada</span>
+                                    }
+                                    @if (q.IsSupplierRejected)
+                                    {
+                                        <span class="status status-red ms-1" data-testid="rejected-supplier-badge"
+                                              title="Proveedor rechazado">
+                                            <i class="ti ti-x"></i> Rechazado
+                                        </span>
+                                    }
+                                    else if (!q.IsSupplierVerified)
+                                    {
+                                        <span class="status status-yellow ms-1" data-testid="pending-verification-badge"
+                                              title="@FundingPlatform.Web.Resources.SuppliersResources.PendingVerificationBadge">
+                                            <i class="ti ti-clock"></i> @FundingPlatform.Web.Resources.SuppliersResources.PendingVerificationBadge
+                                        </span>
                                     }
                                 </td>
                             </tr>

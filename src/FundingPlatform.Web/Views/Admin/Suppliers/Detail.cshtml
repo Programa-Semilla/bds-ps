@@ -1,0 +1,237 @@
+@using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.Resources
+@using FundingPlatform.Web.ViewModels.Admin
+@model FundingPlatform.Web.ViewModels.Admin.AdminSupplierDetailViewModel
+@{
+    ViewData["Title"] = $"Proveedor — {Model.Name}";
+    string StatusLabel(SupplierVerificationStatus s) => s switch
+    {
+        SupplierVerificationStatus.Draft => "Borrador",
+        SupplierVerificationStatus.PendingReview => AdminSuppliersResources.FilterStatus_PendingReview,
+        SupplierVerificationStatus.Verified => AdminSuppliersResources.FilterStatus_Verified,
+        SupplierVerificationStatus.Rejected => AdminSuppliersResources.FilterStatus_Rejected,
+        _ => s.ToString(),
+    };
+}
+
+<div data-testid="admin-supplier-detail">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: Model.Name,
+            Subtitle: $"Cédula: {Model.LegalId} · Estado: {StatusLabel(Model.Status)}"))
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="alert alert-success" role="alert" data-testid="success-banner">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string err)
+    {
+        <div class="alert alert-danger" role="alert" data-testid="error-banner">@err</div>
+    }
+
+    @if (Model.Status == SupplierVerificationStatus.Rejected && !string.IsNullOrWhiteSpace(Model.RejectionReason))
+    {
+        <div class="alert alert-danger" role="alert" data-testid="rejection-reason-banner">
+            <strong>Razón de rechazo:</strong> @Model.RejectionReason
+        </div>
+    }
+
+    <div class="row row-cards">
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Identidad y cumplimiento</h4>
+                    <form method="post" asp-action="Edit" asp-route-supplierId="@Model.Id" data-testid="admin-supplier-edit-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="SupplierId" value="@Model.Id" />
+                        <div class="mb-3">
+                            <label class="form-label">Razón social</label>
+                            <input class="form-control" name="Name" value="@Model.Name" required maxlength="300"
+                                   data-testid="admin-supplier-name-input" />
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="HasElectronicInvoice" value="true"
+                                           id="ha-einvoice" @(Model.HasElectronicInvoice ? "checked" : "")
+                                           data-testid="admin-supplier-einvoice-toggle" />
+                                    <label class="form-check-label" for="ha-einvoice">Factura electrónica</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="IsCompliantCCSS" value="true"
+                                           id="ha-ccss" @(Model.IsCompliantCCSS ? "checked" : "")
+                                           data-testid="admin-supplier-ccss-toggle" />
+                                    <label class="form-check-label" for="ha-ccss">Al día con CCSS</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="IsCompliantHacienda" value="true"
+                                           id="ha-hacienda" @(Model.IsCompliantHacienda ? "checked" : "")
+                                           data-testid="admin-supplier-hacienda-toggle" />
+                                    <label class="form-check-label" for="ha-hacienda">Al día con Hacienda</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="IsCompliantSICOP" value="true"
+                                           id="ha-sicop" @(Model.IsCompliantSICOP ? "checked" : "")
+                                           data-testid="admin-supplier-sicop-toggle" />
+                                    <label class="form-check-label" for="ha-sicop">Inscrito en SICOP</label>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3" data-testid="admin-supplier-edit-submit">
+                            <i class="ti ti-device-floppy"></i> Guardar cambios
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Estado</h4>
+                    <p class="text-muted small">
+                        Aplicaciones que referencian este proveedor: <strong>@Model.ReferencingApplicationCount</strong>
+                    </p>
+
+                    @if (Model.VerifiedByUserId is not null)
+                    {
+                        <p class="text-muted small">Verificado el @Model.VerifiedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</p>
+                    }
+
+                    @if (Model.Status != SupplierVerificationStatus.Draft)
+                    {
+                        <div class="d-grid gap-2">
+                            @if (Model.Status != SupplierVerificationStatus.Verified)
+                            {
+                                <form method="post" asp-action="Verify" asp-route-supplierId="@Model.Id"
+                                      onsubmit="return confirm('@AdminSuppliersResources.Verify_Confirm');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-success w-100" data-testid="admin-supplier-verify-button">
+                                        <i class="ti ti-circle-check"></i> Verificar proveedor
+                                    </button>
+                                </form>
+                            }
+
+                            <form method="post" asp-action="Reject" asp-route-supplierId="@Model.Id" data-testid="admin-supplier-reject-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="SupplierId" value="@Model.Id" />
+                                <div class="mb-2">
+                                    <label class="form-label">Razón de rechazo</label>
+                                    <textarea class="form-control" name="Reason" rows="3" maxlength="1000"
+                                              data-testid="admin-supplier-reject-reason"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-outline-danger w-100" data-testid="admin-supplier-reject-button">
+                                    <i class="ti ti-x"></i> Rechazar proveedor
+                                </button>
+                            </form>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-body">
+            <h4 class="card-title">Sucursales</h4>
+            @if (Model.Branches.Count == 0)
+            {
+                <p class="text-muted">No hay sucursales registradas.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table card-table table-vcenter" data-testid="admin-supplier-branches-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Contacto</th>
+                                <th>Correo</th>
+                                <th>Teléfono</th>
+                                <th>Provincia</th>
+                                <th>Predeterminada</th>
+                                <th class="text-end"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in Model.Branches)
+                            {
+                                <tr data-testid="admin-branch-row-@b.Id">
+                                    <td><strong>@b.BranchName</strong></td>
+                                    <td>@b.ContactName</td>
+                                    <td>@b.Email</td>
+                                    <td>@b.Phone</td>
+                                    <td>@b.Province</td>
+                                    <td>
+                                        @if (b.IsDefault) { <span class="badge bg-blue-lt">Sí</span> }
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                data-testid="admin-branch-edit-toggle-@b.Id"
+                                                onclick="document.getElementById('branch-edit-@b.Id').classList.toggle('d-none');">
+                                            <i class="ti ti-edit"></i> Editar
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr id="branch-edit-@b.Id" class="d-none">
+                                    <td colspan="7">
+                                        <form method="post" asp-action="EditBranch"
+                                              asp-route-supplierId="@Model.Id" asp-route-branchId="@b.Id"
+                                              data-testid="admin-branch-edit-form-@b.Id">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="SupplierId" value="@Model.Id" />
+                                            <input type="hidden" name="BranchId" value="@b.Id" />
+                                            <div class="row">
+                                                <div class="col-md-6 mb-2">
+                                                    <label class="form-label">Nombre de la sucursal</label>
+                                                    <input class="form-control" name="BranchName" value="@b.BranchName" required maxlength="200" />
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label class="form-label">Contacto</label>
+                                                    <input class="form-control" name="ContactName" value="@b.ContactName" maxlength="200" />
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label class="form-label">Correo</label>
+                                                    <input class="form-control" type="email" name="Email" value="@b.Email" maxlength="256" />
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label class="form-label">Teléfono</label>
+                                                    <input class="form-control" type="tel" name="Phone" value="@b.Phone" maxlength="20" />
+                                                </div>
+                                                <div class="col-md-8 mb-2">
+                                                    <label class="form-label">Dirección</label>
+                                                    <input class="form-control" name="AddressLine" value="@b.AddressLine" maxlength="500" />
+                                                </div>
+                                                <div class="col-md-4 mb-2">
+                                                    <label class="form-label">Provincia</label>
+                                                    <input class="form-control" name="Province" value="@b.Province" maxlength="100" />
+                                                </div>
+                                                <div class="col-md-12 mb-2">
+                                                    <label class="form-label">Detalles de envío</label>
+                                                    <textarea class="form-control" name="ShippingDetails" rows="2" maxlength="500">@b.ShippingDetails</textarea>
+                                                </div>
+                                                <div class="col-md-12 mb-2">
+                                                    <label class="form-label">Garantía</label>
+                                                    <textarea class="form-control" name="WarrantyInfo" rows="2" maxlength="500">@b.WarrantyInfo</textarea>
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary btn-sm" data-testid="admin-branch-save-@b.Id">
+                                                <i class="ti ti-device-floppy"></i> Guardar sucursal
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a class="btn btn-secondary" href="@Url.Action("Index", "AdminSuppliers")">
+            <i class="ti ti-arrow-left"></i> Volver al listado
+        </a>
+    </div>
+</div>

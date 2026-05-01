@@ -211,6 +211,7 @@ public class ReviewController : Controller
             State = dto.State.ToString(),
             SubmittedAt = dto.SubmittedAt,
             HasUnresolvedItems = hasUnresolved,
+            RejectedSupplierCount = dto.RejectedSupplierCount,
             Items = dto.Items.Select(item => new ReviewItemViewModel
             {
                 ItemId = item.ItemId,
@@ -238,7 +239,9 @@ public class ReviewController : Controller
                     ScoreSICOP = q.ScoreSICOP,
                     ScoreElectronicInvoice = q.ScoreElectronicInvoice,
                     ScoreLowestPrice = q.ScoreLowestPrice,
-                    IsPreSelected = q.IsPreSelected
+                    IsPreSelected = q.IsPreSelected,
+                    IsSupplierVerified = q.IsSupplierVerified,
+                    IsSupplierRejected = q.IsSupplierRejected,
                 }).ToList(),
                 ImpactParameters = item.ImpactParameters.Select(p => new ImpactParameterDisplayViewModel
                 {
