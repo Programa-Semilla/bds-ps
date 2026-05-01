@@ -44,6 +44,12 @@ public static class DependencyInjection
 
         services.AddObjectStorage(configuration);
 
+        // Spec 014 (T024): bridge legacy IFileStorageService callers to the new
+        // IObjectStorage abstraction. This registration replaces the previous
+        // LocalFileStorageService one above, since this is registered last.
+        // T053 deletes both IFileStorageService and this facade.
+        services.AddScoped<IFileStorageService, Storage.Legacy.FileStorageServiceFacade>();
+
         return services;
     }
 }

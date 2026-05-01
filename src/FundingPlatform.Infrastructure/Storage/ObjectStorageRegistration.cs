@@ -3,6 +3,7 @@ using Azure.Storage.Blobs;
 using FundingPlatform.Application.Abstractions.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -38,13 +39,17 @@ public static class ObjectStorageRegistration
             string.Equals(providerString, "AzureBlob", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(providerString, "Azurite", StringComparison.OrdinalIgnoreCase))
         {
-            services.AddSingleton<BlobServiceClient>(sp =>
+            // Register a fallback BlobServiceClient when one wasn't registered by
+            // Aspire's AddAzureBlobClient. The TryAdd preserves Aspire-provided client
+            // (with OTel + health checks) when present, e.g. Web project.
+            services.TryAddSingleton<BlobServiceClient>(sp =>
             {
                 var opts = sp.GetRequiredService<IOptions<StorageOptions>>().Value;
                 return BuildBlobServiceClient(opts, sp.GetRequiredService<ILogger<BlobServiceClient>>());
             });
 
             services.AddSingleton<IObjectStorage, AzureBlobObjectStorage>();
+            services.AddHostedService<EnsureContainersHostedService>();
         }
         else
         {
