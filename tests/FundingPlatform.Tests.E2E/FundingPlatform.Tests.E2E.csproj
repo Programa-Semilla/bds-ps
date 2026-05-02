@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Testing" Version="13.2.2" />
+    <!-- Spec 014 / T035 — fixture pre-creates the four canonical containers via SDK. -->
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.27.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />

@@ -84,9 +84,9 @@ public class SigningWayfindingTests : AuthenticatedTestBase
         var appId = await SeedResponseFinalizedViaUiAsync();
 
         // Stage A — ResponseFinalized + generated agreement: banner + panel + download.
-        var seededPdf = await FundingAgreementSeeder.SeedGeneratedAgreementAsync(
-            ConnectionString, appId, _adminEmail);
-        _seededFiles.Add(seededPdf);
+        var seededBlobKey = await FundingAgreementSeeder.SeedGeneratedAgreementAsync(
+            ConnectionString, appId, _adminEmail, CreateBlobServiceClient());
+        _seededFiles.Add(seededBlobKey);
 
         await LoginAsync(Page, _applicantEmail, DefaultPassword);
         var responsePage = new ApplicantResponsePage(Page);
@@ -107,9 +107,9 @@ public class SigningWayfindingTests : AuthenticatedTestBase
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
 
         // Stage B — AgreementExecuted: banner copy flips, signed-download link appears.
-        var signedPdf = await FundingAgreementSeeder.SeedExecutedAgreementAsync(
-            ConnectionString, appId, _adminEmail, _applicantEmail, _reviewerEmail);
-        _seededFiles.Add(signedPdf);
+        var signedBlobKey = await FundingAgreementSeeder.SeedExecutedAgreementAsync(
+            ConnectionString, appId, _adminEmail, _applicantEmail, _reviewerEmail, CreateBlobServiceClient());
+        _seededFiles.Add(signedBlobKey);
 
         await LoginAsync(Page, _applicantEmail, DefaultPassword);
         await responsePage.GotoAsync(BaseUrl, appId);
@@ -128,9 +128,9 @@ public class SigningWayfindingTests : AuthenticatedTestBase
     public async Task ApplicationDetailsEmbedStillRenders()
     {
         var appId = await SeedResponseFinalizedViaUiAsync();
-        var seededPdf = await FundingAgreementSeeder.SeedGeneratedAgreementAsync(
-            ConnectionString, appId, _adminEmail);
-        _seededFiles.Add(seededPdf);
+        var seededBlobKey = await FundingAgreementSeeder.SeedGeneratedAgreementAsync(
+            ConnectionString, appId, _adminEmail, CreateBlobServiceClient());
+        _seededFiles.Add(seededBlobKey);
 
         // /Application/Details/{id} is Applicant-only (ApplicationController class-level
         // authorize). Regression guard: the embedded signing panel still renders there

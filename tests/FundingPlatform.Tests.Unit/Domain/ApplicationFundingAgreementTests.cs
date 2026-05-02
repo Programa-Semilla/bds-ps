@@ -71,7 +71,7 @@ public class ApplicationFundingAgreementTests
             fileName: "agreement.pdf",
             contentType: "application/pdf",
             size: 123,
-            storagePath: "/store/agreement.pdf",
+            blobKey: "generated-artifacts/applicants/u-1/1/abc.pdf",
             generatingUserId: AdminUserId);
 
         Assert.That(application.FundingAgreement, Is.SameAs(agreement));
@@ -102,7 +102,7 @@ public class ApplicationFundingAgreementTests
         Assert.That(replaced, Is.SameAs(original), "Regeneration mutates in place, not replaces.");
         Assert.That(replaced.FileName, Is.EqualTo("b.pdf"));
         Assert.That(replaced.Size, Is.EqualTo(2));
-        Assert.That(replaced.StoragePath, Is.EqualTo("/b"));
+        Assert.That(replaced.BlobKey, Is.EqualTo("/b"));
         Assert.That(replaced.GeneratedByUserId, Is.EqualTo("reviewer-1"));
         Assert.That(replaced.GeneratedAtUtc, Is.GreaterThanOrEqualTo(originalTimestamp));
     }

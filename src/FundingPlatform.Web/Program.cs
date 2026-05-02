@@ -20,6 +20,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.AddSqlServerDbContext<AppDbContext>("fundingdb");
 
+// Spec 014: register the Azure Blob client integration for the Aspire-managed
+// "blobs" resource so OTel + health checks work. ObjectStorageRegistration
+// (called inside AddInfrastructure) defers to whichever BlobServiceClient is
+// already registered. Only registered when the resource exists (production +
+// local Azurite); LocalFilesystem provider skips this entirely.
+var storageProvider = builder.Configuration["Storage:Provider"] ?? "Azurite";
+if (string.Equals(storageProvider, "Azurite", StringComparison.OrdinalIgnoreCase) ||
+    string.Equals(storageProvider, "AzureBlob", StringComparison.OrdinalIgnoreCase))
+{
+    var connectionString = builder.Configuration["Storage:ConnectionString"]
+        ?? builder.Configuration.GetConnectionString("blobs");
+    if (!string.IsNullOrWhiteSpace(connectionString))
+    {
+        builder.AddAzureBlobServiceClient("blobs");
+    }
+}
+
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<IFundingAgreementHtmlRenderer, RazorFundingAgreementHtmlRenderer>();

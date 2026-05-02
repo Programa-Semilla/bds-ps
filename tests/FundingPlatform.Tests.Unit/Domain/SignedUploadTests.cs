@@ -91,9 +91,9 @@ public class SignedUploadTests
     }
 
     [Test]
-    public void Construction_WithEmptyStoragePath_Throws()
+    public void Construction_WithEmptyBlobKey_Throws()
     {
-        Assert.Throws<InvalidOperationException>(() => Invoke(storagePath: ""));
+        Assert.Throws<InvalidOperationException>(() => Invoke(blobKey: ""));
     }
 
     private static SignedUpload Invoke(
@@ -102,7 +102,7 @@ public class SignedUploadTests
         int generatedVersionAtUpload = 1,
         string fileName = "signed.pdf",
         long size = 1024,
-        string storagePath = "/storage/signed.pdf")
+        string blobKey = "/storage/signed.pdf")
     {
         var ctor = typeof(SignedUpload).GetConstructor(
             BindingFlags.Instance | BindingFlags.NonPublic,
@@ -114,7 +114,7 @@ public class SignedUploadTests
         {
             return (SignedUpload)ctor.Invoke(new object[]
             {
-                fundingAgreementId, uploaderUserId, generatedVersionAtUpload, fileName, size, storagePath
+                fundingAgreementId, uploaderUserId, generatedVersionAtUpload, fileName, size, blobKey
             });
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)

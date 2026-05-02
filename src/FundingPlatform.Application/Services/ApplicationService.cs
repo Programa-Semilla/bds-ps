@@ -1,3 +1,4 @@
+using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Suppliers.Services;
@@ -11,10 +12,16 @@ namespace FundingPlatform.Application.Services;
 
 public class ApplicationService
 {
+    // Spec 014 / T052 — quotation files stream through IObjectStorage with the
+    // ApplicationAttachment category. Owner segment is the applicant's user id;
+    // entity id is the application id (the natural parent aggregate for the
+    // quotation document). The legacy IFileStorageService dependency is gone.
+    private const FileCategory QuotationCategory = FileCategory.ApplicationAttachment;
+
     private readonly IApplicationRepository _applicationRepository;
     private readonly ICategoryRepository _categoryRepository;
     private readonly ISupplierRepository _supplierRepository;
-    private readonly IFileStorageService _fileStorageService;
+    private readonly IObjectStorage _objectStorage;
     private readonly IImpactTemplateRepository _impactTemplateRepository;
     private readonly ISystemConfigurationRepository _systemConfigurationRepository;
     private readonly IDocumentRepository _documentRepository;
@@ -25,7 +32,7 @@ public class ApplicationService
         IApplicationRepository applicationRepository,
         ICategoryRepository categoryRepository,
         ISupplierRepository supplierRepository,
-        IFileStorageService fileStorageService,
+        IObjectStorage objectStorage,
         IImpactTemplateRepository impactTemplateRepository,
         ISystemConfigurationRepository systemConfigurationRepository,
         IDocumentRepository documentRepository,
@@ -35,7 +42,7 @@ public class ApplicationService
         _applicationRepository = applicationRepository;
         _categoryRepository = categoryRepository;
         _supplierRepository = supplierRepository;
-        _fileStorageService = fileStorageService;
+        _objectStorage = objectStorage;
         _impactTemplateRepository = impactTemplateRepository;
         _systemConfigurationRepository = systemConfigurationRepository;
         _documentRepository = documentRepository;
@@ -227,9 +234,16 @@ public class ApplicationService
         var item = application.Items.FirstOrDefault(i => i.Id == itemId)
             ?? throw new InvalidOperationException($"Item {itemId} not found in application {appId}.");
 
-        var storagePath = await _fileStorageService.SaveFileAsync(fileStream, fileName, contentType);
+        // Spec 014 / T052 — build the canonical ObjectKey from the application
+        // aggregate. Owner segment uses the applicant's user id when available
+        // (matches the SignedUploadService convention) and falls back to the
+        // numeric applicant id; the deterministic suffix is a fresh GUID so
+        // multiple quotations under the same item remain reachable.
+        var key = BuildQuotationKey(application, fileName);
+        var stored = await _objectStorage.UploadAsync(
+            QuotationCategory, key, fileStream, contentType, fileSize, CancellationToken.None);
 
-        var document = new Document(fileName, storagePath, fileSize, contentType);
+        var document = new Document(fileName, stored.Key, fileSize, contentType);
         await _documentRepository.AddAsync(document);
         await _applicationRepository.SaveChangesAsync();
 
@@ -243,10 +257,11 @@ public class ApplicationService
         catch
         {
             // Spec 013: best-effort cleanup of the just-saved Document row and the
-            // file on disk if the Quotation save fails. Avoids orphaned Document
-            // rows and orphaned files when the (item, supplier) UNIQUE constraint
-            // or any other invariant rejects the Quotation insert.
-            try { await _fileStorageService.DeleteFileAsync(storagePath); } catch { /* best-effort */ }
+            // file in object storage if the Quotation save fails. Avoids orphaned
+            // Document rows and orphaned blobs when the (item, supplier) UNIQUE
+            // constraint or any other invariant rejects the Quotation insert.
+            try { await _objectStorage.DeleteAsync(QuotationCategory, key, CancellationToken.None); }
+            catch { /* best-effort */ }
             throw;
         }
     }
@@ -262,14 +277,18 @@ public class ApplicationService
         var quotation = item.Quotations.FirstOrDefault(q => q.Id == cmd.QuotationId)
             ?? throw new InvalidOperationException($"Quotation {cmd.QuotationId} not found in item {cmd.ItemId}.");
 
-        var storagePath = await _fileStorageService.SaveFileAsync(fileStream, cmd.FileName, cmd.FileContentType);
-        var newDocument = new Document(cmd.FileName, storagePath, cmd.FileSize, cmd.FileContentType);
+        // Spec 014 / T052 — replacement upload via IObjectStorage.
+        var newKey = BuildQuotationKey(application, cmd.FileName);
+        var stored = await _objectStorage.UploadAsync(
+            QuotationCategory, newKey, fileStream, cmd.FileContentType, cmd.FileSize, CancellationToken.None);
+
+        var newDocument = new Document(cmd.FileName, stored.Key, cmd.FileSize, cmd.FileContentType);
         await _documentRepository.AddAsync(newDocument);
         await _applicationRepository.SaveChangesAsync();
 
         if (quotation.Document is not null)
         {
-            await _fileStorageService.DeleteFileAsync(quotation.Document.StoragePath);
+            await TryDeleteQuotationBlobAsync(quotation.Document);
         }
 
         quotation.ReplaceDocument(newDocument.Id);
@@ -289,13 +308,62 @@ public class ApplicationService
         var quotation = item.Quotations.FirstOrDefault(q => q.Id == quotationId);
         if (quotation?.Document is not null)
         {
-            await _fileStorageService.DeleteFileAsync(quotation.Document.StoragePath);
+            await TryDeleteQuotationBlobAsync(quotation.Document);
         }
 
         item.RemoveQuotation(quotationId);
 
         await _applicationRepository.UpdateAsync(application);
         await _applicationRepository.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Spec 014 / T052 — build the canonical ObjectKey for an application-attachment
+    /// quotation document. Owner segment is the applicant's user id when available
+    /// (matches SignedUploadService convention) and falls back to a numeric
+    /// applicants/{id} segment for legacy rows where the user link is missing.
+    /// </summary>
+    private static ObjectKey BuildQuotationKey(AppEntity application, string fileName)
+    {
+        var ownerSegment = application.Applicant?.UserId is { Length: > 0 } applicantUserId
+            ? $"applicants/{applicantUserId}"
+            : $"applicants/{application.ApplicantId}";
+        var ext = Path.GetExtension(fileName);
+        if (string.IsNullOrWhiteSpace(ext)) ext = ".bin";
+        return ObjectKey.Build(
+            FileCategory.ApplicationAttachment,
+            ownerSegment,
+            entityId: application.Id.ToString(),
+            deterministicSuffix: Guid.NewGuid().ToString("N")[..16],
+            extension: ext);
+    }
+
+    /// <summary>
+    /// Spec 014 — best-effort delete of a quotation document's blob.
+    /// Every Document row has a canonical <c>BlobKey</c> populated on insert.
+    /// </summary>
+    private async Task TryDeleteQuotationBlobAsync(Document document)
+    {
+        var key = ObjectKey.Parse(document.BlobKey);
+
+        var category = key.Container switch
+        {
+            "application-attachments" => FileCategory.ApplicationAttachment,
+            "signed-funding-agreements" => FileCategory.SignedFundingAgreement,
+            "supplier-catalog-imports" => FileCategory.SupplierCatalogImport,
+            _ => FileCategory.GeneratedArtifact,
+        };
+
+        try
+        {
+            await _objectStorage.DeleteAsync(category, key, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Best-effort delete of quotation blob failed. documentId={DocumentId} blobKey={BlobKey}",
+                document.Id, key.Value);
+        }
     }
 
     public async Task<List<ImpactTemplateDto>> GetImpactTemplatesAsync()

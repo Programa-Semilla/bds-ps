@@ -7,7 +7,7 @@ CREATE TABLE [dbo].[SignedUploads]
     [FileName]                  NVARCHAR(260)  NOT NULL,
     [ContentType]               NVARCHAR(100)  NOT NULL CONSTRAINT DF_SignedUploads_ContentType DEFAULT('application/pdf'),
     [Size]                      BIGINT         NOT NULL,
-    [StoragePath]               NVARCHAR(1024) NOT NULL,
+    [BlobKey]                   NVARCHAR(1024) NOT NULL,
     [UploadedAtUtc]             DATETIME2(3)   NOT NULL,
     [Status]                    INT            NOT NULL,
     [RowVersion]                ROWVERSION     NOT NULL,

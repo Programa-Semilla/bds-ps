@@ -117,7 +117,7 @@ public class FundingAgreementLockdownTests
         int generatedVersionAtUpload,
         string fileName,
         long size,
-        string storagePath)
+        string blobKey)
     {
         var method = typeof(FundingAgreement).GetMethod("AcceptSignedUpload",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -126,7 +126,7 @@ public class FundingAgreementLockdownTests
         {
             return (SignedUpload)method.Invoke(agreement, new object[]
             {
-                uploaderUserId, generatedVersionAtUpload, fileName, size, storagePath
+                uploaderUserId, generatedVersionAtUpload, fileName, size, blobKey
             })!;
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)
@@ -141,7 +141,7 @@ public class FundingAgreementLockdownTests
         int generatedVersionAtUpload,
         string fileName,
         long size,
-        string storagePath)
+        string blobKey)
     {
         var method = typeof(FundingAgreement).GetMethod("ReplacePendingUpload",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -150,7 +150,7 @@ public class FundingAgreementLockdownTests
         {
             return (SignedUpload)method.Invoke(agreement, new object[]
             {
-                uploaderUserId, generatedVersionAtUpload, fileName, size, storagePath
+                uploaderUserId, generatedVersionAtUpload, fileName, size, blobKey
             })!;
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)
@@ -163,7 +163,7 @@ public class FundingAgreementLockdownTests
         FundingAgreement agreement,
         string fileName,
         long size,
-        string storagePath,
+        string blobKey,
         string userId)
     {
         var method = typeof(FundingAgreement).GetMethod("Replace",
@@ -173,7 +173,7 @@ public class FundingAgreementLockdownTests
         {
             method.Invoke(agreement, new object[]
             {
-                fileName, "application/pdf", size, storagePath, userId
+                fileName, "application/pdf", size, blobKey, userId
             });
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)

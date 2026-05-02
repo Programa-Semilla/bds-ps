@@ -46,6 +46,12 @@ brainstorm/                        Working scratchpad for in-flight design explo
 | `AdminReports:DefaultCurrency` | `COP` | Reports currency code. |
 | `AdminReports:CsvRowLimit` | `50000` | Streaming CSV row cap. |
 | `Admin:DefaultPassword` | (configured) | Sentinel admin password outside ephemeral. |
+| `Storage:Provider` | `Azurite` (dev) / `AzureBlob` (prod) / `LocalFilesystem` (fallback) | Spec 014 — selects the `IObjectStorage` impl. Fail-fast in `Production` if `LocalFilesystem` is paired with a connection string. |
+| `Storage:LocalFilesystem:RootPath` | `./.localstorage` | Required when `Provider=LocalFilesystem`. Host is responsible for encryption-at-rest (FR-026 — local provider does **not** provide it). |
+| `Storage:Categories:{name}:MaxSizeBytes` | per-category default | Per-`FileCategory` upload cap enforced at the controller boundary by `UploadSizeGuard` (spec 014 / FR-021). |
+| `Storage:Categories:{name}:UrlExpirySeconds` | `300` (5 min, max 900) | SAS URL TTL when `ServingMode=TimeLimitedUrl`. Hard cap is 15 min (FR-019). |
+| `Storage:Categories:{name}:RetentionPolicy` | `none` | Future-seam string. `signed-funding-agreements` is the legal-hold candidate (FR-023). |
+| `Storage:TestFallback:AllowFilesystem` | `false` | When `true`, the E2E `AspireFixture` may swap to `LocalFilesystem` if Azurite cannot start (FR-008). Logs a warning. |
 
 ## Testing
 
@@ -68,8 +74,15 @@ brainstorm/                        Working scratchpad for in-flight design explo
 
 ## Specs
 
-`specs/NNN-slug/` is the source of truth for feature intent — spec.md, plan.md, tasks.md, and contracts. Read the spec before changing behavior in that area. Active specs span 001-core-model-submission through 013-supplier-catalog.
+`specs/NNN-slug/` is the source of truth for feature intent — spec.md, plan.md, tasks.md, and contracts. Read the spec before changing behavior in that area. Active specs span 001-core-model-submission through 014-azure-blob-storage.
 
 <!-- MANUAL ADDITIONS START -->
 
 <!-- MANUAL ADDITIONS END -->
+
+## Active Technologies
+- C# 13 / .NET 10.0 (014-azure-blob-storage)
+- Azure Blob Storage in production / Azurite (Docker container) in dev+test / local filesystem fallback. SQL Server unchanged. (014-azure-blob-storage)
+
+## Recent Changes
+- 014-azure-blob-storage: Added C# 13 / .NET 10.0

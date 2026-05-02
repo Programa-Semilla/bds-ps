@@ -1,11 +1,11 @@
 using System.Text;
+using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Application.SignedUploads.Commands;
 using FundingPlatform.Application.SignedUploads.Queries;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
-using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +34,7 @@ public class SignedUploadEndpointsTests
         return new AppDbContext(options);
     }
 
-    private static SignedUploadService BuildService(AppDbContext ctx, IFileStorageService? storage = null)
+    private static SignedUploadService BuildService(AppDbContext ctx, IObjectStorage? storage = null)
     {
         var appRepo = new ApplicationRepository(ctx);
         var suRepo = new SignedUploadRepository(ctx);
@@ -493,31 +493,46 @@ public class SignedUploadEndpointsTests
         return (application, applicantUserId);
     }
 
-    private sealed class InMemoryFileStorage : IFileStorageService
+    private sealed class InMemoryFileStorage : IObjectStorage
     {
         private readonly Dictionary<string, byte[]> _store = new();
-        private int _seq;
 
-        public async Task<string> SaveFileAsync(Stream fileStream, string fileName, string contentType)
+        public async Task<StoredObject> UploadAsync(
+            FileCategory category, ObjectKey key, Stream content, string contentType,
+            long? contentLength, CancellationToken ct)
         {
             using var ms = new MemoryStream();
-            await fileStream.CopyToAsync(ms);
-            var path = $"/mem/{++_seq}-{fileName}";
-            _store[path] = ms.ToArray();
-            return path;
+            await content.CopyToAsync(ms, ct);
+            _store[key.Value] = ms.ToArray();
+            return new StoredObject(
+                Container: key.Container, Key: key.Value, SizeBytes: ms.Length,
+                ContentType: contentType, CreatedAt: DateTimeOffset.UtcNow,
+                Provider: StorageProviderName.LocalFilesystem);
         }
 
-        public Task DeleteFileAsync(string storagePath)
+        public Task<Stream> OpenReadAsync(FileCategory category, ObjectKey key, CancellationToken ct)
         {
-            _store.Remove(storagePath);
+            if (!_store.TryGetValue(key.Value, out var bytes))
+                throw new ObjectNotFoundException(key.Container, key.Value);
+            return Task.FromResult<Stream>(new MemoryStream(bytes));
+        }
+
+        public Task<bool> ExistsAsync(FileCategory category, ObjectKey key, CancellationToken ct)
+            => Task.FromResult(_store.ContainsKey(key.Value));
+
+        public Task DeleteAsync(FileCategory category, ObjectKey key, CancellationToken ct)
+        {
+            _store.Remove(key.Value);
             return Task.CompletedTask;
         }
 
-        public Task<Stream> GetFileAsync(string storagePath)
+        public Task<StorageHandle> ResolveServingHandleAsync(
+            FileCategory category, ObjectKey key, ServingMode preferred, CancellationToken ct)
         {
-            if (!_store.TryGetValue(storagePath, out var bytes))
-                throw new FileNotFoundException(storagePath);
-            return Task.FromResult<Stream>(new MemoryStream(bytes));
+            if (!_store.TryGetValue(key.Value, out var bytes))
+                throw new ObjectNotFoundException(key.Container, key.Value);
+            return Task.FromResult<StorageHandle>(new BackendStreamHandle(
+                new MemoryStream(bytes), "application/pdf", bytes.Length));
         }
     }
 }

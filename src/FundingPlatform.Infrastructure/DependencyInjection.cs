@@ -5,10 +5,10 @@ using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Application.Options;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.DocumentGeneration;
-using FundingPlatform.Infrastructure.FileStorage;
 using FundingPlatform.Infrastructure.Identity;
 using FundingPlatform.Infrastructure.Persistence.Reports;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
+using FundingPlatform.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,7 +28,6 @@ public static class DependencyInjection
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<IFundingAgreementRepository, FundingAgreementRepository>();
         services.AddScoped<Application.Interfaces.ISignedUploadRepository, SignedUploadRepository>();
-        services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IUserAdministrationService, UserAdministrationService>();
 
         services.Configure<FunderOptions>(configuration.GetSection(FunderOptions.SectionName));
@@ -40,6 +39,8 @@ public static class DependencyInjection
 
         services.AddSingleton<IFundingAgreementPdfRenderer, SyncfusionFundingAgreementPdfRenderer>();
         services.AddSingleton<SyncfusionLicenseValidator>();
+
+        services.AddObjectStorage(configuration);
 
         return services;
     }

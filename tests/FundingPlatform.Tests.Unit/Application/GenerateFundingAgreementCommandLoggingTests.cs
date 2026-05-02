@@ -25,7 +25,7 @@ public class GenerateFundingAgreementCommandLoggingTests
             userId: "admin-user-42",
             fileName: "agreement.pdf",
             size: 2048,
-            storagePath: "/store/agreement.pdf");
+            blobKey: "/store/agreement.pdf");
 
         Assert.That(result.Success, Is.True);
 
@@ -54,7 +54,7 @@ public class GenerateFundingAgreementCommandLoggingTests
             userId: "admin-user-42",
             fileName: "agreement.pdf",
             size: 2048,
-            storagePath: "/store/agreement.pdf");
+            blobKey: "/store/agreement.pdf");
 
         Assert.That(result.Success, Is.False);
 

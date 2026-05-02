@@ -11,7 +11,13 @@ public class SignedUpload
     public string FileName { get; private set; } = string.Empty;
     public string ContentType { get; private set; } = "application/pdf";
     public long Size { get; private set; }
-    public string StoragePath { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Spec 014 — canonical <c>ObjectKey</c> string for the signed PDF in the
+    /// configured object storage backend. Always populated when the row is created.
+    /// </summary>
+    public string BlobKey { get; private set; } = string.Empty;
+
     public DateTime UploadedAtUtc { get; private set; }
     public SignedUploadStatus Status { get; private set; } = SignedUploadStatus.Pending;
     public byte[] RowVersion { get; private set; } = [];
@@ -27,16 +33,16 @@ public class SignedUpload
         int generatedVersionAtUpload,
         string fileName,
         long size,
-        string storagePath)
+        string blobKey)
     {
-        Validate(uploaderUserId, fileName, size, storagePath);
+        Validate(uploaderUserId, fileName, size, blobKey);
 
         FundingAgreementId = fundingAgreementId;
         UploaderUserId = uploaderUserId;
         GeneratedVersionAtUpload = generatedVersionAtUpload;
         FileName = fileName;
         Size = size;
-        StoragePath = storagePath;
+        BlobKey = blobKey;
         UploadedAtUtc = DateTime.UtcNow;
         Status = SignedUploadStatus.Pending;
     }
@@ -67,7 +73,7 @@ public class SignedUpload
         Status = target;
     }
 
-    private static void Validate(string uploaderUserId, string fileName, long size, string storagePath)
+    private static void Validate(string uploaderUserId, string fileName, long size, string blobKey)
     {
         if (string.IsNullOrWhiteSpace(uploaderUserId))
             throw new InvalidOperationException("SignedUpload requires a non-empty uploader user id.");
@@ -75,7 +81,7 @@ public class SignedUpload
             throw new InvalidOperationException("SignedUpload requires a non-empty file name.");
         if (size <= 0)
             throw new InvalidOperationException("SignedUpload size must be greater than zero.");
-        if (string.IsNullOrWhiteSpace(storagePath))
-            throw new InvalidOperationException("SignedUpload requires a non-empty storage path.");
+        if (string.IsNullOrWhiteSpace(blobKey))
+            throw new InvalidOperationException("SignedUpload requires a non-empty blob key.");
     }
 }
