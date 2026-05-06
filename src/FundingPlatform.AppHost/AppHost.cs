@@ -164,4 +164,14 @@ if (!string.IsNullOrEmpty(localFilesystemRoot))
     webApp.WithEnvironment("Storage__LocalFilesystem__RootPath", localFilesystemRoot);
 }
 
+// Container Apps deploy: replace Aspire's synthesized image with a Dockerfile that bakes in
+// the Chromium runtime libs Syncfusion's BlinkConverter needs (libnss3, libgbm1, libgtk-3-0t64,
+// fonts, etc.). Without these the published image throws
+// "Failed to launch chromium: Missing required dependent packages" at PDF render time.
+// Run mode is unaffected — PublishAsDockerFile only kicks in during `azd publish`.
+webApp.PublishAsDockerFile(container =>
+    container.WithDockerfile(
+        contextPath: "../..",
+        dockerfilePath: "src/FundingPlatform.Web/Dockerfile"));
+
 builder.Build().Run();
