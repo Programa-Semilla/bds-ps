@@ -7,29 +7,50 @@ var builder = DistributedApplication.CreateBuilder(args);
 var ephemeralStorage = string.Equals(
     builder.Configuration["EphemeralStorage"], "true", StringComparison.OrdinalIgnoreCase);
 
-var sqlBuilder = builder.AddSqlServer("sqlserver");
-if (!ephemeralStorage)
+// Publish mode (azd up) provisions a real Azure SQL DB; run mode keeps the
+// proven AddSqlServer container path. Branching on IsPublishMode avoids the
+// RunAsContainer quirks that left sqlpackage hanging against the local
+// container (Azure SQL DB resource lacks the SQL-auth health probe the
+// CommunityToolkit dacpac integration auto-waits on). The dacpac project is
+// only registered in run mode where the toolkit's typed
+// WithReference(IResourceBuilder<SqlServerDatabaseResource>) overload binds
+// correctly — sharing a IResourceWithConnectionString variable across both
+// branches falls through to a generic overload that never wires the
+// SqlProject deployment hook (resource sits in Waiting forever).
+IResourceBuilder<IResourceWithConnectionString> sqlServer;
+
+if (builder.ExecutionContext.IsPublishMode)
 {
-    sqlBuilder = sqlBuilder.WithDataVolume("fundingplatform-sqldata");
+    sqlServer = builder.AddAzureSqlServer("sqlserver")
+                       .AddDatabase("fundingdb");
 }
 else
 {
-    // Bind /var/opt/mssql to a tmpfs so SQL Server's data dir lives in RAM and
-    // dies with the container — prevents Docker from creating an anonymous
-    // volume per test run that piles up on the host. The mssql user inside
-    // the container is uid 10001; without uid=10001 the tmpfs is root-owned
-    // and SQL Server cannot initialize, leaving sqlpackage to retry forever
-    // against an empty endpoint (observed 2026-05-01).
-    sqlBuilder = sqlBuilder.WithContainerRuntimeArgs(
-        "--tmpfs", "/var/opt/mssql:uid=10001,mode=755");
-}
+    var localSql = builder.AddSqlServer("sqlserver");
+    if (!ephemeralStorage)
+    {
+        localSql = localSql.WithDataVolume("fundingplatform-sqldata");
+    }
+    else
+    {
+        // Bind /var/opt/mssql to a tmpfs so SQL Server's data dir lives in RAM and
+        // dies with the container — prevents Docker from creating an anonymous
+        // volume per test run that piles up on the host. The mssql user inside
+        // the container is uid 10001; without uid=10001 the tmpfs is root-owned
+        // and SQL Server cannot initialize, leaving sqlpackage to retry forever
+        // against an empty endpoint (observed 2026-05-01).
+        localSql = localSql.WithContainerRuntimeArgs(
+            "--tmpfs", "/var/opt/mssql:uid=10001,mode=755");
+    }
 
-var sqlServer = sqlBuilder.AddDatabase("fundingdb");
+    var localSqlDb = localSql.AddDatabase("fundingdb");
+    sqlServer = localSqlDb;
 
-if (!ephemeralStorage)
-{
-    builder.AddSqlProject<Projects.FundingPlatform_Database>("database-schema")
-           .WithReference(sqlServer);
+    if (!ephemeralStorage)
+    {
+        builder.AddSqlProject<Projects.FundingPlatform_Database>("database-schema")
+               .WithReference(localSqlDb);
+    }
 }
 
 // Spec 014 (T014): Azure Storage / Azurite. Provider defaults to Azurite for
