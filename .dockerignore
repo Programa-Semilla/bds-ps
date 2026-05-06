@@ -1,0 +1,35 @@
+# Build artefacts
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+
+# Test outputs
+**/TestResults/
+**/coverage/
+
+# Local storage / caches
+**/.localstorage/
+**/node_modules/
+
+# Specs / docs / scratchpads — not needed for runtime image
+brainstorm/
+specs/
+tools/
+*.md
+funding_system_srs.md
+fixspex.sh
+
+# E2E project — not part of the Web image
+tests/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.github/
+.gitignore
+.gitattributes
