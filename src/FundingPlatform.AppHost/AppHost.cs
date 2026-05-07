@@ -100,7 +100,9 @@ if (string.Equals(storageProvider, "Azurite", StringComparison.OrdinalIgnoreCase
 
 var syncfusionLicense = builder.Configuration["Syncfusion:LicenseKey"] ?? "Ngo9BigBOggjHTQxAR8/V1JHaF1cXmhMYVJpR2NbeU5xdF9DZVZURGY/P1ZhSXxVdkFhXX1cdXFQRmJVU019XEE=";
 var localeCode = builder.Configuration["FundingAgreement:LocaleCode"] ?? "es-CR";
-var currencyIsoCode = builder.Configuration["FundingAgreement:CurrencyIsoCode"] ?? "COP";
+// Spec 015 / T907 — base currency is CRC; the prior "COP" default predates the
+// multi-currency feature and contradicts the platform's only base currency.
+var currencyIsoCode = builder.Configuration["FundingAgreement:CurrencyIsoCode"] ?? "CRC";
 var funderLegalName = builder.Configuration["FundingAgreement:Funder:LegalName"] ?? "";
 var funderTaxId = builder.Configuration["FundingAgreement:Funder:TaxId"] ?? "";
 var funderAddress = builder.Configuration["FundingAgreement:Funder:Address"] ?? "";

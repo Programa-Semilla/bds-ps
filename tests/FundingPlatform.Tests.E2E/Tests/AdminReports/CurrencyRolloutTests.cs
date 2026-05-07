@@ -125,6 +125,7 @@ public class CurrencyRolloutTests : AuthenticatedTestBase
         var bytes = await downloadFlow.CaptureDownloadBytesAsync(panelPage.DownloadLink);
         Assert.That(FundingAgreementDownloadFlow.LooksLikePdf(bytes), Is.True);
 
-        FundingAgreementPdfAssertions.AssertEachAmountHasCurrencyCode(bytes, new[] { "COP" });
+        // Spec 015 / T907 — base currency default flipped from COP to CRC.
+        FundingAgreementPdfAssertions.AssertEachAmountHasCurrencyCode(bytes, new[] { "CRC" });
     }
 }

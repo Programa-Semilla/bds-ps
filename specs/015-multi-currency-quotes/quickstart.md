@@ -8,7 +8,7 @@ A developer's guide to running the feature locally and verifying each user story
 dotnet run --project src/FundingPlatform.AppHost
 ```
 
-This starts SQL Server (Aspire-managed), deploys the dacpac (which now includes `Currencies`, `ExchangeRates`, and the extended `SupplierQuotes` columns), seeds CRC + USD, and brings up the Web app.
+This starts SQL Server (Aspire-managed), deploys the dacpac (which now includes `Currencies`, `ExchangeRates`, and the extended `Quotations` columns), seeds CRC + USD, and brings up the Web app.
 
 ## 2. Sign in as Administrator
 
@@ -53,9 +53,9 @@ Sign in as an applicant with an active Application that has at least one Item. O
 The form calls `POST /Application/{appId}/Item/{itemId}/Quotation/Convert` and displays:
 
 ```
-Original: $1,000.00 USD
-Converted: ₡520,000.00 CRC
-Rate: 520.000000 (Buy, effective 2026-05-06 14:00 UTC)
+Conversión a colones
+₡520,000.00
+1 USD = 520 CRC (Tipo Compra, vigente desde 2026-05-06 14:00)
 ```
 
 Save the quote. Reload the quote detail — original, converted, rate snapshot, and the source rate id are all persisted. The `ExchangeRates` row's `IsUsed` is now `true`.
@@ -72,7 +72,7 @@ Add another quote with currency `CRC` and amount `750000.00`. The form does NOT 
 
 Sign in as a reviewer. Open the same request summary. You should see:
 
-- The USD quote: `$1,000.00 USD` + `(₡520,000.00 CRC)` with a small ⓘ tooltip showing `Buy rate 520.000000, effective 2026-05-06 14:00 UTC`.
+- The USD quote: `$1,000.00 USD` + `(₡520,000.00 CRC)` with a small ⓘ tooltip showing `Tipo de cambio aplicado: 1 USD = ₡520 (Compra, vigente 2026-05-06)`.
 - The CRC quote: `₡750,000.00 CRC` only — no tooltip.
 - Request total: `₡1,270,000.00 CRC` (sum of converted lines).
 
@@ -81,14 +81,14 @@ Sign in as a reviewer. Open the same request summary. You should see:
 Approve the request and trigger PDF generation. Open the PDF:
 
 - All amounts shown in CRC.
-- Under the line that came from USD: a small note `Conversion: 1 USD = ₡520.000000 (Buy, effective 2026-05-06)`.
+- Under the line that came from USD: a small note `Conversión: 1 USD = ₡520.000000 (Tipo Compra, vigente desde 2026-05-06)`.
 - The CRC line has no note.
 
 Re-generate the PDF later (or in a different deploy). The values and dates on each line are byte-for-byte identical for monetary content (FR-026 value-stability).
 
 ## 10. PDF refusal on missing snapshot (User Story 6 + edge case)
 
-Insert a synthetic legacy USD quote without snapshot fields:
+Insert a synthetic legacy USD quotation without snapshot fields:
 
 ```sql
 UPDATE dbo.Quotations
@@ -98,12 +98,21 @@ UPDATE dbo.Quotations
        SnapshotEffectiveAtUtc = NULL,
        SnapshotRateId = NULL,
        ConvertedCrcAmount = NULL
- WHERE Id = '<quote-id>';
+ WHERE Id = <quote-id>;
 ```
 
-Attempt to generate the PDF. The action MUST refuse with the FR-027 inline error and write a log entry naming the offending quote id.
+Attempt to generate the PDF. The agreement controller catches the
+`MissingConversionMetadataException` thrown by
+`SyncfusionFundingAgreementPdfRenderer.RenderFromModelAsync`, writes a
+structured log entry naming the offending quotation ids, and **re-renders the
+agreement Details view directly** (no `TempData` redirect — a hard reload still
+shows the inline error). The user-visible message reads:
 
-In **Admin → Legacy Quotes**, attach a historical rate to the quote. The flag clears, the snapshot is set, and PDF generation now succeeds (FR-033).
+> No se puede generar el PDF: una o más cotizaciones no tienen tipo de cambio aplicado. Contacte a un administrador para asignar tipos históricos.
+
+In **Admin → Cotizaciones Pendientes** (`/Admin/AdminLegacyQuotations`), attach
+a historical rate to the quotation. The flag clears, the snapshot is set, and
+PDF generation now succeeds (FR-033).
 
 ## 11. Run E2E tests
 

@@ -94,7 +94,7 @@
                     rateEl.textContent =
                         '1 ' + (body.originalCurrencyCode || currency) + ' = ' +
                         formatRate(body.rate.rateValue) + ' CRC ' +
-                        '(Tipo ' + body.rate.rateType + ', vigente desde ' +
+                        '(Tipo ' + translateRateType(body.rate.rateType) + ', vigente desde ' +
                         formatDate(body.rate.effectiveAtUtc) + ')';
                 }
                 setStatus('', false);
@@ -138,6 +138,12 @@
         var d = new Date(iso);
         if (isNaN(d.getTime())) return iso;
         return d.toLocaleString('es-CR');
+    }
+    function translateRateType(rt) {
+        if (!rt) return '';
+        if (rt === 'Buy')  return 'Compra';
+        if (rt === 'Sell') return 'Venta';
+        return rt;
     }
 
     if (document.readyState === 'loading') {

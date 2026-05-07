@@ -751,7 +751,7 @@ public class FundingAgreementController : Controller
             ApplicantEmail = applicant?.Email ?? string.Empty,
             ApplicantPhone = applicant?.Phone,
             LocaleCode = string.IsNullOrWhiteSpace(options.LocaleCode) ? "es-CR" : options.LocaleCode,
-            CurrencyIsoCode = string.IsNullOrWhiteSpace(options.CurrencyIsoCode) ? "COP" : options.CurrencyIsoCode,
+            CurrencyIsoCode = string.IsNullOrWhiteSpace(options.CurrencyIsoCode) ? "CRC" : options.CurrencyIsoCode,
             Items = rows,
             TotalAmount = total,
             TotalsByCurrency = totalsByCurrency

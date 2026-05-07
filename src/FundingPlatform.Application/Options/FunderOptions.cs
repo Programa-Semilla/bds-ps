@@ -16,6 +16,6 @@ public class FundingAgreementOptions
     public const string SectionName = "FundingAgreement";
 
     public string LocaleCode { get; set; } = "es-CR";
-    public string CurrencyIsoCode { get; set; } = "COP";
+    public string CurrencyIsoCode { get; set; } = "CRC";
     public FunderOptions Funder { get; set; } = new();
 }
