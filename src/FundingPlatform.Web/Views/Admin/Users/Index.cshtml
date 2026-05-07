@@ -34,15 +34,6 @@
                     Icon: "ti ti-user-plus")
             }))
 
-    @if (TempData["SuccessMessage"] is string success)
-    {
-        <div class="alert alert-success" role="alert" data-testid="success-banner">@success</div>
-    }
-    @if (TempData["ErrorMessage"] is string err)
-    {
-        <div class="alert alert-danger" role="alert" data-testid="error-banner">@err</div>
-    }
-
     <form method="get" asp-action="Index" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-users-filter-form">
         <input type="search" name="search" value="@Model.Search" placeholder="Buscar por nombre o correo"
                class="form-control admin-users-filter-search" data-testid="admin-users-search" />

@@ -4,15 +4,6 @@
 }
 
 <div data-testid="admin-currencies-area">
-    @if (TempData["SuccessMessage"] is string success)
-    {
-        <div class="alert alert-success" role="alert" data-testid="success-banner">@success</div>
-    }
-    @if (TempData["ErrorMessage"] is string err)
-    {
-        <div class="alert alert-danger" role="alert" data-testid="error-banner">@err</div>
-    }
-
     <div class="page-header d-print-none mb-3">
         <div class="row g-2 align-items-center">
             <div class="col">
