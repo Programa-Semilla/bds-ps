@@ -218,17 +218,17 @@ description: "Task list for spec 015 — Suppliers Quotes Multi-Currency"
 
 ### Tests for User Story 6
 
-- [ ] T600 [P] [US6] Add re-run idempotency assertion to `MigrationTests.cs` (running the post-deploy block twice does not re-flag already-attached quotations). (The base assertions are in T053; this task only adds the second-run assertion)
-- [ ] T601 [P] [US6] Add `tests/FundingPlatform.Tests.Integration/LegacyQuotationRateAttachServiceTests.cs`: attaches a historical rate; asserts snapshot fields set, `ConvertedCrcAmount` computed, flag cleared, audit `Quotation.LegacyRateAttached` event written
-- [ ] T602 [P] [US6] Add `tests/FundingPlatform.Tests.E2E/LegacyQuotationFlowE2E.cs`: log in as admin, navigate to legacy queue, attach rate, verify quotation now appears with conversion data in the Application detail view and the flag is gone
+- [x] T600 [P] [US6] Add re-run idempotency assertion to `MigrationTests.cs` (running the post-deploy block twice does not re-flag already-attached quotations). (The base assertions are in T053; this task only adds the second-run assertion)
+- [x] T601 [P] [US6] Add `tests/FundingPlatform.Tests.Integration/LegacyQuotationRateAttachServiceTests.cs`: attaches a historical rate; asserts snapshot fields set, `ConvertedCrcAmount` computed, flag cleared, audit `Quotation.LegacyRateAttached` event written
+- [x] T602 [P] [US6] Add `tests/FundingPlatform.Tests.E2E/LegacyQuotationFlowE2E.cs`: log in as admin, navigate to legacy queue, attach rate, verify quotation now appears with conversion data in the Application detail view and the flag is gone
 
 ### Implementation for User Story 6
 
-- [ ] T610 [US6] Add `src/FundingPlatform.Application/Services/LegacyQuotationRateAttachService.cs` implementing the attach use case (reads the user-selected `ExchangeRate`, calls `Quotation.AttachLegacyRate(...)`, writes the audit event, persists)
-- [ ] T611 [US6] Add `src/FundingPlatform.Web/Controllers/Admin/AdminLegacyQuotationsController.cs` with `Index` (list flagged) and `POST AttachRate` (rate-id + quotation-id binding)
-- [ ] T612 [US6] Add `src/FundingPlatform.Web/Views/Admin/LegacyQuotations/Index.cshtml`: filtered list, per-row "attach rate" form using the existing rate-history list as the rate picker
-- [ ] T613 [US6] Wire admin nav link into `_AdminLayout.cshtml`
-- [ ] T614 [US6] Run all US6 tests; ensure pass
+- [x] T610 [US6] Add `src/FundingPlatform.Application/Services/LegacyQuotationRateAttachService.cs` implementing the attach use case (reads the user-selected `ExchangeRate`, calls `Quotation.AttachLegacyRate(...)`, writes the audit event, persists)
+- [x] T611 [US6] Add `src/FundingPlatform.Web/Controllers/Admin/AdminLegacyQuotationsController.cs` with `Index` (list flagged) and `POST AttachRate` (rate-id + quotation-id binding)
+- [x] T612 [US6] Add `src/FundingPlatform.Web/Views/Admin/LegacyQuotations/Index.cshtml`: filtered list, per-row "attach rate" form using the existing rate-history list as the rate picker
+- [x] T613 [US6] Wire admin nav link into `_AdminLayout.cshtml`
+- [x] T614 [US6] Run all US6 tests; ensure pass
 
 **Checkpoint**: All six user stories green. End-to-end story coverage complete.
 

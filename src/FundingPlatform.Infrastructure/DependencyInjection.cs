@@ -44,18 +44,17 @@ public static class DependencyInjection
 
         services.AddObjectStorage(configuration);
 
-        // Spec 015 — multi-currency repositories + conversion service. The
-        // currency-config / exchange-rate / legacy-quotation Application services
-        // (US3, US6) are registered in FundingPlatform.Application.DependencyInjection
-        // when their concrete classes land in their respective phases.
+        // Spec 015 — multi-currency repositories + conversion service.
         services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
         services.AddScoped<ICurrencyRepository, CurrencyRepository>();
+        services.AddScoped<IQuotationLegacyRepository, QuotationLegacyRepository>();
         services.AddScoped<IConversionService, ConversionService>();
 
         // Spec 015 / Phase 5 (US3) — admin currency-config + exchange-rate
-        // application services. Phase 8 (US6) will add LegacyQuotationRateAttachService.
+        // application services. Phase 8 (US6) — legacy-quotation rate-attach.
         services.AddScoped<ICurrencyConfigService, CurrencyConfigService>();
         services.AddScoped<IExchangeRateService, ExchangeRateService>();
+        services.AddScoped<ILegacyQuotationRateAttachService, LegacyQuotationRateAttachService>();
 
         return services;
     }
