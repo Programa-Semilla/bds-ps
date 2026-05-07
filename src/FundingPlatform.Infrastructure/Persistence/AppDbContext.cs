@@ -30,6 +30,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<SignedUpload> SignedUploads => Set<SignedUpload>();
     public DbSet<SigningReviewDecision> SigningReviewDecisions => Set<SigningReviewDecision>();
 
+    // Spec 015 — multi-currency catalog + reference rates.
+    public DbSet<Currency> Currencies => Set<Currency>();
+    public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

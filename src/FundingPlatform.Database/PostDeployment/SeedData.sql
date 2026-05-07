@@ -68,17 +68,58 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'Defaul
     INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])
     VALUES (N'DefaultCurrency', N'$(DefaultCurrency)', N'Default 3-character ISO 4217 currency code applied to new quotations and historical backfill', GETUTCDATE());
 
--- Backfill any quotations missing a Currency with the configured DefaultCurrency.
--- Idempotent: re-runs are no-ops because every prior row already has Currency set.
+-- =============================================================================
+-- Spec 015: Multi-currency catalog seed + Quotations migration. Idempotent.
+-- Order matters and is enforced by sequential placement:
+--   1. MERGE CRC + USD into Currencies (catalog must exist before backfill).
+--   2. Backfill Quotations.Currency NULL → 'CRC' (FR-031 — was 'DefaultCurrency'
+--      template before; spec 015 pins the platform base to CRC).
+--   3. Stamp ConvertedCrcAmount on existing CRC rows; flag non-CRC rows lacking
+--      a rate snapshot for admin attention (FR-031 / FR-032).
+--   4. Tighten Quotations.Currency to NOT NULL and add the FK to Currencies.
+--   5. Add the snapshot/legacy CHECK constraints (deferred to post-deploy because
+--      pre-existing non-CRC rows do not satisfy them until step 3 has flagged
+--      them).
+-- =============================================================================
+
+-- 1. Catalog seed (idempotent MERGE).
+MERGE INTO [dbo].[Currencies] AS tgt
+USING (VALUES
+    ('CRC', N'₡', N'Costa Rican colón', 2, 1, 1, 1),
+    ('USD', N'$', N'US dollar',         2, 1, 0, 2)
+) AS src (Code, Symbol, DisplayName, DecimalPrecision, IsEnabled, IsBaseCurrency, DisplayOrder)
+ON tgt.[Code] = src.Code
+WHEN NOT MATCHED THEN
+    INSERT ([Code], [Symbol], [DisplayName], [DecimalPrecision], [IsEnabled], [IsBaseCurrency], [DisplayOrder])
+    VALUES (src.Code, src.Symbol, src.DisplayName, src.DecimalPrecision, src.IsEnabled, src.IsBaseCurrency, src.DisplayOrder);
+
+-- 2. Backfill any quotation lacking a Currency with 'CRC' (the platform base).
 UPDATE [dbo].[Quotations]
-    SET [Currency] = (SELECT [Value] FROM [dbo].[SystemConfigurations] WHERE [Key] = N'DefaultCurrency')
+    SET [Currency] = 'CRC'
     WHERE [Currency] IS NULL;
 
--- Tighten Quotations.Currency to NOT NULL after backfill. Idempotent: a second
--- invocation finds the column already NOT NULL and short-circuits. Inlined here
--- because Microsoft.Build.Sql 2.1.0 supports a single post-deploy script per
--- project; deployment ordering (column add (declarative) -> backfill -> tighten)
--- is preserved by sequential placement within this file.
+-- 3a. CRC rows that have not yet had ConvertedCrcAmount stamped: copy Price.
+--     Idempotent guard: only touch rows where ConvertedCrcAmount is still NULL.
+UPDATE [dbo].[Quotations]
+    SET [ConvertedCrcAmount] = [Price]
+    WHERE [Currency] = 'CRC'
+      AND [ConvertedCrcAmount] IS NULL;
+
+-- 3b. Non-CRC rows lacking a snapshot: flag for admin review (US6 queue).
+--     Idempotent guard: only flag rows where every snapshot field is still NULL
+--     AND the row is not already flagged. Re-running this block on a fresh DB
+--     touches no rows because no non-CRC rows have been created yet; on an
+--     upgrade it stamps once.
+UPDATE [dbo].[Quotations]
+    SET [LegacyNeedsReview] = 1
+    WHERE [Currency] <> 'CRC'
+      AND [SnapshotRateId] IS NULL
+      AND [SnapshotRateValue] IS NULL
+      AND [LegacyNeedsReview] = 0;
+
+-- 4. Tighten Quotations.Currency to NOT NULL after backfill, then add the FK to
+--    Currencies. Idempotent: a second invocation finds the column already NOT NULL
+--    (or the FK already in place) and short-circuits.
 IF EXISTS (
     SELECT 1
     FROM sys.columns c
@@ -87,6 +128,50 @@ IF EXISTS (
 )
 BEGIN
     ALTER TABLE [dbo].[Quotations] ALTER COLUMN [Currency] NVARCHAR(3) NOT NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_Quotations_Currencies'
+)
+BEGIN
+    ALTER TABLE [dbo].[Quotations]
+        ADD CONSTRAINT [FK_Quotations_Currencies]
+            FOREIGN KEY ([Currency]) REFERENCES [dbo].[Currencies] ([Code]) ON DELETE NO ACTION;
+END;
+
+-- 5. Snapshot/legacy CHECK constraints (deferred to post-deploy; see Quotations table comment).
+IF NOT EXISTS (
+    SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Quotations_CrcSnapshotMustBeNull'
+)
+BEGIN
+    ALTER TABLE [dbo].[Quotations] WITH CHECK ADD CONSTRAINT [CK_Quotations_CrcSnapshotMustBeNull]
+        CHECK (
+            [Currency] <> 'CRC' OR (
+                [SnapshotRateValue]      IS NULL AND
+                [SnapshotRateType]       IS NULL AND
+                [SnapshotEffectiveAtUtc] IS NULL AND
+                [SnapshotRateId]         IS NULL AND
+                [LegacyNeedsReview]      = 0
+            )
+        );
+END;
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.check_constraints WHERE name = N'CK_Quotations_NonCrcRequiresSnapshot'
+)
+BEGIN
+    ALTER TABLE [dbo].[Quotations] WITH CHECK ADD CONSTRAINT [CK_Quotations_NonCrcRequiresSnapshot]
+        CHECK (
+            [Currency] = 'CRC' OR [LegacyNeedsReview] = 1 OR (
+                [SnapshotRateValue]      IS NOT NULL AND
+                [SnapshotRateType]       IS NOT NULL AND
+                [SnapshotEffectiveAtUtc] IS NOT NULL AND
+                [SnapshotRateId]         IS NOT NULL AND
+                [ConvertedCrcAmount]     IS NOT NULL
+            )
+        );
 END;
 
 -- =============================================================================

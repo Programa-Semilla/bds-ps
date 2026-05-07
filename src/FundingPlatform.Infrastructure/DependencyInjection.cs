@@ -8,6 +8,7 @@ using FundingPlatform.Infrastructure.DocumentGeneration;
 using FundingPlatform.Infrastructure.Identity;
 using FundingPlatform.Infrastructure.Persistence.Reports;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
+using FundingPlatform.Infrastructure.Persistence.Services;
 using FundingPlatform.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,6 +42,13 @@ public static class DependencyInjection
         services.AddSingleton<SyncfusionLicenseValidator>();
 
         services.AddObjectStorage(configuration);
+
+        // Spec 015 — multi-currency repositories + conversion service. The
+        // currency-config / exchange-rate / legacy-quotation Application services
+        // (US3, US6) are registered in FundingPlatform.Application.DependencyInjection
+        // when their concrete classes land in their respective phases.
+        services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
+        services.AddScoped<IConversionService, ConversionService>();
 
         return services;
     }

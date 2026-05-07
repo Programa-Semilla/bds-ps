@@ -12,8 +12,29 @@ CREATE TABLE [dbo].[Quotations]
     [Price]             DECIMAL(18,2) NOT NULL,
     [ValidUntil]        DATE          NOT NULL,
     [DocumentId]        INT           NOT NULL,
+    -- Spec 015 note: column type is tightened from NVARCHAR(3) NULL → NVARCHAR(3) NOT NULL
+    -- in PostDeployment/SeedData.sql (after the Currencies MERGE), and a FK to
+    -- dbo.Currencies(Code) is added there too. Doing it in post-deploy preserves
+    -- the dacpac's "single post-deploy script" pattern that spec 010 established
+    -- and ensures the FK target rows exist before the constraint is created.
     [Currency]          NVARCHAR(3)   NULL,
     [CreatedAt]         DATETIME2     NOT NULL CONSTRAINT [DF_Quotations_CreatedAt] DEFAULT (GETUTCDATE()),
+
+    -- Spec 015: multi-currency snapshot fields. CRC quotes leave Snapshot* NULL
+    -- and copy Price into ConvertedCrcAmount; non-CRC quotes embed the rate that
+    -- was applied at save time so the converted CRC value is stable across
+    -- subsequent rate changes (FR-013, FR-016). The two CHECK constraints that
+    -- enforce the snapshot/legacy invariants are added in PostDeployment/SeedData.sql
+    -- AFTER legacy rows are stamped or flagged — adding them here would fail the
+    -- upgrade because pre-existing non-CRC rows do not yet carry a snapshot.
+    [ConvertedCrcAmount]      DECIMAL(18, 2)   NULL,
+    [SnapshotRateValue]       DECIMAL(18, 6)   NULL,
+    [SnapshotRateType]        TINYINT          NULL,
+    [SnapshotEffectiveAtUtc]  DATETIME2(3)     NULL,
+    [SnapshotRateId]          UNIQUEIDENTIFIER NULL,
+    -- Pre-existing non-CRC rows lacking a snapshot are flagged here by the
+    -- post-deploy migration; admins clear the flag via the legacy-attach UI (US6).
+    [LegacyNeedsReview]       BIT              NOT NULL CONSTRAINT [DF_Quotations_LegacyNeedsReview] DEFAULT (0),
 
     CONSTRAINT [PK_Quotations] PRIMARY KEY CLUSTERED ([Id]),
     -- One quotation per (item, supplier) — branch is contact metadata, not a
@@ -22,9 +43,21 @@ CREATE TABLE [dbo].[Quotations]
     CONSTRAINT [FK_Quotations_Items] FOREIGN KEY ([ItemId]) REFERENCES [dbo].[Items] ([Id]) ON DELETE CASCADE,
     CONSTRAINT [FK_Quotations_Suppliers] FOREIGN KEY ([SupplierId]) REFERENCES [dbo].[Suppliers] ([Id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_Quotations_SupplierBranches] FOREIGN KEY ([SupplierBranchId]) REFERENCES [dbo].[SupplierBranches] ([Id]) ON DELETE NO ACTION,
-    CONSTRAINT [FK_Quotations_Documents] FOREIGN KEY ([DocumentId]) REFERENCES [dbo].[Documents] ([Id]) ON DELETE NO ACTION
+    CONSTRAINT [FK_Quotations_Documents] FOREIGN KEY ([DocumentId]) REFERENCES [dbo].[Documents] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_Quotations_ExchangeRates] FOREIGN KEY ([SnapshotRateId]) REFERENCES [dbo].[ExchangeRates] ([Id]) ON DELETE NO ACTION
 );
 GO
 
 CREATE INDEX [IX_Quotations_SupplierBranchId] ON [dbo].[Quotations] ([SupplierBranchId]);
+GO
+
+-- Spec 015: admin "needs review" queue (US6). Filtered to keep the index narrow.
+CREATE INDEX [IX_Quotations_LegacyNeedsReview]
+    ON [dbo].[Quotations] ([LegacyNeedsReview])
+    WHERE [LegacyNeedsReview] = 1;
+GO
+
+-- Spec 015: support FK lookups for "which quotes used rate R" audit queries.
+CREATE INDEX [IX_Quotations_SnapshotRateId]
+    ON [dbo].[Quotations] ([SnapshotRateId]);
 GO
