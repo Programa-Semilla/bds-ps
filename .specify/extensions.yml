@@ -113,7 +113,7 @@ hooks:
     condition: null
   - extension: spex-worktrees
     command: speckit.spex-worktrees.manage
-    enabled: false
+    enabled: true
     optional: true
     prompt: Create a worktree for this feature?
     description: Create git worktree after specification

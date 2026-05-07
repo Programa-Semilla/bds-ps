@@ -40,7 +40,7 @@
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-04-28T04:09:07.322965+00:00"
+      "installed_at": "2026-05-07T05:11:32.629296+00:00"
     },
     "spex-gates": {
       "version": "1.0.0",
@@ -58,13 +58,13 @@
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-04-28T04:09:07.468002+00:00"
+      "installed_at": "2026-05-07T05:11:45.106224+00:00"
     },
     "spex-worktrees": {
       "version": "1.0.0",
       "source": "local",
       "manifest_hash": "sha256:eabdad5cd992c34a52579ae5e691062e08c3a63345826f5559ddf4576fed5fdf",
-      "enabled": false,
+      "enabled": true,
       "priority": 10,
       "registered_commands": {
         "claude": [
@@ -72,7 +72,7 @@
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-04-28T04:09:07.609249+00:00"
+      "installed_at": "2026-05-07T05:11:45.441152+00:00"
     },
     "spex-deep-review": {
       "version": "1.0.0",
@@ -86,7 +86,7 @@
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-04-28T04:09:07.746176+00:00"
+      "installed_at": "2026-05-07T05:11:45.803658+00:00"
     },
     "spex-teams": {
       "version": "1.0.0",
@@ -102,7 +102,7 @@
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-04-28T04:09:07.906599+00:00"
+      "installed_at": "2026-05-07T05:11:46.153517+00:00"
     }
   }
 }

@@ -86,3 +86,8 @@ brainstorm/                        Working scratchpad for in-flight design explo
 
 ## Recent Changes
 - 014-azure-blob-storage: Added C# 13 / .NET 10.0
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
