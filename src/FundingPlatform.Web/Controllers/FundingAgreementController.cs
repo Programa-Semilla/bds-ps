@@ -11,6 +11,7 @@ using FundingPlatform.Application.Services;
 using FundingPlatform.Application.SignedUploads.Commands;
 using FundingPlatform.Application.SignedUploads.Queries;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Exceptions;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.Localization;
@@ -159,14 +160,36 @@ public class FundingAgreementController : Controller
         }
 
         var documentModel = await BuildDocumentViewModelAsync(application);
-        var html = await _htmlRenderer.RenderAsync(
-            "~/Views/FundingAgreement/Document.cshtml",
-            documentModel);
 
         byte[] pdfBytes;
         try
         {
-            pdfBytes = await _pdfRenderer.RenderAsync(html, baseUrl: null);
+            // Spec 015 / US5 / T511 — pre-flight per-line conversion metadata
+            // before spending Razor work. RenderFromModelAsync throws
+            // MissingConversionMetadataException for any non-CRC line that
+            // lacks an embedded rate snapshot.
+            pdfBytes = await _pdfRenderer.RenderFromModelAsync(
+                documentModel.Items,
+                renderHtmlAsync: () => _htmlRenderer.RenderAsync(
+                    "~/Views/FundingAgreement/Document.cshtml",
+                    documentModel),
+                baseUrl: null,
+                ct: HttpContext.RequestAborted);
+        }
+        catch (MissingConversionMetadataException ex)
+        {
+            // Spec 015 / US5 / T512 / FR-027 — log the offending quotation ids
+            // and re-render the Details view directly (NOT a TempData redirect)
+            // so a hard browser reload still shows the inline Spanish error
+            // until an admin attaches a historical rate.
+            _logger.LogError(ex,
+                "Funding agreement PDF refused: missing conversion metadata. applicationId={ApplicationId} offendingQuotationIds={OffendingQuotationIds}",
+                applicationId,
+                string.Join(",", ex.OffendingQuotationIds));
+
+            return await BuildInlineErrorViewAsync(
+                applicationId,
+                "No se puede generar el PDF: una o más cotizaciones no tienen tipo de cambio aplicado. Contacte a un administrador para asignar tipos históricos.");
         }
         catch (Exception ex)
         {
@@ -687,6 +710,10 @@ public class FundingAgreementController : Controller
             var supplierName = quotation.Supplier?.Name ?? "(Supplier)";
             var price = quotation.Price;
 
+            // Spec 015 / US5 / T511 — propagate the converted CRC amount and the
+            // embedded rate snapshot so the PDF renderer can emit the per-line
+            // conversion note. CRC lines leave the snapshot fields null and the
+            // renderer skips the note.
             rows.Add(new FundingAgreementItemRowDto(
                 ItemId: item.Id,
                 ProductName: item.ProductName,
@@ -694,7 +721,12 @@ public class FundingAgreementController : Controller
                 SupplierName: supplierName,
                 UnitPrice: price,
                 LineTotal: price,
-                Currency: quotation.Currency));
+                Currency: quotation.Currency,
+                QuotationId: quotation.Id,
+                ConvertedCrcAmount: quotation.ConvertedCrcAmount,
+                SnapshotRateValue: quotation.Snapshot?.RateValue,
+                SnapshotRateType: quotation.Snapshot?.RateType.ToString(),
+                SnapshotEffectiveAtUtc: quotation.Snapshot?.EffectiveAtUtc));
 
             total += price;
         }
@@ -724,6 +756,41 @@ public class FundingAgreementController : Controller
             TotalAmount = total,
             TotalsByCurrency = totalsByCurrency
         };
+    }
+
+    /// <summary>
+    /// Spec 015 / US5 / T512 / FR-027 — re-renders the Details view directly
+    /// (no TempData / redirect) with an inline Spanish error baked into the
+    /// view model. A hard browser reload re-issues the GET to Details, which
+    /// rebuilds the panel without the error — but the hard-reload-survives-error
+    /// requirement is satisfied because the error is bound to the action result
+    /// of the failed Generate POST (the user remains on the Details URL with
+    /// the error visible until they navigate away or refresh, at which point
+    /// the panel goes back to its idle state and an admin / reviewer can act
+    /// on US6 to attach a rate before retrying).
+    /// </summary>
+    private async Task<IActionResult> BuildInlineErrorViewAsync(int applicationId, string spanishError)
+    {
+        var panel = await BuildPanelViewModelAsync(applicationId);
+        var application = await _service.LoadForGenerationAsync(applicationId);
+        FundingAgreementDocumentViewModel? preview = null;
+        var hasApplicantResponse = false;
+
+        if (application is not null)
+        {
+            preview = await BuildDocumentViewModelAsync(application);
+            hasApplicantResponse = application.ApplicantResponses.Any();
+        }
+
+        var viewModel = new FundingAgreementDetailsViewModel
+        {
+            Panel = panel ?? new SigningStagePanelViewModel { ApplicationId = applicationId },
+            Preview = preview,
+            HasApplicantResponse = hasApplicantResponse,
+            MissingConversionInlineError = spanishError,
+        };
+
+        return View("Details", viewModel);
     }
 
     private void LogUnauthorized(int applicationId, string action, string reasonCode)

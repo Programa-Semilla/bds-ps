@@ -1,0 +1,17 @@
+# Spec 015 / US5 / T513 — text-extraction baseline for the mixed-currency
+# funding-agreement PDF. Each non-comment, non-empty line below is asserted
+# (substring) to be present in the rendered PDF text by
+# tests/FundingPlatform.Tests.Integration/PdfGeneration/PdfRenderingTests.cs.
+# Updating: re-run Mixed_Rendering_IncludesConversionNote_WithRateBuyAndDate,
+# extract the PDF, and refresh the substrings below to match. Keep substrings
+# coarse so cosmetic formatting drift does not break the assertion.
+
+Ítems financiados
+Insumos locales
+Servidor importado
+USD
+CRC
+Conversión:
+Tipo Compra
+vigente desde 2026-05-01
+520

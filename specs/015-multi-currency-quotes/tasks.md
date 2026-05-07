@@ -195,16 +195,16 @@ description: "Task list for spec 015 — Suppliers Quotes Multi-Currency"
 
 ### Tests for User Story 5
 
-- [ ] T500 [P] [US5] Add `tests/FundingPlatform.Tests.Integration/PdfRenderingTests.cs`: golden test for CRC-only PDF (compare extracted text/structure to a baseline checked into `tests/Fixtures/pdfs/`), mixed-currency PDF includes the per-line conversion note with rate value + Buy + effective date, missing-snapshot row triggers domain exception
-- [ ] T501 [P] [US5] Add `tests/FundingPlatform.Tests.E2E/AgreementPdfMultiCurrencyE2E.cs`: drives the agreement page, downloads PDF, asserts file is non-empty + magic bytes; the inline error path asserts the user-visible message and that the application log contains the offending quotation id
+- [x] T500 [P] [US5] Add `tests/FundingPlatform.Tests.Integration/PdfRenderingTests.cs`: golden test for CRC-only PDF (compare extracted text/structure to a baseline checked into `tests/Fixtures/pdfs/`), mixed-currency PDF includes the per-line conversion note with rate value + Buy + effective date, missing-snapshot row triggers domain exception
+- [x] T501 [P] [US5] Add `tests/FundingPlatform.Tests.E2E/AgreementPdfMultiCurrencyE2E.cs`: drives the agreement page, downloads PDF, asserts file is non-empty + magic bytes; the inline error path asserts the user-visible message and that the application log contains the offending quotation id
 
 ### Implementation for User Story 5
 
-- [ ] T510 [P] [US5] Modify the existing FundingAgreement Razor partial used by the PDF renderer (locate via `IFundingAgreementHtmlRenderer` impl in `Infrastructure` and the Razor view it consumes) to render the conversion note row beneath each non-CRC line: `Conversión: 1 USD = ₡<rate> (Tipo Compra, vigente desde <fecha>)`. Locale-aware formatting via existing `CultureInfo` helpers (es-CR primary, per CLAUDE.md and spec 012)
-- [ ] T511 [US5] Modify `src/FundingPlatform.Infrastructure` PDF renderer (the implementation of `IFundingAgreementPdfRenderer`) to throw `MissingConversionMetadataException` (new domain exception in `src/FundingPlatform.Domain/Exceptions/`) when any line in the request has `Currency != 'CRC'` AND `Snapshot is null`. Otherwise feeds the partial with new view-model fields
-- [ ] T512 [US5] Modify `src/FundingPlatform.Web/Controllers/FundingAgreementController.cs` (verify exact name) Pdf action to catch `MissingConversionMetadataException` and: (a) write a structured log entry containing the offending quotation ids; (b) **re-render the agreement view directly with the inline error in the model** (NOT a `TempData`-survive-redirect pattern, so a hard reload still shows the error until the offending quotation is fixed — per spec edge case "PDF refusal UX"). Other exceptions continue to propagate
-- [ ] T513 [US5] Add a baseline PDF artifact under `tests/Fixtures/pdfs/crc-only-baseline.pdf` (committed) and a `tests/Fixtures/pdfs/mixed-baseline.expected.txt` extraction for the PdfRenderingTests golden assertions
-- [ ] T514 [US5] Run all US5 tests; ensure pass
+- [x] T510 [P] [US5] Modify the existing FundingAgreement Razor partial used by the PDF renderer (locate via `IFundingAgreementHtmlRenderer` impl in `Infrastructure` and the Razor view it consumes) to render the conversion note row beneath each non-CRC line: `Conversión: 1 USD = ₡<rate> (Tipo Compra, vigente desde <fecha>)`. Locale-aware formatting via existing `CultureInfo` helpers (es-CR primary, per CLAUDE.md and spec 012)
+- [x] T511 [US5] Modify `src/FundingPlatform.Infrastructure` PDF renderer (the implementation of `IFundingAgreementPdfRenderer`) to throw `MissingConversionMetadataException` (new domain exception in `src/FundingPlatform.Domain/Exceptions/`) when any line in the request has `Currency != 'CRC'` AND `Snapshot is null`. Otherwise feeds the partial with new view-model fields
+- [x] T512 [US5] Modify `src/FundingPlatform.Web/Controllers/FundingAgreementController.cs` (verify exact name) Pdf action to catch `MissingConversionMetadataException` and: (a) write a structured log entry containing the offending quotation ids; (b) **re-render the agreement view directly with the inline error in the model** (NOT a `TempData`-survive-redirect pattern, so a hard reload still shows the error until the offending quotation is fixed — per spec edge case "PDF refusal UX"). Other exceptions continue to propagate
+- [x] T513 [US5] Add a baseline PDF artifact under `tests/Fixtures/pdfs/crc-only-baseline.pdf` (committed) and a `tests/Fixtures/pdfs/mixed-baseline.expected.txt` extraction for the PdfRenderingTests golden assertions
+- [x] T514 [US5] Run all US5 tests; ensure pass
 
 **Checkpoint**: US1–US5 green. The legally-meaningful PDF now reflects multi-currency reality.
 
