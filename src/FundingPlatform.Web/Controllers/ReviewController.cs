@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using FundingPlatform.Application.DTOs;
+using FundingPlatform.Application.Routing;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Application.SignedUploads.Queries;
 using FundingPlatform.Web.Localization;
@@ -109,7 +110,7 @@ public class ReviewController : Controller
     }
 
     [HttpGet]
-    [Route("Review/{id:int}")]
+    [Route(ReviewRoutes.ReviewTemplate)]
     public async Task<IActionResult> Review(int id)
     {
         var dto = await _reviewService.GetApplicationForReviewAsync(id);
