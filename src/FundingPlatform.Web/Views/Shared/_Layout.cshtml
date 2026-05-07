@@ -8,7 +8,7 @@
         new("home", "Inicio", Url.Action("Index", "Home") ?? "/", "ti ti-home", Array.Empty<string>()),
         new("my-applications", "Mis solicitudes", Url.Action("Index", "Application") ?? "/Application", "ti ti-files", new[] { "Applicant" }),
         new("review-queue", "Cola de revisión", Url.Action("Index", "Review") ?? "/Review", "ti ti-clipboard-check", new[] { "Reviewer", "Admin" }),
-        new("signing-inbox", "Bandeja de firmas", Url.Action("SigningInbox", "Review") ?? "/Review/SigningInbox", "ti ti-pen", new[] { "Reviewer", "Admin" }),
+        new("signing-inbox", "Bandeja de firmas", Url.Action("SigningInbox", "Review") ?? "/Review/SigningInbox", "ti ti-signature", new[] { "Reviewer", "Admin" }),
         new("admin", "Administración", Url.Action("Index", "Admin") ?? "/Admin", "ti ti-settings", new[] { "Admin" }),
         new("users", "Usuarios", "/Admin/Users", "ti ti-users", new[] { "Admin" }),
         new("suppliers", "Proveedores", "/Admin/Suppliers", "ti ti-building-store", new[] { "Admin" }),
