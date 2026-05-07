@@ -3,6 +3,7 @@ using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Admin.Users;
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Application.Options;
+using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.DocumentGeneration;
 using FundingPlatform.Infrastructure.Identity;
@@ -48,7 +49,13 @@ public static class DependencyInjection
         // (US3, US6) are registered in FundingPlatform.Application.DependencyInjection
         // when their concrete classes land in their respective phases.
         services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
+        services.AddScoped<ICurrencyRepository, CurrencyRepository>();
         services.AddScoped<IConversionService, ConversionService>();
+
+        // Spec 015 / Phase 5 (US3) — admin currency-config + exchange-rate
+        // application services. Phase 8 (US6) will add LegacyQuotationRateAttachService.
+        services.AddScoped<ICurrencyConfigService, CurrencyConfigService>();
+        services.AddScoped<IExchangeRateService, ExchangeRateService>();
 
         return services;
     }

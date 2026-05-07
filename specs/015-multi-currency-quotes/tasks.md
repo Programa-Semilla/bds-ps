@@ -140,22 +140,22 @@ description: "Task list for spec 015 — Suppliers Quotes Multi-Currency"
 
 ### Tests for User Story 3
 
-- [ ] T300 [P] [US3] Add `tests/FundingPlatform.Tests.Integration/CurrencyConfigServiceTests.cs`: enable/disable USD, attempt to disable CRC throws, audit-log events are written
-- [ ] T301 [P] [US3] Add `tests/FundingPlatform.Tests.Integration/ExchangeRateServiceTests.cs`: create accepts valid input, rejects zero/negative, rejects future-dated (FR-007a), rejects duplicate (FR-007); attempt to edit/delete via the public surface always blocked once `IsUsed=1`; audit events on every create + every blocked attempt
-- [ ] T302 [P] [US3] Add `tests/FundingPlatform.Tests.E2E/AdminCurrencyConfigE2E.cs` (admin currency page-object, scenarios: toggle USD, attempt-disable CRC error message)
-- [ ] T303 [P] [US3] Add `tests/FundingPlatform.Tests.E2E/AdminExchangeRateE2E.cs` (rate page-object, scenarios: create valid rate, validate zero-buy/zero-sell/duplicate-timestamp/future-dated rejections, view history list, attempt-edit-used-rate rejection)
+- [x] T300 [P] [US3] Add `tests/FundingPlatform.Tests.Integration/CurrencyConfigServiceTests.cs`: enable/disable USD, attempt to disable CRC throws, audit-log events are written
+- [x] T301 [P] [US3] Add `tests/FundingPlatform.Tests.Integration/ExchangeRateServiceTests.cs`: create accepts valid input, rejects zero/negative, rejects future-dated (FR-007a), rejects duplicate (FR-007); attempt to edit/delete via the public surface always blocked once `IsUsed=1`; audit events on every create + every blocked attempt
+- [x] T302 [P] [US3] Add `tests/FundingPlatform.Tests.E2E/AdminCurrencyConfigE2E.cs` (admin currency page-object, scenarios: toggle USD, attempt-disable CRC error message)
+- [x] T303 [P] [US3] Add `tests/FundingPlatform.Tests.E2E/AdminExchangeRateE2E.cs` (rate page-object, scenarios: create valid rate, validate zero-buy/zero-sell/duplicate-timestamp/future-dated rejections, view history list, attempt-edit-used-rate rejection)
 
 ### Implementation for User Story 3
 
-- [ ] T310 [P] [US3] Implement `src/FundingPlatform.Application/Services/CurrencyConfigService.cs`: enforces CRC-permanent invariant, writes audit events
-- [ ] T311 [P] [US3] Implement `src/FundingPlatform.Application/Services/ExchangeRateService.cs`: validates per FR-006 / FR-007 / FR-007a, catches the duplicate-key surface from `ExchangeRateRepository`, writes audit events on every create + every blocked attempt
-- [ ] T312 [US3] Add `src/FundingPlatform.Web/Controllers/Admin/AdminCurrenciesController.cs` exposing the endpoints in `contracts/currency-api.md` (route: `/Admin/AdminCurrencies/...`). Apply `[Authorize(Roles = "Administrator")]` on the controller
-- [ ] T313 [US3] Add `src/FundingPlatform.Web/Controllers/Admin/AdminExchangeRatesController.cs` exposing the endpoints in `contracts/exchange-rate-api.md`. PUT/DELETE return `405 Method Not Allowed` and write `ExchangeRate.EditAttemptBlocked` / `DeleteAttemptBlocked` audit events
-- [ ] T314 [P] [US3] Add `src/FundingPlatform.Web/Views/Admin/Currencies/Index.cshtml` (Tabler-styled list with enable/disable toggles)
-- [ ] T315 [P] [US3] Add `src/FundingPlatform.Web/Views/Admin/ExchangeRates/Index.cshtml` (history list with active-rate highlight)
-- [ ] T316 [P] [US3] Add `src/FundingPlatform.Web/Views/Admin/ExchangeRates/Create.cshtml` (form, client-side validation matches server rules)
-- [ ] T317 [US3] Wire navigation links into the existing admin sidebar/menu (consistent with how spec 009 added other admin pages — search the current `_AdminLayout.cshtml` partial)
-- [ ] T318 [US3] Run all four US3 tests against AppHost; ensure pass
+- [x] T310 [P] [US3] Implement `src/FundingPlatform.Application/Services/CurrencyConfigService.cs`: enforces CRC-permanent invariant, writes audit events
+- [x] T311 [P] [US3] Implement `src/FundingPlatform.Application/Services/ExchangeRateService.cs`: validates per FR-006 / FR-007 / FR-007a, catches the duplicate-key surface from `ExchangeRateRepository`, writes audit events on every create + every blocked attempt
+- [x] T312 [US3] Add `src/FundingPlatform.Web/Controllers/Admin/AdminCurrenciesController.cs` exposing the endpoints in `contracts/currency-api.md` (route: `/Admin/AdminCurrencies/...`). Apply `[Authorize(Roles = "Administrator")]` on the controller
+- [x] T313 [US3] Add `src/FundingPlatform.Web/Controllers/Admin/AdminExchangeRatesController.cs` exposing the endpoints in `contracts/exchange-rate-api.md`. PUT/DELETE return `405 Method Not Allowed` and write `ExchangeRate.EditAttemptBlocked` / `DeleteAttemptBlocked` audit events
+- [x] T314 [P] [US3] Add `src/FundingPlatform.Web/Views/Admin/Currencies/Index.cshtml` (Tabler-styled list with enable/disable toggles)
+- [x] T315 [P] [US3] Add `src/FundingPlatform.Web/Views/Admin/ExchangeRates/Index.cshtml` (history list with active-rate highlight)
+- [x] T316 [P] [US3] Add `src/FundingPlatform.Web/Views/Admin/ExchangeRates/Create.cshtml` (form, client-side validation matches server rules)
+- [x] T317 [US3] Wire navigation links into the existing admin sidebar/menu (consistent with how spec 009 added other admin pages — search the current `_AdminLayout.cshtml` partial)
+- [x] T318 [US3] Run all four US3 tests against AppHost; ensure pass
 
 **Checkpoint**: US1, US2, US3 all green. The applicant flow now works end-to-end without dev-only DB seeding because admins can publish rates through the UI.
 

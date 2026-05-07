@@ -1,0 +1,116 @@
+@model FundingPlatform.Web.ViewModels.Admin.AdminExchangeRateCreateViewModel
+@{
+    ViewData["Title"] = "Publicar tipo de cambio";
+}
+
+<div data-testid="admin-exchange-rate-create-area">
+    <div class="page-header d-print-none mb-3">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <h2 class="page-title">Publicar tipo de cambio</h2>
+                <div class="text-muted">
+                    Una vez utilizado por una cotización, el tipo de cambio se vuelve inmutable.
+                    Para corregir un valor, publique uno nuevo con vigencia más reciente.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        @* The POST endpoint per contracts/exchange-rate-api.md is the bare
+           /Admin/AdminExchangeRates URL (NOT /Create). Hardcode the action so
+           Razor doesn't disambiguate to the GET-only Create route. *@
+        <form method="post"
+              action="/Admin/AdminExchangeRates"
+              data-testid="admin-exchange-rate-create-form">
+            @Html.AntiForgeryToken()
+
+            <div class="card-body">
+                <div asp-validation-summary="All" class="text-danger mb-3" data-testid="validation-summary"></div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="SourceCurrencyCode" class="form-label">Moneda origen</label>
+                        @* Spec 015 / Phase 3 deviation #3 — do NOT add data-val-length on
+                           a <select>; jQuery unobtrusive validation reads the selected
+                           option's value as a literal string and a 3-char "length"
+                           constraint paired with the dropdown values triggers spurious
+                           "field required" reports. The CurrencyCode value object on
+                           the server normalises and validates instead. *@
+                        <select asp-for="SourceCurrencyCode"
+                                class="form-select"
+                                data-testid="source-currency-select">
+                            @foreach (var c in Model.AvailableCurrencies)
+                            {
+                                <option value="@c.Code" selected="@(c.Code == Model.SourceCurrencyCode)">
+                                    @c.Code — @c.DisplayName
+                                </option>
+                            }
+                        </select>
+                        <span asp-validation-for="SourceCurrencyCode" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="TargetCurrencyCode" class="form-label">Moneda destino</label>
+                        <select asp-for="TargetCurrencyCode"
+                                class="form-select"
+                                data-testid="target-currency-select">
+                            @foreach (var c in Model.AvailableCurrencies)
+                            {
+                                <option value="@c.Code" selected="@(c.Code == Model.TargetCurrencyCode)">
+                                    @c.Code — @c.DisplayName
+                                </option>
+                            }
+                        </select>
+                        <span asp-validation-for="TargetCurrencyCode" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="BuyRate" class="form-label">Tipo de cambio compra (CRC por 1 unidad)</label>
+                        <input asp-for="BuyRate"
+                               type="number"
+                               step="0.0001"
+                               min="0.0001"
+                               class="form-control"
+                               data-testid="buy-rate-input" />
+                        <span asp-validation-for="BuyRate" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="SellRate" class="form-label">Tipo de cambio venta (CRC por 1 unidad)</label>
+                        <input asp-for="SellRate"
+                               type="number"
+                               step="0.0001"
+                               min="0.0001"
+                               class="form-control"
+                               data-testid="sell-rate-input" />
+                        <span asp-validation-for="SellRate" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="EffectiveAtLocal" class="form-label">Vigente desde</label>
+                        <input asp-for="EffectiveAtLocal"
+                               type="datetime-local"
+                               class="form-control"
+                               data-testid="effective-at-input" />
+                        <span asp-validation-for="EffectiveAtLocal" class="text-danger"></span>
+                        <small class="form-hint">No puede ser una fecha futura.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer text-end">
+                <a asp-action="Index" class="btn btn-link" data-testid="cancel-link">Cancelar</a>
+                <button type="submit"
+                        class="btn btn-primary"
+                        data-testid="admin-exchange-rate-submit">
+                    Publicar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
