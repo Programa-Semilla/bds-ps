@@ -1,4 +1,5 @@
 @using FundingPlatform.Domain.Enums
+@using FundingPlatform.Domain.ValueObjects
 @model FundingPlatform.Web.ViewModels.ApplicationViewModel
 
 @{
@@ -70,6 +71,29 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0">Ítems</h4>
+    @if (Model.TotalConvertedCrc.HasValue)
+    {
+        <div class="text-end" data-testid="application-total">
+            <div class="text-muted small">Total estimado</div>
+            <strong>
+                @* Spec 015 / T413 — computed total summed in CRC across selected-supplier quotations.
+                   originalCurrency = null routes the component to the CRC-only render path (no indicator). *@
+                @await Component.InvokeAsync("MoneyDisplay", new
+                {
+                    original = Model.TotalConvertedCrc,
+                    originalCurrency = (FundingPlatform.Domain.ValueObjects.CurrencyCode?)null,
+                    convertedCrc = Model.TotalConvertedCrc,
+                    snapshot = (FundingPlatform.Domain.ValueObjects.ExchangeRateSnapshot?)null
+                })
+            </strong>
+            @if (Model.HasLegacyNeedsReview)
+            {
+                <div class="text-warning small" data-testid="application-total-legacy-note">
+                    <i class="ti ti-alert-triangle"></i> El total excluye cotizaciones pendientes de revisión.
+                </div>
+            }
+        </div>
+    }
 </div>
 
 @if (Model.Items.Count == 0)
@@ -108,33 +132,47 @@ else
                             <td>@item.ProductName</td>
                             <td>@item.CategoryName</td>
                             <td>
-                                @* Spec 015 / T114 — per-Item quotation rows. MVP rendering: original
-                                   currency + price + converted CRC. US4 will replace this with the
-                                   MoneyDisplayViewComponent. *@
+                                @* Spec 015 / T412 — per-Item quotation rows now render via the
+                                   MoneyDisplayViewComponent, which delegates to the
+                                   ConversionIndicatorViewComponent for non-CRC rows. The pre-T412
+                                   rate-snapshot subblock is preserved (data-testid=quotation-rate-snapshot)
+                                   so spec-015 US1 E2E selectors keep working. *@
                                 <span class="badge bg-secondary">@item.QuotationCount</span>
                                 @if (item.Quotations.Count > 0)
                                 {
                                     <ul class="list-unstyled mb-0 mt-2 small" data-testid="quotation-list">
                                         @foreach (var q in item.Quotations)
                                         {
+                                            ExchangeRateSnapshot? snapshot = null;
+                                            if (q.SnapshotRateValue.HasValue
+                                                && !string.IsNullOrEmpty(q.SnapshotRateType)
+                                                && q.SnapshotEffectiveAtUtc.HasValue)
+                                            {
+                                                var rateType = Enum.Parse<RateType>(q.SnapshotRateType);
+                                                snapshot = new ExchangeRateSnapshot(
+                                                    Guid.Empty, q.SnapshotRateValue.Value, rateType,
+                                                    q.SnapshotEffectiveAtUtc.Value);
+                                            }
+                                            CurrencyCode? originalCurrency = string.IsNullOrEmpty(q.Currency)
+                                                ? null : CurrencyCode.From(q.Currency);
                                             <li class="mb-1" data-testid="quotation-row" data-quotation-id="@q.Id">
                                                 <span class="text-muted">@q.SupplierName:</span>
-                                                <strong>@q.Price.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-CR")) @q.Currency</strong>
-                                                @if (q.ConvertedCrcAmount.HasValue && q.Currency != "CRC")
+                                                @await Component.InvokeAsync("MoneyDisplay", new
                                                 {
-                                                    <span class="text-muted">
-                                                        (₡@q.ConvertedCrcAmount.Value.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-CR")) CRC)
-                                                    </span>
-                                                    @if (q.SnapshotRateValue.HasValue)
-                                                    {
-                                                        <div class="text-muted small" data-testid="quotation-rate-snapshot">
-                                                            Tipo de cambio: 1 @q.Currency = @q.SnapshotRateValue.Value.ToString("0.######") CRC
-                                                            @if (q.SnapshotEffectiveAtUtc.HasValue)
-                                                            {
-                                                                <text>(vigente desde @q.SnapshotEffectiveAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))</text>
-                                                            }
-                                                        </div>
-                                                    }
+                                                    original = (decimal?)q.Price,
+                                                    originalCurrency = originalCurrency,
+                                                    convertedCrc = q.ConvertedCrcAmount,
+                                                    snapshot = snapshot
+                                                })
+                                                @if (q.SnapshotRateValue.HasValue && q.Currency != "CRC")
+                                                {
+                                                    <div class="text-muted small" data-testid="quotation-rate-snapshot">
+                                                        Tipo de cambio: 1 @q.Currency = @q.SnapshotRateValue.Value.ToString("0.######") CRC
+                                                        @if (q.SnapshotEffectiveAtUtc.HasValue)
+                                                        {
+                                                            <text>(vigente desde @q.SnapshotEffectiveAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))</text>
+                                                        }
+                                                    </div>
                                                 }
                                                 @if (q.LegacyNeedsReview)
                                                 {

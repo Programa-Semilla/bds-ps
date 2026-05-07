@@ -242,6 +242,12 @@ public class ReviewController : Controller
                     IsPreSelected = q.IsPreSelected,
                     IsSupplierVerified = q.IsSupplierVerified,
                     IsSupplierRejected = q.IsSupplierRejected,
+                    Currency = q.Currency,
+                    ConvertedCrcAmount = q.ConvertedCrcAmount,
+                    SnapshotRateValue = q.SnapshotRateValue,
+                    SnapshotRateType = q.SnapshotRateType,
+                    SnapshotEffectiveAtUtc = q.SnapshotEffectiveAtUtc,
+                    LegacyNeedsReview = q.LegacyNeedsReview,
                 }).ToList(),
                 ImpactParameters = item.ImpactParameters.Select(p => new ImpactParameterDisplayViewModel
                 {

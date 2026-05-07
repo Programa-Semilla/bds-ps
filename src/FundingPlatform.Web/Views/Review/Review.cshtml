@@ -1,4 +1,5 @@
 @using FundingPlatform.Domain.Enums
+@using FundingPlatform.Domain.ValueObjects
 @model FundingPlatform.Web.ViewModels.ReviewApplicationViewModel
 
 @{
@@ -133,7 +134,20 @@
                     <tbody>
                         @foreach (var q in item.Quotations)
                         {
-                            <tr class="quotation-row @(q.IsRecommended ? "table-success" : "")">
+                            ExchangeRateSnapshot? qSnapshot = null;
+                            if (q.SnapshotRateValue.HasValue
+                                && !string.IsNullOrEmpty(q.SnapshotRateType)
+                                && q.SnapshotEffectiveAtUtc.HasValue)
+                            {
+                                var qRateType = Enum.Parse<RateType>(q.SnapshotRateType);
+                                qSnapshot = new ExchangeRateSnapshot(
+                                    Guid.Empty, q.SnapshotRateValue.Value, qRateType,
+                                    q.SnapshotEffectiveAtUtc.Value);
+                            }
+                            CurrencyCode? qOriginalCurrency = string.IsNullOrEmpty(q.Currency)
+                                ? null : CurrencyCode.From(q.Currency);
+                            <tr class="quotation-row @(q.IsRecommended ? "table-success" : "")"
+                                data-testid="review-quotation-row" data-quotation-id="@q.QuotationId">
                                 <td>@q.SupplierName</td>
                                 <td>@q.SupplierLegalId</td>
                                 <td><span class="supplier-score">@q.Score/5</span></td>
@@ -146,7 +160,20 @@
                                         @if (q.ScoreLowestPrice) { <span class="status status-blue" title="Menor precio">Precio</span> }
                                     </span>
                                 </td>
-                                <td>@q.Price.ToString("C")</td>
+                                <td>
+                                    @* Spec 015 / T415 — replace raw "C"-format Price with the multi-currency component. *@
+                                    @await Component.InvokeAsync("MoneyDisplay", new
+                                    {
+                                        original = (decimal?)q.Price,
+                                        originalCurrency = qOriginalCurrency,
+                                        convertedCrc = q.ConvertedCrcAmount,
+                                        snapshot = qSnapshot
+                                    })
+                                    @if (q.LegacyNeedsReview)
+                                    {
+                                        <span class="badge bg-warning text-dark ms-1" data-testid="review-quotation-legacy">Pendiente de revisión</span>
+                                    }
+                                </td>
                                 <td>@q.ValidUntil.ToString("dd/MM/yyyy")</td>
                                 <td>@q.DocumentFileName</td>
                                 <td>
@@ -254,7 +281,15 @@
                                             var isSelected = item.SelectedSupplierId.HasValue
                                                 ? item.SelectedSupplierId == q.SupplierId
                                                 : q.IsPreSelected;
-                                            var label = $"{q.SupplierName} - {q.Price:C} ({q.Score}/5)";
+                                            // Spec 015 / T415 — show currency and (when non-CRC) converted CRC
+                                            // in the dropdown label so the reviewer sees the comparison context.
+                                            var priceLabel = q.Currency == "CRC" || string.IsNullOrEmpty(q.Currency)
+                                                ? $"₡{q.Price.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-CR"))} CRC"
+                                                : $"{q.Price.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("en-US"))} {q.Currency}"
+                                                  + (q.ConvertedCrcAmount.HasValue
+                                                      ? $" (≈₡{q.ConvertedCrcAmount.Value.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-CR"))})"
+                                                      : string.Empty);
+                                            var label = $"{q.SupplierName} - {priceLabel} ({q.Score}/5)";
                                             if (q.IsRecommended)
                                             {
                                                 label += " (Recomendada)";

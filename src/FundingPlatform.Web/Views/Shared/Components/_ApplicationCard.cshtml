@@ -33,6 +33,26 @@
             <span data-testid="days-in-state">@Model.DaysInCurrentState días en el estado actual</span>
             <span class="mx-2">&middot;</span>
             <span data-testid="last-activity">Última actividad @Model.LastActivity.LocalDateTime.ToString("dd/MM/yyyy")</span>
+            @if (Model.TotalConvertedCrc.HasValue)
+            {
+                <span class="mx-2">&middot;</span>
+                @* Spec 015 / T414 — application-level CRC total summed via the multi-currency
+                   rollup. originalCurrency = null routes the component into the CRC-only path. *@
+                <span data-testid="application-card-total">
+                    Total
+                    @await Component.InvokeAsync("MoneyDisplay", new
+                    {
+                        original = Model.TotalConvertedCrc,
+                        originalCurrency = (FundingPlatform.Domain.ValueObjects.CurrencyCode?)null,
+                        convertedCrc = Model.TotalConvertedCrc,
+                        snapshot = (FundingPlatform.Domain.ValueObjects.ExchangeRateSnapshot?)null
+                    })
+                    @if (Model.HasNonCrcQuotation)
+                    {
+                        <span class="badge bg-info-lt ms-1" data-testid="application-card-multicurrency-badge">multimoneda</span>
+                    }
+                </span>
+            }
         </div>
         <a class="@primaryClass" href="@Model.PrimaryAction.Href" data-testid="application-card-action">@Model.PrimaryAction.Label</a>
     </div>

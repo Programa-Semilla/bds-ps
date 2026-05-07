@@ -8,6 +8,18 @@ public class ApplicationViewModel
     public DateTime UpdatedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public List<ItemViewModel> Items { get; set; } = new();
+
+    /// <summary>
+    /// Spec 015 / T413 — application-summary computed total in CRC. Sums each
+    /// Item's selected-supplier <c>Quotation.ConvertedCrcAmount</c>, excluding
+    /// rows flagged <c>LegacyNeedsReview = true</c> (FR-026 — legacy rows are
+    /// quarantined out of cross-currency totals until an admin attaches a rate).
+    /// Null when no Item has a selected supplier yet (Draft).
+    /// </summary>
+    public decimal? TotalConvertedCrc { get; set; }
+
+    /// <summary>True when at least one Item's selected-supplier quotation is flagged legacy.</summary>
+    public bool HasLegacyNeedsReview { get; set; }
 }
 
 public class ItemViewModel
@@ -18,6 +30,11 @@ public class ItemViewModel
     public int QuotationCount { get; set; }
     public bool HasImpact { get; set; }
     public string? ReviewComment { get; set; }
+
+    /// <summary>Spec 015 / T413 — populated from the reviewer's selection so the
+    /// application-summary total can pick the right per-Item quotation. Null until
+    /// the reviewer chooses a supplier on the item.</summary>
+    public int? SelectedSupplierId { get; set; }
 
     /// <summary>
     /// Spec 015 / T114 — per-Item quotation summaries with multi-currency fields.

@@ -27,7 +27,11 @@ public sealed record ReviewerQueueRowDto(
     JourneyViewModel JourneyMicro,
     int DaysInCurrentState,
     DateTimeOffset LastActivity,
-    ContextualAction PrimaryAction);
+    ContextualAction PrimaryAction,
+    // Spec 015 / T414 — converted-CRC row total + non-CRC flag so the reviewer
+    // queue can surface the multi-currency hint at a glance.
+    decimal? TotalConvertedCrc = null,
+    bool HasNonCrcQuotation = false);
 
 public sealed record ReviewerActivityEvent(
     DateTimeOffset Occurred,

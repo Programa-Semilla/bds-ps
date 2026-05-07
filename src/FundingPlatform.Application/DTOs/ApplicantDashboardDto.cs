@@ -28,7 +28,15 @@ public sealed record ApplicationCardDto(
     string CurrentStageLabel,
     int DaysInCurrentState,
     DateTimeOffset LastActivity,
-    ContextualAction PrimaryAction);
+    ContextualAction PrimaryAction,
+    // Spec 015 / T414 — multi-currency surface on the dashboard card.
+    // <c>TotalConvertedCrc</c> sums each Item's selected-supplier
+    // <c>Quotation.ConvertedCrcAmount</c> in CRC (legacy rows excluded).
+    // <c>HasNonCrcQuotation</c> is true when any quotation on the application
+    // is non-CRC, so the view can hint at the conversion without per-card
+    // re-rendering all currencies.
+    decimal? TotalConvertedCrc = null,
+    bool HasNonCrcQuotation = false);
 
 public enum ContextualActionStyle { Primary, Secondary }
 

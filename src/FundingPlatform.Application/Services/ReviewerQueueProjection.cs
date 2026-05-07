@@ -125,6 +125,8 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
         var rows = filtered.Select(a =>
         {
             var micro = microProjections.TryGetValue(a.Id, out var jvm) ? jvm : _journey.Project(a, JourneyVariant.Micro);
+            // Spec 015 / T414 — converted-CRC total + non-CRC flag for the row.
+            var (totalCrc, hasNonCrc) = ApplicationCurrencyTotal.Compute(a);
             return new ReviewerQueueRowDto(
                 ApplicationId: Guid.Empty,
                 ApplicationNumber: $"APP-{a.Id:D5}",
@@ -134,7 +136,9 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
                 JourneyMicro: micro,
                 DaysInCurrentState: _journey.DaysInCurrentState(a, now),
                 LastActivity: a.UpdatedAt == default ? DateTimeOffset.UtcNow : new DateTimeOffset(a.UpdatedAt, TimeSpan.Zero),
-                PrimaryAction: new ContextualAction("Review", $"/Review/Review/{a.Id}", ContextualActionStyle.Primary));
+                PrimaryAction: new ContextualAction("Review", $"/Review/Review/{a.Id}", ContextualActionStyle.Primary),
+                TotalConvertedCrc: totalCrc,
+                HasNonCrcQuotation: hasNonCrc);
         }).ToList();
         return Task.FromResult<IReadOnlyList<ReviewerQueueRowDto>>(rows);
     }

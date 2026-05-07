@@ -169,19 +169,19 @@ description: "Task list for spec 015 — Suppliers Quotes Multi-Currency"
 
 ### Tests for User Story 4
 
-- [ ] T400 [P] [US4] Add `tests/FundingPlatform.Tests.Integration/RequestTotalRollupTests.cs`: build an Application with mixed CRC+USD selected-supplier quotations across multiple Items, query the existing `ApplicantDashboardProjection` / `ReviewerQueueProjection` (extended), assert total = sum of converted-CRC, legacy-flagged quotations excluded
-- [ ] T401 [P] [US4] Add `tests/FundingPlatform.Tests.E2E/ReviewerDisplayE2E.cs`: reviewer logs in, opens a mixed Application, asserts both lines + tooltip + total
+- [x] T400 [P] [US4] Add `tests/FundingPlatform.Tests.Integration/RequestTotalRollupTests.cs`: build an Application with mixed CRC+USD selected-supplier quotations across multiple Items, query the existing `ApplicantDashboardProjection` / `ReviewerQueueProjection` (extended), assert total = sum of converted-CRC, legacy-flagged quotations excluded
+- [x] T401 [P] [US4] Add `tests/FundingPlatform.Tests.E2E/ReviewerDisplayE2E.cs`: reviewer logs in, opens a mixed Application, asserts both lines + tooltip + total
 
 ### Implementation for User Story 4
 
-- [ ] T410 [P] [US4] Add `src/FundingPlatform.Web/ViewComponents/MoneyDisplayViewComponent.cs` + `Default.cshtml`: takes `(decimal? original, CurrencyCode? originalCurrency, decimal? convertedCrc, ExchangeRateSnapshot? snapshot)`. CRC-only renders the CRC string; non-CRC renders `$1,000.00 USD` + `(₡520,000.00 CRC)` + indicator. Spanish-localized (es-CR) labels
-- [ ] T411 [P] [US4] Add `src/FundingPlatform.Web/ViewComponents/ConversionIndicatorViewComponent.cs` + `Default.cshtml`: small ⓘ icon with `data-bs-toggle="tooltip"` carrying rate value + type + effective date
-- [ ] T412 [US4] Update `src/FundingPlatform.Web/Views/Application/Details.cshtml` (and any partial it includes for per-Item quotation rows) to render every monetary cell via `MoneyDisplayViewComponent`. The Item's selected-supplier quotation determines the row total
-- [ ] T413 [US4] Update the application-summary computed total to sum each Item's `SelectedSupplier`-chosen `Quotation.ConvertedCrcAmount` (excluding `LegacyNeedsReview = 1`) and display via `MoneyDisplayViewComponent` with `originalCurrency = null` so it renders pure CRC
-- [ ] T414 [US4] Update `src/FundingPlatform.Application/Services/ApplicantDashboardProjection.cs` and `src/FundingPlatform.Application/Services/ReviewerQueueProjection.cs` to include both original + converted CRC fields on the row DTOs. Update the corresponding views (`ApplicantDashboard*`, `Reviewer*`) to render via the view components
-- [ ] T415 [US4] Update the approval/review screen views from spec 002 (search `Views/Review/*.cshtml`) to render via `MoneyDisplayViewComponent`
-- [ ] T416 [US4] Update admin reports (CSV streaming endpoint hosted by `AdminReportsController` per spec 010) to **append** three new columns at the end of every existing row (preserving prior column order for back-compat consumers): `OriginalCurrencyCode`, `OriginalAmount`, `ConvertedCrcAmount`. CRC-only rows leave `OriginalCurrencyCode = "CRC"` and `OriginalAmount = ConvertedCrcAmount`. Existing CSV row-limit (`AdminReports:CsvRowLimit`) is unchanged
-- [ ] T417 [US4] Run `ReviewerDisplayE2E` and `RequestTotalRollupTests`; ensure pass
+- [x] T410 [P] [US4] Add `src/FundingPlatform.Web/ViewComponents/MoneyDisplayViewComponent.cs` + `Default.cshtml`: takes `(decimal? original, CurrencyCode? originalCurrency, decimal? convertedCrc, ExchangeRateSnapshot? snapshot)`. CRC-only renders the CRC string; non-CRC renders `$1,000.00 USD` + `(₡520,000.00 CRC)` + indicator. Spanish-localized (es-CR) labels
+- [x] T411 [P] [US4] Add `src/FundingPlatform.Web/ViewComponents/ConversionIndicatorViewComponent.cs` + `Default.cshtml`: small ⓘ icon with `data-bs-toggle="tooltip"` carrying rate value + type + effective date
+- [x] T412 [US4] Update `src/FundingPlatform.Web/Views/Application/Details.cshtml` (and any partial it includes for per-Item quotation rows) to render every monetary cell via `MoneyDisplayViewComponent`. The Item's selected-supplier quotation determines the row total
+- [x] T413 [US4] Update the application-summary computed total to sum each Item's `SelectedSupplier`-chosen `Quotation.ConvertedCrcAmount` (excluding `LegacyNeedsReview = 1`) and display via `MoneyDisplayViewComponent` with `originalCurrency = null` so it renders pure CRC
+- [x] T414 [US4] Update `src/FundingPlatform.Application/Services/ApplicantDashboardProjection.cs` and `src/FundingPlatform.Application/Services/ReviewerQueueProjection.cs` to include both original + converted CRC fields on the row DTOs. Update the corresponding views (`ApplicantDashboard*`, `Reviewer*`) to render via the view components
+- [x] T415 [US4] Update the approval/review screen views from spec 002 (search `Views/Review/*.cshtml`) to render via `MoneyDisplayViewComponent`
+- [x] T416 [US4] Update admin reports (CSV streaming endpoint hosted by `AdminReportsController` per spec 010) to **append** three new columns at the end of every existing row (preserving prior column order for back-compat consumers): `OriginalCurrencyCode`, `OriginalAmount`, `ConvertedCrcAmount`. CRC-only rows leave `OriginalCurrencyCode = "CRC"` and `OriginalAmount = ConvertedCrcAmount`. Existing CSV row-limit (`AdminReports:CsvRowLimit`) is unchanged
+- [x] T417 [US4] Run `ReviewerDisplayE2E` and `RequestTotalRollupTests`; ensure pass
 
 **Checkpoint**: US1–US4 green. Multi-currency now consistent across the entire authenticated UI surface.
 

@@ -1,0 +1,20 @@
+@model FundingPlatform.Web.ViewComponents.MoneyDisplayViewComponent.MoneyDisplayViewModel
+@*
+    Spec 015 / T410 — MoneyDisplayViewComponent default template.
+    The component is invoked across applicant, reviewer, dashboard, and report
+    surfaces (FR-024..FR-026); rendering must stay inert (no script, no event
+    handlers) so it composes inside table cells, headers, and paragraph text alike.
+*@
+<span class="money-display" data-testid="money-display"
+      data-currency="@(Model.OriginalCurrency?.Value ?? "CRC")">
+    <span class="money-display-original" data-testid="money-display-original">@Model.OriginalText</span>
+    @if (!string.IsNullOrEmpty(Model.ConvertedCrcText))
+    {
+        <span class="text-muted ms-1 money-display-converted"
+              data-testid="money-display-converted">(@Model.ConvertedCrcText)</span>
+    }
+    @if (Model.ShowConversion && Model.Snapshot is not null)
+    {
+        @await Component.InvokeAsync("ConversionIndicator", new { snapshot = Model.Snapshot, originalCurrency = Model.OriginalCurrency })
+    }
+</span>

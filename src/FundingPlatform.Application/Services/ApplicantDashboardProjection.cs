@@ -100,6 +100,10 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
             var stageMapping = mini.Mainline.FirstOrDefault(n => n.State == JourneyNodeState.Current)?.Label
                 ?? mini.Mainline.LastOrDefault(n => n.State == JourneyNodeState.Completed)?.Label
                 ?? "Draft";
+            // Spec 015 / T414 — surface the per-application converted-CRC total + a
+            // non-CRC presence flag so the dashboard card can hint at multi-currency
+            // composition.
+            var (totalCrc, hasNonCrc) = ApplicationCurrencyTotal.Compute(a);
             return new ApplicationCardDto(
                 ApplicationId: Guid.Empty,
                 ApplicationNumber: $"APP-{a.Id:D5}",
@@ -108,7 +112,9 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
                 CurrentStageLabel: stageMapping,
                 DaysInCurrentState: _journey.DaysInCurrentState(a, now),
                 LastActivity: a.UpdatedAt == default ? DateTimeOffset.UtcNow : new DateTimeOffset(a.UpdatedAt, TimeSpan.Zero),
-                PrimaryAction: ResolveContextualAction(a));
+                PrimaryAction: ResolveContextualAction(a),
+                TotalConvertedCrc: totalCrc,
+                HasNonCrcQuotation: hasNonCrc);
         }).ToList();
 
         var recent = apps

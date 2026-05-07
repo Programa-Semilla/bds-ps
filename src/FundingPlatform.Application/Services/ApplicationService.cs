@@ -472,7 +472,8 @@ public class ApplicationService
                         pv.ImpactTemplateParameter?.IsRequired ?? false,
                         pv.Value)).ToList())
                 : null,
-            item.ReviewComment)).ToList();
+            item.ReviewComment,
+            item.SelectedSupplierId)).ToList();
 
         return new ApplicationDto(
             application.Id,

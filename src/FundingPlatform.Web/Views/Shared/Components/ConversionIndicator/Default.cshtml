@@ -1,0 +1,15 @@
+@model FundingPlatform.Web.ViewComponents.ConversionIndicatorViewComponent.ConversionIndicatorViewModel
+@*
+    Spec 015 / T411 — ⓘ icon with the rate snapshot tooltip. Inert; no per-call JS.
+    Bootstrap tooltips are initialised once at the layout level via the
+    data-bs-toggle="tooltip" selector convention.
+*@
+<span class="conversion-indicator ms-1 text-muted"
+      data-testid="conversion-indicator"
+      data-bs-toggle="tooltip"
+      data-bs-placement="top"
+      title="@Model.TooltipText"
+      role="img"
+      aria-label="@Model.TooltipText">
+    <i class="ti ti-info-circle"></i>
+</span>
