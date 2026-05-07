@@ -109,7 +109,10 @@ var funderAddress = builder.Configuration["FundingAgreement:Funder:Address"] ?? 
 var funderContactEmail = builder.Configuration["FundingAgreement:Funder:ContactEmail"] ?? "";
 var funderContactPhone = builder.Configuration["FundingAgreement:Funder:ContactPhone"] ?? "";
 var signedUploadMaxSizeBytes = builder.Configuration["SignedUpload:MaxSizeBytes"] ?? "20971520";
-var adminReportsDefaultCurrency = builder.Configuration["AdminReports:DefaultCurrency"] ?? "COP";
+// Spec 015 / T907 follow-up — base currency is CRC. The prior "COP" fallback was
+// incompatible with the multi-currency conversion path (no rate, no FK to the
+// seeded Currencies catalog), causing every legacy supplier-add flow to 500.
+var adminReportsDefaultCurrency = builder.Configuration["AdminReports:DefaultCurrency"] ?? "CRC";
 var adminReportsCsvRowLimit = builder.Configuration["AdminReports:CsvRowLimit"] ?? "50000";
 
 // E2E fixture runs with EphemeralStorage=true and a fresh DB per fixture run, so

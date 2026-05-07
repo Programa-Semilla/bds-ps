@@ -53,8 +53,12 @@ public class CurrencyRolloutTests : AuthenticatedTestBase
         await addSupplierLink.ClickAsync();
 
         var currencyValue = await Page.Locator("[name=Currency]").InputValueAsync();
-        Assert.That(currencyValue, Is.EqualTo("COP"),
-            "Currency input must be prefilled from AdminReports:DefaultCurrency (COP in dev/test config).");
+        // Spec 015 / T907 follow-up — base currency flipped COP -> CRC so the form
+        // pre-fill matches a currency that is actually in the seeded catalog with
+        // a published rate. Asserting the configured default still verifies the
+        // wire-up between AdminReports:DefaultCurrency and the form.
+        Assert.That(currencyValue, Is.EqualTo("CRC"),
+            "Currency input must be prefilled from AdminReports:DefaultCurrency (CRC in dev/test config).");
     }
 
     [Test]
