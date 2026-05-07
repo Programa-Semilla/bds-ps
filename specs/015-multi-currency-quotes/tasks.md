@@ -119,14 +119,14 @@ description: "Task list for spec 015 — Suppliers Quotes Multi-Currency"
 
 ### Tests for User Story 2
 
-- [ ] T200 [P] [US2] Add `tests/FundingPlatform.Tests.Integration/QuotationCreateCrcTests.cs`: creates a CRC quotation via `ApplicationService`, asserts `Currency='CRC'`, `ConvertedCrcAmount = Price`, snapshot fields NULL, `LegacyNeedsReview = 0`
-- [ ] T201 [P] [US2] Add `tests/FundingPlatform.Tests.E2E/ApplicantCrcQuoteE2E.cs` Playwright class: golden path; assert preview region remains hidden; assert quotation row in Application Details shows no conversion indicator
+- [x] T200 [P] [US2] Add `tests/FundingPlatform.Tests.Integration/QuotationCreateCrcTests.cs`: creates a CRC quotation via `ApplicationService`, asserts `Currency='CRC'`, `ConvertedCrcAmount = Price`, snapshot fields NULL, `LegacyNeedsReview = 0`
+- [x] T201 [P] [US2] Add `tests/FundingPlatform.Tests.E2E/ApplicantCrcQuoteE2E.cs` Playwright class: golden path; assert preview region remains hidden; assert quotation row in Application Details shows no conversion indicator
 
 ### Implementation for User Story 2
 
-- [ ] T210 [US2] Verify `Quotation.SetCurrencyAndAmount` short-circuits when `currency == Crc` (Original=Converted=price, Snapshot=null, Legacy=false) — already in T025 but add unit-test coverage in `QuotationCurrencyTests.cs`
-- [ ] T211 [US2] Verify `quote-conversion-preview.js` hides/clears the preview region on switch to CRC (covered by T112 if implemented carefully; this task adds an explicit Playwright assertion in `ApplicantCrcQuoteE2E.cs`)
-- [ ] T212 [US2] Run `ApplicantCrcQuoteE2E.cs` and confirm pass
+- [x] T210 [US2] Verify `Quotation.SetCurrencyAndAmount` short-circuits when `currency == Crc` (Original=Converted=price, Snapshot=null, Legacy=false) — already in T025 but add unit-test coverage in `QuotationCurrencyTests.cs`
+- [x] T211 [US2] Verify `quote-conversion-preview.js` hides/clears the preview region on switch to CRC (covered by T112 if implemented carefully; this task adds an explicit Playwright assertion in `ApplicantCrcQuoteE2E.cs`)
+- [x] T212 [US2] Run `ApplicantCrcQuoteE2E.cs` and confirm pass
 
 **Checkpoint**: US1 + US2 both green. Applicant flow end-to-end stable.
 
