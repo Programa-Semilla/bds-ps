@@ -8,15 +8,26 @@ using Microsoft.Playwright;
 namespace FundingPlatform.Tests.E2E.Tests;
 
 /// <summary>
-/// Spec 015 / US1 — applicant creates a USD quotation with a deterministic CRC
-/// conversion. Two scenarios:
+/// Spec 015 / US1 — applicant creates a USD quotation through the real applicant
+/// path the product actually exposes:
+///   Application/Details → "Agregar proveedor" → SupplierPage (legal-ID lookup +
+///   new-supplier form) → multi-currency quote section (dropdown + live CRC
+///   preview) → submit → land back on Application/Details with the saved row.
+///
+/// Two scenarios:
 ///   1. Golden path: a USD↔CRC rate is published, the applicant picks USD on the
-///      Add form, sees the live preview update server-side, saves, and Application
-///      Details renders both the original USD price and the converted CRC amount.
+///      Add form, sees the preview update server-side via the AJAX Convert call,
+///      saves, and Application/Details renders both the original USD price and
+///      the converted CRC amount.
 ///   2. Failure path (FR-018): no rate is published; the applicant tries to save
-///      a USD quotation and sees the literal Spanish FR-018 message inline on the
-///      form ("No hay tipo de cambio de referencia configurado. Contacte a un
-///      administrador.").
+///      a USD quotation and sees the literal Spanish FR-018 message inline on
+///      the form ("No hay tipo de cambio de referencia configurado…").
+///
+/// History note: the previous version of this test navigated directly to a now-
+/// orphaned <c>/Application/{appId}/Item/{itemId}/Quotation/Add</c> URL — a route
+/// no UI surface ever linked to. That bypassed the actual applicant journey and
+/// tested an isolated controller. The current test exercises the path the
+/// applicant clicks through in the real product.
 /// </summary>
 public class ApplicantUsdQuoteE2E : AuthenticatedTestBase
 {
@@ -50,26 +61,34 @@ public class ApplicantUsdQuoteE2E : AuthenticatedTestBase
         await RegisterUserAsync(Page, email, password, "USD", "Applicant", $"USD-{uniqueId}");
         await LoginAsync(Page, email, password);
 
-        var (appId, itemId, supplierId, supplierName) =
-            await CreateApplicationItemAndSupplierAsync(uniqueId);
+        await CreateApplicationAndItemAsync();
+        await ClickAddSupplierOnItemRowAsync();
 
-        var page = new AddQuotationPage(Page);
-        await page.GotoAsync(BaseUrl, appId, itemId, supplierId, supplierName);
+        var supplierPage = new SupplierPage(Page);
+        var supplierLegalId = $"SUP-USD-{uniqueId}";
+        var supplierName = $"USD Supplier {uniqueId}";
 
-        await page.PriceInput.FillAsync("1000");
-        await page.SetCurrencyAsync("USD");
+        Assert.That(await supplierPage.SearchByLegalIdAsync(supplierLegalId), Is.EqualTo("Empty"));
 
-        // Conversion preview region must become visible with the converted CRC.
-        // Note: Intl.NumberFormat for es-CR uses U+00A0 (non-breaking space) as
-        // the thousands separator; \s in .NET regex matches it, plain ' ' does not.
-        await Expect(page.ConversionPreview).ToBeVisibleAsync();
-        await Expect(page.PreviewAmount).ToContainTextAsync(new Regex(@"520[\.,\s]?000"));
-        await Expect(page.PreviewRate).ToContainTextAsync(new Regex("USD"));
-        await Expect(page.PreviewRate).ToContainTextAsync(new Regex("520"));
+        await supplierPage.FillNewSupplierFormAsync(
+            name: supplierName,
+            branchName: "Sede principal",
+            province: "San Jose");
 
-        await page.ValidUntilInput.FillAsync("2027-12-31");
-        await page.QuotationFileInput.SetInputFilesAsync(_testFilePath);
-        await page.SubmitAsync();
+        await supplierPage.PriceInput.FillAsync("1000");
+        await supplierPage.SetCurrencyAsync("USD");
+
+        // The conversion preview must come up server-rendered with the CRC amount.
+        // Intl.NumberFormat for es-CR uses U+00A0 (non-breaking space) as the
+        // thousands separator; \s in .NET regex matches it, plain ' ' does not.
+        await Expect(supplierPage.ConversionPreview).ToBeVisibleAsync();
+        await Expect(supplierPage.PreviewAmount).ToContainTextAsync(new Regex(@"520[\.,\s]?000"));
+        await Expect(supplierPage.PreviewRate).ToContainTextAsync(new Regex("USD"));
+        await Expect(supplierPage.PreviewRate).ToContainTextAsync(new Regex("520"));
+
+        await supplierPage.ValidUntilInput.FillAsync("2027-12-31");
+        await supplierPage.QuotationFileInput.SetInputFilesAsync(_testFilePath);
+        await supplierPage.SubmitAsync();
 
         // Saved → redirected back to Application Details.
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
@@ -100,33 +119,39 @@ public class ApplicantUsdQuoteE2E : AuthenticatedTestBase
         await RegisterUserAsync(Page, email, password, "NoRate", "Applicant", $"USDN-{uniqueId}");
         await LoginAsync(Page, email, password);
 
-        var (appId, itemId, supplierId, supplierName) =
-            await CreateApplicationItemAndSupplierAsync(uniqueId);
+        await CreateApplicationAndItemAsync();
+        await ClickAddSupplierOnItemRowAsync();
 
-        var page = new AddQuotationPage(Page);
-        await page.GotoAsync(BaseUrl, appId, itemId, supplierId, supplierName);
+        var supplierPage = new SupplierPage(Page);
+        var supplierLegalId = $"SUP-USDN-{uniqueId}";
+        var supplierName = $"USD NoRate Supplier {uniqueId}";
 
-        await page.PriceInput.FillAsync("1000");
-        await page.SetCurrencyAsync("USD");
-        await page.ValidUntilInput.FillAsync("2027-12-31");
-        await page.QuotationFileInput.SetInputFilesAsync(_testFilePath);
-        await page.SubmitAsync();
+        Assert.That(await supplierPage.SearchByLegalIdAsync(supplierLegalId), Is.EqualTo("Empty"));
 
-        // Form re-renders with the literal Spanish FR-018 message.
-        await Expect(Page).ToHaveURLAsync(new Regex("/Quotation/Add"));
+        await supplierPage.FillNewSupplierFormAsync(
+            name: supplierName,
+            branchName: "Sede principal",
+            province: "San Jose");
+
+        await supplierPage.PriceInput.FillAsync("1000");
+        await supplierPage.SetCurrencyAsync("USD");
+        await supplierPage.ValidUntilInput.FillAsync("2027-12-31");
+        await supplierPage.QuotationFileInput.SetInputFilesAsync(_testFilePath);
+        await supplierPage.SubmitAsync();
+
+        // Form re-renders on the same Supplier/Add URL with the FR-018 message.
+        await Expect(Page).ToHaveURLAsync(new Regex("/Supplier/Add"));
         var summary = Page.Locator(".text-danger");
         await Expect(summary.First).ToContainTextAsync(
             new Regex("No hay tipo de cambio de referencia configurado"));
     }
 
     /// <summary>
-    /// Drives the UI through "register/login + create application + add item + save
-    /// a placeholder supplier with one quotation". Returns the persisted ids plus the
-    /// supplier's display name so the test can navigate back to the Add-Quotation
-    /// surface to test our specific code path.
+    /// Drives the real applicant journey up to (but not including) the click on
+    /// "Agregar proveedor": create application → add one item → land on
+    /// Application/Details with the item row visible.
     /// </summary>
-    private async Task<(int AppId, int ItemId, int SupplierId, string SupplierName)>
-        CreateApplicationItemAndSupplierAsync(string uniqueId)
+    private async Task CreateApplicationAndItemAsync()
     {
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
@@ -138,66 +163,13 @@ public class ApplicantUsdQuoteE2E : AuthenticatedTestBase
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "USD Test Item", 0, "Specs", BaseUrl);
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+    }
 
-        // Add the first supplier with a CRC seed quotation through the existing supplier flow,
-        // so the Application has a supplier on the Item we can target via the simpler
-        // Quotation/Add surface for the second quotation.
+    private async Task ClickAddSupplierOnItemRowAsync()
+    {
         var addSupplierLink = Page.Locator($"a:has-text('{UiCopy.AddSupplier}')").First;
         await addSupplierLink.ClickAsync();
-
-        var supplierLegalId = $"SUP-USD-{uniqueId}";
-        var supplierName = $"USD Supplier {uniqueId}";
-        var supplierPage = new SupplierPage(Page);
-        var outcome = await supplierPage.SearchByLegalIdAsync(supplierLegalId);
-        Assert.That(outcome, Is.EqualTo("Empty"));
-        await supplierPage.FillNewSupplierFormAsync(
-            name: supplierName,
-            branchName: "Sede principal",
-            province: "San Jose");
-        await supplierPage.FillQuotationFieldsAsync(
-            price: 1m, validUntil: "2027-12-31", filePath: _testFilePath, currency: "CRC");
-        await supplierPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
-
-        var (itemId, supplierId) = await ResolveItemAndSupplierIdsAsync(appId);
-
-        // Removing the seed quotation so we can re-add via the Quotation/Add surface
-        // (the (item, supplier) UNIQUE constraint forbids two quotations from the
-        // same supplier on the same item).
-        await DeleteQuotationAsync(itemId, supplierId);
-
-        return (appId, itemId, supplierId, supplierName);
-    }
-
-    private async Task<(int ItemId, int SupplierId)> ResolveItemAndSupplierIdsAsync(int appId)
-    {
-        using var conn = new SqlConnection(ConnectionString);
-        await conn.OpenAsync();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
-            SELECT TOP 1 i.Id AS ItemId, q.SupplierId
-            FROM dbo.Items i
-            INNER JOIN dbo.Quotations q ON q.ItemId = i.Id
-            WHERE i.ApplicationId = @AppId
-            ORDER BY i.Id DESC, q.Id DESC;";
-        cmd.Parameters.AddWithValue("@AppId", appId);
-
-        using var reader = await cmd.ExecuteReaderAsync();
-        Assert.That(await reader.ReadAsync(), Is.True, "Could not resolve seeded item/supplier pair.");
-        return (reader.GetInt32(0), reader.GetInt32(1));
-    }
-
-    private async Task DeleteQuotationAsync(int itemId, int supplierId)
-    {
-        using var conn = new SqlConnection(ConnectionString);
-        await conn.OpenAsync();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
-            DELETE FROM dbo.Quotations
-            WHERE ItemId = @ItemId AND SupplierId = @SupplierId;";
-        cmd.Parameters.AddWithValue("@ItemId", itemId);
-        cmd.Parameters.AddWithValue("@SupplierId", supplierId);
-        await cmd.ExecuteNonQueryAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex("/Supplier/Add"));
     }
 
     /// <summary>

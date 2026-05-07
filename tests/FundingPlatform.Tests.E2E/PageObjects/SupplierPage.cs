@@ -53,6 +53,14 @@ public class SupplierPage : BasePage
     public ILocator SubmitButton => Page.GetByTestId("supplier-submit-button");
     public ILocator ValidationSummary => Page.GetByTestId("supplier-validation-summary");
 
+    // Spec 015 — multi-currency conversion preview surfaced inside the
+    // Supplier/Add page now that the legacy free-text currency field has been
+    // upgraded to a <select> with live preview.
+    public ILocator ConversionPreview => Page.Locator("[data-quote-preview]");
+    public ILocator PreviewAmount => Page.Locator("[data-preview-amount]");
+    public ILocator PreviewRate => Page.Locator("[data-preview-rate]");
+    public ILocator PreviewStatus => Page.Locator("[data-preview-status]");
+
     public async Task NavigateToAddAsync(int appId, int itemId, string baseUrl)
     {
         await Page.GotoAsync($"{baseUrl}/Application/{appId}/Item/{itemId}/Supplier/Add");
@@ -140,10 +148,33 @@ public class SupplierPage : BasePage
         await PriceInput.FillAsync(price.ToString(System.Globalization.CultureInfo.InvariantCulture));
         if (currency is not null)
         {
-            await CurrencyInput.FillAsync(currency);
+            await SetCurrencyAsync(currency);
         }
         await ValidUntilInput.FillAsync(validUntil);
         await QuotationFileInput.SetInputFilesAsync(filePath);
+    }
+
+    /// <summary>
+    /// Spec 015 — the currency control is now a &lt;select&gt; populated from the
+    /// enabled-currencies catalog. This helper detects the rendered tag (select
+    /// vs. fallback &lt;input&gt;) and dispatches accordingly, so callers don't have
+    /// to care which is in effect.
+    /// </summary>
+    public async Task SetCurrencyAsync(string code)
+    {
+        var tag = (await CurrencyInput.EvaluateAsync<string>("el => el.tagName")).ToUpperInvariant();
+        if (tag == "SELECT")
+        {
+            await CurrencyInput.SelectOptionAsync(code);
+            // Manually fire change so the conversion-preview JS wakes up even
+            // when SelectOptionAsync's bubbled event races the listener.
+            await CurrencyInput.DispatchEventAsync("change");
+        }
+        else
+        {
+            await CurrencyInput.FillAsync(code);
+            await CurrencyInput.DispatchEventAsync("change");
+        }
     }
 
     public async Task FillNewSupplierFormAsync(

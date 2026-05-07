@@ -3,10 +3,7 @@ using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
-using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
-using FundingPlatform.Application.Suppliers.Services;
-using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
@@ -16,7 +13,6 @@ using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace FundingPlatform.Web.Controllers;
 
@@ -25,11 +21,8 @@ namespace FundingPlatform.Web.Controllers;
 public class QuotationController : Controller
 {
     private readonly ApplicationService _applicationService;
-    private readonly SupplierCatalogService _supplierCatalogService;
-    private readonly ISupplierRepository _supplierRepository;
     private readonly ISystemConfigurationRepository _systemConfigurationRepository;
     private readonly AppDbContext _dbContext;
-    private readonly IOptions<AdminReportsOptions> _adminReportsOptions;
     private readonly IConversionService _conversionService;
     private readonly IUserFacingErrorTranslator _errorTranslator;
 
@@ -37,114 +30,25 @@ public class QuotationController : Controller
 
     public QuotationController(
         ApplicationService applicationService,
-        SupplierCatalogService supplierCatalogService,
-        ISupplierRepository supplierRepository,
         ISystemConfigurationRepository systemConfigurationRepository,
         AppDbContext dbContext,
-        IOptions<AdminReportsOptions> adminReportsOptions,
         IConversionService conversionService,
         IUserFacingErrorTranslator errorTranslator)
     {
         _applicationService = applicationService;
-        _supplierCatalogService = supplierCatalogService;
-        _supplierRepository = supplierRepository;
         _systemConfigurationRepository = systemConfigurationRepository;
         _dbContext = dbContext;
-        _adminReportsOptions = adminReportsOptions;
         _conversionService = conversionService;
         _errorTranslator = errorTranslator;
     }
 
-    [HttpGet("Add")]
-    public async Task<IActionResult> Add(int appId, int itemId, int supplierId, string supplierName)
-    {
-        await VerifyOwnershipAsync(appId);
-
-        var enabled = await LoadEnabledCurrenciesAsync();
-
-        var viewModel = new AddQuotationViewModel
-        {
-            ApplicationId = appId,
-            ItemId = itemId,
-            SupplierId = supplierId,
-            SupplierName = supplierName,
-            Currency = CurrencyCode.Crc.Value,  // Spec 015 / FR-014: default to CRC.
-            ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(3)),
-            EnabledCurrencies = enabled
-        };
-
-        return View(viewModel);
-    }
-
-    [HttpPost("Add")]
-    [ValidateAntiForgeryToken]
-    [UploadSizeGuard(FileCategory.ApplicationAttachment)]
-    public async Task<IActionResult> Add(int appId, int itemId, AddQuotationViewModel model)
-    {
-        await VerifyOwnershipAsync(appId);
-
-        if (!ModelState.IsValid)
-        {
-            return await RenderAddFormAsync(appId, itemId, model);
-        }
-
-        if (model.QuotationFile is null || model.QuotationFile.Length == 0)
-        {
-            ModelState.AddModelError(nameof(model.QuotationFile), QuotationFileRequiredMessage);
-            return await RenderAddFormAsync(appId, itemId, model);
-        }
-
-        var validationError = await ValidateFileAsync(model.QuotationFile);
-        if (validationError is not null)
-        {
-            ModelState.AddModelError(nameof(model.QuotationFile), validationError);
-            return await RenderAddFormAsync(appId, itemId, model);
-        }
-
-        try
-        {
-            // Spec 013: existing-supplier quotation. Use the supplier's default branch
-            // since this entry-point doesn't expose branch selection (callers wanting
-            // branch choice go through SupplierController.Add).
-            var supplier = await _supplierRepository.GetByIdWithBranchesAsync(model.SupplierId)
-                ?? throw new InvalidOperationException($"Supplier {model.SupplierId} not found.");
-
-            if (supplier.VerificationStatus == SupplierVerificationStatus.Rejected)
-            {
-                ModelState.AddModelError(string.Empty, "El proveedor está rechazado y no puede recibir nuevas cotizaciones.");
-                return await RenderAddFormAsync(appId, itemId, model);
-            }
-
-            var defaultBranch = supplier.Branches.FirstOrDefault(b => b.IsDefault)
-                ?? supplier.Branches.FirstOrDefault()
-                ?? throw new InvalidOperationException($"Supplier {model.SupplierId} has no branches.");
-
-            using var stream = model.QuotationFile.OpenReadStream();
-            await _applicationService.AddQuotationToExistingBranchAsync(
-                appId, itemId, supplier.Id, defaultBranch.Id,
-                model.Price, model.Currency, model.ValidUntil,
-                stream, model.QuotationFile.FileName,
-                model.QuotationFile.ContentType, model.QuotationFile.Length);
-
-            TempData["SuccessMessage"] = "Cotización agregada con éxito.";
-            return RedirectToAction("Details", "Application", new { id = appId });
-        }
-        catch (MissingRateException)
-        {
-            // Spec 015 / FR-018 — surface the literal Spanish message inline so the
-            // applicant sees the same copy whether the error came from the AJAX
-            // preview or the save POST itself.
-            ModelState.AddModelError(
-                nameof(model.Currency),
-                _errorTranslator.Translate(UserFacingErrorCode.MissingExchangeRate));
-            return await RenderAddFormAsync(appId, itemId, model);
-        }
-        catch (InvalidOperationException ex)
-        {
-            ModelState.AddModelError(string.Empty, ex.Message);
-            return await RenderAddFormAsync(appId, itemId, model);
-        }
-    }
+    // Spec 015 — the GET/POST "Add" endpoints that originally lived here were
+    // never wired up to any user-facing surface. The applicant journey goes
+    // through SupplierController.Add (legal-id lookup → branch picker → quote)
+    // which now hosts the multi-currency dropdown and live conversion preview.
+    // The Convert AJAX endpoint below is the only piece of QuotationController
+    // that the UI calls into; Replace and Delete remain for the existing edit
+    // affordances on Application/Details.
 
     /// <summary>
     /// Spec 015 / contract <c>conversion-preview-api.md</c> — server-computed
@@ -225,27 +129,6 @@ public class QuotationController : Controller
                 error = _errorTranslator.Translate(UserFacingErrorCode.MissingExchangeRate)
             });
         }
-    }
-
-    private async Task<IActionResult> RenderAddFormAsync(int appId, int itemId, AddQuotationViewModel model)
-    {
-        model.ApplicationId = appId;
-        model.ItemId = itemId;
-        model.EnabledCurrencies = await LoadEnabledCurrenciesAsync();
-        return View("Add", model);
-    }
-
-    private async Task<IReadOnlyList<CurrencyOption>> LoadEnabledCurrenciesAsync()
-    {
-        // Spec 015 — currencies dropdown source. Phase 5 will introduce
-        // ICurrencyConfigService.ListEnabledAsync; for the US1 slice we read the
-        // catalog directly so the form works as soon as the seed inserts CRC + USD.
-        var enabled = await _dbContext.Currencies
-            .Where(c => c.IsEnabled)
-            .OrderBy(c => c.DisplayOrder)
-            .Select(c => new CurrencyOption(c.Code.Value, c.DisplayName, c.Symbol))
-            .ToListAsync();
-        return enabled;
     }
 
     [HttpPost("{quotationId}/Replace")]
