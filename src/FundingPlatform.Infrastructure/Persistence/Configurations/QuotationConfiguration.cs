@@ -21,12 +21,13 @@ public class QuotationConfiguration : IEntityTypeConfiguration<Quotation>
         builder.Property(q => q.ValidUntil).IsRequired();
         builder.Property(q => q.DocumentId).IsRequired();
         // Spec 015 column-type note: the dacpac post-deploy tightens this to
-        // NVARCHAR(3) NOT NULL with a FK to dbo.Currencies(Code). EF treats it
-        // as a plain string here; the DB-side FK is enforced regardless.
+        // CHAR(3) NOT NULL with a FK to dbo.Currencies(Code). EF must agree on the
+        // type so model-validation against the live schema does not flag a drift.
         builder.Property(q => q.Currency)
             .IsRequired()
-            .HasColumnType("NVARCHAR(3)")
-            .HasMaxLength(3);
+            .HasColumnType("char(3)")
+            .HasMaxLength(3)
+            .IsFixedLength();
         builder.Property(q => q.CreatedAt).IsRequired();
 
         // Spec 015 — multi-currency snapshot fields.

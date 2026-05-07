@@ -146,7 +146,19 @@ public class ApplicationController : Controller
                 CategoryName = i.CategoryName,
                 QuotationCount = i.Quotations.Count,
                 HasImpact = i.Impact is not null,
-                ReviewComment = i.ReviewComment
+                ReviewComment = i.ReviewComment,
+                Quotations = i.Quotations.Select(q => new QuotationSummaryViewModel
+                {
+                    Id = q.Id,
+                    SupplierName = q.SupplierName,
+                    Price = q.Price,
+                    Currency = q.Currency,
+                    ConvertedCrcAmount = q.ConvertedCrcAmount,
+                    SnapshotRateValue = q.SnapshotRateValue,
+                    SnapshotRateType = q.SnapshotRateType,
+                    SnapshotEffectiveAtUtc = q.SnapshotEffectiveAtUtc,
+                    LegacyNeedsReview = q.LegacyNeedsReview
+                }).ToList()
             }).ToList()
         };
     }

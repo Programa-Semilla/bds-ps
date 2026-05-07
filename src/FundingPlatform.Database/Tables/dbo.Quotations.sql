@@ -12,12 +12,12 @@ CREATE TABLE [dbo].[Quotations]
     [Price]             DECIMAL(18,2) NOT NULL,
     [ValidUntil]        DATE          NOT NULL,
     [DocumentId]        INT           NOT NULL,
-    -- Spec 015 note: column type is tightened from NVARCHAR(3) NULL → NVARCHAR(3) NOT NULL
-    -- in PostDeployment/SeedData.sql (after the Currencies MERGE), and a FK to
-    -- dbo.Currencies(Code) is added there too. Doing it in post-deploy preserves
-    -- the dacpac's "single post-deploy script" pattern that spec 010 established
-    -- and ensures the FK target rows exist before the constraint is created.
-    [Currency]          NVARCHAR(3)   NULL,
+    -- Spec 015 note: declared as CHAR(3) NULL here so the dacpac diff matches the
+    -- post-deployment ALTER (CHAR(3) NOT NULL with FK to dbo.Currencies(Code)).
+    -- On a fresh deploy: schema creates the nullable column; the post-deploy
+    -- backfills NULL → 'CRC', tightens to NOT NULL, and adds the FK. Both halves
+    -- agree on CHAR(3) so SQL Server's FK constraint check (Msg 1778) is happy.
+    [Currency]          CHAR(3)       NULL,
     [CreatedAt]         DATETIME2     NOT NULL CONSTRAINT [DF_Quotations_CreatedAt] DEFAULT (GETUTCDATE()),
 
     -- Spec 015: multi-currency snapshot fields. CRC quotes leave Snapshot* NULL

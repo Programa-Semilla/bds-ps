@@ -5,6 +5,7 @@ using FundingPlatform.Application.Suppliers.Services;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
@@ -26,6 +27,7 @@ public class ApplicationService
     private readonly ISystemConfigurationRepository _systemConfigurationRepository;
     private readonly IDocumentRepository _documentRepository;
     private readonly SupplierCatalogService _supplierCatalogService;
+    private readonly IConversionService _conversionService;
     private readonly ILogger<ApplicationService> _logger;
 
     public ApplicationService(
@@ -37,6 +39,7 @@ public class ApplicationService
         ISystemConfigurationRepository systemConfigurationRepository,
         IDocumentRepository documentRepository,
         SupplierCatalogService supplierCatalogService,
+        IConversionService conversionService,
         ILogger<ApplicationService> logger)
     {
         _applicationRepository = applicationRepository;
@@ -47,6 +50,7 @@ public class ApplicationService
         _systemConfigurationRepository = systemConfigurationRepository;
         _documentRepository = documentRepository;
         _supplierCatalogService = supplierCatalogService;
+        _conversionService = conversionService;
         _logger = logger;
     }
 
@@ -249,7 +253,24 @@ public class ApplicationService
 
         try
         {
-            item.AddQuotation(supplier, branch, document, price, validUntil, currency);
+            // Spec 015 — route through Quotation.SetCurrencyAndAmountAsync so the
+            // (Snapshot, ConvertedCrcAmount) fields are populated atomically with
+            // the row. CRC short-circuits to (Snapshot=null, ConvertedCrcAmount=Price);
+            // non-CRC reads the latest published rate, embeds the snapshot, and marks
+            // the source rate row used (FR-008). MissingRateException bubbles up to
+            // the controller for inline FR-018 messaging.
+            var quotation = new Quotation(
+                supplierId: supplier.Id,
+                supplierBranchId: branch.Id,
+                documentId: document.Id,
+                price: price,
+                validUntil: validUntil,
+                currency: currency);
+
+            await quotation.SetCurrencyAndAmountAsync(
+                CurrencyCode.From(currency), price, _conversionService);
+
+            item.AttachQuotation(supplier, branch, quotation);
 
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
@@ -431,7 +452,12 @@ public class ApplicationService
                 q.Currency,
                 q.ValidUntil,
                 q.DocumentId,
-                q.Document?.OriginalFileName ?? string.Empty)).ToList(),
+                q.Document?.OriginalFileName ?? string.Empty,
+                ConvertedCrcAmount: q.ConvertedCrcAmount,
+                SnapshotRateValue: q.Snapshot?.RateValue,
+                SnapshotRateType: q.Snapshot?.RateType.ToString(),
+                SnapshotEffectiveAtUtc: q.Snapshot?.EffectiveAtUtc,
+                LegacyNeedsReview: q.LegacyNeedsReview)).ToList(),
             item.Impact is not null
                 ? new ImpactDto(
                     item.Impact.Id,

@@ -116,6 +116,18 @@ public sealed class UserFacingErrorTranslator : IUserFacingErrorTranslator
         UserFacingErrorCode.SignedUploadMissingPdfHeader =>
             "El archivo cargado no parece ser un PDF (falta el encabezado %PDF-).",
 
+        // Spec 015 — multi-currency quotes
+        UserFacingErrorCode.MissingExchangeRate =>
+            "No hay tipo de cambio de referencia configurado. Contacte a un administrador.",
+        UserFacingErrorCode.CurrencyDisabled =>
+            "La moneda seleccionada está deshabilitada.",
+        UserFacingErrorCode.RateImmutableUseSupersede =>
+            "Este tipo de cambio ya fue utilizado y no puede modificarse. Publique uno nuevo para reemplazarlo.",
+        UserFacingErrorCode.DuplicateRateTimestamp =>
+            "Ya existe un tipo de cambio publicado para ese instante.",
+        UserFacingErrorCode.FutureDatedRateRejected =>
+            "El tipo de cambio no puede tener una fecha de vigencia en el futuro.",
+
         _ => "La operación no se pudo completar. Inténtelo nuevamente o contacte al soporte.",
     };
 }

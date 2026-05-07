@@ -107,7 +107,44 @@ else
                         <tr>
                             <td>@item.ProductName</td>
                             <td>@item.CategoryName</td>
-                            <td>@item.QuotationCount</td>
+                            <td>
+                                @* Spec 015 / T114 — per-Item quotation rows. MVP rendering: original
+                                   currency + price + converted CRC. US4 will replace this with the
+                                   MoneyDisplayViewComponent. *@
+                                <span class="badge bg-secondary">@item.QuotationCount</span>
+                                @if (item.Quotations.Count > 0)
+                                {
+                                    <ul class="list-unstyled mb-0 mt-2 small" data-testid="quotation-list">
+                                        @foreach (var q in item.Quotations)
+                                        {
+                                            <li class="mb-1" data-testid="quotation-row" data-quotation-id="@q.Id">
+                                                <span class="text-muted">@q.SupplierName:</span>
+                                                <strong>@q.Price.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-CR")) @q.Currency</strong>
+                                                @if (q.ConvertedCrcAmount.HasValue && q.Currency != "CRC")
+                                                {
+                                                    <span class="text-muted">
+                                                        (₡@q.ConvertedCrcAmount.Value.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-CR")) CRC)
+                                                    </span>
+                                                    @if (q.SnapshotRateValue.HasValue)
+                                                    {
+                                                        <div class="text-muted small" data-testid="quotation-rate-snapshot">
+                                                            Tipo de cambio: 1 @q.Currency = @q.SnapshotRateValue.Value.ToString("0.######") CRC
+                                                            @if (q.SnapshotEffectiveAtUtc.HasValue)
+                                                            {
+                                                                <text>(vigente desde @q.SnapshotEffectiveAtUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))</text>
+                                                            }
+                                                        </div>
+                                                    }
+                                                }
+                                                @if (q.LegacyNeedsReview)
+                                                {
+                                                    <span class="badge bg-warning text-dark ms-1" data-testid="legacy-needs-review">Pendiente de revisión</span>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </td>
                             <td>
                                 @if (item.HasImpact)
                                 {

@@ -117,17 +117,25 @@ UPDATE [dbo].[Quotations]
       AND [SnapshotRateValue] IS NULL
       AND [LegacyNeedsReview] = 0;
 
--- 4. Tighten Quotations.Currency to NOT NULL after backfill, then add the FK to
---    Currencies. Idempotent: a second invocation finds the column already NOT NULL
+-- 4. Tighten Quotations.Currency to CHAR(3) NOT NULL after backfill, then add the
+--    FK to Currencies. The schema file declares the column as NVARCHAR(3) NULL so
+--    upgrades from spec 010 (where the column was unchecked free text) succeed
+--    without a column-drop step. Spec 015 narrows the column to CHAR(3) so it can
+--    carry the FK to dbo.Currencies(Code) (also CHAR(3)) — a width or type
+--    mismatch makes SQL Server refuse the constraint with Msg 1778.
+--    Idempotent: a second invocation finds the column already CHAR(3) NOT NULL
 --    (or the FK already in place) and short-circuits.
 IF EXISTS (
     SELECT 1
     FROM sys.columns c
     INNER JOIN sys.tables t ON t.object_id = c.object_id
-    WHERE t.name = N'Quotations' AND c.name = N'Currency' AND c.is_nullable = 1
+    INNER JOIN sys.types  ty ON ty.user_type_id = c.user_type_id
+    WHERE t.name = N'Quotations'
+      AND c.name = N'Currency'
+      AND (c.is_nullable = 1 OR ty.name <> N'char' OR c.max_length <> 3)
 )
 BEGIN
-    ALTER TABLE [dbo].[Quotations] ALTER COLUMN [Currency] NVARCHAR(3) NOT NULL;
+    ALTER TABLE [dbo].[Quotations] ALTER COLUMN [Currency] CHAR(3) NOT NULL;
 END;
 
 IF NOT EXISTS (

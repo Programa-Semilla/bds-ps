@@ -27,11 +27,12 @@ public class ExchangeRateRepository : IExchangeRateRepository
         CurrencyCode target,
         CancellationToken ct = default)
     {
-        var sourceCode = source.Value;
-        var targetCode = target.Value;
+        // Compare on the CurrencyCode value-converted property directly so EF can
+        // translate to a SQL `WHERE SourceCurrencyCode = @p0`. Reaching through the
+        // record's .Value is only translatable on the InMemory provider (which
+        // does client-side evaluation); SQL Server fails to translate it.
         return _context.ExchangeRates
-            .Where(r => r.SourceCurrency.Value == sourceCode
-                     && r.TargetCurrency.Value == targetCode)
+            .Where(r => r.SourceCurrency == source && r.TargetCurrency == target)
             .OrderByDescending(r => r.EffectiveAtUtc)
             .FirstOrDefaultAsync(ct);
     }
@@ -41,11 +42,8 @@ public class ExchangeRateRepository : IExchangeRateRepository
         CurrencyCode target,
         CancellationToken ct = default)
     {
-        var sourceCode = source.Value;
-        var targetCode = target.Value;
         var list = await _context.ExchangeRates
-            .Where(r => r.SourceCurrency.Value == sourceCode
-                     && r.TargetCurrency.Value == targetCode)
+            .Where(r => r.SourceCurrency == source && r.TargetCurrency == target)
             .OrderByDescending(r => r.EffectiveAtUtc)
             .ToListAsync(ct)
             .ConfigureAwait(false);

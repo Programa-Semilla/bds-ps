@@ -2,6 +2,8 @@
 
 @{
     ViewData["Title"] = "Agregar cotización";
+    var convertUrl = Url.Action("Convert", "Quotation",
+        new { appId = Model.ApplicationId, itemId = Model.ItemId });
 }
 
 @await Html.PartialAsync("Components/_PageHeader",
@@ -17,7 +19,11 @@
 
 <div class="card">
     <div class="card-body">
-        <form asp-controller="Quotation" asp-action="Add" asp-route-appId="@Model.ApplicationId" asp-route-itemId="@Model.ItemId" method="post" enctype="multipart/form-data">
+        <form asp-controller="Quotation" asp-action="Add"
+              asp-route-appId="@Model.ApplicationId" asp-route-itemId="@Model.ItemId"
+              method="post" enctype="multipart/form-data"
+              data-quote-form
+              data-convert-url="@convertUrl">
             @Html.AntiForgeryToken()
             <div asp-validation-summary="All" class="text-danger"></div>
 
@@ -39,9 +45,29 @@
 
             <div class="mb-3" data-testid="form-section" data-field="Currency">
                 <label asp-for="Currency" class="form-label"></label>
-                <input asp-for="Currency" class="form-control" maxlength="3" />
-                <small class="form-hint">ISO 4217 (p. ej., CRC, USD)</small>
+                @if (Model.EnabledCurrencies.Count > 0)
+                {
+                    <select asp-for="Currency" class="form-select">
+                        @foreach (var option in Model.EnabledCurrencies)
+                        {
+                            <option value="@option.Code">@option.Symbol @option.DisplayName (@option.Code)</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    @* Defensive fallback when the catalog has not been seeded yet. *@
+                    <input asp-for="Currency" class="form-control" maxlength="3" />
+                    <small class="form-hint">ISO 4217 (p. ej., CRC, USD)</small>
+                }
                 <span asp-validation-for="Currency" class="invalid-feedback d-block"></span>
+            </div>
+
+            <div class="mb-3 alert alert-info d-none" data-quote-preview hidden>
+                <div class="fw-semibold">Conversión a colones</div>
+                <div data-preview-amount class="fs-4"></div>
+                <div data-preview-rate class="text-muted small"></div>
+                <div data-preview-status class="small"></div>
             </div>
 
             <div class="mb-3" data-testid="form-section" data-field="ValidUntil">
@@ -66,4 +92,5 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/quote-conversion-preview.js" asp-append-version="true"></script>
 }
