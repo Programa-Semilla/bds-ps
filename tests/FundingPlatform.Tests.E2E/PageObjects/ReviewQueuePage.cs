@@ -27,7 +27,14 @@ public class ReviewQueuePage : BasePage
 
     public ILocator ReviewLink(int applicationId)
     {
-        return Page.Locator($"a[href*='Review/{applicationId}']");
+        // End-anchored: rejects "/Review/Review/{id}" (substring match would accept it).
+        return Page.Locator($"a[href$='/Review/{applicationId}']");
+    }
+
+    public ILocator RowActionFor(int applicationId)
+    {
+        // The queue-row "Revisar" button — end-anchored on the application route.
+        return Page.Locator($"[data-testid=row-action][href$='/Review/{applicationId}']");
     }
 
     public async Task<int> GetQueueCountAsync()

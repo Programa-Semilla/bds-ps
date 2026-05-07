@@ -1,4 +1,5 @@
 using FundingPlatform.Application.DTOs;
+using FundingPlatform.Application.Routing;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
@@ -80,7 +81,7 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
                 Title: v.Action,
                 ApplicantName: FormatApplicantName(a.Applicant),
                 ApplicationNumber: $"APP-{a.Id:D5}",
-                DeepLinkHref: $"/Review/Review/{a.Id}#event-{v.Id}")))
+                DeepLinkHref: ReviewRoutes.DeepLinkFor(a.Id, v.Id))))
             .OrderByDescending(e => e.Occurred)
             .Take(5)
             .ToList();
@@ -134,7 +135,7 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
                 JourneyMicro: micro,
                 DaysInCurrentState: _journey.DaysInCurrentState(a, now),
                 LastActivity: a.UpdatedAt == default ? DateTimeOffset.UtcNow : new DateTimeOffset(a.UpdatedAt, TimeSpan.Zero),
-                PrimaryAction: new ContextualAction("Review", $"/Review/Review/{a.Id}", ContextualActionStyle.Primary));
+                PrimaryAction: new ContextualAction("Review", ReviewRoutes.PathFor(a.Id), ContextualActionStyle.Primary));
         }).ToList();
         return Task.FromResult<IReadOnlyList<ReviewerQueueRowDto>>(rows);
     }
