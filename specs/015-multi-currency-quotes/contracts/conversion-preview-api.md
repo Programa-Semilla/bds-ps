@@ -2,7 +2,7 @@
 
 Authorization: `[Authorize]` (any authenticated user that can already access the quote form). Anti-forgery on the POST.
 
-## `POST /SupplierQuotes/Convert`
+## `POST /Application/{appId}/Item/{itemId}/Quotation/Convert`
 
 Server-computed conversion preview. Called from `quote-conversion-preview.js` on currency-or-amount blur. **The client MUST NOT compute the conversion locally.** (FR-019)
 
@@ -45,7 +45,7 @@ Server-computed conversion preview. Called from `quote-conversion-preview.js` on
 
 ## Save-time semantics
 
-The form's `POST /SupplierQuotes/Create` endpoint **does not trust the preview**. It re-reads the latest applicable rate at save time and snapshots it onto the quote (FR-015). The preview is for UX only.
+The form's `POST /Application/{appId}/Item/{itemId}/Quotation/Add` endpoint **does not trust the preview**. It re-reads the latest applicable rate at save time and snapshots it onto the quote (FR-015). The preview is for UX only.
 
 When the form posts:
 - If the latest rate at save time differs from the rate the preview returned, the server uses the new rate (no warning UI in MVP — simple last-write-wins; the user sees the snapshot fields after save). This matches spec edge case "Rate change between preview and save".

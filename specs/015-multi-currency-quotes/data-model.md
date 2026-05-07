@@ -38,7 +38,7 @@ All schema is owned by the `FundingPlatform.Database` dacpac. EF Core configures
 | `TargetCurrencyCode` | `char(3)` | NOT NULL FK → `Currencies(Code)` | |
 | `BuyRate` | `decimal(18, 6)` | NOT NULL | CRC per 1 USD (per spec clarification Q1). |
 | `SellRate` | `decimal(18, 6)` | NOT NULL | Captured for audit; not applied in MVP. |
-| `EffectiveAtUtc` | `datetime2(0)` | NOT NULL | Must be `<= SYSUTCDATETIME()` at insert (CHECK at app layer). |
+| `EffectiveAtUtc` | `datetime2(3)` | NOT NULL | Millisecond precision, narrows the duplicate-timestamp collision window for concurrent admin saves. Must be `<= SYSUTCDATETIME()` at insert (CHECK at app layer). |
 | `CreatedByUserId` | `nvarchar(450)` | NOT NULL FK → `AspNetUsers(Id)` | Audit. |
 | `CreatedAtUtc` | `datetime2(3)` | NOT NULL DEFAULT `SYSUTCDATETIME()` | |
 | `IsUsed` | `bit` | NOT NULL DEFAULT `0` | Set to 1 the first time a quote snapshots this rate. |
@@ -54,28 +54,30 @@ All schema is owned by the `FundingPlatform.Database` dacpac. EF Core configures
 
 ## Extended table
 
-### `SupplierQuotes` — new columns (existing table)
+### `Quotations` — new columns (existing table)
+
+The existing table already has `Currency NVARCHAR(3) NULL` and `Price DECIMAL(18,2) NOT NULL`. These keep their names and become the canonical "original" fields. New columns are added alongside.
 
 | Column | Type | Constraint | Notes |
 |---|---|---|---|
-| `OriginalCurrencyCode` | `char(3)` | NOT NULL FK → `Currencies(Code)` | Set on every row by migration. |
-| `OriginalAmount` | `decimal(18, 2)` | NOT NULL | The amount the user typed. |
-| `ConvertedCrcAmount` | `decimal(18, 2)` | NULL | Equal to `OriginalAmount` for CRC; null for legacy unreviewed; computed for non-CRC. |
+| `Currency` (existing) | `char(3)` | NOT NULL after migration; FK added → `Currencies(Code)` | Was `nvarchar(3) NULL`. Migration sets `'CRC'` on any null rows, then alters to NOT NULL char(3) and adds the FK. This **is** the OriginalCurrencyCode. |
+| `Price` (existing) | `decimal(18, 2)` | NOT NULL | Unchanged. This **is** the OriginalAmount. |
+| `ConvertedCrcAmount` | `decimal(18, 2)` | NULL | Equal to `Price` for CRC; null for legacy unreviewed; computed for non-CRC. |
 | `SnapshotRateValue` | `decimal(18, 6)` | NULL | Embedded snapshot — rate value applied. |
 | `SnapshotRateType` | `tinyint` | NULL | `1 = Buy`, `2 = Sell`. MVP uses `Buy` only. |
-| `SnapshotEffectiveAtUtc` | `datetime2(0)` | NULL | Effective timestamp of the snapshotted rate. |
+| `SnapshotEffectiveAtUtc` | `datetime2(3)` | NULL | Effective timestamp of the snapshotted rate (matches `ExchangeRates.EffectiveAtUtc` precision). |
 | `SnapshotRateId` | `uniqueidentifier` | NULL FK → `ExchangeRates(Id)` `ON DELETE NO ACTION` | Audit pointer. |
 | `LegacyNeedsReview` | `bit` | NOT NULL DEFAULT `0` | Set by migration for pre-existing non-CRC rows lacking snapshot. |
 
 **Constraints**:
 
-- `CK_SupplierQuotes_CrcSnapshotMustBeNull`: when `OriginalCurrencyCode = 'CRC'`, all `Snapshot*` columns are NULL and `LegacyNeedsReview = 0`.
-- `CK_SupplierQuotes_NonCrcRequiresSnapshot`: when `OriginalCurrencyCode <> 'CRC'` and `LegacyNeedsReview = 0`, all four `Snapshot*` columns are NOT NULL and `ConvertedCrcAmount` is NOT NULL.
+- `CK_Quotations_CrcSnapshotMustBeNull`: when `Currency = 'CRC'`, all `Snapshot*` columns are NULL and `LegacyNeedsReview = 0`.
+- `CK_Quotations_NonCrcRequiresSnapshot`: when `Currency <> 'CRC'` and `LegacyNeedsReview = 0`, all four `Snapshot*` columns are NOT NULL and `ConvertedCrcAmount` is NOT NULL.
 
 **Indexes**:
 
-- `IX_SupplierQuotes_LegacyNeedsReview` on `LegacyNeedsReview` where `LegacyNeedsReview = 1` (admin queue).
-- `IX_SupplierQuotes_SnapshotRateId` on `SnapshotRateId` (FK lookup support).
+- `IX_Quotations_LegacyNeedsReview` on `LegacyNeedsReview` where `LegacyNeedsReview = 1` (admin queue).
+- `IX_Quotations_SnapshotRateId` on `SnapshotRateId` (FK lookup support).
 
 ## Domain model (C#)
 
@@ -124,25 +126,39 @@ public sealed record ExchangeRateSnapshot(
     RateType RateType,
     DateTime EffectiveAtUtc);
 
-public partial class SupplierQuote {
-    // existing fields …
-    public CurrencyCode OriginalCurrency { get; private set; }
-    public decimal OriginalAmount { get; private set; }
+public partial class Quotation {
+    // existing fields: Id, ItemId, SupplierId, SupplierBranchId, Price, ValidUntil, DocumentId, Currency, CreatedAt
+    // Currency and Price stay; new fields below.
     public decimal? ConvertedCrcAmount { get; private set; }
     public ExchangeRateSnapshot? Snapshot { get; private set; }
     public bool LegacyNeedsReview { get; private set; }
 
-    public void SetCurrencyAndAmount(CurrencyCode currency, decimal amount, IConversionService conversion);
-    public void EditAmount(decimal newAmount);          // re-applies existing Snapshot; throws if currency change attempted
-    public void AttachLegacyRate(ExchangeRateSnapshot snapshot, decimal convertedCrc); // clears LegacyNeedsReview
+    // NEW save path. Replaces the legacy free-text constructor's role for new code paths.
+    // For CRC: snapshots null, ConvertedCrcAmount = price.
+    // For USD: pulls latest rate via IConversionService, computes ConvertedCrcAmount, sets Snapshot, marks rate used.
+    public void SetCurrencyAndAmount(CurrencyCode currency, decimal price, IConversionService conversion);
+
+    // Amount-only edit: re-applies the existing Snapshot to recompute ConvertedCrcAmount.
+    // Throws if Snapshot is null but Currency != CRC (the legacy-needs-review case).
+    public void EditAmount(decimal newPrice);
+
+    // Currency change with re-conversion (FR-017a). Clears existing snapshot and re-applies a new one.
+    public void ChangeCurrency(CurrencyCode newCurrency, IConversionService conversion);
+
+    // Admin attaches a historical rate to a flagged legacy quotation.
+    public void AttachLegacyRate(ExchangeRateSnapshot snapshot, decimal convertedCrc);
+
+    // EXISTING method — keep, but new code paths SHOULD use SetCurrencyAndAmount or ChangeCurrency.
+    // Internally we mark this as obsolete in a follow-up but do not break callers in this MVP.
+    public void EditCurrency(string code);
 }
 ```
 
 ## Read models
 
 - **Latest applicable rate**: `EXEC sp_executesql N'SELECT TOP 1 * FROM ExchangeRates WHERE SourceCurrencyCode = @s AND TargetCurrencyCode = @t ORDER BY EffectiveAtUtc DESC'` — backed by `IX_ExchangeRates_PairEffectiveAtDesc`.
-- **Legacy queue**: `SELECT * FROM SupplierQuotes WHERE LegacyNeedsReview = 1` — backed by filtered index.
-- **Audit "which quotes used rate R"**: `SELECT * FROM SupplierQuotes WHERE SnapshotRateId = @id`.
+- **Legacy queue**: `SELECT * FROM Quotations WHERE LegacyNeedsReview = 1` — backed by filtered index.
+- **Audit "which quotes used rate R"**: `SELECT * FROM Quotations WHERE SnapshotRateId = @id`.
 
 ## State transitions
 
@@ -157,7 +173,7 @@ Disabled -> Enabled
 false -> true   (one-way; happens automatically on first quote that snapshots it)
 ```
 
-### `SupplierQuote` snapshot lifecycle
+### `Quotation` snapshot lifecycle
 ```
 [CRC quote]            : Original=Converted, Snapshot=null, Legacy=0
 [USD quote, new flow]  : Original entered, Snapshot set on save, Converted computed, Legacy=0
@@ -174,6 +190,6 @@ The existing `AuditLog` table (assumed to follow project convention `AuditLogs(I
 - `ExchangeRate.Created`
 - `ExchangeRate.EditAttemptBlocked`
 - `ExchangeRate.DeleteAttemptBlocked`
-- `SupplierQuote.LegacyRateAttached`
+- `Quotation.LegacyRateAttached`
 
 No schema change to `AuditLogs`; only new event-type strings.

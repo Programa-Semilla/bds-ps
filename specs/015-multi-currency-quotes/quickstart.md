@@ -16,7 +16,7 @@ Outside ephemeral mode, the sentinel admin uses the configured `Admin:DefaultPas
 
 ## 3. Configure currencies (User Story 3)
 
-Navigate to **Admin → Currencies**. You should see two rows:
+Navigate to **Admin → Currencies** (`/Admin/AdminCurrencies`). You should see two rows:
 
 | Code | Symbol | DisplayName        | IsEnabled | IsBaseCurrency |
 |------|--------|--------------------|-----------|----------------|
@@ -29,7 +29,7 @@ Attempting to disable CRC returns a `409 Conflict` with the FR-002 message.
 
 ## 4. Publish the first exchange rate (User Story 3)
 
-Navigate to **Admin → Exchange Rates → New**. Enter:
+Navigate to **Admin → Exchange Rates → New** (`/Admin/AdminExchangeRates/Create`). Enter:
 
 - Source: `USD`
 - Target: `CRC`
@@ -43,14 +43,14 @@ Try to save a duplicate timestamp → `409 Conflict` with FR-007 message.
 Try `buy = 0` → `400 Bad Request` with FR-006 message.
 Try a future-dated effective timestamp → `400 Bad Request` with FR-007a message.
 
-## 5. Create a USD supplier quote (User Story 1)
+## 5. Create a USD supplier quotation (User Story 1)
 
-Sign in as an applicant with an active funding request. Open the request → **Add Supplier Quote**.
+Sign in as an applicant with an active Application that has at least one Item. Open the Item → **Add Quotation** (the existing route `/Application/{appId}/Item/{itemId}/Quotation/Add`).
 
 - Currency: `USD`
 - Amount: `1000.00`
 
-The form calls `POST /SupplierQuotes/Convert` and displays:
+The form calls `POST /Application/{appId}/Item/{itemId}/Quotation/Convert` and displays:
 
 ```
 Original: $1,000.00 USD
@@ -91,7 +91,7 @@ Re-generate the PDF later (or in a different deploy). The values and dates on ea
 Insert a synthetic legacy USD quote without snapshot fields:
 
 ```sql
-UPDATE SupplierQuotes
+UPDATE dbo.Quotations
    SET LegacyNeedsReview = 1,
        SnapshotRateValue = NULL,
        SnapshotRateType = NULL,
@@ -125,8 +125,8 @@ SELECT TOP 1 * FROM ExchangeRates
  ORDER BY EffectiveAtUtc DESC;
 
 -- Quotes that snapshot a given rate
-SELECT * FROM SupplierQuotes WHERE SnapshotRateId = @rateId;
+SELECT * FROM dbo.Quotations WHERE SnapshotRateId = @rateId;
 
 -- Legacy review queue
-SELECT * FROM SupplierQuotes WHERE LegacyNeedsReview = 1;
+SELECT * FROM dbo.Quotations WHERE LegacyNeedsReview = 1;
 ```

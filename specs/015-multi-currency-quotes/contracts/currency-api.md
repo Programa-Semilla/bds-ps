@@ -2,7 +2,7 @@
 
 Authorization: `[Authorize(Roles = "Administrator")]` on every endpoint. Anti-forgery on every mutation.
 
-## `GET /Admin/Currencies`
+## `GET /Admin/AdminCurrencies`
 
 Returns the configured currencies, ordered by `DisplayOrder`.
 
@@ -14,7 +14,7 @@ Returns the configured currencies, ordered by `DisplayOrder`.
 ]
 ```
 
-## `POST /Admin/Currencies/{code}/Disable`
+## `POST /Admin/AdminCurrencies/{code}/Disable`
 
 Disable a non-base currency.
 
@@ -25,7 +25,7 @@ Disable a non-base currency.
 | `404 Not Found` | — | Unknown code. |
 | `403 Forbidden` | — | Caller is not Administrator. |
 
-## `POST /Admin/Currencies/{code}/Enable`
+## `POST /Admin/AdminCurrencies/{code}/Enable`
 
 Enable a previously-disabled currency. Idempotent — re-enabling an already-enabled currency returns `204`.
 

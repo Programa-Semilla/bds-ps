@@ -2,7 +2,7 @@
 
 Authorization: `[Authorize(Roles = "Administrator")]` on every endpoint. Anti-forgery on every mutation.
 
-## `GET /Admin/ExchangeRates`
+## `GET /Admin/AdminExchangeRates`
 
 Lists all CRC↔USD rates, newest first. Renders the rate-history view.
 
@@ -25,7 +25,7 @@ Lists all CRC↔USD rates, newest first. Renders the rate-history view.
 
 `buyRate` and `sellRate` are **CRC per 1 USD** (per spec clarification Q1).
 
-## `POST /Admin/ExchangeRates`
+## `POST /Admin/AdminExchangeRates`
 
 Create a new rate. The current "active" rate is whatever has the latest `EffectiveAtUtc` for the pair.
 
@@ -51,7 +51,7 @@ Create a new rate. The current "active" rate is whatever has the latest `Effecti
 | `409 Conflict` | `{ "error": "Rate at this timestamp already exists." }` | Duplicate `(source, target, effectiveAtUtc)` (FR-007). |
 | `403 Forbidden` | — | Caller not Administrator. |
 
-## `PUT/DELETE /Admin/ExchangeRates/{id}` — explicitly NOT IMPLEMENTED
+## `PUT/DELETE /Admin/AdminExchangeRates/{id}` — explicitly NOT IMPLEMENTED
 
 Both verbs MUST return:
 

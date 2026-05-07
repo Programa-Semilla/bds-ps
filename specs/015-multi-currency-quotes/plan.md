@@ -26,7 +26,7 @@ Enable supplier quotes to be entered in either CRC (base) or USD, with administr
 | Principle | Status | Notes |
 |---|---|---|
 | I. Clean Architecture | PASS | New entities (`Currency`, `ExchangeRate`) live in `Domain`; conversion is an `IConversionService` in `Application` (interface) implemented in `Infrastructure`; controllers in `Web`. Dependencies inward. No leaks across boundaries. |
-| II. Rich Domain Model | PASS | `ExchangeRate` exposes behavior (`ConvertUsdToCrc`, `MarkUsed`, validation invariants on construction). `SupplierQuote` gains `SetCurrency`, `ApplyRateSnapshot`, `EditAmount` methods (snapshot reapplied) — no anemic public setters. |
+| II. Rich Domain Model | PASS | `ExchangeRate` exposes behavior (`ConvertUsdToCrc`, `MarkUsed`, validation invariants on construction). `Quotation` gains `SetCurrencyAndAmount`, `EditAmount`, `ChangeCurrency`, `AttachLegacyRate` (snapshot reapplied / cleared per method) — no anemic public setters. |
 | III. End-to-End Testing (Non-Negotiable) | PASS | Each user story has its own E2E test class. Page-Object Model for the admin currency page, admin rate page, quote form, and the PDF download/inspection flow. Tests run under `AspireFixture`. |
 | IV. Schema-First DB Management | PASS | All schema additions (Currency, ExchangeRate, SupplierQuote columns, audit-log additions, seed data for CRC + USD + initial rate) are edited in `FundingPlatform.Database` `.sql` files. EF Core configures mappings only. Post-deploy script seeds CRC (always-enabled, base) and USD (enabled). |
 | V. Specification-Driven Development | PASS | `spec.md` complete, this `plan.md` covers technical approach, `tasks.md` (Phase 2) will follow story priorities P1→P3. |
@@ -54,95 +54,111 @@ specs/015-multi-currency-quotes/
 
 ### Source Code (repository root)
 
-This feature is additive to the existing FundingPlatform layout. Directories that get new files are listed; existing directories not listed are unchanged.
+Aligned with the **existing** FundingPlatform layout (flat folders under `Domain/Entities`, `Domain/ValueObjects`, etc.; admin controllers under `Web/Controllers/Admin/`; dacpac tables prefixed `dbo.`). Directories that get new files are listed; existing directories not listed are unchanged.
 
 ```text
 src/
 ├── FundingPlatform.Domain/
-│   ├── Currencies/
-│   │   ├── Currency.cs                       # Value object / entity (ISO code, symbol, name, precision, enabled, base, displayOrder)
-│   │   └── CurrencyCode.cs                   # Strongly-typed wrapper for ISO codes
-│   ├── ExchangeRates/
-│   │   ├── ExchangeRate.cs                   # Aggregate (immutable-once-used semantics)
-│   │   ├── ExchangeRateSnapshot.cs           # Value object embedded into SupplierQuote
-│   │   └── RateType.cs                       # enum { Buy, Sell }
-│   └── SupplierQuotes/
-│       └── SupplierQuote.cs                  # Extended with CurrencyCode + Snapshot fields + LegacyNeedsReview flag
+│   ├── Entities/
+│   │   ├── Currency.cs                  # NEW. Code, Symbol, Name, DecimalPrecision, IsEnabled, IsBaseCurrency, DisplayOrder.
+│   │   ├── ExchangeRate.cs              # NEW aggregate. Immutable-once-used. ConvertUsdToCrc, MarkUsed, ToSnapshot.
+│   │   └── Quotation.cs                 # EXTENDED — adds ConvertedCrcAmount, Snapshot, LegacyNeedsReview, SetCurrencyAndAmount, EditAmount, ChangeCurrency, AttachLegacyRate. Existing Currency + Price columns stay.
+│   ├── ValueObjects/
+│   │   ├── CurrencyCode.cs              # NEW. record(string Value) with Crc/Usd statics; IsBase.
+│   │   └── ExchangeRateSnapshot.cs      # NEW. Embedded value object on Quotation.
+│   └── Enums/
+│       └── RateType.cs                  # NEW. enum { Buy = 1, Sell = 2 }.
 │
 ├── FundingPlatform.Application/
-│   ├── Currencies/
-│   │   ├── ICurrencyConfigService.cs
-│   │   └── CurrencyConfigService.cs          # Enable/disable USD; CRC always-enabled invariant
-│   ├── ExchangeRates/
-│   │   ├── IExchangeRateService.cs
-│   │   ├── ExchangeRateService.cs            # Create-only; reject zero/negative/duplicate-timestamp/future-dated; mark previous rate superseded conceptually (no edit)
-│   │   └── IConversionService.cs             # ConvertUsdToCrc(amount, asOf?) — pulls latest applicable rate, returns (crcAmount, rateSnapshot)
-│   └── SupplierQuotes/
-│       ├── ApplySnapshotOnSave.cs            # Use case helper — server-side conversion at save
-│       └── LegacyQuoteRateAttachService.cs   # Admin attaches a historical rate to a flagged legacy quote
+│   ├── Interfaces/
+│   │   ├── ICurrencyConfigService.cs    # NEW
+│   │   ├── IExchangeRateService.cs      # NEW
+│   │   └── IConversionService.cs        # NEW. ConvertAsync(source, target, amount) -> (converted, snapshot). Throws MissingRateException.
+│   ├── Services/
+│   │   ├── CurrencyConfigService.cs     # NEW. Enforces CRC permanent invariant.
+│   │   ├── ExchangeRateService.cs       # NEW. Validates positive, future-date, duplicate-timestamp; emits audit events.
+│   │   └── LegacyQuotationRateAttachService.cs  # NEW. Admin attaches a historical rate to a flagged legacy Quotation.
+│   ├── Errors/
+│   │   └── (extend UserFacingErrorCode.cs with new MissingExchangeRate, CurrencyDisabled codes)
+│   └── DTOs/
+│       └── ConversionPreviewDto.cs      # NEW. Response shape for /Quotation/Convert.
 │
 ├── FundingPlatform.Infrastructure/
 │   ├── Persistence/
 │   │   ├── Configurations/
-│   │   │   ├── CurrencyConfiguration.cs
-│   │   │   ├── ExchangeRateConfiguration.cs
-│   │   │   └── SupplierQuoteConfiguration.cs # extended
-│   │   └── ApplicationDbContext.cs            # adds DbSet<Currency>, DbSet<ExchangeRate>; SupplierQuote already mapped
-│   ├── Conversion/
-│   │   └── ConversionService.cs              # Reads latest rate; applies decimal arithmetic + half-away-from-zero rounding
+│   │   │   ├── CurrencyConfiguration.cs        # NEW
+│   │   │   ├── ExchangeRateConfiguration.cs    # NEW
+│   │   │   └── QuotationConfiguration.cs       # EXTENDED — map new columns + ExchangeRateSnapshot via OwnsOne.
+│   │   ├── Repositories/
+│   │   │   └── ExchangeRateRepository.cs       # NEW. Latest-rate query, history list. Catches DbUpdateException 2627/2601 → FR-007.
+│   │   └── AppDbContext.cs                     # EXTENDED — DbSet<Currency>, DbSet<ExchangeRate>; register configurations.
+│   ├── Services/                                # if a Services/ folder doesn't exist yet, place under Persistence/Services or matching existing pattern
+│   │   └── ConversionService.cs                # NEW. Implements IConversionService; queries latest rate.
 │   └── Pdf/
-│       └── AgreementPdfRenderer.cs           # Extended: emit conversion note rows when any line is non-CRC; refuse on missing snapshot
+│       └── (extend the existing FundingAgreement PDF renderer/Razor partial — emit conversion note when non-CRC line; throw MissingConversionMetadataException)
 │
 ├── FundingPlatform.Web/
-│   ├── Areas/Admin/Controllers/
-│   │   ├── CurrenciesController.cs
-│   │   └── ExchangeRatesController.cs
-│   ├── Areas/Admin/Views/
-│   │   ├── Currencies/Index.cshtml
-│   │   └── ExchangeRates/{Index,Create,History}.cshtml
 │   ├── Controllers/
-│   │   ├── SupplierQuotesController.cs       # extend create/edit; new Convert action for preview JSON
-│   │   └── AgreementsController.cs           # extend Pdf action to surface FR-027 inline error
+│   │   ├── QuotationController.cs              # EXTENDED — add [HttpPost("Convert")] action returning ConversionPreviewDto JSON; wire SetCurrencyAndAmount on save in Add (replaces the current free-text Currency-string flow); inline FR-018 validation message.
+│   │   └── FundingAgreementController.cs       # EXTENDED — Pdf action catches MissingConversionMetadataException, re-renders the agreement view with inline error (FR-027). [If the file is named differently, this task targets whichever controller hosts the Pdf action today.]
+│   ├── Controllers/Admin/
+│   │   ├── AdminCurrenciesController.cs        # NEW — endpoints from contracts/currency-api.md
+│   │   ├── AdminExchangeRatesController.cs     # NEW — endpoints from contracts/exchange-rate-api.md
+│   │   └── AdminLegacyQuotationsController.cs  # NEW — Index + POST AttachRate (US6)
+│   ├── Views/Admin/
+│   │   ├── Currencies/Index.cshtml             # NEW
+│   │   ├── ExchangeRates/{Index,Create}.cshtml # NEW
+│   │   └── LegacyQuotations/Index.cshtml       # NEW
 │   ├── ViewComponents/
-│   │   ├── MoneyDisplayViewComponent.cs      # Shared formatter: original + CRC + conversion-indicator tooltip
-│   │   └── ConversionIndicatorViewComponent.cs
+│   │   ├── MoneyDisplayViewComponent.cs        # NEW — shared formatter
+│   │   └── ConversionIndicatorViewComponent.cs # NEW — ⓘ tooltip
+│   ├── ViewModels/
+│   │   ├── ConversionPreviewRequestModel.cs    # NEW — for POST /Quotation/{*}/Convert
+│   │   └── (extend AddQuotationViewModel with Currency selector populated from enabled currencies)
 │   └── wwwroot/js/
-│       └── quote-conversion-preview.js       # Calls Convert action on currency/amount change
+│       └── quote-conversion-preview.js         # NEW — debounced blur handler; never multiplies client-side.
 │
-├── FundingPlatform.Database/                 # dacpac — single source of truth
+├── FundingPlatform.Database/                   # dacpac — single source of truth
 │   ├── Tables/
-│   │   ├── Currencies.sql                    # NEW
-│   │   ├── ExchangeRates.sql                 # NEW
-│   │   └── SupplierQuotes.sql                # ALTERED: +OriginalCurrencyCode, +OriginalAmount, +ConvertedCrcAmount, +SnapshotRateValue, +SnapshotRateType, +SnapshotEffectiveAtUtc, +SnapshotRateId, +LegacyNeedsReview
-│   ├── Indexes/
-│   │   ├── IX_ExchangeRates_PairEffectiveAt.sql
-│   │   └── IX_SupplierQuotes_LegacyNeedsReview.sql
-│   └── PostDeploy/
-│       └── 015-currency-seed.sql             # Seed CRC (base, enabled, non-disable-able), USD (enabled)
+│   │   ├── dbo.Currencies.sql                  # NEW
+│   │   ├── dbo.ExchangeRates.sql               # NEW
+│   │   └── dbo.Quotations.sql                  # ALTERED — keep Currency + Price; add ConvertedCrcAmount, SnapshotRateValue, SnapshotRateType, SnapshotEffectiveAtUtc, SnapshotRateId (FK NO ACTION), LegacyNeedsReview; add CHECK constraints; tighten Currency to NOT NULL char(3) with FK after migration.
+│   ├── Indexes/                                # NEW directory if missing; spec 013 may already use inline index DDL inside table sql — match existing convention.
+│   │   ├── IX_ExchangeRates_PairEffectiveAtDesc.sql
+│   │   ├── IX_Quotations_LegacyNeedsReview.sql
+│   │   └── IX_Quotations_SnapshotRateId.sql
+│   └── PostDeployment/                         # existing folder; extend SeedData.sql (or add a new ordered include)
+│       └── SeedData.sql                        # EXTENDED — idempotent MERGE for CRC + USD, plus the legacy-stamping/flagging block per FR-031/FR-032.
 │
 └── (no changes outside above)
 
 tests/
 ├── FundingPlatform.Tests.Unit/
-│   ├── ExchangeRateTests.cs                  # invariants, immutable-once-used, validation
-│   ├── ConversionServiceTests.cs             # decimal arithmetic, rounding edge cases
-│   └── SupplierQuoteTests.cs                 # SetCurrency, EditAmount snapshot reapply
+│   ├── ExchangeRateTests.cs                    # NEW — invariants, immutable-once-used, ConvertUsdToCrc rounding.
+│   ├── ConversionServiceTests.cs               # NEW — decimal arithmetic, latest-rate selection, MissingRateException.
+│   └── QuotationCurrencyTests.cs               # NEW — SetCurrencyAndAmount, EditAmount snapshot reapply, ChangeCurrency clears+re-snapshots, AttachLegacyRate clears flag.
 ├── FundingPlatform.Tests.Integration/
-│   ├── ExchangeRateRepositoryTests.cs
-│   ├── CurrencyConfigServiceTests.cs
-│   ├── MigrationTests.cs                     # post-deploy stamps CRC, flags legacy non-CRC
-│   └── PdfRenderingTests.cs                  # CRC-only request, mixed request, missing-snapshot refusal
+│   ├── ExchangeRateRepositoryTests.cs          # NEW — unique-index conflict, latest-rate query.
+│   ├── CurrencyConfigServiceTests.cs           # NEW — enable/disable + audit.
+│   ├── ExchangeRateServiceTests.cs             # NEW — full FR-006 / FR-007 / FR-007a coverage + audit.
+│   ├── QuotationCreateUsdTests.cs              # NEW — application-layer save persists Original/Converted/Snapshot.
+│   ├── QuotationCreateCrcTests.cs              # NEW — CRC quote keeps no snapshot.
+│   ├── MigrationTests.cs                       # NEW — post-deploy stamps CRC, flags legacy non-CRC, idempotent on re-deploy.
+│   ├── LegacyQuotationRateAttachServiceTests.cs # NEW (US6).
+│   └── PdfRenderingTests.cs                    # NEW — CRC-only baseline, mixed-with-note, missing-snapshot refusal.
 └── FundingPlatform.Tests.E2E/
-    ├── AdminCurrencyConfigE2E.cs             # User Story 3 (admin)
-    ├── AdminExchangeRateE2E.cs               # User Story 3 (admin)
-    ├── ApplicantUsdQuoteE2E.cs               # User Story 1
-    ├── ApplicantCrcQuoteE2E.cs               # User Story 2
-    ├── ReviewerDisplayE2E.cs                 # User Story 4
-    ├── AgreementPdfMultiCurrencyE2E.cs       # User Story 5
-    └── LegacyQuoteFlowE2E.cs                 # User Story 6
+    ├── AdminCurrencyConfigE2E.cs               # US3
+    ├── AdminExchangeRateE2E.cs                 # US3
+    ├── ApplicantUsdQuoteE2E.cs                 # US1
+    ├── ApplicantCrcQuoteE2E.cs                 # US2
+    ├── ReviewerDisplayE2E.cs                   # US4
+    ├── AgreementPdfMultiCurrencyE2E.cs         # US5
+    └── LegacyQuotationFlowE2E.cs               # US6
 ```
 
-**Structure Decision**: Single Clean-Architecture solution under `src/` with the `Domain → Application → Infrastructure → Web` layering already established by FundingPlatform. The dacpac (`FundingPlatform.Database`) owns schema. Tests are split by category under `tests/` and run from Aspire AppHost via `AspireFixture` for integration + E2E.
+**Structure Decision**: Adopt the existing FundingPlatform layout (flat `Domain/Entities/`, `Domain/ValueObjects/`, `Domain/Enums/`; `Application/Services/` + `Application/Interfaces/`; `Infrastructure/Persistence/Configurations/`; admin controllers under `Web/Controllers/Admin/` and admin views under `Web/Views/Admin/`). The dacpac (`FundingPlatform.Database`) owns schema, with seeds in `PostDeployment/SeedData.sql`. Tests run under `AspireFixture` for integration + E2E.
+
+**Naming bridge**: User-facing language in spec.md says "supplier quote". Code-facing language in this plan says **Quotation** because that is the existing entity (`src/FundingPlatform.Domain/Entities/Quotation.cs`). Each `Quotation` is one supplier's price for one `Item`; an `Item` belongs to an `Application` (the funding request). Spec FR-022 "request totals" is computed by summing each `Item.SelectedSupplier`'s chosen `Quotation.ConvertedCrcAmount` across the `Application`.
 
 ## Phase 0 — Research
 
@@ -183,7 +199,7 @@ Public agreement-PDF behavior is governed by the existing `AgreementsController.
 | Principle | Status | Notes |
 |---|---|---|
 | I. Clean Architecture | PASS | No leaks introduced by contracts. Conversion logic stays in Application/Infrastructure; controllers thin. |
-| II. Rich Domain Model | PASS | `ExchangeRate` validates on construction (positive buy/sell, no future-dated, no duplicate timestamp); `MarkUsed` is the only mutator and is one-way. `SupplierQuote.EditAmount` re-applies snapshot internally. |
+| II. Rich Domain Model | PASS | `ExchangeRate` validates on construction (positive buy/sell, no future-dated, no duplicate timestamp); `MarkUsed` is the only mutator and is one-way. `Quotation.EditAmount` re-applies snapshot internally; `ChangeCurrency` clears+re-snapshots. |
 | III. End-to-End Testing | PASS | Seven story-aligned Playwright classes specified above. |
 | IV. Schema-First DB | PASS | All schema in `FundingPlatform.Database`. Post-deploy seed script. |
 | V. Spec-Driven | PASS | This plan ties back to spec FR-IDs throughout. |
