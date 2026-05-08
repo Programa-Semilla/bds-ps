@@ -135,7 +135,7 @@ _(no tasks)_
 
 ### Tests for User Story 3
 
-- [x] T039 [P] [US3] Add `tests/FundingPlatform.Tests.Unit/Application/ReviewerScopePredicateTests.cs` validating that the composed `IQueryable` filter is short-circuited when `IsAdmin == true` and otherwise emits an `EXISTS`-shaped predicate (assert via `ToQueryString()` on a real `IQueryable<Application>` instance, or via a fake `DbContext`)
+- [x] T039 [P] [US3] Reviewer-scope predicate tests split across two files. `tests/FundingPlatform.Tests.Unit/Application/ReviewerScopePredicateTests.cs` asserts the in-memory short-circuit invariants of `ReviewerScope` (admin / empty / multi-group). `tests/FundingPlatform.Tests.Integration/Application/ReviewerScopeQueryShapeTests.cs` (REVIEW-CODE F-7) composes the predicate against a real `AppDbContext` bound to the SqlServer provider and asserts the shape via `IQueryable.ToQueryString()`: admin scope must NOT join `UserGroupMemberships`; non-admin scope with non-empty group ids MUST emit an EXISTS / JOIN against `UserGroupMemberships`. The SqlServer provider is bound to a sentinel connection string and never opens a connection — `ToQueryString()` only renders SQL.
 - [x] T040 [US3] Add `tests/FundingPlatform.Tests.Integration/ReviewerQueueScopeTests.cs` against the real DB — seeds three applicants in (`Norte`), (`Sur`), (`Norte+Sur`) and two reviewers; asserts queue, signing-inbox, applicant-search, and detail-auth all return scope-correct results; admin sees everything; applicant always sees own application
 
 ### Implementation for User Story 3

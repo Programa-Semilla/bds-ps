@@ -8,8 +8,15 @@ namespace FundingPlatform.Tests.Unit.Application;
 /// and <c>ISignedUploadRepository.GetPendingInboxAsync</c>: admin scope
 /// short-circuits the predicate; non-admin scope with zero memberships returns
 /// nothing; the value-equality of <see cref="ReviewerScope"/> matches the
-/// admin/empty constants. The full EF-translated predicate shape is exercised
-/// by the integration test against a real DbContext.
+/// admin/empty constants.
+///
+/// REVIEW-CODE F-7 — the EF-translated SQL shape (admin = no
+/// UserGroupMemberships join; non-admin with group ids = EXISTS / JOIN against
+/// UserGroupMemberships) is asserted by
+/// <c>tests/FundingPlatform.Tests.Integration/Application/ReviewerScopeQueryShapeTests.cs</c>,
+/// which composes the predicate against a real <c>AppDbContext</c> bound to
+/// the SqlServer provider and inspects <c>IQueryable.ToQueryString()</c>. That
+/// path requires a relational provider so it cannot live in the unit project.
 /// </summary>
 [TestFixture]
 public class ReviewerScopePredicateTests
