@@ -1,0 +1,24 @@
+@model FundingPlatform.Application.DTOs.CapabilityCard
+@*
+    Spec 017 / FR-005 — single admin capability tile (icon + label + description + CTA).
+    Tokens-only colors via Tabler classes that bridge to --tblr-* via tokens.css.
+    Slug stays English for testid stability while the visible label is es-CR.
+*@
+<div class="card fl-capability-card h-100" data-testid="admin-capability-@Model.Slug">
+    <div class="card-body d-flex flex-column">
+        <div class="d-flex align-items-center mb-2">
+            <span class="fl-text-secondary me-2 fs-3" aria-hidden="true">
+                <i class="@Model.Icon"></i>
+            </span>
+            <h3 class="card-title mb-0 fl-font-display fl-type-heading-sm">@Model.Label</h3>
+        </div>
+        <p class="card-text fl-text-secondary fl-type-body flex-grow-1">@Model.Description</p>
+        <div class="mt-3">
+            <a class="btn btn-primary"
+               href="@Model.CtaUrl"
+               data-testid="admin-capability-cta-@Model.Slug">
+                <i class="ti ti-arrow-right me-1" aria-hidden="true"></i>@Model.CtaLabel
+            </a>
+        </div>
+    </div>
+</div>
