@@ -116,7 +116,7 @@ When an admin deletes a group, every membership row that references it is remove
 - **FR-011**: The reviewer queue MUST display only those applications whose applicant shares at least one group with the signed-in reviewer.
 - **FR-012**: The application detail page MUST return 403 to a reviewer who has zero group overlap with the application's applicant.
 - **FR-013**: The signing inbox (signed-funding-agreement queue) MUST apply the same group-overlap filter as the reviewer queue.
-- **FR-014**: Reviewer-facing applicant and application search MUST apply the same group-overlap filter.
+- **FR-014**: Reviewer-facing applicant and application search MUST apply the same group-overlap filter. The reviewer queue ships with a text-search input (matched against the applicant's name and legal id); the existing status-based filters (`All`, `AwaitingMe`, `Aging`, `SentBack`, `Appealing`) compose with both the search term and the group-overlap predicate. No separate search controller exists today; the queue is the single reviewer-facing listing surface.
 - **FR-015**: A user with the Admin role MUST be exempt from FR-011 through FR-014 and see every applicant and every application on every reviewer-facing surface.
 
 #### Applicant own access

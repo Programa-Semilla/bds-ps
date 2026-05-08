@@ -43,7 +43,7 @@ _(no tasks)_
 - [ ] T001 [P] Add `src/FundingPlatform.Database/Tables/dbo.Groups.sql` per data-model.md (Id IDENTITY PK, Name NVARCHAR(100) COLLATE Latin1_General_CI_AI NOT NULL, CreatedAt/UpdatedAt DATETIMEOFFSET NOT NULL, unique non-clustered index on Name)
 - [ ] T002 [P] Add `src/FundingPlatform.Database/Tables/dbo.UserGroupMemberships.sql` (composite PK (UserId, GroupId), FKs to AspNetUsers.Id and Groups.Id with ON DELETE CASCADE on both, AssignedAt DATETIMEOFFSET NOT NULL, non-clustered index on (GroupId, UserId))
 - [ ] T003 [P] Add `src/FundingPlatform.Database/Tables/dbo.AdminAuditEvents.sql` (Id BIGINT IDENTITY PK, OccurredAt DATETIMEOFFSET, ActorUserId FK to AspNetUsers NO CASCADE, Action/TargetType/TargetId NVARCHAR, PayloadJson NVARCHAR(MAX) NULL)
-- [ ] T004 Append demo seed to `src/FundingPlatform.Database/PostDeployment/SeedData.sql` — insert `Norte`, `Sur`, `Centro` into `dbo.Groups` if absent (idempotent guard)
+- [ ] T004 Append demo seed to `src/FundingPlatform.Database/PostDeployment/SeedData.sql` — `MERGE INTO dbo.Groups USING (VALUES (N'Norte'), (N'Sur'), (N'Centro')) … WHEN NOT MATCHED THEN INSERT …` so re-runs of the post-deploy script are idempotent (matches data-model.md § Demo seed, supersedes the unconditional `INSERT` example shown there)
 
 ### Domain entities
 
@@ -87,11 +87,11 @@ _(no tasks)_
 
 ### Implementation for User Story 1
 
-- [ ] T020 [P] [US1] Create `src/FundingPlatform.Application/Admin/Groups/IGroupService.cs` (`ListAsync`, `CreateAsync(name)`, `RenameAsync(id, name, actorUserId)`, `DeleteAsync(id, actorUserId)`) and `GroupCommands.cs` for DTOs
-- [ ] T021 [US1] Create `src/FundingPlatform.Infrastructure/Services/GroupService.cs` implementing `IGroupService` — uses DbContext, writes one `AdminAuditEvent` per mutation via `IAdminAuditWriter`, surfaces unique-index violations as `DuplicateGroupNameException` (caught by the controller and rendered as `ModelState`)
+- [ ] T020 [P] [US1] Create `src/FundingPlatform.Application/Admin/Groups/IGroupService.cs` (`ListAsync`, `CreateAsync(name, actorUserId)`, `RenameAsync(id, name, actorUserId)`, `DeleteAsync(id, actorUserId)` — every mutation takes `actorUserId` because NFR-005 requires the actor on every audit row) and `GroupCommands.cs` for DTOs. Declare `DuplicateGroupNameException` in the same folder (`src/FundingPlatform.Application/Admin/Groups/DuplicateGroupNameException.cs`).
+- [ ] T021 [US1] Create `src/FundingPlatform.Infrastructure/Services/GroupService.cs` implementing `IGroupService` — uses DbContext, writes one `AdminAuditEvent` per mutation via `IAdminAuditWriter` (create payload `{"name":"<trimmed>"}`, rename `{"old":"…","new":"…"}`, delete `{"name":"<deleted>","memberCountBefore":<n>}` per `contracts/admin-groups.md`), surfaces unique-index violations as `DuplicateGroupNameException` so `AdminGroupsController` can render them as `ModelState` errors
 - [ ] T022 [P] [US1] Create `src/FundingPlatform.Web/ViewModels/Admin/AdminGroupsIndexViewModel.cs` and `AdminGroupRow` record per `contracts/admin-groups.md`
 - [ ] T023 [P] [US1] Create `src/FundingPlatform.Web/ViewModels/Admin/AdminGroupCreateViewModel.cs` and `AdminGroupEditViewModel.cs`
-- [ ] T024 [US1] Create `src/FundingPlatform.Web/Controllers/Admin/AdminGroupsController.cs` with `[Authorize(Roles = "Admin")]`, all five actions (Index GET, Create GET/POST, Edit GET/POST, Delete POST) per the contract; collect all validation errors in a single `ModelState` round-trip
+- [ ] T024 [US1] Create `src/FundingPlatform.Web/Controllers/Admin/AdminGroupsController.cs` with `[Authorize(Roles = "Admin")]`, all five actions (Index GET, Create GET/POST, Edit GET/POST, Delete POST) per the contract; collect all validation errors in a single `ModelState` round-trip. The `[Authorize]` attribute also handles the unauthenticated case — anonymous callers are redirected to login (or get 401 on JSON requests) before role evaluation; no extra code path needed.
 - [ ] T025 [P] [US1] Create `src/FundingPlatform.Web/Views/Admin/Groups/Index.cshtml` (table with name + member count, Create button, Edit/Delete row actions)
 - [ ] T026 [P] [US1] Create `src/FundingPlatform.Web/Views/Admin/Groups/Create.cshtml`
 - [ ] T027 [P] [US1] Create `src/FundingPlatform.Web/Views/Admin/Groups/Edit.cshtml` (rename + delete confirmation form)
@@ -144,10 +144,12 @@ _(no tasks)_
 - [ ] T042 [US3] Create `src/FundingPlatform.Infrastructure/Identity/ReviewerScopeProvider.cs` reading `ClaimsPrincipal` and DB to produce an `IReviewerScope` per request; register as scoped DI
 - [ ] T043 [US3] Modify `src/FundingPlatform.Application/Services/ReviewerQueueProjection.cs` (interface + impl) to accept `IReviewerScope`, compose the EF predicate, and remove any existing in-memory filtering — NFR-001 mandates query-level
 - [ ] T044 [US3] Modify the signing-inbox query in `src/FundingPlatform.Infrastructure/Services/SignedUploadService.GetInboxAsync` (and `IInboxQuery`/equivalent) to compose the same predicate; admin caller short-circuits as today
-- [ ] T045 [US3] Modify the reviewer applicant/application search service (locate via `SearchController` or the corresponding projection class — see plan § Project Structure) to compose the same predicate
+- [ ] T045 [US3] Extend `IReviewerQueueProjection` and `ReviewerQueueProjection` with an optional `string? searchTerm` parameter on `GetForReviewerAsync` / `GetRowsAsync`; when non-empty, narrow the query by case-insensitive contains-match on `Applicant.FirstName + ' ' + LastName` and `Applicant.LegalId`. The group-overlap predicate from T043 still applies first (no surface circumvents it). This is the FR-014 reviewer-side search surface.
+- [ ] T045a [P] [US3] Render a small text-search input on `src/FundingPlatform.Web/Views/Review/Index.cshtml` (or wherever the queue partial lives) bound to a `Search` query-string parameter, posting back to the same `Index` action; localized label/placeholder via `AdminUsersResources` (or a new `ReviewerQueueResources.cs` if no shared file exists)
 - [ ] T046 [US3] Modify `src/FundingPlatform.Web/Controllers/ReviewController.cs` `Review(int id)` and any signing-detail action to enforce overlap server-side; deny with 403 when scope is non-admin and the application's applicant has no shared group; applicant-self-access path remains as it is today
 - [ ] T047 [P] [US3] Add or extend `tests/FundingPlatform.Tests.E2E/PageObjects/ReviewQueuePage.cs` and a new `SigningInboxPage.cs` if missing, to support assertions on the displayed applicant set
-- [ ] T048 [US3] Create `tests/FundingPlatform.Tests.E2E/Tests/ReviewerScopeTests.cs` exercising all five acceptance scenarios from spec.md Story 3 (single-group reviewer; out-of-scope detail URL → 403; applicant own access; admin bypass on every surface; reviewer with zero memberships sees empty queue and 403 on detail)
+- [ ] T048 [US3] Create `tests/FundingPlatform.Tests.E2E/Tests/ReviewerScopeTests.cs` exercising all five acceptance scenarios from spec.md Story 3 (single-group reviewer; out-of-scope detail URL → 403; applicant own access; admin bypass on every surface; reviewer with zero memberships sees empty queue and 403 on detail) plus a sixth scenario asserting the queue search box narrows results and still respects scope (FR-014)
+- [ ] T048a [US3] Add an integration test covering NFR-003 explicitly: sign in as a reviewer with one group, snapshot the queue, then have an admin remove that group via `IUserAdministrationService.UpdateAsync`, then on the very next request from the reviewer (no sign-out, no token refresh) confirm the queue is empty and a previously-allowed application detail returns 403. Lives in `tests/FundingPlatform.Tests.Integration/ReviewerScopeNextRequestTests.cs`.
 
 **Checkpoint**: Story 3 is demonstrable; the visible reviewer experience is now scoped.
 
@@ -166,7 +168,7 @@ _(no tasks)_
 
 ### Implementation for User Story 4
 
-- [ ] T051 [US4] Verify (no implementation expected — cascade is configured by `T010` and the dacpac FK in `T002`): document in `tests/FundingPlatform.Tests.Integration/GroupDeletionCascadeTests.cs` an explicit assertion that the EF round-trip and the dacpac shape both deliver the cascade. Open a follow-up implementation task only if the assertion fails. (No new production code is expected here.)
+- [ ] T051 [US4] Add an explicit cascade-shape assertion to `tests/FundingPlatform.Tests.Integration/GroupDeletionCascadeTests.cs`: query `INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS` for the `UserGroupMemberships → Groups` FK and assert `DELETE_RULE = 'CASCADE'`; assert the same via EF metadata (`Model.FindEntityType<UserGroupMembership>().GetForeignKeys()`). If either assertion fails, the test fails and the engineer MUST fix `dbo.UserGroupMemberships.sql` or `UserGroupMembershipConfiguration.cs` before the story can be marked complete. No new production code is expected if both shapes already match `T002` + `T010`.
 
 **Checkpoint**: Story 4 is demonstrable. Feature scope is complete.
 

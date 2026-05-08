@@ -24,7 +24,7 @@ Technical approach: a `Group` aggregate plus a `UserGroupMembership` join entity
 - NFR-003 — membership changes take effect on the next request without forcing sign-out.
 - NFR-004 — all new copy localized in es-CR via the existing static resource-class pattern.
 - NFR-005 — group create/rename/delete and user-membership changes recorded with admin id + timestamp.
-**Scale/Scope**: Internal admin tool. Group count ≤ low tens. Users ≤ low hundreds for the foreseeable future. Surfaces touched: 1 new admin-area module (Groups CRUD), 1 modified admin form (Users), 4 reviewer-facing list/detail surfaces.
+**Scale/Scope**: Internal admin tool. Group count ≤ low tens. Users ≤ low hundreds for the foreseeable future. Surfaces touched: 1 new admin-area module (Groups CRUD), 1 modified admin form (Users), 3 reviewer-facing list/detail surfaces (queue — gains an FR-014 text-search input; signing inbox; application detail authorization).
 
 ## Constitution Check
 
@@ -93,9 +93,8 @@ src/
 │   ├── Audit/
 │   │   └── AdminAuditWriter.cs                   # NEW
 │   └── Services/                                 # MODIFIED — push group-overlap predicate into:
-│       ├── ReviewerQueueProjection.cs            # MODIFIED (FR-011)
+│       ├── ReviewerQueueProjection.cs            # MODIFIED (FR-011, FR-014 — queue gains a text-search parameter)
 │       ├── SignedUploadService.cs                # MODIFIED (FR-013)
-│       ├── ApplicantSearchService.cs             # MODIFIED or NEW (FR-014)
 │       └── GroupService.cs                       # NEW — implements IGroupService
 ├── FundingPlatform.Web/
 │   ├── Controllers/Admin/

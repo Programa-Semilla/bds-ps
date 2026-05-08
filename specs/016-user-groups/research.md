@@ -105,11 +105,16 @@ small `IReviewerAccessGuard.CanReview(application, scope)` that runs the
 identical predicate in-process against the loaded entity, so query and
 authorization stay in sync.
 
-**Rationale**: One shared predicate shape for the four reviewer surfaces and
-the detail check satisfies NFR-001 (query-level filtering on every listing
-surface) and NFR-002 (identical server-side check on the detail page).
-Admins are short-circuited cleanly. The predicate is small enough to
-EF-translate without `AsEnumerable()` materialization.
+**Rationale**: One shared predicate shape for the reviewer surfaces (queue,
+signing inbox, application detail) and the detail-page authorization check
+satisfies NFR-001 (query-level filtering on every listing surface) and
+NFR-002 (identical server-side check on the detail page). Admins are
+short-circuited cleanly. The predicate is small enough to EF-translate
+without `AsEnumerable()` materialization. FR-014's "search" surface is the
+queue itself: the queue gains a text-search input that composes with the
+group-overlap predicate inside the same projection — no separate search
+service exists today, and adding one would be premature given the queue is
+the single reviewer-facing listing surface.
 
 **Alternatives rejected**:
 
