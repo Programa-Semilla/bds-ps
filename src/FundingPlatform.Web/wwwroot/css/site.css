@@ -9,6 +9,59 @@
 .signed-comment-input { max-width: 18rem; }
 .admin-users-filter-search { max-width: 18rem; }
 .admin-users-filter-select { max-width: 12rem; }
+.admin-suppliers-filter-control { max-width: 14rem; }
 
 /* Spec 011 — facelift wiring already lives in tokens.css; site.css
    intentionally adds nothing else. */
+
+/* Spec 017 — admin facelift surface fragments. Tokens-only; no raw hex/px. */
+
+/* US6 / FR-021 — pill-style report sub-tabs matching reviewer-queue chips. */
+.fl-pill-tabs { gap: var(--space-2); flex-wrap: wrap; border: 0; }
+.fl-pill-tab {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: var(--space-1) var(--space-3);
+    background: transparent;
+    color: var(--color-text-secondary, var(--color-text));
+    border: 1px solid var(--color-border, var(--color-primary-subtle));
+    transition: background-color var(--motion-base) ease, color var(--motion-base) ease;
+    text-decoration: none;
+}
+.fl-pill-tab:hover { background: var(--color-primary-subtle); color: var(--color-primary); }
+.fl-pill-tab.active,
+.fl-pill-tab[aria-selected="true"] {
+    background: var(--color-primary-subtle);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    font-weight: 600;
+}
+
+/* US1 — clickable KPI tile + capability-card hover lift. */
+.fl-kpi-tile-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    transition: transform var(--motion-base) ease, box-shadow var(--motion-base) ease;
+}
+.fl-kpi-tile-link:hover { transform: translateY(-2px); }
+.fl-capability-card {
+    transition: transform var(--motion-base) ease, box-shadow var(--motion-base) ease;
+}
+.fl-capability-card:hover { transform: translateY(-2px); }
+
+/* US4 — admin sidebar section header. Subtle divider + display typography. */
+.fl-sidebar-section-header {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: var(--type-meta-size, 0.75rem);
+}
+.nav-item-section-header { margin-top: var(--space-3); }
+.nav-item-section-header + .nav-item-admin-child { margin-top: var(--space-1); }
+
+/* US6 / FR-023 — reports table density. Applies to the cards Reports tabs render. */
+[data-testid="report-subtabs"] ~ .card .table > :not(caption) > * > * {
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+}

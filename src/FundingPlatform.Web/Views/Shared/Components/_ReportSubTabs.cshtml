@@ -1,4 +1,10 @@
 @model string
+@*
+    Spec 010 + spec 017 (US6 / FR-021) — pill-style report tabs matching the
+    reviewer-queue filter chip styling. Selected chip uses --color-primary-subtle
+    background + --color-primary text, unselected chips use a muted outline.
+    Tokens-only via the fl-pill-tab class defined in tokens.css.
+*@
 @{
     var activeTab = Model;
     var tabs = new (string Key, string Label, string Action)[]
@@ -9,15 +15,15 @@
         ("Aging",        "Antigüedad",        "Aging"),
     };
 }
-<ul class="nav nav-tabs" data-testid="report-subtabs">
+<nav class="fl-pill-tabs nav nav-pills" role="tablist" data-testid="report-subtabs">
     @foreach (var t in tabs)
     {
         var active = string.Equals(activeTab, t.Key, StringComparison.OrdinalIgnoreCase);
-        <li class="nav-item">
-            <a class="nav-link @(active ? "active" : null)"
-               data-testid="report-subtab"
-               data-tab="@t.Key"
-               href="@Url.Action(t.Action, "AdminReports")">@t.Label</a>
-        </li>
+        <a class="fl-pill-tab nav-link @(active ? "active" : null)"
+           role="tab"
+           aria-selected="@(active ? "true" : "false")"
+           data-testid="report-subtab"
+           data-tab="@t.Key"
+           href="@Url.Action(t.Action, "AdminReports")">@t.Label</a>
     }
-</ul>
+</nav>
