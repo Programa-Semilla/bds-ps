@@ -290,3 +290,21 @@ BEGIN
     END CATCH;
 END;
 GO
+
+-- =============================================================================
+-- Spec 016: Group-Scoped Reviewer Access — demo seed catalog (idempotent MERGE).
+-- The post-deploy script seeds three groups so reviewer-side scope tests and
+-- demo flows have a known catalog to work with. Memberships are not seeded
+-- here; admins assign users via the UI (E2E tests do the same).
+-- =============================================================================
+MERGE INTO [dbo].[Groups] AS tgt
+USING (VALUES
+    (N'Norte'),
+    (N'Sur'),
+    (N'Centro')
+) AS src ([Name])
+ON tgt.[Name] = src.[Name]
+WHEN NOT MATCHED THEN
+    INSERT ([Name], [CreatedAt], [UpdatedAt])
+    VALUES (src.[Name], SYSUTCDATETIME(), SYSUTCDATETIME());
+GO

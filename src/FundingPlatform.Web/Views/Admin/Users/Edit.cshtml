@@ -1,3 +1,4 @@
+@using FundingPlatform.Web.Resources
 @using FundingPlatform.Web.ViewModels.Admin
 @model AdminUserEditViewModel
 @{
@@ -10,6 +11,7 @@
         "Admin" => "Administrador",
         _ => r,
     };
+    var selectedIds = new HashSet<int>(Model.GroupIds ?? Array.Empty<int>());
 }
 
 <div data-testid="admin-area">
@@ -25,6 +27,7 @@
     <form method="post" asp-action="Edit" asp-route-id="@Model.UserId" class="row" data-testid="admin-user-edit-form">
         @Html.AntiForgeryToken()
         <input asp-for="UserId" type="hidden" />
+        <input asp-for="ConcurrencyStamp" type="hidden" data-testid="admin-user-concurrency-stamp" />
         <div asp-validation-summary="All" class="text-danger mb-3"></div>
 
         <div class="col-md-6 mb-3">
@@ -63,6 +66,28 @@
             <span asp-validation-for="LegalId" class="text-danger"></span>
         </div>
 
+        <div class="col-md-12 mb-3" data-testid="admin-user-groups-field" id="groupsField">
+            <label class="form-label" asp-for="GroupIds">@AdminUsersResources.GroupSelectorLabel</label>
+            @if (Model.AvailableGroups.Count == 0)
+            {
+                <div class="text-muted" data-testid="admin-user-groups-empty">
+                    @AdminUsersResources.GroupSelectorEmptyOption
+                </div>
+            }
+            else
+            {
+                <select asp-for="GroupIds" class="form-select" multiple size="@Math.Min(8, Model.AvailableGroups.Count)"
+                        data-testid="admin-user-groups-select">
+                    @foreach (var opt in Model.AvailableGroups)
+                    {
+                        <option value="@opt.Id" selected="@selectedIds.Contains(opt.Id)">@opt.Name</option>
+                    }
+                </select>
+            }
+            <small class="form-text text-muted">@AdminUsersResources.GroupSelectorHelpText</small>
+            <span asp-validation-for="GroupIds" class="text-danger" data-testid="admin-user-groups-error"></span>
+        </div>
+
         <div class="d-flex justify-content-between mt-2">
             <a class="btn btn-outline-secondary"
                data-testid="admin-user-edit-reset-password-link"
@@ -81,13 +106,20 @@
     (function () {
         var roleSelect = document.getElementById('roleSelect');
         var legalField = document.getElementById('legalIdField');
-        function updateLegalIdVisibility() {
-            if (!roleSelect || !legalField) return;
-            legalField.style.display = roleSelect.value === 'Applicant' ? '' : 'none';
+        var groupsField = document.getElementById('groupsField');
+        function updateVisibility() {
+            if (!roleSelect) return;
+            var role = roleSelect.value;
+            if (legalField) {
+                legalField.style.display = role === 'Applicant' ? '' : 'none';
+            }
+            if (groupsField) {
+                groupsField.style.display = role === 'Admin' ? 'none' : '';
+            }
         }
         if (roleSelect) {
-            roleSelect.addEventListener('change', updateLegalIdVisibility);
-            updateLegalIdVisibility();
+            roleSelect.addEventListener('change', updateVisibility);
+            updateVisibility();
         }
     })();
 </script>

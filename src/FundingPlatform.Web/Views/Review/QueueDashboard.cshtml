@@ -1,6 +1,7 @@
 @using FundingPlatform.Application.DTOs
 @using FundingPlatform.Application.Services
 @using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
 @inject IReviewerCopyProvider Copy
 @model ReviewerQueueDto
 @{
@@ -13,6 +14,8 @@
                    && Model.Kpis.AwaitingYourReview == 0
                    && Model.Kpis.InProgress == 0
                    && Model.Kpis.Aging == 0;
+    // Spec 016 / FR-014 — round-trip the search term so the input keeps the value.
+    var currentSearch = (ViewData["ReviewQueue.Search"] as string) ?? "";
 }
 
 <div class="container py-3" data-testid="reviewer-queue-dashboard">
@@ -37,6 +40,28 @@
             @await Html.PartialAsync("../Shared/Components/_EventTimeline", activityVm)
         </section>
     }
+
+    @* Spec 016 / FR-014 — search input over applicant name + legal id. Composes
+       with the existing chip filter (status) and the group-overlap predicate. *@
+    <form method="get" asp-action="Index" class="mt-3 d-flex gap-2 flex-wrap"
+          data-testid="reviewer-queue-search-form">
+        <input type="search" name="search" value="@currentSearch"
+               placeholder="@ReviewerQueueResources.SearchPlaceholder"
+               class="form-control" style="max-width: 320px;"
+               aria-label="@ReviewerQueueResources.SearchLabel"
+               data-testid="reviewer-queue-search-input" />
+        <button type="submit" class="btn btn-secondary"
+                data-testid="reviewer-queue-search-submit">
+            @ReviewerQueueResources.SearchSubmit
+        </button>
+        @if (!string.IsNullOrEmpty(currentSearch))
+        {
+            <a class="btn btn-link" href="@Url.Action("Index", "Review")"
+               data-testid="reviewer-queue-search-clear">
+                @ReviewerQueueResources.SearchClear
+            </a>
+        }
+    </form>
 
     <section class="mt-4" data-testid="reviewer-queue">
         @if (isEmpty)

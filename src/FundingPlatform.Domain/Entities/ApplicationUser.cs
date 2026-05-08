@@ -9,6 +9,13 @@ public class ApplicationUser : IdentityUser
     public bool IsSystemSentinel { get; init; }
     public bool MustChangePassword { get; set; }
 
+    /// <summary>
+    /// Spec 016 — group memberships. Admins MUST never carry rows here
+    /// (FR-009); enforcement is at the Web/Service boundary, not the column.
+    /// </summary>
+    public virtual ICollection<UserGroupMembership> Memberships { get; private set; }
+        = new List<UserGroupMembership>();
+
     public ApplicationUser()
     {
     }

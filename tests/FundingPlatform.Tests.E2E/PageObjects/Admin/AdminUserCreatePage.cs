@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.PageObjects.Admin;
@@ -43,6 +44,28 @@ public class AdminUserCreatePage : AdminBasePage
         if (legalId is not null)
         {
             await LegalId.FillAsync(legalId);
+        }
+
+        // Spec 016 / FR-008 — every Applicant or Reviewer MUST have at least
+        // one group. Existing pre-016 tests pass only the basic fields; the
+        // POM defaults to selecting all visible groups so legacy callers stay
+        // green. Tests that need to assert group-scoped behavior call
+        // SelectGroupsAsync explicitly *after* this and overwrite the default.
+        if (!string.Equals(role, "Admin", System.StringComparison.Ordinal))
+        {
+            var formPage = new AdminUserFormPage(Page);
+            if (await formPage.GroupsSelect.CountAsync() > 0)
+            {
+                var allValues = await formPage.GroupsSelect.EvaluateAsync<string[]>(
+                    "el => Array.from(el.options).map(o => o.value)");
+                if (allValues is { Length: > 0 })
+                {
+                    var optionValues = allValues
+                        .Select(v => new SelectOptionValue { Value = v })
+                        .ToArray();
+                    await formPage.GroupsSelect.SelectOptionAsync(optionValues);
+                }
+            }
         }
     }
 

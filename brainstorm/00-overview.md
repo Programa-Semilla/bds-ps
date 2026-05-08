@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-04-30
+Last updated: 2026-05-07
 
 ## Sessions
 
@@ -19,6 +19,7 @@ Last updated: 2026-04-30
 | 11 | 2026-04-27 | warm-modern-facelift | spec-created | 011 |
 | 12 | 2026-04-29 | es-cr-localization | spec-created | 012 |
 | 13 | 2026-04-30 | supplier-catalog | spec-created | 013 |
+| 14 | 2026-05-07 | user-groups | spec-created | 016 |
 
 ## Open Threads
 
@@ -110,6 +111,10 @@ Last updated: 2026-04-30
 - PendingReview suppliers when their parent application is sent back to draft — spec assumes they do not revert to Draft; admin retains control (from #13)
 - Applicant notification when their draft supplier is verified or rejected — out of v1 scope; potential follow-up wow-moment per spec 011 patterns (from #13)
 - Admin queue count badge on the admin dashboard — out of v1 scope; cheap follow-up if queue lag becomes a UX bottleneck (from #13)
+- Audit mechanism for group lifecycle and user-group membership changes — reuse existing audit pathway or add minimal one; pin during planning (from #14)
+- Demo seed group names — working list "Norte / Sur / Centro"; final names locked at plan time (from #14)
+- FR-014 reviewer-facing search-surface inventory — confirm at plan time which existing search endpoints exist; if none, restate FR-014 as forward-looking (from #14)
+- Domain-level placement of the "≥1 group for non-admin" invariant — currently form-level; consider lifting into `User.SetGroups(role, groups)` per Rich Domain Model (from #14)
 
 ## Closed Threads
 

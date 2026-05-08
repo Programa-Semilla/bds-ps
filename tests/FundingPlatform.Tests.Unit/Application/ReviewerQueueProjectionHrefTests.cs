@@ -1,4 +1,5 @@
 using FundingPlatform.Application.DTOs;
+using FundingPlatform.Application.Reviewer;
 using FundingPlatform.Application.Routing;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Entities;
@@ -27,6 +28,8 @@ public class ReviewerQueueProjectionHrefTests
             reviewerId: "reviewer-1",
             firstName: "Reviewer",
             filter: ReviewerFilter.All,
+            scope: ReviewerScope.Admin,
+            searchTerm: null,
             ct: CancellationToken.None);
 
         Assert.That(dto.Rows, Has.Count.EqualTo(1));
@@ -44,6 +47,8 @@ public class ReviewerQueueProjectionHrefTests
             reviewerId: "reviewer-1",
             firstName: "Reviewer",
             filter: ReviewerFilter.All,
+            scope: ReviewerScope.Admin,
+            searchTerm: null,
             ct: CancellationToken.None);
 
         Assert.That(dto.RecentActivity, Is.Not.Empty);
@@ -79,11 +84,14 @@ public class ReviewerQueueProjectionHrefTests
         }
 
         var repo = Substitute.For<IApplicationRepository>();
-        repo.GetByStatePagedAsync(ApplicationState.Submitted, 1, 200)
+        // Spec 016 — projection now calls the scoped variant. Match every state
+        // and pass the admin-shaped hint so the test exercises the
+        // short-circuit path (this test is about routing, not group scoping).
+        repo.GetByStateForReviewerAsync(ApplicationState.Submitted, Arg.Any<ReviewerScopeHint>(), 1, 200, Arg.Any<string?>())
             .Returns((new List<AppEntity> { app }, TotalCount: 1));
-        repo.GetByStatePagedAsync(ApplicationState.UnderReview, 1, 200)
+        repo.GetByStateForReviewerAsync(ApplicationState.UnderReview, Arg.Any<ReviewerScopeHint>(), 1, 200, Arg.Any<string?>())
             .Returns((new List<AppEntity>(), 0));
-        repo.GetByStatePagedAsync(ApplicationState.Resolved, 1, 200)
+        repo.GetByStateForReviewerAsync(ApplicationState.Resolved, Arg.Any<ReviewerScopeHint>(), 1, 200, Arg.Any<string?>())
             .Returns((new List<AppEntity>(), 0));
 
         var config = Substitute.For<ISystemConfigurationRepository>();

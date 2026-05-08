@@ -64,7 +64,7 @@
       "version": "1.0.0",
       "source": "local",
       "manifest_hash": "sha256:eabdad5cd992c34a52579ae5e691062e08c3a63345826f5559ddf4576fed5fdf",
-      "enabled": true,
+      "enabled": false,
       "priority": 10,
       "registered_commands": {
         "claude": [

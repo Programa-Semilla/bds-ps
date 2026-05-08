@@ -148,6 +148,54 @@ UPDATE dbo.Applications SET State = 6, UpdatedAt = @now WHERE Id = @appId;";
     }
 
     /// <summary>
+    /// Spec 016 — seeds a Pending signed upload for an application so the
+    /// reviewer signing inbox has a row to surface (or not, when scoped out).
+    /// Inserts the FundingAgreement row first (idempotent) and then a
+    /// SignedUpload with Status = 0 (Pending). Returns the signed-upload's
+    /// BlobKey for cleanup.
+    /// </summary>
+    public static async Task<string> SeedPendingSignedUploadAsync(
+        string connectionString,
+        int applicationId,
+        string generatedByUserEmail,
+        string applicantUserEmail,
+        BlobServiceClient? blobs = null)
+    {
+        await SeedGeneratedAgreementAsync(connectionString, applicationId, generatedByUserEmail, blobs);
+
+        using var conn = new SqlConnection(connectionString);
+        await conn.OpenAsync();
+
+        var applicantUserId = await GetUserIdByEmailAsync(conn, applicantUserEmail);
+        var agreementId = await GetFundingAgreementIdAsync(conn, applicationId);
+
+        var signedBlobKey = BuildBlobKey(
+            container: SignedFundingAgreementsContainer,
+            ownerUserId: applicantUserId,
+            entityId: agreementId.ToString());
+
+        await TryUploadPlaceholderAsync(blobs, SignedFundingAgreementsContainer, signedBlobKey);
+
+        // Status = 0 (Pending) per SignedUploadStatus enum.
+        const string insertUploadSql = @"
+INSERT INTO dbo.SignedUploads
+    (FundingAgreementId, UploaderUserId, GeneratedVersionAtUpload, FileName, ContentType, Size, BlobKey, UploadedAtUtc, Status)
+VALUES
+    (@agreementId, @uploaderUserId, 1, @fileName, 'application/pdf', @size, @blobKey, @uploadedAt, 0);";
+
+        using var cmd = new SqlCommand(insertUploadSql, conn);
+        cmd.Parameters.AddWithValue("@agreementId", agreementId);
+        cmd.Parameters.AddWithValue("@uploaderUserId", applicantUserId);
+        cmd.Parameters.AddWithValue("@fileName", $"signed-pending-{applicationId}.pdf");
+        cmd.Parameters.AddWithValue("@size", PlaceholderPdfBytes.LongLength);
+        cmd.Parameters.AddWithValue("@blobKey", signedBlobKey);
+        cmd.Parameters.AddWithValue("@uploadedAt", DateTime.UtcNow);
+        await cmd.ExecuteNonQueryAsync();
+
+        return signedBlobKey;
+    }
+
+    /// <summary>
     /// Inserts placeholder FundingAgreement rows for every ResponseFinalized application
     /// (state = 5) that does not yet have one. Used by the SC-010-A empty-state test to
     /// neutralize queue rows seeded by sibling test classes (ApplicantResponseTests,

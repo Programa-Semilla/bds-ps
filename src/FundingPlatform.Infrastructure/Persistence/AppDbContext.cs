@@ -34,6 +34,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Currency> Currencies => Set<Currency>();
     public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
 
+    // Spec 016 — group catalog, user-group memberships, admin audit log.
+    public DbSet<Group> Groups => Set<Group>();
+    public DbSet<UserGroupMembership> UserGroupMemberships => Set<UserGroupMembership>();
+    public DbSet<AdminAuditEvent> AdminAuditEvents => Set<AdminAuditEvent>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

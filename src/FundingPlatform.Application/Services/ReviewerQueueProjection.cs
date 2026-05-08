@@ -1,4 +1,5 @@
 using FundingPlatform.Application.DTOs;
+using FundingPlatform.Application.Reviewer;
 using FundingPlatform.Application.Routing;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
@@ -11,11 +12,27 @@ namespace FundingPlatform.Application.Services;
 /// Spec 011 US4 (FR-052..FR-060) — projects the reviewer queue. The Aging KPI
 /// uses spec-010's <c>AgingThresholdDays</c> SystemConfiguration as the single
 /// source of truth (FR-053, SC-010).
+///
+/// Spec 016 — every fetch composes an <see cref="IReviewerScope"/> so the
+/// queue, signing inbox, and search apply the group-overlap predicate at the
+/// EF query level (NFR-001). FR-014 adds a search-term parameter.
 /// </summary>
 public interface IReviewerQueueProjection
 {
-    Task<ReviewerQueueDto> GetForReviewerAsync(string reviewerId, string firstName, ReviewerFilter filter, CancellationToken ct);
-    Task<IReadOnlyList<ReviewerQueueRowDto>> GetRowsAsync(string reviewerId, ReviewerFilter filter, CancellationToken ct);
+    Task<ReviewerQueueDto> GetForReviewerAsync(
+        string reviewerId,
+        string firstName,
+        ReviewerFilter filter,
+        IReviewerScope scope,
+        string? searchTerm,
+        CancellationToken ct);
+
+    Task<IReadOnlyList<ReviewerQueueRowDto>> GetRowsAsync(
+        string reviewerId,
+        ReviewerFilter filter,
+        IReviewerScope scope,
+        string? searchTerm,
+        CancellationToken ct);
 }
 
 public sealed class ReviewerQueueProjection : IReviewerQueueProjection
@@ -44,22 +61,26 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
         string reviewerId,
         string firstName,
         ReviewerFilter filter,
+        IReviewerScope scope,
+        string? searchTerm,
         CancellationToken ct)
     {
         // Spec 011 v1 NOTE: per FR-069, no reviewer-assignment surface ships in v1
         // (no schema change FR-067, no per-reviewer ownership column on Application).
         // The platform's pre-existing model is "every Reviewer can view every
-        // UnderReview item"; this projection inherits that contract. The
-        // <c>reviewerId</c> parameter is wired through for a future-spec evolution
-        // that introduces explicit assignment.
+        // UnderReview item"; this projection inherits that contract. Spec 016
+        // narrows that contract to "every Reviewer can view every UnderReview
+        // item whose applicant shares at least one group" via the EF predicate
+        // composed below. Admin callers short-circuit (FR-015).
         var threshold = await GetAgingThresholdAsync();
+        var hint = new ReviewerScopeHint(scope.IsAdmin, scope.GroupIds);
         // Submitted apps haven't been opened yet; they must surface here so reviewers
         // can pick them up. The pre-spec-011 ReviewService.GetReviewQueueAsync also
         // queried Submitted — the queue dashboard needs the same scope to avoid
         // hiding work that has not yet transitioned to UnderReview.
-        var submitted   = await _applications.GetByStatePagedAsync(ApplicationState.Submitted, 1, 200);
-        var underReview = await _applications.GetByStatePagedAsync(ApplicationState.UnderReview, 1, 200);
-        var resolved    = await _applications.GetByStatePagedAsync(ApplicationState.Resolved, 1, 200);
+        var submitted   = await _applications.GetByStateForReviewerAsync(ApplicationState.Submitted, hint, 1, 200, searchTerm);
+        var underReview = await _applications.GetByStateForReviewerAsync(ApplicationState.UnderReview, hint, 1, 200, searchTerm);
+        var resolved    = await _applications.GetByStateForReviewerAsync(ApplicationState.Resolved, hint, 1, 200, searchTerm);
 
         var allCandidates = submitted.Items.Concat(underReview.Items).Concat(resolved.Items).ToList();
         var now = DateTimeOffset.UtcNow;
@@ -96,12 +117,18 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
             AgingThresholdDays: threshold);
     }
 
-    public async Task<IReadOnlyList<ReviewerQueueRowDto>> GetRowsAsync(string reviewerId, ReviewerFilter filter, CancellationToken ct)
+    public async Task<IReadOnlyList<ReviewerQueueRowDto>> GetRowsAsync(
+        string reviewerId,
+        ReviewerFilter filter,
+        IReviewerScope scope,
+        string? searchTerm,
+        CancellationToken ct)
     {
         var threshold = await GetAgingThresholdAsync();
-        var submitted   = await _applications.GetByStatePagedAsync(ApplicationState.Submitted, 1, 200);
-        var underReview = await _applications.GetByStatePagedAsync(ApplicationState.UnderReview, 1, 200);
-        var resolved    = await _applications.GetByStatePagedAsync(ApplicationState.Resolved, 1, 200);
+        var hint = new ReviewerScopeHint(scope.IsAdmin, scope.GroupIds);
+        var submitted   = await _applications.GetByStateForReviewerAsync(ApplicationState.Submitted, hint, 1, 200, searchTerm);
+        var underReview = await _applications.GetByStateForReviewerAsync(ApplicationState.UnderReview, hint, 1, 200, searchTerm);
+        var resolved    = await _applications.GetByStateForReviewerAsync(ApplicationState.Resolved, hint, 1, 200, searchTerm);
         var all = submitted.Items.Concat(underReview.Items).Concat(resolved.Items).ToList();
         return await ProjectRowsAsync(all, filter, threshold, DateTimeOffset.UtcNow);
     }

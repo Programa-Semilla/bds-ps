@@ -37,4 +37,15 @@ public class AdminUserCreateViewModel
     [StringLength(50, ErrorMessage = "La cédula debe tener máximo {1} caracteres.")]
     [Display(Name = "Cédula")]
     public string? LegalId { get; set; }
+
+    /// <summary>Spec 016 / FR-007 / FR-010 — selected group ids posted by the
+    /// multi-select. Empty when the resulting role is Admin (FR-009).</summary>
+    public int[] GroupIds { get; set; } = Array.Empty<int>();
+
+    /// <summary>Spec 016 — populated by the controller from the Group catalog
+    /// to render the multi-select. Not posted back.</summary>
+    public IReadOnlyList<AdminUserGroupOption> AvailableGroups { get; set; }
+        = Array.Empty<AdminUserGroupOption>();
 }
+
+public sealed record AdminUserGroupOption(int Id, string Name);

@@ -1,0 +1,35 @@
+@using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Admin.AdminGroupCreateViewModel
+@{
+    ViewData["Title"] = AdminGroupsResources.Breadcrumb_Create;
+}
+
+<div data-testid="admin-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: AdminGroupsResources.Breadcrumb_Create,
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem(AdminGroupsResources.Breadcrumb_Index, Url.Action("Index", "AdminGroups")),
+                new BreadcrumbItem(AdminGroupsResources.Breadcrumb_Create),
+            }))
+
+    <form method="post" asp-action="Create" class="row" data-testid="admin-group-create-form">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="All" class="text-danger mb-3" data-testid="admin-group-validation-summary"></div>
+
+        <div class="col-md-6 mb-3">
+            <label class="form-label" asp-for="Name">@AdminGroupsResources.Label_Name</label>
+            <input asp-for="Name" class="form-control" data-testid="admin-group-name-input" autofocus />
+            <span asp-validation-for="Name" class="text-danger" data-testid="admin-group-name-error"></span>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-2">
+            <a class="btn btn-secondary" href="@Url.Action("Index", "AdminGroups")">@AdminGroupsResources.Action_Cancel</a>
+            <button type="submit" class="btn btn-primary" data-testid="admin-group-create-submit">
+                @AdminGroupsResources.Action_Save
+            </button>
+        </div>
+    </form>
+</div>

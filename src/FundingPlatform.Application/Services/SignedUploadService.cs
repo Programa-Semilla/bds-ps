@@ -489,6 +489,7 @@ public class SignedUploadService
         var (rows, totalCount) = await _signedUploadRepository.GetPendingInboxAsync(
             reviewerUserId: query.CurrentUserId,
             isAdmin: query.IsAdministrator,
+            reviewerGroupIds: query.ReviewerGroupIds,
             page: query.Page,
             pageSize: query.PageSize);
 
