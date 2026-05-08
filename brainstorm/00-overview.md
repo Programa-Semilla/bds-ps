@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-07
+Last updated: 2026-05-08
 
 ## Sessions
 
@@ -20,6 +20,7 @@ Last updated: 2026-05-07
 | 12 | 2026-04-29 | es-cr-localization | spec-created | 012 |
 | 13 | 2026-04-30 | supplier-catalog | spec-created | 013 |
 | 14 | 2026-05-07 | user-groups | spec-created | 016 |
+| 15 | 2026-05-08 | admin-ux-facelift | spec-created | 017 |
 
 ## Open Threads
 
@@ -115,6 +116,14 @@ Last updated: 2026-05-07
 - Demo seed group names — working list "Norte / Sur / Centro"; final names locked at plan time (from #14)
 - FR-014 reviewer-facing search-surface inventory — confirm at plan time which existing search endpoints exist; if none, restate FR-014 as forward-looking (from #14)
 - Domain-level placement of the "≥1 group for non-admin" invariant — currently form-level; consider lifting into `User.SetGroups(role, groups)` per Rich Domain Model (from #14)
+- FR-015: pin "section header click target" vs "Panel sub-entry inside the section" — defer to planning (from #15)
+- Pending-supplier failure-mode (zero count / "—" placeholder / error tile) when source is missing or stale — pin during planning (from #15)
+- Pending-supplier source enum value — confirm spec-013 supplier-status mapping during planning (from #15)
+- Governance FR/SC for "future admin specs must update the dashboard's capability cards" — open question; currently captured only as edge-case mitigation note (from #15)
+- Naming the dashboard projection (e.g., `IAdminDashboardProjection`) in the spec vs deferring to plan (from #15)
+- Section grouping cardinality — three sections vs four (split Catálogo into entity catalog vs config catalog) — defaults to three (from #15)
+- Whether route normalization should also touch class names + namespaces — currently attribute-only; revisit only if a future "admin module reorganization" spec is queued (from #15)
+- Whether sub-surfaces that already passed spec 011's sweep need a fresh manual checklist walk vs a quick re-grep — defaults to manual walk (from #15)
 
 ## Closed Threads
 
