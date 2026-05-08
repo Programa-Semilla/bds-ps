@@ -30,6 +30,10 @@ public static class DependencyInjection
         services.AddSingleton<IReviewerCopyProvider, ReviewerCopyProvider>();
         services.AddSingleton<ICeremonyCopyProvider, CeremonyCopyProvider>();
 
+        // Spec 017 — admin dashboard projection + activity feed copy provider.
+        services.AddScoped<IAdminDashboardProjection, AdminDashboardProjection>();
+        services.AddSingleton<IAdminAuditEventCopyProvider, AdminAuditEventCopyProvider>();
+
         if (configuration is not null)
         {
             services.Configure<SignedUploadOptions>(

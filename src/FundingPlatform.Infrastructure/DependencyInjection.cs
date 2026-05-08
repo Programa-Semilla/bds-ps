@@ -63,6 +63,10 @@ public static class DependencyInjection
         services.AddScoped<Application.Admin.Groups.IGroupService, Services.GroupService>();
         services.AddScoped<Application.Reviewer.IReviewerScopeProvider, ReviewerScopeProvider>();
 
+        // Spec 017 — admin dashboard reader + activity feed source + user-store reader.
+        services.AddScoped<Application.Services.IAdminAuditEventReader, Persistence.AdminAuditEventReader>();
+        services.AddScoped<Application.Services.IUserStoreReader, Identity.UserStoreReader>();
+
         return services;
     }
 }

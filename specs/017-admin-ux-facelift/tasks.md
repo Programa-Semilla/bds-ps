@@ -30,9 +30,9 @@ Single-tree layout (matches `CLAUDE.md`):
 
 **Purpose**: No new project scaffolding required (existing solution + Aspire host). This phase records the prep checks each implementer runs once.
 
-- [ ] T001 Verify `dotnet build FundingPlatform.slnx` is green on `017-admin-ux-facelift` branch before starting (baseline check)
-- [ ] T002 Verify `git diff --stat src/FundingPlatform.Database/` is empty (SC-016 baseline gate)
-- [ ] T003 [P] Capture pre-spec wire-weight baseline by running `scripts/asset-budget-check.sh` and saving output to `specs/017-admin-ux-facelift/baseline-wire-weight.txt` (used to verify SC-020 < 30 KB delta after merge)
+- [x] T001 Verify `dotnet build FundingPlatform.slnx` is green on `017-admin-ux-facelift` branch before starting (baseline check)
+- [x] T002 Verify `git diff --stat src/FundingPlatform.Database/` is empty (SC-016 baseline gate)
+- [x] T003 [P] Capture pre-spec wire-weight baseline by running `scripts/verify-asset-budget.sh` and saving output to `specs/017-admin-ux-facelift/baseline-wire-weight.txt` (used to verify SC-020 < 30 KB delta after merge)
 
 ---
 
@@ -42,17 +42,17 @@ Single-tree layout (matches `CLAUDE.md`):
 
 **⚠️ CRITICAL**: No user-story phase begins until Phase 2 is complete.
 
-- [ ] T004 Create DTO records in `src/FundingPlatform.Application/DTOs/AdminDashboardDto.cs`: `AdminDashboardDto`, `AdminDashboardKpis`, `CapabilitySection`, `CapabilityCard`, `AdminEvent` (per data-model.md)
-- [ ] T005 [P] Create `src/FundingPlatform.Application/Services/IAdminDashboardProjection.cs` with single `Task<AdminDashboardDto> GetAsync(CancellationToken ct)` method (per R4)
-- [ ] T006 [P] Create `src/FundingPlatform.Application/Services/IAdminAuditEventReader.cs` with `Task<IReadOnlyList<AdminAuditEvent>> GetRecentAsync(int take, TimeSpan window, CancellationToken ct)` method
-- [ ] T007 [P] Create `src/FundingPlatform.Application/Services/IAdminAuditEventCopyProvider.cs` with `string Format(string action, string targetType, string? payloadJson)` method (per R5)
-- [ ] T008 Implement `src/FundingPlatform.Application/Services/AdminAuditEventCopyProvider.cs` with es-CR mappings for the 4 `AdminAuditEvent` action constants (`group.create`, `group.rename`, `group.delete`, `user.memberships.update`); voice-guide-compliant copy
-- [ ] T009 Implement `src/FundingPlatform.Application/Services/AdminDashboardProjection.cs` with constructor-injected dependencies (`ISupplierRepository`, `AdminLegacyQuotationsService` or its repo equivalent, `IApplicationRepository` for aging, `IUserStoreReader`, `IAdminAuditEventReader`, `IAdminAuditEventCopyProvider`); 4 private sub-projection methods; degrade-to-zero failure mode per R2 (try/catch around each sub-projection, emit WARN-level structured log entry tagged `AdminDashboardKpiProjectionFailed { kpi, reason }`, return `0`)
-- [ ] T010 Implement `src/FundingPlatform.Infrastructure/Persistence/AdminAuditEventReader.cs` (`: IAdminAuditEventReader`) reading top-N `AdminAuditEvent` rows by `OccurredAt desc` within the given window
-- [ ] T011 Add `IUserStoreReader.GetActiveUserCountAsync` (or equivalent) excluding sentinel; implement in the existing user-store reader infrastructure consistent with spec 009 sentinel-exclusion predicate
-- [ ] T012 Wire DI in `src/FundingPlatform.Application/DependencyInjection.cs` and `src/FundingPlatform.Infrastructure/DependencyInjection.cs`: register `IAdminDashboardProjection` → `AdminDashboardProjection`, `IAdminAuditEventReader` → `AdminAuditEventReader`, `IAdminAuditEventCopyProvider` → `AdminAuditEventCopyProvider`
-- [ ] T013 [P] Add unit tests `tests/FundingPlatform.Tests.Unit/Application/Services/AdminAuditEventCopyProviderTests.cs` covering all 4 action mappings + es-CR phrasing assertions
-- [ ] T014 [P] Add unit tests `tests/FundingPlatform.Tests.Unit/Application/Services/AdminDashboardProjectionTests.cs` covering: happy-path (mocked deps return counts), each sub-projection failure path (degrade to 0 + log emitted), DTO shape
+- [x] T004 Create DTO records in `src/FundingPlatform.Application/DTOs/AdminDashboardDto.cs`: `AdminDashboardDto`, `AdminDashboardKpis`, `CapabilitySection`, `CapabilityCard`, `AdminEvent` (per data-model.md)
+- [x] T005 [P] Create `src/FundingPlatform.Application/Services/IAdminDashboardProjection.cs` with single `Task<AdminDashboardDto> GetAsync(CancellationToken ct)` method (per R4)
+- [x] T006 [P] Create `src/FundingPlatform.Application/Services/IAdminAuditEventReader.cs` with `Task<IReadOnlyList<AdminAuditEvent>> GetRecentAsync(int take, TimeSpan window, CancellationToken ct)` method
+- [x] T007 [P] Create `src/FundingPlatform.Application/Services/IAdminAuditEventCopyProvider.cs` with `string Format(string action, string targetType, string? payloadJson)` method (per R5)
+- [x] T008 Implement `src/FundingPlatform.Application/Services/AdminAuditEventCopyProvider.cs` with es-CR mappings for the 4 `AdminAuditEvent` action constants (`group.create`, `group.rename`, `group.delete`, `user.memberships.update`); voice-guide-compliant copy
+- [x] T009 Implement `src/FundingPlatform.Application/Services/AdminDashboardProjection.cs` with constructor-injected dependencies (`ISupplierRepository`, `IAdminReportsService` for aging, `IQuotationLegacyRepository` for legacy, `IUserStoreReader`, `IAdminAuditEventReader`, `IAdminAuditEventCopyProvider`); 4 private sub-projection methods; degrade-to-zero failure mode per R2 (try/catch around each sub-projection, emit WARN-level structured log entry tagged `AdminDashboardKpiProjectionFailed`, return `0`)
+- [x] T010 Implement `src/FundingPlatform.Infrastructure/Persistence/AdminAuditEventReader.cs` (`: IAdminAuditEventReader`) reading top-N `AdminAuditEvent` rows by `OccurredAt desc` within the given window
+- [x] T011 Add `IUserStoreReader.GetActiveUserCountAsync` + `GetDisplayNameAsync` excluding sentinel via the existing global query filter; implementation `UserStoreReader` in `src/FundingPlatform.Infrastructure/Identity/UserStoreReader.cs`
+- [x] T012 Wire DI in `src/FundingPlatform.Application/DependencyInjection.cs` and `src/FundingPlatform.Infrastructure/DependencyInjection.cs`: register `IAdminDashboardProjection` → `AdminDashboardProjection`, `IAdminAuditEventCopyProvider` → `AdminAuditEventCopyProvider`, `IAdminAuditEventReader` → `AdminAuditEventReader`, `IUserStoreReader` → `UserStoreReader`
+- [x] T013 [P] Add unit tests `tests/FundingPlatform.Tests.Unit/Application/Services/AdminAuditEventCopyProviderTests.cs` covering all 4 action mappings + es-CR phrasing assertions
+- [x] T014 [P] Add unit tests `tests/FundingPlatform.Tests.Unit/Application/Services/AdminDashboardProjectionTests.cs` covering: happy-path (mocked deps return counts), each sub-projection failure path (degrade to 0), DTO shape
 
 **Checkpoint**: Application + Infrastructure + DI ready. User-story phases can now run in priority order.
 
