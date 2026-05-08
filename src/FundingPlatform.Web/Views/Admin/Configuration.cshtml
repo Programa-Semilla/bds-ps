@@ -18,9 +18,10 @@
 {
     @await Html.PartialAsync("Components/_EmptyState",
         new EmptyStateViewModel(
-            Headline: "No se encontraron configuraciones del sistema",
+            Headline: "Sin configuraciones del sistema",
             Body: "Las configuraciones aparecerán aquí cuando se hayan sembrado en la base de datos.",
-            Icon: "ti ti-settings-off"))
+            Icon: "ti ti-settings-off",
+            IllustrationSceneKey: "calm-horizon"))
 }
 else
 {

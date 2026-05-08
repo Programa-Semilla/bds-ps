@@ -1,22 +1,16 @@
 @using System.Globalization
+@using FundingPlatform.Web.Models
 @model FundingPlatform.Web.ViewModels.Admin.AdminLegacyQuotationsListViewModel
 @{
-    ViewData["Title"] = "Cotizaciones Pendientes";
+    ViewData["Title"] = "Cotizaciones pendientes";
     var es = CultureInfo.GetCultureInfo("es-CR");
 }
 
 <div data-testid="admin-legacy-quotations-area">
-    <div class="page-header d-print-none mb-3">
-        <div class="row g-2 align-items-center">
-            <div class="col">
-                <h2 class="page-title">Cotizaciones Pendientes</h2>
-                <div class="text-muted">
-                    Cotizaciones anteriores a la migración multimoneda que requieren un tipo de cambio histórico.
-                    Asigne uno para sacarlas de la cuarentena y reincorporarlas a los totales en CRC.
-                </div>
-            </div>
-        </div>
-    </div>
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: "Cotizaciones pendientes",
+            Subtitle: "Cotizaciones anteriores a la migración multimoneda que requieren un tipo de cambio histórico. Asigne uno para sacarlas de la cuarentena y reincorporarlas a los totales en CRC."))
 
     @if (Model.Rows.Count == 0)
     {
