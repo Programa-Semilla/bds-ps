@@ -106,6 +106,78 @@ public class ApplicationRepository : IApplicationRepository
         return (items, totalCount);
     }
 
+    /// <summary>
+    /// Spec 016 / NFR-001 — composes the group-overlap predicate at the EF
+    /// query level. Admin scope short-circuits and returns the unscoped result.
+    /// FR-014 — the optional <paramref name="searchTerm"/> narrows by
+    /// applicant first/last name or legal id (case-insensitive contains).
+    /// </summary>
+    public async Task<(List<AppEntity> Items, int TotalCount)> GetByStateForReviewerAsync(
+        Domain.Enums.ApplicationState state,
+        Domain.Interfaces.ReviewerScopeHint scope,
+        int page,
+        int pageSize,
+        string? searchTerm = null)
+    {
+        IQueryable<AppEntity> query = _context.Applications
+            .Include(a => a.Applicant)
+            .Include(a => a.Items)
+            .Where(a => a.State == state);
+
+        if (!scope.IsAdmin)
+        {
+            // Non-admin reviewers see only applications whose applicant's
+            // ApplicationUser shares at least one group (FR-011).
+            var groupIds = scope.GroupIds.ToList();
+            if (groupIds.Count == 0)
+            {
+                // Reviewer has no memberships — empty queue (FR-005).
+                return (new List<AppEntity>(), 0);
+            }
+            query = from a in query
+                    where _context.UserGroupMemberships.Any(m =>
+                        m.UserId == a.Applicant!.UserId
+                        && groupIds.Contains(m.GroupId))
+                    select a;
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim();
+            var likeTerm = $"%{term}%";
+            query = query.Where(a =>
+                a.Applicant != null
+                && (EF.Functions.Like(a.Applicant.FirstName, likeTerm)
+                 || EF.Functions.Like(a.Applicant.LastName, likeTerm)
+                 || EF.Functions.Like(a.Applicant.LegalId, likeTerm)));
+        }
+
+        query = query.OrderBy(a => a.SubmittedAt);
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
+
+    public async Task<bool> ApplicantSharesAnyGroupAsync(
+        int applicationId,
+        IReadOnlyCollection<int> reviewerGroupIds,
+        CancellationToken ct)
+    {
+        if (reviewerGroupIds.Count == 0) return false;
+        var groupIds = reviewerGroupIds.ToList();
+        return await (
+            from a in _context.Applications.AsNoTracking()
+            where a.Id == applicationId
+            from m in _context.UserGroupMemberships
+            where m.UserId == a.Applicant!.UserId && groupIds.Contains(m.GroupId)
+            select m).AnyAsync(ct);
+    }
+
     public async Task<(List<AppEntity> Items, int TotalCount)> GetPendingAgreementPagedAsync(int page, int pageSize)
     {
         if (page < 1) page = 1;

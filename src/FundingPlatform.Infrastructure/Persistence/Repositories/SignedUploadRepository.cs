@@ -25,11 +25,22 @@ public class SignedUploadRepository : ISignedUploadRepository
     public async Task<(IReadOnlyList<SigningInboxRowDto> Rows, int TotalCount)> GetPendingInboxAsync(
         string? reviewerUserId,
         bool isAdmin,
+        IReadOnlyCollection<int> reviewerGroupIds,
         int page,
         int pageSize)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 25;
+
+        // Spec 016 / FR-013, NFR-001 — non-admin reviewers see only inbox rows
+        // whose applicant shares at least one group with them. Admin
+        // short-circuits via isAdmin == true (FR-015). Reviewer with zero
+        // memberships sees an empty inbox (FR-005).
+        var groupIds = reviewerGroupIds.ToList();
+        if (!isAdmin && groupIds.Count == 0)
+        {
+            return (Array.Empty<SigningInboxRowDto>(), 0);
+        }
 
         var query =
             from upload in _context.SignedUploads.AsNoTracking()
@@ -40,6 +51,9 @@ public class SignedUploadRepository : ISignedUploadRepository
             join applicant in _context.Applicants.AsNoTracking()
                 on app.ApplicantId equals applicant.Id
             where upload.Status == SignedUploadStatus.Pending
+                && (isAdmin
+                    || _context.UserGroupMemberships.Any(m =>
+                        m.UserId == applicant.UserId && groupIds.Contains(m.GroupId)))
             select new
             {
                 ApplicationId = app.Id,

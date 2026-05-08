@@ -79,4 +79,14 @@ public class ReviewQueuePage : BasePage
     {
         await Page.GotoAsync($"{baseUrl}/Review/GenerateAgreement");
     }
+
+    // Spec 016 / FR-014 — search input on the queue.
+    public ILocator SearchInput => Page.Locator("[data-testid=reviewer-queue-search-input]");
+    public ILocator SearchSubmit => Page.Locator("[data-testid=reviewer-queue-search-submit]");
+
+    public async Task SearchAsync(string term)
+    {
+        await SearchInput.FillAsync(term);
+        await SearchSubmit.ClickAsync();
+    }
 }

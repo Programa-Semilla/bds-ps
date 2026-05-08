@@ -1,12 +1,15 @@
 using System.Security.Claims;
 using FundingPlatform.Application.DTOs;
+using FundingPlatform.Application.Reviewer;
 using FundingPlatform.Application.Routing;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Application.SignedUploads.Queries;
+using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Web.Controllers;
 
@@ -17,29 +20,45 @@ public class ReviewController : Controller
     private readonly SignedUploadService _signedUploadService;
     private readonly IReviewerQueueProjection _queueProjection;
     private readonly IUserFacingErrorTranslator _errorTranslator;
+    private readonly IReviewerScopeProvider _scopeProvider;
+    private readonly IApplicationRepository _applicationRepository;
 
     public ReviewController(
         ReviewService reviewService,
         SignedUploadService signedUploadService,
         IReviewerQueueProjection queueProjection,
-        IUserFacingErrorTranslator errorTranslator)
+        IUserFacingErrorTranslator errorTranslator,
+        IReviewerScopeProvider scopeProvider,
+        IApplicationRepository applicationRepository)
     {
         _reviewService = reviewService;
         _signedUploadService = signedUploadService;
         _queueProjection = queueProjection;
         _errorTranslator = errorTranslator;
+        _scopeProvider = scopeProvider;
+        _applicationRepository = applicationRepository;
     }
+
+    /// <summary>
+    /// Spec 016 — fetches the request's reviewer scope. Admin callers always
+    /// see <c>IsAdmin = true</c>; reviewers get their current group ids fresh
+    /// from the DB (NFR-003 — membership changes take effect on next request).
+    /// </summary>
+    private Task<IReviewerScope> GetScopeAsync(CancellationToken ct) =>
+        _scopeProvider.GetForUserAsync(GetUserId(), User.IsInRole("Admin"), ct);
 
     [HttpGet]
     [Route("Review/SigningInbox")]
-    public async Task<IActionResult> SigningInbox(int page = 1, int pageSize = 25)
+    public async Task<IActionResult> SigningInbox(int page = 1, int pageSize = 25, CancellationToken ct = default)
     {
         if (page < 1) page = 1;
         if (pageSize < 1 || pageSize > 100) pageSize = 25;
 
+        var scope = await GetScopeAsync(ct);
         var query = new GetSigningInboxQuery(
             CurrentUserId: GetUserId(),
-            IsAdministrator: User.IsInRole("Admin"),
+            IsAdministrator: scope.IsAdmin,
+            ReviewerGroupIds: scope.GroupIds,
             Page: page,
             PageSize: pageSize);
 
@@ -92,30 +111,58 @@ public class ReviewController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(ReviewerFilter filter = ReviewerFilter.All, CancellationToken ct = default)
+    public async Task<IActionResult> Index(
+        ReviewerFilter filter = ReviewerFilter.All,
+        string? search = null,
+        CancellationToken ct = default)
     {
         // Spec 011 US4 (FR-052) — Index renders the new QueueDashboard via the projection.
+        // Spec 016 — composes the reviewer scope (FR-011) and a FR-014 search term.
         var firstName = User.Identity?.Name ?? "Reviewer";
-        var dto = await _queueProjection.GetForReviewerAsync(GetUserId(), firstName, filter, ct);
+        var scope = await GetScopeAsync(ct);
+        var dto = await _queueProjection.GetForReviewerAsync(GetUserId(), firstName, filter, scope, search, ct);
+        ViewData["ReviewQueue.Search"] = search;
         return View("QueueDashboard", dto);
     }
 
     [HttpGet]
     [Route("Review/QueueRows")]
-    public async Task<IActionResult> QueueRows(ReviewerFilter filter = ReviewerFilter.All, CancellationToken ct = default)
+    public async Task<IActionResult> QueueRows(
+        ReviewerFilter filter = ReviewerFilter.All,
+        string? search = null,
+        CancellationToken ct = default)
     {
-        // Spec 011 US4 (FR-054) — chip-reflow contract.
-        var rows = await _queueProjection.GetRowsAsync(GetUserId(), filter, ct);
+        // Spec 011 US4 (FR-054) — chip-reflow contract; spec 016 composes the
+        // reviewer scope and the FR-014 search term.
+        var scope = await GetScopeAsync(ct);
+        var rows = await _queueProjection.GetRowsAsync(GetUserId(), filter, scope, search, ct);
         return PartialView("_ReviewerQueueRows", rows);
     }
 
     [HttpGet]
     [Route(ReviewRoutes.ReviewTemplate)]
-    public async Task<IActionResult> Review(int id)
+    public async Task<IActionResult> Review(int id, CancellationToken ct = default)
     {
         var dto = await _reviewService.GetApplicationForReviewAsync(id);
         if (dto is null)
             return NotFound();
+
+        // Spec 016 / FR-012, NFR-002 — non-admin reviewers may only open an
+        // application if their group set intersects the applicant's. Admins
+        // are exempt (FR-015). Applicants own their applications via a
+        // separate authorization path; this controller is only reachable by
+        // Reviewer/Admin (per the [Authorize] attribute), so we only need to
+        // gate the reviewer side.
+        var scope = await GetScopeAsync(ct);
+        if (!scope.IsAdmin)
+        {
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(
+                id, scope.GroupIds, ct);
+            if (!allowed)
+            {
+                return Forbid();
+            }
+        }
 
         var viewModel = MapToViewModel(dto);
         return View(viewModel);
