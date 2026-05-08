@@ -110,18 +110,18 @@ _(no tasks)_
 
 ### Tests for User Story 2
 
-- [ ] T030 [US2] Add `tests/FundingPlatform.Tests.Integration/UserAdministrationGroupsTests.cs` covering: create user with 0 groups (Reviewer/Applicant) rejected; create with N groups inserts N rows; edit diff (added vs removed) applied in a single transaction; role flipped to Admin → all memberships removed and posted GroupIds ignored; concurrency-stamp mismatch → ConcurrencyConflict surfaced
+- [x] T030 [US2] Add `tests/FundingPlatform.Tests.Integration/UserAdministrationGroupsTests.cs` covering: create user with 0 groups (Reviewer/Applicant) rejected; create with N groups inserts N rows; edit diff (added vs removed) applied in a single transaction; role flipped to Admin → all memberships removed and posted GroupIds ignored; concurrency-stamp mismatch → ConcurrencyConflict surfaced
 
 ### Implementation for User Story 2
 
-- [ ] T031 [P] [US2] Modify `src/FundingPlatform.Web/ViewModels/Admin/AdminUserCreateViewModel.cs` adding `int[] GroupIds` and `IReadOnlyList<AdminUserGroupOption> AvailableGroups`
-- [ ] T032 [P] [US2] Modify `src/FundingPlatform.Web/ViewModels/Admin/AdminUserEditViewModel.cs` with the same fields plus the existing `RowVersion`/concurrency-stamp wire-up
-- [ ] T033 [US2] Modify `src/FundingPlatform.Application/Admin/Users/IUserAdministrationService.cs` and `src/FundingPlatform.Infrastructure/Identity/UserAdministrationService.cs` to accept `int[] groupIds` on Create/Edit, enforce role-based rules per `contracts/admin-users-form.md`, write a single `AdminAuditEvent` for the diff (or none on no-op)
-- [ ] T034 [US2] Modify `src/FundingPlatform.Web/Controllers/Admin/AdminUsersController.cs` Create + Edit actions to populate `AvailableGroups`, bind `GroupIds`, route through the updated service, and re-render the form on validation failure
-- [ ] T035 [P] [US2] Modify the admin user Create view (`src/FundingPlatform.Web/Views/Admin/Users/Create.cshtml`) to render the multi-select bound to `GroupIds`, hidden when role = Admin (CSS `d-none` + small JS toggle that mirrors the existing role-dependent UI pattern)
-- [ ] T036 [P] [US2] Modify the admin user Edit view (`src/FundingPlatform.Web/Views/Admin/Users/Edit.cshtml`) with the same control, pre-selecting current memberships, plus the existing `RowVersion` hidden field
-- [ ] T037 [US2] Create or extend `tests/FundingPlatform.Tests.E2E/PageObjects/AdminUserFormPage.cs` to support reading and setting the multi-select
-- [ ] T038 [US2] Create `tests/FundingPlatform.Tests.E2E/Tests/AdminUserGroupAssignmentTests.cs` covering Story 2's five acceptance scenarios end-to-end through the admin UI
+- [x] T031 [P] [US2] Modify `src/FundingPlatform.Web/ViewModels/Admin/AdminUserCreateViewModel.cs` adding `int[] GroupIds` and `IReadOnlyList<AdminUserGroupOption> AvailableGroups`
+- [x] T032 [P] [US2] Modify `src/FundingPlatform.Web/ViewModels/Admin/AdminUserEditViewModel.cs` with the same fields plus the existing `RowVersion`/concurrency-stamp wire-up
+- [x] T033 [US2] Modify `src/FundingPlatform.Application/Admin/Users/IUserAdministrationService.cs` and `src/FundingPlatform.Infrastructure/Identity/UserAdministrationService.cs` to accept `int[] groupIds` on Create/Edit, enforce role-based rules per `contracts/admin-users-form.md`, write a single `AdminAuditEvent` for the diff (or none on no-op)
+- [x] T034 [US2] Modify `src/FundingPlatform.Web/Controllers/Admin/AdminUsersController.cs` Create + Edit actions to populate `AvailableGroups`, bind `GroupIds`, route through the updated service, and re-render the form on validation failure
+- [x] T035 [P] [US2] Modify the admin user Create view (`src/FundingPlatform.Web/Views/Admin/Users/Create.cshtml`) to render the multi-select bound to `GroupIds`, hidden when role = Admin (CSS `d-none` + small JS toggle that mirrors the existing role-dependent UI pattern)
+- [x] T036 [P] [US2] Modify the admin user Edit view (`src/FundingPlatform.Web/Views/Admin/Users/Edit.cshtml`) with the same control, pre-selecting current memberships, plus the existing `RowVersion` hidden field
+- [x] T037 [US2] Create or extend `tests/FundingPlatform.Tests.E2E/PageObjects/AdminUserFormPage.cs` to support reading and setting the multi-select
+- [x] T038 [US2] Create `tests/FundingPlatform.Tests.E2E/Tests/AdminUserGroupAssignmentTests.cs` covering Story 2's five acceptance scenarios end-to-end through the admin UI
 
 **Checkpoint**: Story 2 is demonstrable; users now carry membership data.
 

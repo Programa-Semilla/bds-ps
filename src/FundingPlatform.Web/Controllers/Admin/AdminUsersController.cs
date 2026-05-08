@@ -1,7 +1,9 @@
+using FundingPlatform.Application.Admin.Groups;
 using FundingPlatform.Application.Admin.Users;
 using FundingPlatform.Application.Admin.Users.DTOs;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Exceptions;
+using FundingPlatform.Web.Resources;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -15,13 +17,22 @@ public class AdminUsersController : Controller
 {
     private readonly IUserAdministrationService _service;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IGroupService _groups;
 
     public AdminUsersController(
         IUserAdministrationService service,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IGroupService groups)
     {
         _service = service;
         _userManager = userManager;
+        _groups = groups;
+    }
+
+    private async Task<IReadOnlyList<AdminUserGroupOption>> LoadGroupOptionsAsync(CancellationToken ct)
+    {
+        var rows = await _groups.ListAsync(ct);
+        return rows.Select(r => new AdminUserGroupOption(r.Id, r.Name)).ToList();
     }
 
     [HttpGet("")]
@@ -60,9 +71,12 @@ public class AdminUsersController : Controller
     }
 
     [HttpGet("Create")]
-    public IActionResult Create()
+    public async Task<IActionResult> Create(CancellationToken ct)
     {
-        return View(new AdminUserCreateViewModel());
+        return View(new AdminUserCreateViewModel
+        {
+            AvailableGroups = await LoadGroupOptionsAsync(ct),
+        });
     }
 
     [HttpPost("Create")]
@@ -73,8 +87,16 @@ public class AdminUsersController : Controller
         {
             ModelState.AddModelError(nameof(vm.LegalId), "La cédula es obligatoria para el rol Solicitante.");
         }
+        // Spec 016 / FR-007 — required-group check at the controller boundary.
+        // Admin role bypasses this (FR-009).
+        if (!string.Equals(vm.Role, "Admin", StringComparison.Ordinal)
+            && (vm.GroupIds is null || vm.GroupIds.Length == 0))
+        {
+            ModelState.AddModelError(nameof(vm.GroupIds), AdminUsersResources.AtLeastOneGroupRequired);
+        }
         if (!ModelState.IsValid)
         {
+            vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
             return View(vm);
         }
 
@@ -82,11 +104,15 @@ public class AdminUsersController : Controller
         try
         {
             var result = await _service.CreateUserAsync(
-                new CreateUserRequest(vm.FirstName, vm.LastName, vm.Email, vm.Phone, vm.Role, vm.InitialPassword, vm.LegalId),
+                new CreateUserRequest(
+                    vm.FirstName, vm.LastName, vm.Email, vm.Phone, vm.Role,
+                    vm.InitialPassword, vm.LegalId,
+                    GroupIds: vm.GroupIds ?? Array.Empty<int>()),
                 actorId, ct);
             if (!result.Succeeded)
             {
                 AddDomainErrors(result.Errors);
+                vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
                 return View(vm);
             }
             TempData["SuccessMessage"] = $"Usuario '{vm.Email}' creado.";
@@ -95,16 +121,19 @@ public class AdminUsersController : Controller
         catch (SentinelUserModificationException)
         {
             ModelState.AddModelError(string.Empty, AdminErrorMessages.SentinelImmutable);
+            vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
             return View(vm);
         }
         catch (LastAdministratorException)
         {
             ModelState.AddModelError(string.Empty, AdminErrorMessages.LastAdminProtected);
+            vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
             return View(vm);
         }
         catch (SelfModificationException ex)
         {
             ModelState.AddModelError(string.Empty, ResolveSelfMessage(ex.Action));
+            vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
             return View(vm);
         }
     }
@@ -123,6 +152,9 @@ public class AdminUsersController : Controller
             Phone = detail.Phone,
             Role = detail.Role,
             LegalId = detail.LegalId,
+            GroupIds = detail.GroupIds.ToArray(),
+            ConcurrencyStamp = detail.ConcurrencyStamp,
+            AvailableGroups = await LoadGroupOptionsAsync(ct),
         };
         return View(vm);
     }
@@ -139,8 +171,15 @@ public class AdminUsersController : Controller
         {
             ModelState.AddModelError(nameof(vm.LegalId), "La cédula es obligatoria para el rol Solicitante.");
         }
+        // Spec 016 / FR-008 — required-group check at the controller boundary.
+        if (!string.Equals(vm.Role, "Admin", StringComparison.Ordinal)
+            && (vm.GroupIds is null || vm.GroupIds.Length == 0))
+        {
+            ModelState.AddModelError(nameof(vm.GroupIds), AdminUsersResources.AtLeastOneGroupRequired);
+        }
         if (!ModelState.IsValid)
         {
+            vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
             return View(vm);
         }
 
@@ -148,11 +187,30 @@ public class AdminUsersController : Controller
         try
         {
             var result = await _service.UpdateUserAsync(
-                new UpdateUserRequest(vm.UserId, vm.FirstName, vm.LastName, vm.Email, vm.Phone, vm.Role, vm.LegalId),
+                new UpdateUserRequest(
+                    vm.UserId, vm.FirstName, vm.LastName, vm.Email, vm.Phone, vm.Role, vm.LegalId,
+                    GroupIds: vm.GroupIds ?? Array.Empty<int>(),
+                    ConcurrencyStamp: vm.ConcurrencyStamp),
                 actorId, ct);
             if (!result.Succeeded)
             {
-                AddDomainErrors(result.Errors);
+                AddDomainErrors(result.Errors, mapping: (code, _) => code switch
+                {
+                    "CONCURRENCY_CONFLICT" => AdminUsersResources.ConcurrencyConflict,
+                    "GROUP_NOT_FOUND" => AdminUsersResources.GroupNotFound,
+                    "AT_LEAST_ONE_GROUP" => AdminUsersResources.AtLeastOneGroupRequired,
+                    _ => null,
+                });
+                vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+                // Refresh the concurrency stamp so the user can re-submit cleanly.
+                if (result.Errors.Any(e => e.Code == "CONCURRENCY_CONFLICT"))
+                {
+                    var fresh = await _service.GetUserAsync(vm.UserId, ct);
+                    if (fresh is not null)
+                    {
+                        vm.ConcurrencyStamp = fresh.ConcurrencyStamp;
+                    }
+                }
                 return View(vm);
             }
             TempData["SuccessMessage"] = $"Usuario '{vm.Email}' actualizado.";
@@ -161,16 +219,19 @@ public class AdminUsersController : Controller
         catch (SentinelUserModificationException)
         {
             ModelState.AddModelError(string.Empty, AdminErrorMessages.SentinelImmutable);
+            vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
             return View(vm);
         }
         catch (LastAdministratorException)
         {
             ModelState.AddModelError(string.Empty, AdminErrorMessages.LastAdminProtected);
+            vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
             return View(vm);
         }
         catch (SelfModificationException ex)
         {
             ModelState.AddModelError(string.Empty, ResolveSelfMessage(ex.Action));
+            vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
             return View(vm);
         }
     }
@@ -277,12 +338,13 @@ public class AdminUsersController : Controller
         }
     }
 
-    private void AddDomainErrors(IReadOnlyList<DomainError> errors)
+    private void AddDomainErrors(IReadOnlyList<DomainError> errors, Func<string, string?, string?>? mapping = null)
     {
         foreach (var err in errors)
         {
             var key = err.Field ?? string.Empty;
-            ModelState.AddModelError(key, err.Message);
+            var translated = mapping?.Invoke(err.Code, err.Field) ?? err.Message;
+            ModelState.AddModelError(key, translated);
         }
     }
 

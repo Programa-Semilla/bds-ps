@@ -34,4 +34,15 @@ public class AdminUserEditViewModel
     [StringLength(50, ErrorMessage = "La cédula debe tener máximo {1} caracteres.")]
     [Display(Name = "Cédula")]
     public string? LegalId { get; set; }
+
+    /// <summary>Spec 016 / FR-008 / FR-010 — selected group ids.</summary>
+    public int[] GroupIds { get; set; } = Array.Empty<int>();
+
+    /// <summary>Spec 016 — populated by the controller; not posted back.</summary>
+    public IReadOnlyList<AdminUserGroupOption> AvailableGroups { get; set; }
+        = Array.Empty<AdminUserGroupOption>();
+
+    /// <summary>Spec 016 — round-trips the existing
+    /// <c>IdentityUser.ConcurrencyStamp</c> for optimistic concurrency.</summary>
+    public string? ConcurrencyStamp { get; set; }
 }
