@@ -421,7 +421,6 @@ FodyWeavers.xsd
 .idea/
 **/uploads/*
 # spex: generated/local files
-.claude/skills/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 .specify/.spex-phase
