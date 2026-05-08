@@ -21,10 +21,24 @@ public class AdminActivityFeedTests : AuthenticatedTestBase
         await LoginAsync(page, email, password);
     }
 
+    [TearDown]
+    public async Task RestoreSeededFixtureAsync()
+    {
+        // ZeroOfEverythingFixture_* drops the seeded Groups + ImpactTemplates
+        // via ResetAdminFixtureAsync. Re-plant so downstream tests in the
+        // shared fixture see the post-deploy seed they expect.
+        await SeedAdminFixtureAsync();
+    }
+
     [Test]
     public async Task ZeroOfEverythingFixture_ActivityFeedHidden()
     {
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
+
+        // Wipe AdminAuditEvents (and related state) so FeedVisible=false
+        // resolves to no [data-testid=admin-activity-feed] container.
+        await ResetAdminFixtureAsync();
+
         await RegisterAndLoginAsAdminAsync(Page, $"admin_feed_zero_{uniqueId}@example.com", "Test123!");
 
         var dashboard = new AdminDashboardPage(Page);

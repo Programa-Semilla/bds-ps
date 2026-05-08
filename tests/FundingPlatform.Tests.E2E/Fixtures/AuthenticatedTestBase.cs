@@ -150,6 +150,42 @@ public class AuthenticatedTestBase : PageTest
     }
 
     /// <summary>
+    /// Spec 017 — wipes admin-relevant state (audit events, supplier statuses,
+    /// groups, impact templates) so spec-017 zero-fixture E2E assertions
+    /// don't fight the cumulative state left behind by earlier tests in the
+    /// shared <see cref="AspireFixture"/>. Always pair with
+    /// <see cref="SeedAdminFixtureAsync"/> in a teardown — otherwise reviewer
+    /// queue tests downstream lose their seeded groups + impact templates and
+    /// fall over.
+    /// </summary>
+    protected async Task ResetAdminFixtureAsync()
+    {
+        using var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+        };
+        using var client = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) };
+        var response = await client.GetAsync("/Account/ResetAdminFixture");
+        response.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>
+    /// Spec 017 — re-plants the post-deploy seed (Norte/Sur/Centro groups +
+    /// the two demo ImpactTemplates) after a <see cref="ResetAdminFixtureAsync"/>
+    /// call so subsequent tests in the shared fixture keep working.
+    /// </summary>
+    protected async Task SeedAdminFixtureAsync()
+    {
+        using var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+        };
+        using var client = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) };
+        var response = await client.GetAsync("/Account/SeedAdminFixture");
+        response.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>
     /// Drives the UI through the full happy-path from application creation to
     /// <c>ResponseFinalized</c> state (item approved, review finalized, applicant accepted).
     /// No Funding Agreement is generated here.

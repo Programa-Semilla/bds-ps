@@ -310,4 +310,100 @@ public class AccountController : Controller
 
         return Ok($"Assigned {toAdd.Count} group(s) to '{email}'.");
     }
+
+    /// <summary>
+    /// Spec 017 — dev-only helper that brings the admin-relevant slice of the DB
+    /// to a "zero of everything" state expected by US1 / US3 / US7 E2E tests.
+    /// The shared <see cref="AspireFixture"/> accumulates state across the suite,
+    /// so without this reset the spec-017 zero-fixture assertions race against
+    /// suppliers, audit events, groups, and impact templates created by earlier
+    /// tests (and the dacpac post-deploy seed).
+    /// Suppliers cannot be deleted (FK from <c>Items.SelectedSupplierId</c> +
+    /// <c>Quotations.SupplierId</c> are NO ACTION) so they are flipped to
+    /// <c>Verified</c> + fully compliant, which makes both the default
+    /// <c>PendingReview</c> filter and the <c>?hasIncompleteCompliance=true</c>
+    /// filter return zero rows. Pair with <see cref="SeedAdminFixture"/> in a
+    /// test teardown so subsequent tests (reviewer-queue group-overlap predicate,
+    /// applicant flow that needs a seeded ImpactTemplate) keep working.
+    /// </summary>
+    [HttpGet]
+    [Route("Account/ResetAdminFixture")]
+    public async Task<IActionResult> ResetAdminFixture()
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+
+        await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.AdminAuditEvents;");
+        await _dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.Suppliers SET VerificationStatus = 2, IsCompliantCCSS = 1, IsCompliantHacienda = 1, IsCompliantSICOP = 1, HasElectronicInvoice = 1;");
+        await _dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.Quotations SET LegacyNeedsReview = 0 WHERE LegacyNeedsReview = 1;");
+        // UserGroupMemberships → Groups: ON DELETE CASCADE wipes memberships.
+        await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.Groups;");
+        // ImpactTemplates referenced by Impacts (NO ACTION) and ImpactParameterValues
+        // via ImpactTemplateParameters (NO ACTION); CASCADE only covers the
+        // template-to-parameter direction.
+        await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.ImpactParameterValues;");
+        await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.Impacts;");
+        await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.ImpactTemplates;");
+
+        return Ok("Admin fixture reset.");
+    }
+
+    /// <summary>
+    /// Spec 017 — dev-only companion to <see cref="ResetAdminFixture"/> that
+    /// re-plants the post-deploy seed rows the rest of the E2E suite depends on:
+    /// the three demo Groups (Norte / Sur / Centro) used by the spec 016
+    /// reviewer group-overlap predicate, and the two ImpactTemplates +
+    /// parameters consumed by <c>PickFirstImpactTemplateAsync</c> in the
+    /// applicant journey. Idempotent — skips rows that already exist by name.
+    /// </summary>
+    [HttpGet]
+    [Route("Account/SeedAdminFixture")]
+    public async Task<IActionResult> SeedAdminFixture()
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+
+        await _dbContext.Database.ExecuteSqlRawAsync(@"
+MERGE INTO dbo.Groups AS tgt
+USING (VALUES (N'Norte'), (N'Sur'), (N'Centro')) AS src ([Name])
+ON tgt.[Name] = src.[Name]
+WHEN NOT MATCHED THEN INSERT ([Name], [CreatedAt], [UpdatedAt])
+    VALUES (src.[Name], SYSUTCDATETIME(), SYSUTCDATETIME());");
+
+        await _dbContext.Database.ExecuteSqlRawAsync(@"
+IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Increase Production Capacity')
+BEGIN
+    INSERT INTO dbo.ImpactTemplates ([Name], [Description], [IsActive], [UpdatedAt])
+    VALUES (N'Increase Production Capacity',
+            N'Measures the expected increase in production capacity resulting from the funded item',
+            1, GETUTCDATE());
+    DECLARE @cap INT = SCOPE_IDENTITY();
+    INSERT INTO dbo.ImpactTemplateParameters ([ImpactTemplateId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
+    VALUES
+        (@cap, N'CurrentCapacity',    N'Current Capacity',    1, 1, 1),
+        (@cap, N'ProjectedCapacity',  N'Projected Capacity',  1, 1, 2),
+        (@cap, N'TimeframeInMonths',  N'Timeframe in Months', 2, 1, 3);
+END;
+IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Job Creation')
+BEGIN
+    INSERT INTO dbo.ImpactTemplates ([Name], [Description], [IsActive], [UpdatedAt])
+    VALUES (N'Job Creation',
+            N'Measures the expected number of new jobs created as a result of the funded item',
+            1, GETUTCDATE());
+    DECLARE @job INT = SCOPE_IDENTITY();
+    INSERT INTO dbo.ImpactTemplateParameters ([ImpactTemplateId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
+    VALUES
+        (@job, N'CurrentEmployees',  N'Current Employees',   2, 1, 1),
+        (@job, N'ProjectedNewJobs',  N'Projected New Jobs',  2, 1, 2),
+        (@job, N'JobType',           N'Job Type',            0, 1, 3);
+END;");
+
+        return Ok("Admin fixture re-seeded.");
+    }
 }

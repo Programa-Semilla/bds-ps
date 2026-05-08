@@ -34,9 +34,14 @@ public sealed class AdminDashboardPage : BasePage
 
     public async Task<int?> ReadKpiNumericAsync(string slug)
     {
+        // Read the immutable data-ticker-target attribute rather than InnerText.
+        // motion.js (wwwroot/js/motion.js) animates the displayed digit from 0
+        // to the target value over --motion-slow on every mount, so InnerText
+        // is non-deterministic until the animation finishes. The attribute
+        // carries the projected final value and is the only stable source.
         var node = KpiNumeric(slug);
-        var text = (await node.InnerTextAsync()).Trim();
-        if (int.TryParse(text.Replace(",", string.Empty).Replace(".", string.Empty),
+        var attr = await node.GetAttributeAsync("data-ticker-target");
+        if (int.TryParse(attr,
                 System.Globalization.NumberStyles.Integer,
                 System.Globalization.CultureInfo.InvariantCulture, out var n))
         {

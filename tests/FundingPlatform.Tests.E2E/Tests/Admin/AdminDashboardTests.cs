@@ -24,6 +24,16 @@ public class AdminDashboardTests : AuthenticatedTestBase
         await LoginAsync(page, email, password);
     }
 
+    [TearDown]
+    public async Task RestoreSeededFixtureAsync()
+    {
+        // Spec 017 — Dashboard_ZeroOfEverythingFixture_* uses ResetAdminFixtureAsync
+        // which drops the post-deploy Groups + ImpactTemplates seed. Re-plant it so
+        // downstream tests (reviewer-queue group-overlap predicate, applicant flow
+        // calling PickFirstImpactTemplateAsync) keep working.
+        await SeedAdminFixtureAsync();
+    }
+
     [Test]
     public async Task Dashboard_RendersFourKpisAndNineCapabilityCards()
     {
@@ -106,6 +116,13 @@ public class AdminDashboardTests : AuthenticatedTestBase
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var email = $"admin_zero_{uniqueId}@example.com";
         var password = "Test123!";
+
+        // Force the shared fixture into a true zero-of-everything slice:
+        // wipe AdminAuditEvents, flip all suppliers to Verified+compliant,
+        // clear LegacyNeedsReview flags, drop Groups + ImpactTemplates so the
+        // KPI sub-projections all read 0. Reseed in TearDown so reviewer-queue
+        // and applicant-flow tests keep their seeded groups + templates.
+        await ResetAdminFixtureAsync();
 
         await RegisterAndLoginAsAdminAsync(Page, email, password);
 

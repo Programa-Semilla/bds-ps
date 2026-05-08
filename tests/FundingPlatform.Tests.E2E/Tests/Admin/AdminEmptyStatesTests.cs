@@ -18,6 +18,12 @@ public class AdminEmptyStatesTests : AuthenticatedTestBase
         await LoginAsync(page, email, password);
     }
 
+    [SetUp]
+    public Task ResetFixtureAsync() => ResetAdminFixtureAsync();
+
+    [TearDown]
+    public Task RestoreSeededFixtureAsync() => SeedAdminFixtureAsync();
+
     private async Task ExpectSceneAsync(string testidContainer, string expectedSceneKey)
     {
         // Anchor on the surface's own empty-state container so we don't pick up
@@ -55,8 +61,10 @@ public class AdminEmptyStatesTests : AuthenticatedTestBase
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         await RegisterAndLoginAsAdminAsync(Page, $"admin_filt_supp_{uniqueId}@example.com", "Test123!");
 
-        // hasIncompleteCompliance=true with zero suppliers triggers the
-        // filtered-no-results branch, which must render the magnifier scene.
+        // hasIncompleteCompliance=true with zero matching suppliers triggers
+        // the filtered-no-results branch (ResetAdminFixtureAsync flips every
+        // remaining supplier to fully compliant), which must render the
+        // magnifier scene rather than the folders-stack one.
         await Page.GotoAsync($"{BaseUrl}/Admin/Suppliers?hasIncompleteCompliance=true");
 
         await ExpectSceneAsync("admin-suppliers-empty", "magnifier-on-empty");
