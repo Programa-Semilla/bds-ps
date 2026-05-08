@@ -1,0 +1,74 @@
+@using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Admin.AdminGroupsIndexViewModel
+@{
+    ViewData["Title"] = AdminGroupsResources.Page_Title;
+}
+
+<div data-testid="admin-groups-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: AdminGroupsResources.Page_Title,
+            Subtitle: AdminGroupsResources.Page_Subtitle,
+            PrimaryActions: new[]
+            {
+                new ActionItem(
+                    Label: AdminGroupsResources.Action_Create,
+                    Class: ActionClass.Primary,
+                    Url: Url.Action("Create", "AdminGroups"),
+                    Icon: "ti ti-plus")
+            }))
+
+    @if (TempData["SuccessMessage"] is string flash && !string.IsNullOrEmpty(flash))
+    {
+        <div class="alert alert-success" data-testid="admin-groups-flash">@flash</div>
+    }
+
+    @if (Model.Groups.Count == 0)
+    {
+        <div class="card" data-testid="admin-groups-empty">
+            <div class="card-body text-center text-muted">
+                <i class="ti ti-users-group fs-2"></i>
+                <h3 class="mt-2">@AdminGroupsResources.EmptyState_Title</h3>
+                <p>@AdminGroupsResources.EmptyState_Body</p>
+                <a class="btn btn-primary" href="@Url.Action("Create", "AdminGroups")">
+                    <i class="ti ti-plus"></i> @AdminGroupsResources.Action_Create
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card" data-testid="admin-groups-table">
+            <div class="table-responsive">
+                <table class="table card-table table-vcenter">
+                    <thead>
+                        <tr>
+                            <th>@AdminGroupsResources.Column_Name</th>
+                            <th class="w-1">@AdminGroupsResources.Column_MemberCount</th>
+                            <th class="text-end">@AdminGroupsResources.Column_Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Groups)
+                        {
+                            <tr data-testid="admin-group-row-@row.Id">
+                                <td data-testid="admin-group-name">@row.Name</td>
+                                <td data-testid="admin-group-member-count">@row.MemberCount</td>
+                                <td class="text-end">
+                                    <div class="btn-list justify-content-end">
+                                        <a class="btn btn-sm btn-outline-secondary"
+                                           data-testid="admin-group-edit"
+                                           href="@Url.Action("Edit", "AdminGroups", new { id = row.Id })">
+                                            <i class="ti ti-edit"></i> @AdminGroupsResources.Action_Edit
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

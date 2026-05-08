@@ -1,0 +1,48 @@
+@using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Admin.AdminGroupEditViewModel
+@{
+    ViewData["Title"] = AdminGroupsResources.Breadcrumb_Edit;
+    var deletePromptTitle = string.Format(AdminGroupsResources.Delete_ConfirmTitle, Model.Name);
+    var deletePromptBody = string.Format(AdminGroupsResources.Delete_ConfirmBody, Model.MemberCount);
+}
+
+<div data-testid="admin-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: $"{AdminGroupsResources.Breadcrumb_Edit} — {Model.Name}",
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem(AdminGroupsResources.Breadcrumb_Index, Url.Action("Index", "AdminGroups")),
+                new BreadcrumbItem(AdminGroupsResources.Breadcrumb_Edit),
+            }))
+
+    <form method="post" asp-action="Edit" asp-route-id="@Model.Id" class="row" data-testid="admin-group-edit-form">
+        @Html.AntiForgeryToken()
+        <input asp-for="Id" type="hidden" />
+        <input asp-for="MemberCount" type="hidden" />
+        <div asp-validation-summary="All" class="text-danger mb-3" data-testid="admin-group-validation-summary"></div>
+
+        <div class="col-md-6 mb-3">
+            <label class="form-label" asp-for="Name">@AdminGroupsResources.Label_Name</label>
+            <input asp-for="Name" class="form-control" data-testid="admin-group-name-input" />
+            <span asp-validation-for="Name" class="text-danger" data-testid="admin-group-name-error"></span>
+        </div>
+
+        <div class="d-flex justify-content-between mt-2">
+            <button type="submit"
+                    formaction="@Url.Action("Delete", "AdminGroups", new { id = Model.Id })"
+                    class="btn btn-outline-danger"
+                    data-testid="admin-group-delete-submit"
+                    onclick="return confirm('@deletePromptTitle\n\n@deletePromptBody');">
+                <i class="ti ti-trash"></i> @AdminGroupsResources.Delete_Submit
+            </button>
+            <div class="d-flex gap-2">
+                <a class="btn btn-secondary" href="@Url.Action("Index", "AdminGroups")">@AdminGroupsResources.Action_Cancel</a>
+                <button type="submit" class="btn btn-primary" data-testid="admin-group-edit-submit">
+                    @AdminGroupsResources.Action_Save
+                </button>
+            </div>
+        </div>
+    </form>
+</div>

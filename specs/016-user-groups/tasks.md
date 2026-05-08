@@ -82,21 +82,21 @@ _(no tasks)_
 
 ### Tests for User Story 1
 
-- [ ] T018 [P] [US1] Add `tests/FundingPlatform.Tests.Unit/Domain/GroupTests.cs` covering `Create` validation (empty/whitespace/over-length), `Rename` validation, and the `UpdatedAt` bump
-- [ ] T019 [US1] Add `tests/FundingPlatform.Tests.Integration/GroupServiceTests.cs` against the real DB — create succeeds, create-with-duplicate-name (case- and accent-insensitive) fails on the unique index, rename preserves memberships, delete cascades through `UserGroupMemberships`, audit row written for every mutation
+- [x] T018 [P] [US1] Add `tests/FundingPlatform.Tests.Unit/Domain/GroupTests.cs` covering `Create` validation (empty/whitespace/over-length), `Rename` validation, and the `UpdatedAt` bump
+- [x] T019 [US1] Add `tests/FundingPlatform.Tests.Integration/GroupServiceTests.cs` against the real DB — create succeeds, create-with-duplicate-name (case- and accent-insensitive) fails on the unique index, rename preserves memberships, delete cascades through `UserGroupMemberships`, audit row written for every mutation
 
 ### Implementation for User Story 1
 
-- [ ] T020 [P] [US1] Create `src/FundingPlatform.Application/Admin/Groups/IGroupService.cs` (`ListAsync`, `CreateAsync(name, actorUserId)`, `RenameAsync(id, name, actorUserId)`, `DeleteAsync(id, actorUserId)` — every mutation takes `actorUserId` because NFR-005 requires the actor on every audit row) and `GroupCommands.cs` for DTOs. Declare `DuplicateGroupNameException` in the same folder (`src/FundingPlatform.Application/Admin/Groups/DuplicateGroupNameException.cs`).
-- [ ] T021 [US1] Create `src/FundingPlatform.Infrastructure/Services/GroupService.cs` implementing `IGroupService` — uses DbContext, writes one `AdminAuditEvent` per mutation via `IAdminAuditWriter` (create payload `{"name":"<trimmed>"}`, rename `{"old":"…","new":"…"}`, delete `{"name":"<deleted>","memberCountBefore":<n>}` per `contracts/admin-groups.md`), surfaces unique-index violations as `DuplicateGroupNameException` so `AdminGroupsController` can render them as `ModelState` errors
-- [ ] T022 [P] [US1] Create `src/FundingPlatform.Web/ViewModels/Admin/AdminGroupsIndexViewModel.cs` and `AdminGroupRow` record per `contracts/admin-groups.md`
-- [ ] T023 [P] [US1] Create `src/FundingPlatform.Web/ViewModels/Admin/AdminGroupCreateViewModel.cs` and `AdminGroupEditViewModel.cs`
-- [ ] T024 [US1] Create `src/FundingPlatform.Web/Controllers/Admin/AdminGroupsController.cs` with `[Authorize(Roles = "Admin")]`, all five actions (Index GET, Create GET/POST, Edit GET/POST, Delete POST) per the contract; collect all validation errors in a single `ModelState` round-trip. The `[Authorize]` attribute also handles the unauthenticated case — anonymous callers are redirected to login (or get 401 on JSON requests) before role evaluation; no extra code path needed.
-- [ ] T025 [P] [US1] Create `src/FundingPlatform.Web/Views/Admin/Groups/Index.cshtml` (table with name + member count, Create button, Edit/Delete row actions)
-- [ ] T026 [P] [US1] Create `src/FundingPlatform.Web/Views/Admin/Groups/Create.cshtml`
-- [ ] T027 [P] [US1] Create `src/FundingPlatform.Web/Views/Admin/Groups/Edit.cshtml` (rename + delete confirmation form)
-- [ ] T028 [US1] Create `tests/FundingPlatform.Tests.E2E/PageObjects/AdminGroupsPage.cs` (POM for create/edit/delete flows)
-- [ ] T029 [US1] Create `tests/FundingPlatform.Tests.E2E/Tests/AdminGroupCrudTests.cs` covering Story 1's acceptance scenarios 1–4 (admin creates group; duplicate name rejected; rename preserves memberships; non-admin direct URL → 403)
+- [x] T020 [P] [US1] Create `src/FundingPlatform.Application/Admin/Groups/IGroupService.cs` (`ListAsync`, `CreateAsync(name, actorUserId)`, `RenameAsync(id, name, actorUserId)`, `DeleteAsync(id, actorUserId)` — every mutation takes `actorUserId` because NFR-005 requires the actor on every audit row) and `GroupCommands.cs` for DTOs. Declare `DuplicateGroupNameException` in the same folder (`src/FundingPlatform.Application/Admin/Groups/DuplicateGroupNameException.cs`).
+- [x] T021 [US1] Create `src/FundingPlatform.Infrastructure/Services/GroupService.cs` implementing `IGroupService` — uses DbContext, writes one `AdminAuditEvent` per mutation via `IAdminAuditWriter` (create payload `{"name":"<trimmed>"}`, rename `{"old":"…","new":"…"}`, delete `{"name":"<deleted>","memberCountBefore":<n>}` per `contracts/admin-groups.md`), surfaces unique-index violations as `DuplicateGroupNameException` so `AdminGroupsController` can render them as `ModelState` errors
+- [x] T022 [P] [US1] Create `src/FundingPlatform.Web/ViewModels/Admin/AdminGroupsIndexViewModel.cs` and `AdminGroupRow` record per `contracts/admin-groups.md`
+- [x] T023 [P] [US1] Create `src/FundingPlatform.Web/ViewModels/Admin/AdminGroupCreateViewModel.cs` and `AdminGroupEditViewModel.cs`
+- [x] T024 [US1] Create `src/FundingPlatform.Web/Controllers/Admin/AdminGroupsController.cs` with `[Authorize(Roles = "Admin")]`, all five actions (Index GET, Create GET/POST, Edit GET/POST, Delete POST) per the contract; collect all validation errors in a single `ModelState` round-trip. The `[Authorize]` attribute also handles the unauthenticated case — anonymous callers are redirected to login (or get 401 on JSON requests) before role evaluation; no extra code path needed.
+- [x] T025 [P] [US1] Create `src/FundingPlatform.Web/Views/Admin/Groups/Index.cshtml` (table with name + member count, Create button, Edit/Delete row actions)
+- [x] T026 [P] [US1] Create `src/FundingPlatform.Web/Views/Admin/Groups/Create.cshtml`
+- [x] T027 [P] [US1] Create `src/FundingPlatform.Web/Views/Admin/Groups/Edit.cshtml` (rename + delete confirmation form)
+- [x] T028 [US1] Create `tests/FundingPlatform.Tests.E2E/PageObjects/AdminGroupsPage.cs` (POM for create/edit/delete flows)
+- [x] T029 [US1] Create `tests/FundingPlatform.Tests.E2E/Tests/AdminGroupCrudTests.cs` covering Story 1's acceptance scenarios 1–4 (admin creates group; duplicate name rejected; rename preserves memberships; non-admin direct URL → 403)
 
 **Checkpoint**: Story 1 is independently demonstrable.
 

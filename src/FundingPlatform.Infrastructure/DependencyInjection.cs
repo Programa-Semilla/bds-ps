@@ -58,9 +58,9 @@ public static class DependencyInjection
         services.AddScoped<IExchangeRateService, ExchangeRateService>();
         services.AddScoped<ILegacyQuotationRateAttachService, LegacyQuotationRateAttachService>();
 
-        // Spec 016 — admin audit writer (group catalog/services + reviewer scope
-        // are registered per-phase as their classes land).
+        // Spec 016 — admin audit writer + group catalog service.
         services.AddScoped<IAdminAuditWriter, AdminAuditWriter>();
+        services.AddScoped<Application.Admin.Groups.IGroupService, Services.GroupService>();
 
         return services;
     }
