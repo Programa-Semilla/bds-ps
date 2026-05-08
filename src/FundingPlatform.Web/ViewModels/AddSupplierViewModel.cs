@@ -42,9 +42,14 @@ public class AddSupplierViewModel
     [Range(0.01, double.MaxValue, ErrorMessage = "El precio debe ser mayor a cero.")]
     public decimal Price { get; set; }
 
+    // Spec 015 — bound by a <select> populated with the enabled-currencies catalog
+    // (CRC + USD by default). Server-side, the controller passes Currency through
+    // CurrencyCode.From(...) which already enforces the 3-letter ISO shape.
+    // [StringLength(3, MinimumLength = 3)] is intentionally absent: jQuery
+    // Unobtrusive Validation applies it as a rangelength rule against the
+    // <option>'s text content rather than its value, breaking every POST.
     [Required(ErrorMessage = "La moneda es obligatoria.")]
     [Display(Name = "Moneda")]
-    [StringLength(3, MinimumLength = 3, ErrorMessage = "La moneda debe ser un código de 3 caracteres.")]
     public string Currency { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "La fecha de vigencia es obligatoria.")]
@@ -54,6 +59,13 @@ public class AddSupplierViewModel
     [Required(ErrorMessage = "El archivo de la cotización es obligatorio.")]
     [Display(Name = "Archivo de la cotización")]
     public IFormFile? QuotationFile { get; set; }
+
+    /// <summary>
+    /// Spec 015 — enabled-currencies list used to populate the currency &lt;select&gt;.
+    /// Bound by the controller from <c>dbo.Currencies WHERE IsEnabled = 1</c>
+    /// ordered by <c>DisplayOrder</c>.
+    /// </summary>
+    public IReadOnlyList<CurrencyOption> EnabledCurrencies { get; set; } = [];
 }
 
 public class AddBranchInputViewModel
@@ -103,3 +115,10 @@ public class NewSupplierInputViewModel
 
     public AddBranchInputViewModel FirstBranch { get; set; } = new();
 }
+
+/// <summary>
+/// Spec 015 — single enabled-currency option used to populate the multi-currency
+/// dropdown on the supplier-quote Add form. Bound by the controller from
+/// <c>dbo.Currencies WHERE IsEnabled = 1</c> ordered by <c>DisplayOrder</c>.
+/// </summary>
+public sealed record CurrencyOption(string Code, string DisplayName, string Symbol);

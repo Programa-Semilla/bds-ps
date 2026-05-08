@@ -40,10 +40,10 @@ brainstorm/                        Working scratchpad for in-flight design explo
 | `EphemeralStorage` | `false` | When `true`: skip persistent SQL data volume, skip auto-deploy of the SQL project, force sentinel admin password to `Sentinel123!`. Set by E2E fixture. |
 | `Syncfusion:LicenseKey` | dev fallback embedded | Override in real envs. |
 | `FundingAgreement:LocaleCode` | `es-CR` | Default culture. |
-| `FundingAgreement:CurrencyIsoCode` | `COP` | Funding-agreement currency. |
+| `FundingAgreement:CurrencyIsoCode` | `CRC` | Funding-agreement currency (spec 015 — was `COP` before multi-currency). |
 | `FundingAgreement:Funder:*` | empty | Legal name, tax id, address, contact email/phone. |
 | `SignedUpload:MaxSizeBytes` | `20971520` (20 MiB) | Signed-PDF upload cap. |
-| `AdminReports:DefaultCurrency` | `COP` | Reports currency code. |
+| `AdminReports:DefaultCurrency` | `CRC` | Reports currency code; also pre-fills the supplier quotation Currency input. Spec 015: must match a code in the seeded `dbo.Currencies` catalog so the conversion path can resolve a rate. |
 | `AdminReports:CsvRowLimit` | `50000` | Streaming CSV row cap. |
 | `Admin:DefaultPassword` | (configured) | Sentinel admin password outside ephemeral. |
 | `Storage:Provider` | `Azurite` (dev) / `AzureBlob` (prod) / `LocalFilesystem` (fallback) | Spec 014 — selects the `IObjectStorage` impl. Fail-fast in `Production` if `LocalFilesystem` is paired with a connection string. |
@@ -82,7 +82,15 @@ brainstorm/                        Working scratchpad for in-flight design explo
 
 ## Active Technologies
 - C# 13 / .NET 10.0 (014-azure-blob-storage)
+- C# 13 / .NET 10.0 (015-multi-currency-quotes — Currencies, ExchangeRates, snapshot-locked Quotation conversion)
 - Azure Blob Storage in production / Azurite (Docker container) in dev+test / local filesystem fallback. SQL Server unchanged. (014-azure-blob-storage)
 
 ## Recent Changes
+- 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 - 014-azure-blob-storage: Added C# 13 / .NET 10.0
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan:
+`specs/015-multi-currency-quotes/plan.md`
+<!-- SPECKIT END -->

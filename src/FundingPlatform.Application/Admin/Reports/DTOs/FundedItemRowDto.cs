@@ -15,4 +15,7 @@ public sealed record FundedItemRowDto(
     DateTime? AppSubmittedAt,
     DateTime? ApprovedAt,
     bool HasAgreement,
-    bool Executed);
+    bool Executed,
+    // Spec 015 / T416 — appended to the CSV; null on legacy rows that
+    // never received a snapshot (FR-026).
+    decimal? ConvertedCrcAmount = null);

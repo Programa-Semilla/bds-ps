@@ -57,7 +57,7 @@ public sealed class ReportQueryService : IReportQueryService
             join q in _db.Quotations.AsNoTracking()
                 on new { ItemId = i.Id, SupplierId = i.SelectedSupplierId!.Value }
                 equals new { ItemId = q.ItemId, SupplierId = q.SupplierId }
-            select new { i.ApplicationId, q.Currency, q.Price }
+            select new { i.ApplicationId, q.Currency, q.Price, q.ConvertedCrcAmount }
         ).ToListAsync(ct);
 
         return rows
@@ -66,7 +66,13 @@ public sealed class ReportQueryService : IReportQueryService
                 g => g.Key,
                 g => (IReadOnlyList<CurrencyAmount>)g
                     .GroupBy(r => r.Currency)
-                    .Select(cg => new CurrencyAmount(cg.Key, cg.Sum(x => x.Price)))
+                    .Select(cg => new CurrencyAmount(
+                        cg.Key,
+                        cg.Sum(x => x.Price),
+                        // Spec 015 / T416 — sum the converted-CRC values per (app, currency) so
+                        // CSV/dashboards can display a CRC-comparable total alongside the
+                        // original-currency stack. Null ConvertedCrcAmount (legacy rows) → 0.
+                        cg.Sum(x => x.ConvertedCrcAmount ?? 0m)))
                     .OrderBy(c => c.Currency)
                     .ToList());
     }
@@ -97,7 +103,7 @@ public sealed class ReportQueryService : IReportQueryService
             join q in _db.Quotations.AsNoTracking()
                 on new { ItemId = i.Id, SupplierId = i.SelectedSupplierId!.Value }
                 equals new { ItemId = q.ItemId, SupplierId = q.SupplierId }
-            select new { a.ApplicantId, q.Currency, q.Price }
+            select new { a.ApplicantId, q.Currency, q.Price, q.ConvertedCrcAmount }
         ).ToListAsync(ct);
 
         return rows
@@ -106,7 +112,10 @@ public sealed class ReportQueryService : IReportQueryService
                 g => g.Key,
                 g => (IReadOnlyList<CurrencyAmount>)g
                     .GroupBy(r => r.Currency)
-                    .Select(cg => new CurrencyAmount(cg.Key, cg.Sum(x => x.Price)))
+                    .Select(cg => new CurrencyAmount(
+                        cg.Key,
+                        cg.Sum(x => x.Price),
+                        cg.Sum(x => x.ConvertedCrcAmount ?? 0m)))
                     .OrderBy(c => c.Currency)
                     .ToList());
     }
@@ -128,7 +137,7 @@ public sealed class ReportQueryService : IReportQueryService
             join q in _db.Quotations.AsNoTracking()
                 on new { ItemId = i.Id, SupplierId = i.SelectedSupplierId!.Value }
                 equals new { ItemId = q.ItemId, SupplierId = q.SupplierId }
-            select new { a.ApplicantId, q.Currency, q.Price }
+            select new { a.ApplicantId, q.Currency, q.Price, q.ConvertedCrcAmount }
         ).ToListAsync(ct);
 
         return rows
@@ -137,7 +146,10 @@ public sealed class ReportQueryService : IReportQueryService
                 g => g.Key,
                 g => (IReadOnlyList<CurrencyAmount>)g
                     .GroupBy(r => r.Currency)
-                    .Select(cg => new CurrencyAmount(cg.Key, cg.Sum(x => x.Price)))
+                    .Select(cg => new CurrencyAmount(
+                        cg.Key,
+                        cg.Sum(x => x.Price),
+                        cg.Sum(x => x.ConvertedCrcAmount ?? 0m)))
                     .OrderBy(c => c.Currency)
                     .ToList());
     }
@@ -182,7 +194,8 @@ public sealed class ReportQueryService : IReportQueryService
                 x.A.SubmittedAt,
                 (DateTime?)x.A.UpdatedAt, // approximation — research §5 fallback uses application timestamp
                 x.A.FundingAgreement != null,
-                x.A.State == ApplicationState.AgreementExecuted))
+                x.A.State == ApplicationState.AgreementExecuted,
+                x.Q.ConvertedCrcAmount))
             .ToListAsync(ct);
     }
 
@@ -365,27 +378,29 @@ public sealed class ReportQueryService : IReportQueryService
             .Join(_db.Quotations.AsNoTracking(),
                 x => new { ItemId = x.Item.Id, SupplierId = x.Item.SelectedSupplierId!.Value },
                 q => new { ItemId = q.ItemId, SupplierId = q.SupplierId },
-                (x, q) => new { x.App.State, q.Currency, q.Price })
+                (x, q) => new { x.App.State, q.Currency, q.Price, q.ConvertedCrcAmount })
             .ToListAsync(ct);
 
         var approvedStack = approvedRaw
             .GroupBy(r => r.Currency)
-            .Select(g => new CurrencyAmount(g.Key, g.Sum(r => r.Price)))
+            .Select(g => new CurrencyAmount(g.Key, g.Sum(r => r.Price), g.Sum(r => r.ConvertedCrcAmount ?? 0m)))
             .OrderBy(c => c.Currency)
             .ToList();
 
         var executedStack = approvedRaw
             .Where(r => r.State == ApplicationState.AgreementExecuted)
             .GroupBy(r => r.Currency)
-            .Select(g => new CurrencyAmount(g.Key, g.Sum(r => r.Price)))
+            .Select(g => new CurrencyAmount(g.Key, g.Sum(r => r.Price), g.Sum(r => r.ConvertedCrcAmount ?? 0m)))
             .OrderBy(c => c.Currency)
             .ToList();
 
         var pendingStack = approvedStack
             .Select(a =>
             {
-                var executed = executedStack.FirstOrDefault(e => e.Currency == a.Currency)?.Amount ?? 0m;
-                return new CurrencyAmount(a.Currency, a.Amount - executed);
+                var executed = executedStack.FirstOrDefault(e => e.Currency == a.Currency);
+                var executedAmount = executed?.Amount ?? 0m;
+                var executedCrc = executed?.ConvertedCrcAmount ?? 0m;
+                return new CurrencyAmount(a.Currency, a.Amount - executedAmount, a.ConvertedCrcAmount - executedCrc);
             })
             .Where(c => c.Amount > 0)
             .ToList();

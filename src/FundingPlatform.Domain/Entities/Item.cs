@@ -87,6 +87,41 @@ public class Item
     }
 
     /// <summary>
+    /// Spec 015 / US1 — attaches a pre-constructed <see cref="Quotation"/> to this Item,
+    /// preserving the same (item, supplier) UNIQUE invariant as <see cref="AddQuotation"/>.
+    /// Used by the application layer when the quotation was built via
+    /// <see cref="Quotation.SetCurrencyAndAmountAsync"/> so that the snapshot
+    /// fields are populated before the entity enters the aggregate.
+    /// </summary>
+    public void AttachQuotation(Supplier supplier, SupplierBranch branch, Quotation quotation)
+    {
+        ArgumentNullException.ThrowIfNull(supplier);
+        ArgumentNullException.ThrowIfNull(branch);
+        ArgumentNullException.ThrowIfNull(quotation);
+
+        if (branch.SupplierId != 0 && branch.SupplierId != supplier.Id)
+        {
+            throw new InvalidOperationException(
+                $"Branch {branch.Id} (supplier {branch.SupplierId}) does not belong to supplier {supplier.Id}.");
+        }
+
+        if (quotation.SupplierId != supplier.Id)
+        {
+            throw new InvalidOperationException(
+                $"Quotation supplier {quotation.SupplierId} does not match supplier {supplier.Id}.");
+        }
+
+        if (_quotations.Any(q => q.SupplierId == supplier.Id))
+        {
+            throw new InvalidOperationException(
+                $"Supplier '{supplier.Name}' already has a quotation on this item.");
+        }
+
+        _quotations.Add(quotation);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
     /// Removes a quotation from this item by its identifier.
     /// </summary>
     public void RemoveQuotation(int quotationId)

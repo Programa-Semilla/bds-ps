@@ -49,6 +49,14 @@ public class ReviewQuotationViewModel
     /// <summary>Spec 013 FR-051: supplier verification flags surfaced to the reviewer.</summary>
     public bool IsSupplierVerified { get; set; }
     public bool IsSupplierRejected { get; set; }
+
+    // Spec 015 / T415 — multi-currency display fields surfaced via MoneyDisplayViewComponent.
+    public string Currency { get; set; } = "CRC";
+    public decimal? ConvertedCrcAmount { get; set; }
+    public decimal? SnapshotRateValue { get; set; }
+    public string? SnapshotRateType { get; set; }
+    public DateTime? SnapshotEffectiveAtUtc { get; set; }
+    public bool LegacyNeedsReview { get; set; }
 }
 
 public class ImpactParameterDisplayViewModel

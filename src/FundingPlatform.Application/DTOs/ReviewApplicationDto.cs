@@ -41,7 +41,16 @@ public record ReviewQuotationDto(
     bool ScoreLowestPrice,
     bool IsPreSelected,
     bool IsSupplierVerified = false,
-    bool IsSupplierRejected = false);
+    bool IsSupplierRejected = false,
+    // Spec 015 / T415 — multi-currency surface on the review screen so the
+    // reviewer sees the original currency + converted CRC + indicator without
+    // leaving the page.
+    string Currency = "CRC",
+    decimal? ConvertedCrcAmount = null,
+    decimal? SnapshotRateValue = null,
+    string? SnapshotRateType = null,
+    DateTime? SnapshotEffectiveAtUtc = null,
+    bool LegacyNeedsReview = false);
 
 public record ImpactParameterDisplayDto(
     string Name,

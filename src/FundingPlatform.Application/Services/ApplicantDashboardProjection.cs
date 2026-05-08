@@ -58,8 +58,8 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
                     $"APP-{a.Id:D5}",
                     GetProjectName(a),
                     _copy.AwaitingActionAgreement(GetProjectName(a)),
-                    "Sign your agreement",
-                    $"/FundingAgreement/Details/{a.Id}");
+                    _copy.ActionSignAgreement(),
+                    AgreementDetailsUrl(a.Id));
                 break;
             }
             if (NeedsApplicantAction(a))
@@ -69,7 +69,7 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
                     $"APP-{a.Id:D5}",
                     GetProjectName(a),
                     _copy.AwaitingActionSentBack(GetProjectName(a)),
-                    "Add the missing details",
+                    _copy.ActionAddMissingDetails(),
                     $"/Application/Details/{a.Id}");
                 break;
             }
@@ -80,7 +80,7 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
                     $"APP-{a.Id:D5}",
                     GetProjectName(a),
                     _copy.AwaitingActionDraft(GetProjectName(a)),
-                    "Continue your application",
+                    _copy.ActionContinueApplication(),
                     $"/Application/Details/{a.Id}");
                 break;
             }
@@ -100,6 +100,10 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
             var stageMapping = mini.Mainline.FirstOrDefault(n => n.State == JourneyNodeState.Current)?.Label
                 ?? mini.Mainline.LastOrDefault(n => n.State == JourneyNodeState.Completed)?.Label
                 ?? "Draft";
+            // Spec 015 / T414 — surface the per-application converted-CRC total + a
+            // non-CRC presence flag so the dashboard card can hint at multi-currency
+            // composition.
+            var (totalCrc, hasNonCrc) = ApplicationCurrencyTotal.Compute(a);
             return new ApplicationCardDto(
                 ApplicationId: Guid.Empty,
                 ApplicationNumber: $"APP-{a.Id:D5}",
@@ -108,7 +112,9 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
                 CurrentStageLabel: stageMapping,
                 DaysInCurrentState: _journey.DaysInCurrentState(a, now),
                 LastActivity: a.UpdatedAt == default ? DateTimeOffset.UtcNow : new DateTimeOffset(a.UpdatedAt, TimeSpan.Zero),
-                PrimaryAction: ResolveContextualAction(a));
+                PrimaryAction: ResolveContextualAction(a),
+                TotalConvertedCrc: totalCrc,
+                HasNonCrcQuotation: hasNonCrc);
         }).ToList();
 
         var recent = apps
@@ -146,18 +152,28 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
         return a.Items.FirstOrDefault()?.ProductName ?? $"Application #{a.Id}";
     }
 
-    private static ContextualAction ResolveContextualAction(AppEntity a)
+    private ContextualAction ResolveContextualAction(AppEntity a)
     {
         if (a.FundingAgreement is not null && a.State != ApplicationState.AgreementExecuted)
         {
-            return new ContextualAction("Sign your agreement", $"/FundingAgreement/Details/{a.Id}", ContextualActionStyle.Primary);
+            return new ContextualAction(_copy.ActionSignAgreement(), AgreementDetailsUrl(a.Id), ContextualActionStyle.Primary);
         }
         if (a.State == ApplicationState.Draft)
         {
-            return new ContextualAction("Continue your application", $"/Application/Details/{a.Id}", ContextualActionStyle.Primary);
+            return new ContextualAction(_copy.ActionContinueApplication(), $"/Application/Details/{a.Id}", ContextualActionStyle.Primary);
         }
-        return new ContextualAction("Open application", $"/Application/Details/{a.Id}", ContextualActionStyle.Secondary);
+        return new ContextualAction(_copy.ActionOpenApplication(), $"/Application/Details/{a.Id}", ContextualActionStyle.Secondary);
     }
+
+    /// <summary>
+    /// Canonical URL for <c>FundingAgreementController.Details</c>. The controller
+    /// is attribute-routed under <c>Applications/{applicationId:int}/FundingAgreement</c>
+    /// with <c>[HttpGet("")]</c> on Details, so the right path is
+    /// <c>/Applications/{id}/FundingAgreement</c> — not the historical
+    /// <c>/FundingAgreement/Details/{id}</c> shape, which 404s.
+    /// </summary>
+    private static string AgreementDetailsUrl(int applicationId)
+        => $"/Applications/{applicationId}/FundingAgreement";
 
     private static string PrettyAction(string action) => action switch
     {

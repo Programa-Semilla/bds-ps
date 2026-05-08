@@ -1,3 +1,4 @@
+@using System.Globalization
 @model FundingPlatform.Web.ViewModels.FundingAgreementDocumentViewModel
 @{
     // Spec 012 / FR-017 / SC-005: PDF must render 1,234.56 (period decimal, comma
@@ -7,6 +8,27 @@
     string Money(string currency, decimal value)
     {
         return $"{currency} {value.ToString("N2", culture)}";
+    }
+
+    // Spec 015 / US5 / T510 — per-line conversion note for non-CRC lines that
+    // carry a rate snapshot. CRC lines and missing-snapshot lines (the latter
+    // are blocked upstream by MissingConversionMetadataException) get no note.
+    string TranslateRateType(string? rateType)
+    {
+        return rateType switch
+        {
+            "Buy" => "Compra",
+            "Sell" => "Venta",
+            _ => rateType ?? string.Empty,
+        };
+    }
+
+    string ConversionNote(FundingPlatform.Application.DTOs.FundingAgreementItemRowDto item)
+    {
+        var rate = (item.SnapshotRateValue ?? 0m).ToString("N6", culture);
+        var rateType = TranslateRateType(item.SnapshotRateType);
+        var effective = (item.SnapshotEffectiveAtUtc ?? DateTime.MinValue).ToString("yyyy-MM-dd", culture);
+        return $"Conversión: 1 {item.Currency} = ₡{rate} (Tipo {rateType}, vigente desde {effective})";
     }
 }
 
@@ -24,13 +46,25 @@
     <tbody>
         @foreach (var item in Model.Items)
         {
-            <tr>
+            <tr data-item-id="@item.ItemId">
                 <td>@item.ProductName</td>
                 <td>@item.CategoryName</td>
                 <td>@item.SupplierName</td>
                 <td class="amount">@Money(item.Currency, item.UnitPrice)</td>
                 <td class="amount">@Money(item.Currency, item.LineTotal)</td>
             </tr>
+            @if (item.Currency != "CRC" && item.SnapshotRateValue.HasValue)
+            {
+                <tr class="conversion-note" data-testid="funding-agreement-conversion-note" data-item-id="@item.ItemId">
+                    <td colspan="3" class="conversion-note-label">@ConversionNote(item)</td>
+                    <td class="amount" colspan="2">
+                        @if (item.ConvertedCrcAmount.HasValue)
+                        {
+                            @Money("CRC", item.ConvertedCrcAmount.Value)
+                        }
+                    </td>
+                </tr>
+            }
         }
         @foreach (var t in Model.TotalsByCurrency)
         {

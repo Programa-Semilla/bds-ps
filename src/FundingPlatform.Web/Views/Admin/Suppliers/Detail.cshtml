@@ -20,15 +20,6 @@
             Title: Model.Name,
             Subtitle: $"Cédula: {Model.LegalId} · Estado: {StatusLabel(Model.Status)}"))
 
-    @if (TempData["SuccessMessage"] is string success)
-    {
-        <div class="alert alert-success" role="alert" data-testid="success-banner">@success</div>
-    }
-    @if (TempData["ErrorMessage"] is string err)
-    {
-        <div class="alert alert-danger" role="alert" data-testid="error-banner">@err</div>
-    }
-
     @if (Model.Status == SupplierVerificationStatus.Rejected && !string.IsNullOrWhiteSpace(Model.RejectionReason))
     {
         <div class="alert alert-danger" role="alert" data-testid="rejection-reason-banner">

@@ -68,10 +68,13 @@ public sealed class AdminReportsService : IAdminReportsService
         var actual = await _queryService.CountApplicationsAsync(req, ct);
         EnforceCsvRowBoundOrThrow(actual);
 
+        // Spec 015 / T416 — append OriginalCurrencyCode, OriginalAmount, ConvertedCrcAmount
+        // to every row (preserving prior column order for back-compat consumers).
         yield return CsvLine(
             "App Id", "Applicant Name", "Applicant Legal Id", "State",
             "Created", "Submitted", "Resolved", "Item Count",
-            "Approved Amount", "Currency", "Has Agreement", "Has Active Appeal");
+            "Approved Amount", "Currency", "Has Agreement", "Has Active Appeal",
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
 
         const int batchSize = 200;
         var skip = 0;
@@ -100,7 +103,8 @@ public sealed class AdminReportsService : IAdminReportsService
                         string.Empty,
                         string.Empty,
                         p.HasAgreement ? "true" : "false",
-                        p.HasActiveAppeal ? "true" : "false");
+                        p.HasActiveAppeal ? "true" : "false",
+                        string.Empty, string.Empty, string.Empty);
                 }
                 else
                 {
@@ -118,7 +122,10 @@ public sealed class AdminReportsService : IAdminReportsService
                             ca.Amount.ToString(CultureInfo.InvariantCulture),
                             ca.Currency,
                             p.HasAgreement ? "true" : "false",
-                            p.HasActiveAppeal ? "true" : "false");
+                            p.HasActiveAppeal ? "true" : "false",
+                            ca.Currency,
+                            ca.Amount.ToString(CultureInfo.InvariantCulture),
+                            ca.ConvertedCrcAmount.ToString(CultureInfo.InvariantCulture));
                     }
                 }
             }
@@ -177,10 +184,14 @@ public sealed class AdminReportsService : IAdminReportsService
         var actual = await _queryService.CountApplicantsAsync(req, ct);
         EnforceCsvRowBoundOrThrow(actual);
 
+        // Spec 015 / T416 — append OriginalCurrencyCode/OriginalAmount/ConvertedCrcAmount.
+        // The applicant CSV already emits a per-currency stack; OriginalAmount duplicates
+        // "Approved Amount" and ConvertedCrcAmount captures the CRC-comparable sum.
         yield return CsvLine(
             "Full Name", "Legal Id", "Email",
             "Total Apps", "Resolved Count", "Response Finalized Count", "Agreement Executed Count",
-            "Approval Rate", "Approved Amount", "Executed Amount", "Currency", "Last Activity");
+            "Approval Rate", "Approved Amount", "Executed Amount", "Currency", "Last Activity",
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
 
         const int batchSize = 200;
         var skip = 0;
@@ -204,16 +215,21 @@ public sealed class AdminReportsService : IAdminReportsService
 
                 if (currencies.Count == 0)
                 {
-                    yield return ApplicantRowLine(p, "", "", "");
+                    yield return ApplicantRowLine(p, "", "", "", "", "");
                     continue;
                 }
                 foreach (var currency in currencies)
                 {
-                    var aAmt = aStack.FirstOrDefault(x => x.Currency == currency)?.Amount ?? 0m;
-                    var eAmt = eStack.FirstOrDefault(x => x.Currency == currency)?.Amount ?? 0m;
+                    var aRow = aStack.FirstOrDefault(x => x.Currency == currency);
+                    var eRow = eStack.FirstOrDefault(x => x.Currency == currency);
+                    var aAmt = aRow?.Amount ?? 0m;
+                    var eAmt = eRow?.Amount ?? 0m;
+                    var crc = (aRow?.ConvertedCrcAmount ?? 0m); // approved-side CRC sum is the canonical OriginalCurrencyCode/CRC pairing
                     yield return ApplicantRowLine(p, currency,
                         aAmt.ToString(CultureInfo.InvariantCulture),
-                        eAmt.ToString(CultureInfo.InvariantCulture));
+                        eAmt.ToString(CultureInfo.InvariantCulture),
+                        aAmt.ToString(CultureInfo.InvariantCulture),
+                        crc.ToString(CultureInfo.InvariantCulture));
                 }
             }
 
@@ -221,7 +237,13 @@ public sealed class AdminReportsService : IAdminReportsService
         }
     }
 
-    private static string ApplicantRowLine(ApplicantProjection p, string currency, string approvedAmount, string executedAmount)
+    private static string ApplicantRowLine(
+        ApplicantProjection p,
+        string currency,
+        string approvedAmount,
+        string executedAmount,
+        string originalAmount,
+        string convertedCrcAmount)
     {
         var rate = p.TotalItems == 0 ? string.Empty
                                      : ((decimal)p.ApprovedItems / p.TotalItems).ToString("0.####", CultureInfo.InvariantCulture);
@@ -237,7 +259,11 @@ public sealed class AdminReportsService : IAdminReportsService
             approvedAmount,
             executedAmount,
             currency,
-            p.LastActivity?.ToString("o", CultureInfo.InvariantCulture) ?? string.Empty);
+            p.LastActivity?.ToString("o", CultureInfo.InvariantCulture) ?? string.Empty,
+            // Spec 015 / T416 — appended:
+            currency,
+            originalAmount,
+            convertedCrcAmount);
     }
 
     public async IAsyncEnumerable<string> ExportFundedItemsCsvAsync(
@@ -247,9 +273,14 @@ public sealed class AdminReportsService : IAdminReportsService
         var actual = await _queryService.CountFundedItemsAsync(req, ct);
         EnforceCsvRowBoundOrThrow(actual);
 
+        // Spec 015 / T416 — append the three new columns. Funded items are per-quotation
+        // rows so OriginalCurrencyCode = r.Currency and ConvertedCrcAmount comes from the
+        // quotation snapshot (or equals Price for native CRC rows). Legacy rows surface
+        // an empty ConvertedCrcAmount.
         yield return CsvLine(
             "App Id", "Applicant Name", "Item Product Name", "Category", "Supplier", "Supplier Legal Id",
-            "Price", "Currency", "App State", "App Submitted", "Approved At", "Has Agreement", "Executed");
+            "Price", "Currency", "App State", "App Submitted", "Approved At", "Has Agreement", "Executed",
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
 
         const int batchSize = 200;
         var skip = 0;
@@ -259,6 +290,10 @@ public sealed class AdminReportsService : IAdminReportsService
             if (batch.Count == 0) break;
             foreach (var r in batch)
             {
+                var convertedCrc = r.ConvertedCrcAmount?.ToString(CultureInfo.InvariantCulture)
+                    ?? (string.Equals(r.Currency, "CRC", StringComparison.OrdinalIgnoreCase)
+                        ? r.Price.ToString(CultureInfo.InvariantCulture)
+                        : string.Empty);
                 yield return CsvLine(
                     r.AppId.ToString(CultureInfo.InvariantCulture),
                     r.ApplicantFullName,
@@ -272,7 +307,10 @@ public sealed class AdminReportsService : IAdminReportsService
                     r.AppSubmittedAt?.ToString("o", CultureInfo.InvariantCulture) ?? string.Empty,
                     r.ApprovedAt?.ToString("o", CultureInfo.InvariantCulture) ?? string.Empty,
                     r.HasAgreement ? "true" : "false",
-                    r.Executed ? "true" : "false");
+                    r.Executed ? "true" : "false",
+                    r.Currency,
+                    r.Price.ToString(CultureInfo.InvariantCulture),
+                    convertedCrc);
             }
             skip += batch.Count;
         }
@@ -286,10 +324,12 @@ public sealed class AdminReportsService : IAdminReportsService
         var actual = await _queryService.CountAgingApplicationsAsync(req, ct);
         EnforceCsvRowBoundOrThrow(actual);
 
+        // Spec 015 / T416 — append the three new columns.
         yield return CsvLine(
             "App Id", "Applicant Name", "Email", "Legal Id", "State",
             "Days In Current State", "Last Transition", "Last Actor", "Item Count",
-            "Approved Amount", "Currency");
+            "Approved Amount", "Currency",
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
 
         const int batchSize = 200;
         var skip = 0;
@@ -301,7 +341,7 @@ public sealed class AdminReportsService : IAdminReportsService
             {
                 if (r.TotalApproved.Count == 0)
                 {
-                    yield return AgingRowLine(r, "", "");
+                    yield return AgingRowLine(r, "", "", "", "", "");
                 }
                 else
                 {
@@ -309,7 +349,10 @@ public sealed class AdminReportsService : IAdminReportsService
                     {
                         yield return AgingRowLine(r,
                             ca.Amount.ToString(CultureInfo.InvariantCulture),
-                            ca.Currency);
+                            ca.Currency,
+                            ca.Currency,
+                            ca.Amount.ToString(CultureInfo.InvariantCulture),
+                            ca.ConvertedCrcAmount.ToString(CultureInfo.InvariantCulture));
                     }
                 }
             }
@@ -317,7 +360,13 @@ public sealed class AdminReportsService : IAdminReportsService
         }
     }
 
-    private static string AgingRowLine(AgingApplicationRowDto r, string approvedAmount, string currency)
+    private static string AgingRowLine(
+        AgingApplicationRowDto r,
+        string approvedAmount,
+        string currency,
+        string originalCurrencyCode,
+        string originalAmount,
+        string convertedCrcAmount)
     {
         return CsvLine(
             r.AppId.ToString(CultureInfo.InvariantCulture),
@@ -330,7 +379,10 @@ public sealed class AdminReportsService : IAdminReportsService
             r.LastActor ?? string.Empty,
             r.ItemCount.ToString(CultureInfo.InvariantCulture),
             approvedAmount,
-            currency);
+            currency,
+            originalCurrencyCode,
+            originalAmount,
+            convertedCrcAmount);
     }
 
     private static void ValidateAgingThreshold(int thresholdDays)

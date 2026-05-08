@@ -7,6 +7,23 @@
     <td class="fl-pad-2">
         <div class="fl-app-card-mono fl-type-meta" data-testid="row-application-number">@Model.ApplicationNumber</div>
         <div class="fl-type-meta fw-semibold" data-testid="row-project-name">@Model.ProjectName</div>
+        @if (Model.TotalConvertedCrc.HasValue)
+        {
+            @* Spec 015 / T414 — converted-CRC total inline to keep the column count stable. *@
+            <div class="fl-type-meta text-secondary" data-testid="row-total">
+                @await Component.InvokeAsync("MoneyDisplay", new
+                {
+                    original = Model.TotalConvertedCrc,
+                    originalCurrency = (FundingPlatform.Domain.ValueObjects.CurrencyCode?)null,
+                    convertedCrc = Model.TotalConvertedCrc,
+                    snapshot = (FundingPlatform.Domain.ValueObjects.ExchangeRateSnapshot?)null
+                })
+                @if (Model.HasNonCrcQuotation)
+                {
+                    <span class="badge bg-info-lt ms-1" data-testid="row-multicurrency-badge">multimoneda</span>
+                }
+            </div>
+        }
     </td>
     <td class="fl-pad-2">
         <div class="d-flex align-items-center fl-gap-2">

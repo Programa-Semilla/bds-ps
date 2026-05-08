@@ -234,7 +234,13 @@ public class ReviewService
                     score?.HasLowestPrice ?? false,
                     score?.IsPreSelected ?? false,
                     score?.IsSupplierVerified ?? false,
-                    score?.IsSupplierRejected ?? false);
+                    score?.IsSupplierRejected ?? false,
+                    Currency: string.IsNullOrEmpty(q.Currency) ? "CRC" : q.Currency,
+                    ConvertedCrcAmount: q.ConvertedCrcAmount,
+                    SnapshotRateValue: q.Snapshot?.RateValue,
+                    SnapshotRateType: q.Snapshot?.RateType.ToString(),
+                    SnapshotEffectiveAtUtc: q.Snapshot?.EffectiveAtUtc,
+                    LegacyNeedsReview: q.LegacyNeedsReview);
             })
             .OrderByDescending(q => q.Score)
             .ToList();

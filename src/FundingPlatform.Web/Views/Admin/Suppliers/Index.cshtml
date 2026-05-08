@@ -26,15 +26,6 @@
             Title: AdminSuppliersResources.Page_Title,
             Subtitle: "Verifique, edite o rechace proveedores propuestos por los postulantes."))
 
-    @if (TempData["SuccessMessage"] is string success)
-    {
-        <div class="alert alert-success" role="alert" data-testid="success-banner">@success</div>
-    }
-    @if (TempData["ErrorMessage"] is string err)
-    {
-        <div class="alert alert-danger" role="alert" data-testid="error-banner">@err</div>
-    }
-
     <form method="get" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-suppliers-filter-form">
         <select name="status" class="form-select" style="max-width: 220px;" data-testid="admin-suppliers-status-filter">
             <option value="">@AdminSuppliersResources.FilterStatus_All</option>

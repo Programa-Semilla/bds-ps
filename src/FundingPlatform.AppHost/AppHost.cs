@@ -100,14 +100,19 @@ if (string.Equals(storageProvider, "Azurite", StringComparison.OrdinalIgnoreCase
 
 var syncfusionLicense = builder.Configuration["Syncfusion:LicenseKey"] ?? "Ngo9BigBOggjHTQxAR8/V1JHaF1cXmhMYVJpR2NbeU5xdF9DZVZURGY/P1ZhSXxVdkFhXX1cdXFQRmJVU019XEE=";
 var localeCode = builder.Configuration["FundingAgreement:LocaleCode"] ?? "es-CR";
-var currencyIsoCode = builder.Configuration["FundingAgreement:CurrencyIsoCode"] ?? "COP";
+// Spec 015 / T907 — base currency is CRC; the prior "COP" default predates the
+// multi-currency feature and contradicts the platform's only base currency.
+var currencyIsoCode = builder.Configuration["FundingAgreement:CurrencyIsoCode"] ?? "CRC";
 var funderLegalName = builder.Configuration["FundingAgreement:Funder:LegalName"] ?? "";
 var funderTaxId = builder.Configuration["FundingAgreement:Funder:TaxId"] ?? "";
 var funderAddress = builder.Configuration["FundingAgreement:Funder:Address"] ?? "";
 var funderContactEmail = builder.Configuration["FundingAgreement:Funder:ContactEmail"] ?? "";
 var funderContactPhone = builder.Configuration["FundingAgreement:Funder:ContactPhone"] ?? "";
 var signedUploadMaxSizeBytes = builder.Configuration["SignedUpload:MaxSizeBytes"] ?? "20971520";
-var adminReportsDefaultCurrency = builder.Configuration["AdminReports:DefaultCurrency"] ?? "COP";
+// Spec 015 / T907 follow-up — base currency is CRC. The prior "COP" fallback was
+// incompatible with the multi-currency conversion path (no rate, no FK to the
+// seeded Currencies catalog), causing every legacy supplier-add flow to 500.
+var adminReportsDefaultCurrency = builder.Configuration["AdminReports:DefaultCurrency"] ?? "CRC";
 var adminReportsCsvRowLimit = builder.Configuration["AdminReports:CsvRowLimit"] ?? "50000";
 
 // E2E fixture runs with EphemeralStorage=true and a fresh DB per fixture run, so

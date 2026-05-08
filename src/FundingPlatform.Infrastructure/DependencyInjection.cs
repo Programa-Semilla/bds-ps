@@ -3,11 +3,13 @@ using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Admin.Users;
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Application.Options;
+using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.DocumentGeneration;
 using FundingPlatform.Infrastructure.Identity;
 using FundingPlatform.Infrastructure.Persistence.Reports;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
+using FundingPlatform.Infrastructure.Persistence.Services;
 using FundingPlatform.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,6 +43,18 @@ public static class DependencyInjection
         services.AddSingleton<SyncfusionLicenseValidator>();
 
         services.AddObjectStorage(configuration);
+
+        // Spec 015 — multi-currency repositories + conversion service.
+        services.AddScoped<IExchangeRateRepository, ExchangeRateRepository>();
+        services.AddScoped<ICurrencyRepository, CurrencyRepository>();
+        services.AddScoped<IQuotationLegacyRepository, QuotationLegacyRepository>();
+        services.AddScoped<IConversionService, ConversionService>();
+
+        // Spec 015 / Phase 5 (US3) — admin currency-config + exchange-rate
+        // application services. Phase 8 (US6) — legacy-quotation rate-attach.
+        services.AddScoped<ICurrencyConfigService, CurrencyConfigService>();
+        services.AddScoped<IExchangeRateService, ExchangeRateService>();
+        services.AddScoped<ILegacyQuotationRateAttachService, LegacyQuotationRateAttachService>();
 
         return services;
     }

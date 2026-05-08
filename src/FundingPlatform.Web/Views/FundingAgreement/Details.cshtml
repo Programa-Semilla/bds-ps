@@ -17,6 +17,17 @@
             new BreadcrumbItem("Convenio de financiamiento"),
         }))
 
+@if (!string.IsNullOrWhiteSpace(Model.MissingConversionInlineError))
+{
+    @* Spec 015 / US5 / T512 / FR-027 — inline error baked directly into the view
+       (no TempData redirect) so a hard reload that re-issues the failed POST
+       keeps the message until an admin attaches a historical rate (US6). *@
+    <div class="alert alert-danger" role="alert"
+         data-testid="funding-agreement-missing-conversion-error">
+        @Model.MissingConversionInlineError
+    </div>
+}
+
 <div class="card mb-4" data-testid="funding-agreement-preview">
     <div class="card-header">
         <strong>Resumen del convenio</strong>

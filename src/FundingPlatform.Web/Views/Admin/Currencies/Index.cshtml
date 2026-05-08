@@ -1,0 +1,98 @@
+@model FundingPlatform.Web.ViewModels.Admin.AdminCurrenciesListViewModel
+@{
+    ViewData["Title"] = "Monedas";
+}
+
+<div data-testid="admin-currencies-area">
+    <div class="page-header d-print-none mb-3">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <h2 class="page-title">Monedas</h2>
+                <div class="text-muted">Gestione las monedas disponibles para cotizaciones de proveedores.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" data-testid="admin-currencies-table">
+        <div class="table-responsive">
+            <table class="table card-table table-vcenter">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Símbolo</th>
+                        <th>Nombre</th>
+                        <th>Estado</th>
+                        <th>Tipo</th>
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr data-testid="admin-currency-row-@row.Code">
+                            <td><code data-testid="currency-code">@row.Code</code></td>
+                            <td>@row.Symbol</td>
+                            <td>@row.DisplayName</td>
+                            <td>
+                                @if (row.IsEnabled)
+                                {
+                                    <span class="badge bg-green-lt" data-testid="currency-status-enabled">Habilitada</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary-lt" data-testid="currency-status-disabled">Deshabilitada</span>
+                                }
+                            </td>
+                            <td>
+                                @if (row.IsBaseCurrency)
+                                {
+                                    <span class="badge bg-blue-lt" data-testid="currency-base-badge">Base</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (row.IsBaseCurrency)
+                                {
+                                    <span class="text-muted small" data-testid="currency-base-locked">
+                                        CRC es la moneda base del sistema y no se puede deshabilitar.
+                                    </span>
+                                }
+                                else if (row.IsEnabled)
+                                {
+                                    <form method="post"
+                                          asp-action="Disable"
+                                          asp-route-code="@row.Code"
+                                          class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit"
+                                                class="btn btn-sm btn-outline-danger"
+                                                data-testid="currency-disable-button">
+                                            <i class="ti ti-ban me-1"></i> Deshabilitar
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form method="post"
+                                          asp-action="Enable"
+                                          asp-route-code="@row.Code"
+                                          class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit"
+                                                class="btn btn-sm btn-outline-success"
+                                                data-testid="currency-enable-button">
+                                            <i class="ti ti-check me-1"></i> Habilitar
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

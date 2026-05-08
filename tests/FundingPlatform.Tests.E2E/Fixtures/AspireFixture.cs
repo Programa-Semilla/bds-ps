@@ -206,7 +206,9 @@ public class AspireFixture : IAsyncDisposable
                 // SystemConfigurations row; the dacpac embeds an empty value when the build-time
                 // MSBuild property is unset, so the test fixture must override it explicitly to
                 // avoid a blank Value that fails Required validation on admin Configuration save.
-                "/v:DefaultCurrency=COP"),
+                // Spec 015 / T907 follow-up — base currency flipped COP -> CRC so the value is
+                // a member of the seeded dbo.Currencies catalog and survives the conversion path.
+                "/v:DefaultCurrency=CRC"),
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true

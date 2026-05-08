@@ -1,0 +1,102 @@
+@using System.Globalization
+@model FundingPlatform.Web.ViewModels.Admin.AdminLegacyQuotationsListViewModel
+@{
+    ViewData["Title"] = "Cotizaciones Pendientes";
+    var es = CultureInfo.GetCultureInfo("es-CR");
+}
+
+<div data-testid="admin-legacy-quotations-area">
+    <div class="page-header d-print-none mb-3">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <h2 class="page-title">Cotizaciones Pendientes</h2>
+                <div class="text-muted">
+                    Cotizaciones anteriores a la migración multimoneda que requieren un tipo de cambio histórico.
+                    Asigne uno para sacarlas de la cuarentena y reincorporarlas a los totales en CRC.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="card">
+            <div class="card-body text-center text-muted" data-testid="admin-legacy-quotations-empty">
+                <i class="ti ti-mood-empty fs-2"></i>
+                <p class="mt-2 mb-0">No hay cotizaciones pendientes de revisión.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card" data-testid="admin-legacy-quotations-table">
+            <div class="table-responsive">
+                <table class="table card-table table-vcenter">
+                    <thead>
+                        <tr>
+                            <th>Solicitud</th>
+                            <th>Ítem</th>
+                            <th>Proveedor</th>
+                            <th class="text-end">Precio original</th>
+                            <th>Moneda</th>
+                            <th>Creada</th>
+                            <th>Asignar tipo de cambio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr data-testid="admin-legacy-quotation-row-@row.QuotationId">
+                                <td>
+                                    <a asp-controller="Application" asp-action="Details" asp-route-id="@row.ApplicationId"
+                                       data-testid="legacy-quotation-application-link">
+                                        #@row.ApplicationId
+                                    </a>
+                                </td>
+                                <td data-testid="legacy-quotation-item-name">@row.ItemName</td>
+                                <td data-testid="legacy-quotation-supplier-name">@row.SupplierName</td>
+                                <td class="text-end" data-testid="legacy-quotation-price">@row.Price.ToString("N2", es)</td>
+                                <td><code data-testid="legacy-quotation-currency">@row.Currency</code></td>
+                                <td>@row.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>
+                                    @if (row.RateOptions.Count == 0)
+                                    {
+                                        <span class="text-muted small" data-testid="legacy-quotation-no-rates">
+                                            Aún no hay tipos de cambio publicados.
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <form method="post"
+                                              asp-action="Attach"
+                                              class="d-flex gap-2 align-items-center"
+                                              data-testid="legacy-quotation-attach-form">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="quotationId" value="@row.QuotationId" />
+                                            <select name="rateId"
+                                                    class="form-select form-select-sm"
+                                                    data-testid="legacy-quotation-rate-select"
+                                                    required>
+                                                <option value="">— Seleccione un tipo de cambio —</option>
+                                                @foreach (var opt in row.RateOptions)
+                                                {
+                                                    var label = $"{opt.BuyRate.ToString("N4", es)} (vigente desde {opt.EffectiveAtUtc.ToLocalTime():yyyy-MM-dd HH:mm})";
+                                                    <option value="@opt.Id">@label</option>
+                                                }
+                                            </select>
+                                            <button type="submit"
+                                                    class="btn btn-sm btn-primary"
+                                                    data-testid="legacy-quotation-attach-button">
+                                                <i class="ti ti-link me-1"></i> Asignar
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

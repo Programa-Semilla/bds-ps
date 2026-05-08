@@ -48,9 +48,13 @@ public class AdminReportsAgingTests : AuthenticatedTestBase
         Assert.That(path, Is.Not.Null.And.Not.Empty);
         var bytes = await File.ReadAllBytesAsync(path!);
 
+        // Spec 015 / T414 — three back-compat columns appended at the end of every
+        // admin-reports CSV so legacy consumers see the same prefix and new
+        // consumers can read the original-currency / converted-CRC pair.
         CsvAssertions.AssertHeaderEquals(bytes,
             "App Id", "Applicant Name", "Email", "Legal Id", "State",
             "Days In Current State", "Last Transition", "Last Actor", "Item Count",
-            "Approved Amount", "Currency");
+            "Approved Amount", "Currency",
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
     }
 }

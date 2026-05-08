@@ -1,18 +1,18 @@
 using System.Security.Claims;
 using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Applications.Commands;
-using FundingPlatform.Application.Options;
+using FundingPlatform.Application.DTOs;
+using FundingPlatform.Application.Errors;
 using FundingPlatform.Application.Services;
-using FundingPlatform.Application.Suppliers.Services;
-using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.Filters;
+using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace FundingPlatform.Web.Controllers;
 
@@ -21,115 +21,113 @@ namespace FundingPlatform.Web.Controllers;
 public class QuotationController : Controller
 {
     private readonly ApplicationService _applicationService;
-    private readonly SupplierCatalogService _supplierCatalogService;
-    private readonly ISupplierRepository _supplierRepository;
     private readonly ISystemConfigurationRepository _systemConfigurationRepository;
     private readonly AppDbContext _dbContext;
-    private readonly IOptions<AdminReportsOptions> _adminReportsOptions;
+    private readonly IConversionService _conversionService;
+    private readonly IUserFacingErrorTranslator _errorTranslator;
 
     private const string QuotationFileRequiredMessage = "Se requiere el archivo de la cotización.";
 
     public QuotationController(
         ApplicationService applicationService,
-        SupplierCatalogService supplierCatalogService,
-        ISupplierRepository supplierRepository,
         ISystemConfigurationRepository systemConfigurationRepository,
         AppDbContext dbContext,
-        IOptions<AdminReportsOptions> adminReportsOptions)
+        IConversionService conversionService,
+        IUserFacingErrorTranslator errorTranslator)
     {
         _applicationService = applicationService;
-        _supplierCatalogService = supplierCatalogService;
-        _supplierRepository = supplierRepository;
         _systemConfigurationRepository = systemConfigurationRepository;
         _dbContext = dbContext;
-        _adminReportsOptions = adminReportsOptions;
+        _conversionService = conversionService;
+        _errorTranslator = errorTranslator;
     }
 
-    [HttpGet("Add")]
-    public async Task<IActionResult> Add(int appId, int itemId, int supplierId, string supplierName)
-    {
-        await VerifyOwnershipAsync(appId);
+    // Spec 015 — the GET/POST "Add" endpoints that originally lived here were
+    // never wired up to any user-facing surface. The applicant journey goes
+    // through SupplierController.Add (legal-id lookup → branch picker → quote)
+    // which now hosts the multi-currency dropdown and live conversion preview.
+    // The Convert AJAX endpoint below is the only piece of QuotationController
+    // that the UI calls into; Replace and Delete remain for the existing edit
+    // affordances on Application/Details.
 
-        var viewModel = new AddQuotationViewModel
-        {
-            ApplicationId = appId,
-            ItemId = itemId,
-            SupplierId = supplierId,
-            SupplierName = supplierName,
-            Currency = (_adminReportsOptions.Value.DefaultCurrency ?? string.Empty).ToUpperInvariant(),
-            ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(3))
-        };
-
-        return View(viewModel);
-    }
-
-    [HttpPost("Add")]
+    /// <summary>
+    /// Spec 015 / contract <c>conversion-preview-api.md</c> — server-computed
+    /// conversion preview. Called from <c>quote-conversion-preview.js</c> on
+    /// currency-or-amount blur. The client never multiplies locally (FR-019).
+    /// </summary>
+    [HttpPost("Convert")]
     [ValidateAntiForgeryToken]
-    [UploadSizeGuard(FileCategory.ApplicationAttachment)]
-    public async Task<IActionResult> Add(int appId, int itemId, AddQuotationViewModel model)
+    public async Task<IActionResult> Convert(
+        int appId, int itemId, [FromBody] ConversionPreviewRequestModel req,
+        CancellationToken ct)
     {
         await VerifyOwnershipAsync(appId);
 
-        if (!ModelState.IsValid)
+        if (req is null || string.IsNullOrWhiteSpace(req.CurrencyCode))
         {
-            model.ApplicationId = appId;
-            model.ItemId = itemId;
-            return View(model);
+            return BadRequest(new { error = "Falta el código de moneda." });
+        }
+        if (req.Amount <= 0m)
+        {
+            return BadRequest(new { error = "El monto debe ser mayor a cero." });
         }
 
-        if (model.QuotationFile is null || model.QuotationFile.Length == 0)
+        CurrencyCode parsed;
+        try
         {
-            ModelState.AddModelError(nameof(model.QuotationFile), QuotationFileRequiredMessage);
-            model.ApplicationId = appId;
-            model.ItemId = itemId;
-            return View(model);
+            parsed = CurrencyCode.From(req.CurrencyCode);
+        }
+        catch (ArgumentException)
+        {
+            return NotFound(new { error = $"La moneda '{req.CurrencyCode}' no está configurada." });
         }
 
-        var validationError = await ValidateFileAsync(model.QuotationFile);
-        if (validationError is not null)
+        // CRC short-circuit per the contract: { isCrc: true, amount: <input> }.
+        if (parsed.IsBase)
         {
-            ModelState.AddModelError(nameof(model.QuotationFile), validationError);
-            model.ApplicationId = appId;
-            model.ItemId = itemId;
-            return View(model);
+            return Ok(new ConversionPreviewDto(
+                IsCrc: true,
+                Amount: req.Amount,
+                OriginalCurrencyCode: null,
+                OriginalAmount: null,
+                ConvertedCrcAmount: null,
+                Rate: null));
+        }
+
+        var currency = await _dbContext.Currencies
+            .FirstOrDefaultAsync(c => c.Code == parsed, ct);
+        if (currency is null)
+        {
+            return NotFound(new { error = $"La moneda '{parsed}' no está configurada." });
+        }
+        if (!currency.IsEnabled)
+        {
+            return BadRequest(new { error = $"La moneda '{parsed}' está deshabilitada." });
         }
 
         try
         {
-            // Spec 013: existing-supplier quotation. Use the supplier's default branch
-            // since this entry-point doesn't expose branch selection (callers wanting
-            // branch choice go through SupplierController.Add).
-            var supplier = await _supplierRepository.GetByIdWithBranchesAsync(model.SupplierId)
-                ?? throw new InvalidOperationException($"Supplier {model.SupplierId} not found.");
+            var result = await _conversionService.ConvertAsync(
+                parsed, CurrencyCode.Crc, req.Amount, ct);
 
-            if (supplier.VerificationStatus == SupplierVerificationStatus.Rejected)
-            {
-                ModelState.AddModelError(string.Empty, "El proveedor está rechazado y no puede recibir nuevas cotizaciones.");
-                model.ApplicationId = appId;
-                model.ItemId = itemId;
-                return View(model);
-            }
-
-            var defaultBranch = supplier.Branches.FirstOrDefault(b => b.IsDefault)
-                ?? supplier.Branches.FirstOrDefault()
-                ?? throw new InvalidOperationException($"Supplier {model.SupplierId} has no branches.");
-
-            using var stream = model.QuotationFile.OpenReadStream();
-            await _applicationService.AddQuotationToExistingBranchAsync(
-                appId, itemId, supplier.Id, defaultBranch.Id,
-                model.Price, model.Currency, model.ValidUntil,
-                stream, model.QuotationFile.FileName,
-                model.QuotationFile.ContentType, model.QuotationFile.Length);
-
-            TempData["SuccessMessage"] = "Cotización agregada con éxito.";
-            return RedirectToAction("Details", "Application", new { id = appId });
+            return Ok(new ConversionPreviewDto(
+                IsCrc: false,
+                Amount: req.Amount,
+                OriginalCurrencyCode: parsed.Value,
+                OriginalAmount: req.Amount,
+                ConvertedCrcAmount: result.Converted,
+                Rate: new ConversionPreviewRateDto(
+                    RateRecordId: result.Snapshot.RateRecordId,
+                    RateValue: result.Snapshot.RateValue,
+                    RateType: result.Snapshot.RateType.ToString(),
+                    EffectiveAtUtc: result.Snapshot.EffectiveAtUtc)));
         }
-        catch (InvalidOperationException ex)
+        catch (MissingRateException)
         {
-            ModelState.AddModelError(string.Empty, ex.Message);
-            model.ApplicationId = appId;
-            model.ItemId = itemId;
-            return View(model);
+            return Conflict(new
+            {
+                error = _errorTranslator.Translate(UserFacingErrorCode.MissingExchangeRate)
+            });
         }
     }
 

@@ -132,7 +132,7 @@ public class ApplicationController : Controller
 
     private static ApplicationViewModel MapToViewModel(FundingPlatform.Application.DTOs.ApplicationDto dto)
     {
-        return new ApplicationViewModel
+        var vm = new ApplicationViewModel
         {
             Id = dto.Id,
             State = dto.State.ToString(),
@@ -146,8 +146,63 @@ public class ApplicationController : Controller
                 CategoryName = i.CategoryName,
                 QuotationCount = i.Quotations.Count,
                 HasImpact = i.Impact is not null,
-                ReviewComment = i.ReviewComment
+                ReviewComment = i.ReviewComment,
+                SelectedSupplierId = i.SelectedSupplierId,
+                Quotations = i.Quotations.Select(q => new QuotationSummaryViewModel
+                {
+                    Id = q.Id,
+                    SupplierName = q.SupplierName,
+                    Price = q.Price,
+                    Currency = q.Currency,
+                    ConvertedCrcAmount = q.ConvertedCrcAmount,
+                    SnapshotRateValue = q.SnapshotRateValue,
+                    SnapshotRateType = q.SnapshotRateType,
+                    SnapshotEffectiveAtUtc = q.SnapshotEffectiveAtUtc,
+                    LegacyNeedsReview = q.LegacyNeedsReview
+                }).ToList()
             }).ToList()
         };
+
+        // Spec 015 / T413 — application-summary total computed in CRC across all
+        // Items by picking the selected-supplier quotation per Item, excluding
+        // legacy-flagged rows. Items without a selected supplier are skipped (their
+        // total is undetermined until a reviewer decides).
+        decimal? total = null;
+        var hasLegacy = false;
+        foreach (var item in vm.Items)
+        {
+            if (item.SelectedSupplierId is null) continue;
+            var chosen = item.Quotations
+                .FirstOrDefault(q => GetSupplierIdForQuotation(dto, item.Id, q.Id) == item.SelectedSupplierId);
+            if (chosen is null) continue;
+            if (chosen.LegacyNeedsReview)
+            {
+                hasLegacy = true;
+                continue;
+            }
+            if (chosen.ConvertedCrcAmount.HasValue)
+            {
+                total = (total ?? 0m) + chosen.ConvertedCrcAmount.Value;
+            }
+        }
+        vm.TotalConvertedCrc = total;
+        vm.HasLegacyNeedsReview = hasLegacy;
+        return vm;
+    }
+
+    /// <summary>
+    /// Resolves the underlying supplier id for a quotation summary view-model row.
+    /// The summary view-model intentionally does not carry SupplierId (the original
+    /// design only needed display fields); when computing the application total
+    /// we look it up from the source DTO once.
+    /// </summary>
+    private static int? GetSupplierIdForQuotation(
+        FundingPlatform.Application.DTOs.ApplicationDto dto,
+        int itemId,
+        int quotationId)
+    {
+        var item = dto.Items.FirstOrDefault(i => i.Id == itemId);
+        var q = item?.Quotations.FirstOrDefault(qq => qq.Id == quotationId);
+        return q?.SupplierId;
     }
 }

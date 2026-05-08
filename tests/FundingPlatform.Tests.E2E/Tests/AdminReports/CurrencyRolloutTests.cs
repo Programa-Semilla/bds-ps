@@ -53,13 +53,24 @@ public class CurrencyRolloutTests : AuthenticatedTestBase
         await addSupplierLink.ClickAsync();
 
         var currencyValue = await Page.Locator("[name=Currency]").InputValueAsync();
-        Assert.That(currencyValue, Is.EqualTo("COP"),
-            "Currency input must be prefilled from AdminReports:DefaultCurrency (COP in dev/test config).");
+        // Spec 015 / T907 follow-up — base currency flipped COP -> CRC so the form
+        // pre-fill matches a currency that is actually in the seeded catalog with
+        // a published rate. Asserting the configured default still verifies the
+        // wire-up between AdminReports:DefaultCurrency and the form.
+        Assert.That(currencyValue, Is.EqualTo("CRC"),
+            "Currency input must be prefilled from AdminReports:DefaultCurrency (CRC in dev/test config).");
     }
 
     [Test]
-    public async Task QuotationCreateForm_RejectsCurrencyOfWrongLength()
+    public async Task QuotationCreateForm_RejectsTamperedCurrencyValue()
     {
+        // Spec 015 — the UI dropdown is now constrained to enabled currencies, so
+        // a normal user can no longer pick a wrong-length code through the form.
+        // The defense that still matters is server-side: a tampered POST that
+        // bypasses the dropdown (DOM injection, curl, etc.) must still be
+        // rejected with a validation error rather than crashing the controller
+        // or persisting bogus data. This test forces an invalid value into the
+        // <select> via the DOM, submits, and asserts the server-rendered error.
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var email = $"currency_reject_{uniqueId}@example.com";
         const string password = "Test123!";
@@ -79,18 +90,30 @@ public class CurrencyRolloutTests : AuthenticatedTestBase
         await addSupplierLink.ClickAsync();
 
         var supplierPage = new SupplierPage(Page);
-        await supplierPage.FillSupplierFormAsync(
-            legalId: $"SUP-{uniqueId}",
+        var lookupOutcome = await supplierPage.SearchByLegalIdAsync($"SUP-{uniqueId}");
+        Assert.That(lookupOutcome, Is.EqualTo("Empty"));
+        await supplierPage.FillNewSupplierFormAsync(
             name: "Reject Supplier",
-            price: 100m,
-            validUntil: "2027-12-31",
-            filePath: _testFilePath,
-            currency: "XX"); // Two-letter currency — must be rejected
+            branchName: "Sede principal",
+            province: "San Jose");
+
+        await supplierPage.PriceInput.FillAsync("100");
+        await supplierPage.ValidUntilInput.FillAsync("2027-12-31");
+        await supplierPage.QuotationFileInput.SetInputFilesAsync(_testFilePath);
+
+        // Force a bogus value into the <select> by appending an extra <option>
+        // and selecting it. This emulates a tampered POST without leaving the
+        // browser-driven flow.
+        await supplierPage.CurrencyInput.EvaluateAsync(
+            "el => { const o = document.createElement('option'); o.value = 'XX'; o.text = 'XX'; el.appendChild(o); el.value = 'XX'; el.dispatchEvent(new Event('change', { bubbles: true })); }");
+
         await supplierPage.SubmitAsync();
 
+        // Server-side rejection: form re-renders with a validation error.
+        await Expect(Page).ToHaveURLAsync(new Regex("/Supplier/Add"));
         var validationVisible = await Page.Locator(".text-danger").First.IsVisibleAsync();
         Assert.That(validationVisible, Is.True,
-            "Form must surface a validation error when Currency length != 3.");
+            "Form must surface a validation error for a tampered Currency value.");
     }
 
     [Test]
@@ -125,6 +148,7 @@ public class CurrencyRolloutTests : AuthenticatedTestBase
         var bytes = await downloadFlow.CaptureDownloadBytesAsync(panelPage.DownloadLink);
         Assert.That(FundingAgreementDownloadFlow.LooksLikePdf(bytes), Is.True);
 
-        FundingAgreementPdfAssertions.AssertEachAmountHasCurrencyCode(bytes, new[] { "COP" });
+        // Spec 015 / T907 — base currency default flipped from COP to CRC.
+        FundingAgreementPdfAssertions.AssertEachAmountHasCurrencyCode(bytes, new[] { "CRC" });
     }
 }

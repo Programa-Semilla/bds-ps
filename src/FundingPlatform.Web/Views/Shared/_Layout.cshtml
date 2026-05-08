@@ -8,11 +8,14 @@
         new("home", "Inicio", Url.Action("Index", "Home") ?? "/", "ti ti-home", Array.Empty<string>()),
         new("my-applications", "Mis solicitudes", Url.Action("Index", "Application") ?? "/Application", "ti ti-files", new[] { "Applicant" }),
         new("review-queue", "Cola de revisión", Url.Action("Index", "Review") ?? "/Review", "ti ti-clipboard-check", new[] { "Reviewer", "Admin" }),
-        new("signing-inbox", "Bandeja de firmas", Url.Action("SigningInbox", "Review") ?? "/Review/SigningInbox", "ti ti-pen", new[] { "Reviewer", "Admin" }),
+        new("signing-inbox", "Bandeja de firmas", Url.Action("SigningInbox", "Review") ?? "/Review/SigningInbox", "ti ti-signature", new[] { "Reviewer", "Admin" }),
         new("admin", "Administración", Url.Action("Index", "Admin") ?? "/Admin", "ti ti-settings", new[] { "Admin" }),
         new("users", "Usuarios", "/Admin/Users", "ti ti-users", new[] { "Admin" }),
         new("suppliers", "Proveedores", "/Admin/Suppliers", "ti ti-building-store", new[] { "Admin" }),
         new("reports", "Reportes", "/Admin/Reports", "ti ti-chart-line", new[] { "Admin" }),
+        new("currencies", "Monedas", "/Admin/AdminCurrencies", "ti ti-coin", new[] { "Admin" }),
+        new("exchange-rates", "Tipos de Cambio", "/Admin/AdminExchangeRates", "ti ti-arrows-exchange", new[] { "Admin" }),
+        new("legacy-quotations", "Cotizaciones Pendientes", "/Admin/AdminLegacyQuotations", "ti ti-history", new[] { "Admin" }),
     };
 
     bool IsEntryVisible(SidebarEntry entry)
@@ -123,14 +126,14 @@
                 <div class="container-xl">
                     @if (TempData["SuccessMessage"] != null)
                     {
-                        <div class="alert alert-success alert-dismissible" role="alert">
+                        <div class="alert alert-success alert-dismissible" role="alert" data-testid="success-banner">
                             @TempData["SuccessMessage"]
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                         </div>
                     }
                     @if (TempData["ErrorMessage"] != null)
                     {
-                        <div class="alert alert-danger alert-dismissible" role="alert">
+                        <div class="alert alert-danger alert-dismissible" role="alert" data-testid="error-banner">
                             @TempData["ErrorMessage"]
                             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                         </div>

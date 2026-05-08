@@ -1,0 +1,91 @@
+@using System.Globalization
+@model FundingPlatform.Web.ViewModels.Admin.AdminExchangeRatesListViewModel
+@{
+    ViewData["Title"] = "Tipos de Cambio";
+    var es = CultureInfo.GetCultureInfo("es-CR");
+}
+
+<div data-testid="admin-exchange-rates-area">
+    <div class="page-header d-print-none mb-3">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <h2 class="page-title">Tipos de Cambio</h2>
+                <div class="text-muted">Histórico de tipos de cambio publicados. El más reciente es el activo.</div>
+            </div>
+            <div class="col-auto">
+                <a asp-action="Create"
+                   class="btn btn-primary"
+                   data-testid="admin-exchange-rates-create-button">
+                    <i class="ti ti-plus me-1"></i> Publicar nuevo tipo de cambio
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="card">
+            <div class="card-body text-center text-muted" data-testid="admin-exchange-rates-empty">
+                <i class="ti ti-mood-empty fs-2"></i>
+                <p class="mt-2 mb-0">Aún no se han publicado tipos de cambio.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card" data-testid="admin-exchange-rates-table">
+            <div class="table-responsive">
+                <table class="table card-table table-vcenter">
+                    <thead>
+                        <tr>
+                            <th>Origen</th>
+                            <th>Destino</th>
+                            <th class="text-end">Compra</th>
+                            <th class="text-end">Venta</th>
+                            <th>Vigente desde</th>
+                            <th>Publicado por</th>
+                            <th>Publicado el</th>
+                            <th>Usado</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            var rowClass = row.IsActive ? "table-success" : null;
+                            <tr class="@rowClass" data-testid="admin-exchange-rate-row-@row.Id">
+                                <td><code>@row.SourceCurrencyCode</code></td>
+                                <td><code>@row.TargetCurrencyCode</code></td>
+                                <td class="text-end" data-testid="rate-buy">@row.BuyRate.ToString("N4", es)</td>
+                                <td class="text-end" data-testid="rate-sell">@row.SellRate.ToString("N4", es)</td>
+                                <td data-testid="rate-effective">@row.EffectiveAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                <td data-testid="rate-created-by">@(row.CreatedByUserName ?? row.CreatedByUserId)</td>
+                                <td>@row.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>
+                                    @if (row.IsUsed)
+                                    {
+                                        <span class="badge bg-blue-lt">Usado</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (row.IsActive)
+                                    {
+                                        <span class="badge bg-green-lt" data-testid="rate-active-badge">Activo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-lt">Histórico</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

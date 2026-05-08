@@ -64,4 +64,19 @@ public enum UserFacingErrorCode
     SignedUploadContentUnreadable,
     SignedUploadNotAPdf,
     SignedUploadMissingPdfHeader,
+
+    // Spec 015 — multi-currency quotes
+    /// <summary>FR-018 — applicant tried to convert/save a non-CRC quotation but no
+    /// reference rate has been published yet.</summary>
+    MissingExchangeRate,
+    /// <summary>Applicant tried to save a quotation in a currency that an admin has disabled.</summary>
+    CurrencyDisabled,
+    /// <summary>FR-008 — admin tried to edit a rate that has already been snapshotted by a quotation.
+    /// The rate must be superseded by publishing a new row.</summary>
+    RateImmutableUseSupersede,
+    /// <summary>FR-007 — admin tried to publish a rate whose (source, target, effectiveAt) tuple
+    /// already exists.</summary>
+    DuplicateRateTimestamp,
+    /// <summary>FR-007a — admin tried to publish a rate with a future-dated EffectiveAtUtc.</summary>
+    FutureDatedRateRejected,
 }
