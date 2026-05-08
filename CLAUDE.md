@@ -91,5 +91,6 @@ brainstorm/                        Working scratchpad for in-flight design explo
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+shell commands, and other important information, read the current plan:
+`specs/016-user-groups/plan.md`
 <!-- SPECKIT END -->
