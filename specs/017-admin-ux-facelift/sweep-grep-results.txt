@@ -1,0 +1,18 @@
+=== T056 GREP AUDIT — spec 017 sweep verification ===
+Date: 2026-05-08T16:34:26Z
+Branch: 017-admin-ux-facelift
+HEAD: 126963d206d034efb8b4bcec58ad3e539b1fd708
+
+--- Inline style= attributes across Views/Admin/** ---
+(zero rows)
+
+--- Raw hex literals across Views/Admin/** ---
+(zero rows)
+
+--- Inline style= attributes across Views/Shared/Components/_*.cshtml ---
+(zero rows)
+
+--- Raw hex literals across Views/Shared/Components/_*.cshtml ---
+(zero rows)
+
+RESULT: SC-005 (no raw hex/px) AND SC-006 (no inline style=) hold across the admin sweep inventory.

@@ -1,17 +1,14 @@
+@using FundingPlatform.Web.Models
 @model FundingPlatform.Web.ViewModels.Admin.AdminCurrenciesListViewModel
 @{
     ViewData["Title"] = "Monedas";
 }
 
 <div data-testid="admin-currencies-area">
-    <div class="page-header d-print-none mb-3">
-        <div class="row g-2 align-items-center">
-            <div class="col">
-                <h2 class="page-title">Monedas</h2>
-                <div class="text-muted">Gestione las monedas disponibles para cotizaciones de proveedores.</div>
-            </div>
-        </div>
-    </div>
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: "Monedas",
+            Subtitle: "Gestione las monedas disponibles para cotizaciones de proveedores."))
 
     <div class="card" data-testid="admin-currencies-table">
         <div class="table-responsive">

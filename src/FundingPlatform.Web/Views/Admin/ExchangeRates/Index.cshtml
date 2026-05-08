@@ -1,34 +1,39 @@
 @using System.Globalization
+@using FundingPlatform.Web.Models
 @model FundingPlatform.Web.ViewModels.Admin.AdminExchangeRatesListViewModel
 @{
-    ViewData["Title"] = "Tipos de Cambio";
+    ViewData["Title"] = "Tipos de cambio";
     var es = CultureInfo.GetCultureInfo("es-CR");
 }
 
 <div data-testid="admin-exchange-rates-area">
-    <div class="page-header d-print-none mb-3">
-        <div class="row g-2 align-items-center">
-            <div class="col">
-                <h2 class="page-title">Tipos de Cambio</h2>
-                <div class="text-muted">Histórico de tipos de cambio publicados. El más reciente es el activo.</div>
-            </div>
-            <div class="col-auto">
-                <a asp-action="Create"
-                   class="btn btn-primary"
-                   data-testid="admin-exchange-rates-create-button">
-                    <i class="ti ti-plus me-1"></i> Publicar nuevo tipo de cambio
-                </a>
-            </div>
-        </div>
-    </div>
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: "Tipos de cambio",
+            Subtitle: "Histórico de tipos de cambio publicados; el más reciente es el activo.",
+            PrimaryActions: new[]
+            {
+                new ActionItem(
+                    Label: "Publicar nuevo tipo de cambio",
+                    Class: ActionClass.Primary,
+                    Url: Url.Action("Create", "AdminExchangeRates"),
+                    Icon: "ti ti-plus")
+            }))
 
     @if (Model.Rows.Count == 0)
     {
-        <div class="card">
-            <div class="card-body text-center text-muted" data-testid="admin-exchange-rates-empty">
-                <i class="ti ti-mood-empty fs-2"></i>
-                <p class="mt-2 mb-0">Aún no se han publicado tipos de cambio.</p>
-            </div>
+        <div data-testid="admin-exchange-rates-empty">
+            @await Html.PartialAsync("Components/_EmptyState",
+                new EmptyStateViewModel(
+                    Headline: "Aún no hay tipos de cambio",
+                    Body: "Registre el primer tipo de cambio para habilitar conversiones.",
+                    Icon: "ti ti-arrows-exchange",
+                    IllustrationSceneKey: "folders-stack",
+                    PrimaryAction: new ActionItem(
+                        Label: "Registrar tipo de cambio",
+                        Class: ActionClass.Primary,
+                        Url: "/Admin/ExchangeRates/Create",
+                        Icon: "ti ti-plus")))
         </div>
     }
     else

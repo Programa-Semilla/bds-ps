@@ -1,29 +1,72 @@
 @model FundingPlatform.Web.ViewModels.Admin.Reports.KpiTileViewModel
-
-<div class="card fl-kpi-tile" data-testid="kpi-tile" data-kpi-label="@Model.Label">
-    <div class="card-body">
-        <div class="fl-kpi-label" data-testid="kpi-tile-label">@Model.Label</div>
-        @if (Model.NumericValue.HasValue && (Model.Stack is null || Model.Stack.Count == 0))
-        {
-            <div class="fl-kpi-value mb-0"
-                 data-testid="kpi-tile-numeric"
-                 data-ticker-target="@Model.NumericValue.Value">@Model.NumericValue.Value.ToString("N0")</div>
-        }
-        else if (Model.Stack is { Count: > 0 } stack)
-        {
-            <ul class="list-unstyled mb-0 mt-2 fl-font-mono" data-testid="kpi-tile-stack">
-                @foreach (var entry in stack)
-                {
-                    <li data-currency="@entry.Currency">
-                        <span class="fw-semibold">@entry.Currency</span>
-                        <span class="ms-2">@entry.Amount.ToString("N2")</span>
-                    </li>
-                }
-            </ul>
-        }
-        else
-        {
-            <div class="fl-kpi-value fl-text-muted mb-0" data-testid="kpi-tile-empty">&mdash;</div>
-        }
+@*
+    Spec 010 + spec 017 (US6 / FR-022) — KPI tile.
+    - When Href is set the tile renders as a focusable <a> link (admin
+      dashboard deep-link tiles per FR-003); otherwise as a plain <div>
+      (existing reports-tab tiles).
+    - The numeric value carries data-ticker-target so motion.js can animate
+      from 0 to final on mount over --motion-slow. Reduced-motion is honored
+      by motion.js per spec 011 FR-015 (research §9), no inline JS here.
+    - Slug, when supplied, drives the data-testid suffix
+      (admin-kpi-{slug}); legacy callers without a slug keep the kpi-tile
+      testid for backwards compatibility.
+*@
+@{
+    var hasHref = !string.IsNullOrWhiteSpace(Model.Href);
+    var slug = string.IsNullOrWhiteSpace(Model.Slug) ? null : Model.Slug;
+    var rootTestid = slug is null ? "kpi-tile" : $"admin-kpi-{slug}";
+    var tileClasses = hasHref
+        ? "card fl-kpi-tile fl-kpi-tile-link h-100"
+        : "card fl-kpi-tile h-100";
+}
+@if (hasHref)
+{
+    <a class="@tileClasses"
+       href="@Model.Href"
+       data-testid="@rootTestid"
+       data-kpi-label="@Model.Label">
+        <div class="card-body">
+            <div class="fl-kpi-label" data-testid="kpi-tile-label">@Model.Label</div>
+            @if (Model.NumericValue.HasValue)
+            {
+                <div class="fl-kpi-value mb-0"
+                     data-testid="kpi-tile-numeric"
+                     data-ticker-target="@Model.NumericValue.Value">@Model.NumericValue.Value.ToString("N0")</div>
+            }
+            else
+            {
+                <div class="fl-kpi-value fl-text-muted mb-0" data-testid="kpi-tile-empty">&mdash;</div>
+            }
+        </div>
+    </a>
+}
+else
+{
+    <div class="@tileClasses" data-testid="@rootTestid" data-kpi-label="@Model.Label">
+        <div class="card-body">
+            <div class="fl-kpi-label" data-testid="kpi-tile-label">@Model.Label</div>
+            @if (Model.NumericValue.HasValue && (Model.Stack is null || Model.Stack.Count == 0))
+            {
+                <div class="fl-kpi-value mb-0"
+                     data-testid="kpi-tile-numeric"
+                     data-ticker-target="@Model.NumericValue.Value">@Model.NumericValue.Value.ToString("N0")</div>
+            }
+            else if (Model.Stack is { Count: > 0 } stack)
+            {
+                <ul class="list-unstyled mb-0 mt-2 fl-font-mono" data-testid="kpi-tile-stack">
+                    @foreach (var entry in stack)
+                    {
+                        <li data-currency="@entry.Currency">
+                            <span class="fw-semibold">@entry.Currency</span>
+                            <span class="ms-2">@entry.Amount.ToString("N2")</span>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <div class="fl-kpi-value fl-text-muted mb-0" data-testid="kpi-tile-empty">&mdash;</div>
+            }
+        </div>
     </div>
-</div>
+}

@@ -1,0 +1,23 @@
+Fonts:
+  src/FundingPlatform.Web/wwwroot/lib/fonts/fraunces/fraunces-variable.woff2 gzipped=36672B
+  src/FundingPlatform.Web/wwwroot/lib/fonts/inter/inter-variable.woff2 gzipped=48273B
+  src/FundingPlatform.Web/wwwroot/lib/fonts/jetbrains-mono/jetbrains-mono-regular.woff2 gzipped=21211B
+Illustrations:
+  src/FundingPlatform.Web/wwwroot/lib/illustrations/calm-horizon.svg gzipped=345B
+  src/FundingPlatform.Web/wwwroot/lib/illustrations/connected-nodes.svg gzipped=303B
+  src/FundingPlatform.Web/wwwroot/lib/illustrations/folders-stack.svg gzipped=274B
+  src/FundingPlatform.Web/wwwroot/lib/illustrations/gentle-disconnected-wires.svg gzipped=322B
+  src/FundingPlatform.Web/wwwroot/lib/illustrations/magnifier-on-empty.svg gzipped=330B
+  src/FundingPlatform.Web/wwwroot/lib/illustrations/off-center-compass.svg gzipped=362B
+  src/FundingPlatform.Web/wwwroot/lib/illustrations/open-envelope.svg gzipped=309B
+  src/FundingPlatform.Web/wwwroot/lib/illustrations/seed.svg gzipped=341B
+  src/FundingPlatform.Web/wwwroot/lib/illustrations/soft-bar-chart.svg gzipped=278B
+Canvas confetti:
+  src/FundingPlatform.Web/wwwroot/lib/canvas-confetti/canvas-confetti.min.js gzipped=373B
+Brand assets:
+  src/FundingPlatform.Web/wwwroot/lib/brand/mark.svg gzipped=338B
+  src/FundingPlatform.Web/wwwroot/lib/brand/seal.svg gzipped=354B
+  src/FundingPlatform.Web/wwwroot/lib/brand/wordmark.svg gzipped=245B
+  src/FundingPlatform.Web/wwwroot/lib/brand/favicons/favicon.svg gzipped=293B
+Total gzipped: 110623B (limit 409600B)
+OK

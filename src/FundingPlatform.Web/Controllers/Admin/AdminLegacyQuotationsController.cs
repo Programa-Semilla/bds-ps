@@ -10,16 +10,16 @@ namespace FundingPlatform.Web.Controllers.Admin;
 
 /// <summary>
 /// Spec 015 / US6 / T611 — admin queue for legacy quotations that need a
-/// historical rate attached. Two surfaces:
-///   - <c>GET /Admin/AdminLegacyQuotations</c>: list the flagged queue with a
+/// historical rate attached. Two surfaces (route normalized in spec 017 US5):
+///   - <c>GET /Admin/LegacyQuotations</c>: list the flagged queue with a
 ///     per-row rate picker populated from the rate-history.
-///   - <c>POST /Admin/AdminLegacyQuotations/Attach</c>: bind {quotationId,
+///   - <c>POST /Admin/LegacyQuotations/Attach</c>: bind {quotationId,
 ///     rateId}, call the application service, and redirect back to the list.
 ///
 /// Note on role naming: codebase uses "Admin" (see other admin controllers).
 /// </summary>
 [Authorize(Roles = "Admin")]
-[Route("Admin/AdminLegacyQuotations")]
+[Route("Admin/LegacyQuotations")]
 public class AdminLegacyQuotationsController : Controller
 {
     private readonly ILegacyQuotationRateAttachService _service;

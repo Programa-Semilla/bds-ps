@@ -4,7 +4,7 @@ namespace FundingPlatform.Tests.E2E.PageObjects.Admin;
 
 /// <summary>
 /// Spec 015 / US3 / T302 — page object for the admin currency catalog list at
-/// <c>/Admin/AdminCurrencies</c>.
+/// <c>/Admin/Currencies</c>.
 /// </summary>
 public class AdminCurrenciesPage : AdminBasePage
 {
@@ -32,7 +32,7 @@ public class AdminCurrenciesPage : AdminBasePage
             : "[data-testid=\"currency-status-disabled\"]");
 
     public Task GoToAsync(string baseUrl) =>
-        Page.GotoAsync($"{baseUrl}/Admin/AdminCurrencies");
+        Page.GotoAsync($"{baseUrl}/Admin/Currencies");
 
     public Task ClickEnableAsync(string code) => EnableButton(code).ClickAsync();
     public Task ClickDisableAsync(string code) => DisableButton(code).ClickAsync();

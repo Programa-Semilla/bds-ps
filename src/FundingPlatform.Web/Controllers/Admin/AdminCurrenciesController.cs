@@ -20,7 +20,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// "Admin" here keeps role-claim handling consistent with the rest of the app.
 /// </summary>
 [Authorize(Roles = "Admin")]
-[Route("Admin/AdminCurrencies")]
+[Route("Admin/Currencies")]
 public class AdminCurrenciesController : Controller
 {
     private readonly ICurrencyConfigService _currencyService;

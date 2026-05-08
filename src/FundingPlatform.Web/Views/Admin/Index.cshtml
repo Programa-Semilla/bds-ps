@@ -1,51 +1,11 @@
+@model FundingPlatform.Web.ViewModels.Admin.AdminDashboardViewModel
 @{
     ViewData["Title"] = "Panel de administración";
 }
 
 @await Html.PartialAsync("Components/_PageHeader",
-    new PageHeaderViewModel(Title: "Panel de administración"))
+    new PageHeaderViewModel(
+        Title: "Panel de administración",
+        Subtitle: "Indicadores de acción y todas las herramientas administrativas en un solo lugar."))
 
-<div class="row row-cards mt-3">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="text-secondary me-2 fs-3"><i class="ti ti-template"></i></span>
-                    <h5 class="card-title mb-0">Plantillas de impacto</h5>
-                </div>
-                <p class="card-text text-secondary">Cree y administre las plantillas de evaluación de impacto y sus parámetros.</p>
-                <a asp-action="ImpactTemplates" class="btn btn-primary">
-                    <i class="ti ti-arrow-right me-1"></i>Administrar plantillas
-                </a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="text-secondary me-2 fs-3"><i class="ti ti-settings"></i></span>
-                    <h5 class="card-title mb-0">Configuración del sistema</h5>
-                </div>
-                <p class="card-text text-secondary">Vea y actualice los parámetros de configuración del sistema.</p>
-                <a asp-action="Configuration" class="btn btn-primary">
-                    <i class="ti ti-arrow-right me-1"></i>Administrar configuración
-                </a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6 mt-3">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-2">
-                    <span class="text-secondary me-2 fs-3"><i class="ti ti-building-store"></i></span>
-                    <h5 class="card-title mb-0">Catálogo de proveedores</h5>
-                </div>
-                <p class="card-text text-secondary">Verifique, edite o rechace proveedores propuestos por los postulantes.</p>
-                <a class="btn btn-primary" href="@Url.Action("Index", "AdminSuppliers")">
-                    <i class="ti ti-arrow-right me-1"></i>Administrar proveedores
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
+@await Html.PartialAsync("Components/_AdminDashboard", Model.Data)

@@ -140,9 +140,14 @@ public class ApplicantUsdQuoteE2E : AuthenticatedTestBase
         await supplierPage.SubmitAsync();
 
         // Form re-renders on the same Supplier/Add URL with the FR-018 message.
+        // Pin the assertion to the Currency field's validation span — the
+        // controller adds the FR-018 model error against nameof(model.Currency),
+        // so the rendered <span data-valmsg-for="Currency"> is the one and only
+        // deterministic anchor. Asserting on .text-danger more broadly trips
+        // strict-mode (validation summary + field span both carry that class).
         await Expect(Page).ToHaveURLAsync(new Regex("/Supplier/Add"));
-        var summary = Page.Locator(".text-danger");
-        await Expect(summary.First).ToContainTextAsync(
+        var currencyError = Page.Locator("[data-valmsg-for=Currency]");
+        await Expect(currencyError).ToContainTextAsync(
             new Regex("No hay tipo de cambio de referencia configurado"));
     }
 

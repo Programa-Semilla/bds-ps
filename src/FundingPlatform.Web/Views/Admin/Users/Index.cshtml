@@ -56,16 +56,34 @@
 
     @if (Model.Rows.Count == 0)
     {
-        @await Html.PartialAsync("Components/_EmptyState",
-            new EmptyStateViewModel(
-                Headline: "Ningún usuario coincide con los filtros actuales",
-                Body: "Pruebe quitar los filtros o crear un nuevo usuario.",
-                Icon: "ti ti-users",
-                PrimaryAction: new ActionItem(
-                    Label: "Crear usuario",
-                    Class: ActionClass.Primary,
-                    Url: Url.Action("Create", "AdminUsers"),
-                    Icon: "ti ti-user-plus")))
+        // Spec 017 / FR-014 — distinguish unfiltered-empty (no users yet) from
+        // filtered-no-results (filters yielded nothing).
+        var hasFilter = !string.IsNullOrWhiteSpace(Model.Search)
+            || !string.IsNullOrWhiteSpace(Model.RoleFilter)
+            || !string.IsNullOrWhiteSpace(Model.StatusFilter);
+        if (hasFilter)
+        {
+            @await Html.PartialAsync("Components/_EmptyState",
+                new EmptyStateViewModel(
+                    Headline: "Sin coincidencias",
+                    Body: "Pruebe con otros filtros o quite los aplicados.",
+                    Icon: "ti ti-search",
+                    IllustrationSceneKey: "magnifier-on-empty"))
+        }
+        else
+        {
+            @await Html.PartialAsync("Components/_EmptyState",
+                new EmptyStateViewModel(
+                    Headline: "Aún no hay usuarios",
+                    Body: "Cree el primer usuario para empezar a administrar el acceso.",
+                    Icon: "ti ti-users",
+                    IllustrationSceneKey: "folders-stack",
+                    PrimaryAction: new ActionItem(
+                        Label: "Crear usuario",
+                        Class: ActionClass.Primary,
+                        Url: Url.Action("Create", "AdminUsers"),
+                        Icon: "ti ti-user-plus")))
+        }
     }
     else
     {

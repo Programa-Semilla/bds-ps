@@ -1,6 +1,7 @@
 using FundingPlatform.Application.Admin.Commands;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Web.ViewModels;
+using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,16 +11,19 @@ namespace FundingPlatform.Web.Controllers;
 public class AdminController : Controller
 {
     private readonly AdminService _adminService;
+    private readonly IAdminDashboardProjection _dashboard;
 
-    public AdminController(AdminService adminService)
+    public AdminController(AdminService adminService, IAdminDashboardProjection dashboard)
     {
         _adminService = adminService;
+        _dashboard = dashboard;
     }
 
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index(CancellationToken ct)
     {
-        return View();
+        var dto = await _dashboard.GetAsync(ct);
+        return View(new AdminDashboardViewModel(dto));
     }
 
     [HttpGet]

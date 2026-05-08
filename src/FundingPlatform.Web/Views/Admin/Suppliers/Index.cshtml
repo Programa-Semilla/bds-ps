@@ -27,7 +27,7 @@
             Subtitle: "Verifique, edite o rechace proveedores propuestos por los postulantes."))
 
     <form method="get" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-suppliers-filter-form">
-        <select name="status" class="form-select" style="max-width: 220px;" data-testid="admin-suppliers-status-filter">
+        <select name="status" class="form-select admin-suppliers-filter-control" data-testid="admin-suppliers-status-filter">
             <option value="">@AdminSuppliersResources.FilterStatus_All</option>
             @foreach (var s in new[] {
                 SupplierVerificationStatus.PendingReview,
@@ -39,9 +39,9 @@
             }
         </select>
         <input type="search" name="legalId" value="@Model.LegalIdFilter" placeholder="Buscar por cédula"
-               class="form-control" style="max-width: 220px;" data-testid="admin-suppliers-legalid-filter" />
+               class="form-control admin-suppliers-filter-control" data-testid="admin-suppliers-legalid-filter" />
         <input type="search" name="name" value="@Model.NameFilter" placeholder="Buscar por nombre"
-               class="form-control" style="max-width: 220px;" data-testid="admin-suppliers-name-filter" />
+               class="form-control admin-suppliers-filter-control" data-testid="admin-suppliers-name-filter" />
         <div class="form-check form-check-inline align-self-center">
             <input class="form-check-input" type="checkbox" name="hasIncompleteCompliance" value="true"
                    id="ha-inc-comp" @(Model.HasIncompleteCompliance ? "checked" : "")
@@ -53,11 +53,29 @@
 
     @if (Model.Items.Count == 0)
     {
-        <div class="card">
-            <div class="card-body text-center text-muted">
-                <i class="ti ti-mood-empty fs-2"></i>
-                <p class="mt-2 mb-0">No hay proveedores que coincidan con los filtros.</p>
-            </div>
+        // Spec 017 / FR-014 — distinguish unfiltered-empty from filtered-no-results.
+        var supplierHasFilter = !string.IsNullOrWhiteSpace(Model.LegalIdFilter)
+            || !string.IsNullOrWhiteSpace(Model.NameFilter)
+            || Model.HasIncompleteCompliance;
+        <div data-testid="admin-suppliers-empty">
+            @if (supplierHasFilter)
+            {
+                @await Html.PartialAsync("Components/_EmptyState",
+                    new EmptyStateViewModel(
+                        Headline: "Sin coincidencias",
+                        Body: "Pruebe con otros filtros o quite los aplicados.",
+                        Icon: "ti ti-search",
+                        IllustrationSceneKey: "magnifier-on-empty"))
+            }
+            else
+            {
+                @await Html.PartialAsync("Components/_EmptyState",
+                    new EmptyStateViewModel(
+                        Headline: "Sin proveedores pendientes",
+                        Body: "Cuando un postulante envíe un proveedor para revisión, aparecerá acá.",
+                        Icon: "ti ti-building-store",
+                        IllustrationSceneKey: "folders-stack"))
+            }
         </div>
     }
     else

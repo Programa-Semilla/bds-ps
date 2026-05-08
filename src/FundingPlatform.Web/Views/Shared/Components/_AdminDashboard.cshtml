@@ -1,0 +1,103 @@
+@using FundingPlatform.Web.ViewModels.Admin.Reports
+@model FundingPlatform.Application.DTOs.AdminDashboardDto
+@*
+    Spec 017 / US1 / FR-001..FR-006 — admin dashboard composition:
+      page header → 4 KPI tiles → 3 capability sections → optional activity feed.
+    Tokens-only. No inline style=. Reduced-motion is honored by the existing
+    motion.js ticker handler (research §9, no new motion catalog entry).
+*@
+<div data-testid="admin-dashboard">
+    <div class="row row-cards mt-3" data-testid="admin-kpi-strip">
+        <div class="col-sm-6 col-lg-3">
+            @await Html.PartialAsync("Components/_KpiTile",
+                new KpiTileViewModel(
+                    Label: "Proveedores pendientes",
+                    NumericValue: Model.Kpis.PendingSuppliers,
+                    Stack: null,
+                    Href: Model.Kpis.PendingSuppliersUrl,
+                    Slug: "pending-suppliers"))
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            @await Html.PartialAsync("Components/_KpiTile",
+                new KpiTileViewModel(
+                    Label: "Cotizaciones legadas",
+                    NumericValue: Model.Kpis.PendingLegacyQuotations,
+                    Stack: null,
+                    Href: Model.Kpis.PendingLegacyQuotationsUrl,
+                    Slug: "pending-legacy-quotations"))
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            @await Html.PartialAsync("Components/_KpiTile",
+                new KpiTileViewModel(
+                    Label: "Solicitudes con demora",
+                    NumericValue: Model.Kpis.AgingApplications,
+                    Stack: null,
+                    Href: Model.Kpis.AgingApplicationsUrl,
+                    Slug: "aging-applications"))
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            @await Html.PartialAsync("Components/_KpiTile",
+                new KpiTileViewModel(
+                    Label: "Usuarios activos",
+                    NumericValue: Model.Kpis.ActiveUsers,
+                    Stack: null,
+                    Href: Model.Kpis.ActiveUsersUrl,
+                    Slug: "active-users"))
+        </div>
+    </div>
+
+    @foreach (var sec in Model.Sections)
+    {
+        <div class="mt-4" role="region" aria-labelledby="admin-section-heading-@sec.HeaderSlug" data-testid="admin-section-@sec.HeaderSlug">
+            <h2 id="admin-section-heading-@sec.HeaderSlug" class="fl-font-display fl-type-heading-md mb-3">@sec.HeaderLabel</h2>
+            <div class="row row-cards">
+                @foreach (var card in sec.Cards)
+                {
+                    <div class="col-md-6 col-lg-4">
+                        @await Html.PartialAsync("Components/_CapabilityCard", card)
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (Model.FeedVisible)
+    {
+        <div class="mt-4" role="region" aria-labelledby="admin-activity-feed-heading" data-testid="admin-activity-feed">
+            <h2 id="admin-activity-feed-heading" class="fl-font-display fl-type-heading-md mb-3">Actividad reciente</h2>
+            <div class="card">
+                <div class="card-body">
+                    <ul class="timeline list-unstyled mb-0" data-testid="admin-activity-feed-list">
+                        @foreach (var ev in Model.RecentEvents)
+                        {
+                            <li class="timeline-event mb-3 fl-pad-2"
+                                data-testid="admin-activity-event"
+                                data-occurred-at="@ev.OccurredAt.ToString("o")">
+                                <div class="d-flex gap-2 align-items-start">
+                                    <div class="fl-text-secondary pt-1" aria-hidden="true">
+                                        <i class="ti ti-point"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="fl-type-body">
+                                            <span class="fw-semibold">@ev.ActorDisplayName</span>
+                                            <span class="ms-1">@ev.Copy</span>
+                                            @if (!string.IsNullOrWhiteSpace(ev.DeepLinkUrl))
+                                            {
+                                                <a class="ms-1"
+                                                   href="@ev.DeepLinkUrl"
+                                                   data-testid="admin-activity-event-link">Ver detalle</a>
+                                            }
+                                        </div>
+                                        <div class="fl-text-secondary fl-type-meta">
+                                            @ev.OccurredAt.LocalDateTime.ToString("dd/MM/yyyy HH:mm")
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -1,27 +1,26 @@
+@using FundingPlatform.Web.Models
 @model FundingPlatform.Web.ViewModels.Admin.AdminExchangeRateCreateViewModel
 @{
     ViewData["Title"] = "Publicar tipo de cambio";
 }
 
 <div data-testid="admin-exchange-rate-create-area">
-    <div class="page-header d-print-none mb-3">
-        <div class="row g-2 align-items-center">
-            <div class="col">
-                <h2 class="page-title">Publicar tipo de cambio</h2>
-                <div class="text-muted">
-                    Una vez utilizado por una cotización, el tipo de cambio se vuelve inmutable.
-                    Para corregir un valor, publique uno nuevo con vigencia más reciente.
-                </div>
-            </div>
-        </div>
-    </div>
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: "Publicar tipo de cambio",
+            Subtitle: "Una vez utilizado por una cotización, el tipo de cambio se vuelve inmutable. Para corregir un valor, publique uno nuevo con vigencia más reciente.",
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem("Tipos de cambio", Url.Action("Index", "AdminExchangeRates")),
+                new BreadcrumbItem("Publicar"),
+            }))
 
     <div class="card">
         @* The POST endpoint per contracts/exchange-rate-api.md is the bare
-           /Admin/AdminExchangeRates URL (NOT /Create). Hardcode the action so
+           /Admin/ExchangeRates URL (NOT /Create). Hardcode the action so
            Razor doesn't disambiguate to the GET-only Create route. *@
         <form method="post"
-              action="/Admin/AdminExchangeRates"
+              action="/Admin/ExchangeRates"
               data-testid="admin-exchange-rate-create-form">
             @Html.AntiForgeryToken()
 
