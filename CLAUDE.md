@@ -83,9 +83,11 @@ brainstorm/                        Working scratchpad for in-flight design explo
 ## Active Technologies
 - C# 13 / .NET 10.0 (014-azure-blob-storage)
 - C# 13 / .NET 10.0 (015-multi-currency-quotes — Currencies, ExchangeRates, snapshot-locked Quotation conversion)
+- C# 13 / .NET 10.0 (016-user-groups — Group / UserGroupMembership / AdminAuditEvent; reviewer-side group-overlap predicate composed at the EF query level on every listing surface; detail-page authorization mirrors the same predicate)
 - Azure Blob Storage in production / Azurite (Docker container) in dev+test / local filesystem fallback. SQL Server unchanged. (014-azure-blob-storage)
 
 ## Recent Changes
+- 016-user-groups: Group-scoped reviewer access — `Group` + `UserGroupMembership` + `AdminAuditEvent`, admin Groups CRUD, multi-select group selector on the user form, EF-level group-overlap predicate on queue / signing inbox / detail-page auth, FR-014 reviewer queue search input
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 - 014-azure-blob-storage: Added C# 13 / .NET 10.0
 

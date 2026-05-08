@@ -176,9 +176,9 @@ _(no tasks)_
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T052 [P] Update `CLAUDE.md` "Active Technologies" and "Recent Changes" to mention spec 016 (Group / UserGroupMembership / AdminAuditEvent — group-scoped reviewer access)
-- [ ] T053 Run `quickstart.md` end-to-end manually as a smoke check before declaring delivery
-- [ ] T054 Run the full E2E suite (`dotnet test tests/FundingPlatform.Tests.E2E`) and confirm every test passes — per the CLAUDE.md delivery bar, the feature is not delivered until this run is personally executed and green
+- [x] T052 [P] Update `CLAUDE.md` "Active Technologies" and "Recent Changes" to mention spec 016 (Group / UserGroupMembership / AdminAuditEvent — group-scoped reviewer access)
+- [ ] T053 Run `quickstart.md` end-to-end manually as a smoke check before declaring delivery — **deferred to orchestrator** (CLAUDE.md delivery bar; not part of the autonomous implementation phase)
+- [ ] T054 Run the full E2E suite (`dotnet test tests/FundingPlatform.Tests.E2E`) and confirm every test passes — **deferred to orchestrator** at the stamp gate (CLAUDE.md: "Do NOT run the full E2E suite — that is the orchestrator's responsibility at the stamp gate")
 
 ---
 
