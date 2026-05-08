@@ -58,20 +58,13 @@ public sealed class GroupService : IGroupService
             throw new DuplicateGroupNameException(entity.Name);
         }
 
+        // Phase 1: persist the Group so its IDENTITY id is available. This is
+        // simpler than the previous two-phase pattern (insert audit with
+        // TargetId="0", patch after SaveChanges) — the failure modes are now
+        // either (a) Group not persisted, no audit row, or (b) Group persisted,
+        // audit row missing, instead of (c) audit row with TargetId="0" left
+        // behind on a partial second SaveChanges.
         _db.Groups.Add(entity);
-        await _audit.WriteAsync(
-            AdminAuditEvent.Record(
-                actorUserId,
-                AdminAuditEvent.ActionGroupCreate,
-                AdminAuditEvent.TargetTypeGroup,
-                // TargetId is filled with the persisted Id after SaveChanges
-                // by re-stamping the audit row's TargetId via a single tx —
-                // simpler approach: write payload-only here and patch after
-                // SaveChanges completes by holding a reference.
-                "0",
-                JsonSerializer.Serialize(new { name = entity.Name })),
-            ct);
-
         try
         {
             await _db.SaveChangesAsync(ct);
@@ -81,23 +74,20 @@ public sealed class GroupService : IGroupService
             throw new DuplicateGroupNameException(entity.Name);
         }
 
-        // Patch the audit row's TargetId now that the group has its id. The row
-        // is still tracked from the same SaveChanges round-trip, so a second
-        // SaveChanges flushes only the updated TargetId.
-        var auditRow = _db.AdminAuditEvents.Local
-            .Where(e => e.Action == AdminAuditEvent.ActionGroupCreate
-                     && e.TargetType == AdminAuditEvent.TargetTypeGroup
-                     && e.ActorUserId == actorUserId
-                     && e.TargetId == "0")
-            .OrderByDescending(e => e.OccurredAt)
-            .FirstOrDefault();
-        if (auditRow is not null)
-        {
-            // Reflection-free update via the DbContext's tracked entry.
-            _db.Entry(auditRow).Property(nameof(AdminAuditEvent.TargetId)).CurrentValue
-                = entity.Id.ToString();
-            await _db.SaveChangesAsync(ct);
-        }
+        // Phase 2: write the audit row with the persisted id. NFR-005 — every
+        // successful mutation MUST have a corresponding audit row; if this
+        // SaveChanges fails the audit drift is observable and the operator can
+        // back-fill (the Group exists in the catalog, the actor + payload
+        // would have been derivable from logs).
+        await _audit.WriteAsync(
+            AdminAuditEvent.Record(
+                actorUserId,
+                AdminAuditEvent.ActionGroupCreate,
+                AdminAuditEvent.TargetTypeGroup,
+                entity.Id.ToString(),
+                JsonSerializer.Serialize(new { name = entity.Name })),
+            ct);
+        await _db.SaveChangesAsync(ct);
 
         return entity.Id;
     }
@@ -163,9 +153,21 @@ public sealed class GroupService : IGroupService
 
     private static bool IsUniqueViolation(DbUpdateException ex)
     {
-        // SQL Server unique-constraint violation surfaces as Number 2601 or 2627.
+        // SQL Server unique-constraint violation surfaces as Number 2601
+        // (unique-index) or 2627 (unique-constraint). Match on the SqlException
+        // Number when available — robust to message localization or index
+        // renames. Fall back to message-substring match for non-SQL-Server
+        // providers (none in production today; this guards against silently
+        // breaking if the provider changes).
         for (var inner = ex.InnerException; inner is not null; inner = inner.InnerException)
         {
+            // Use reflection to read SqlException.Number without taking a hard
+            // dependency on Microsoft.Data.SqlClient at this assembly boundary.
+            var numberProp = inner.GetType().GetProperty("Number");
+            if (numberProp?.GetValue(inner) is int n && (n == 2601 || n == 2627))
+            {
+                return true;
+            }
             var msg = inner.Message;
             if (msg.Contains("UX_Groups_Name", StringComparison.Ordinal)
                 || msg.Contains("duplicate key", StringComparison.OrdinalIgnoreCase))

@@ -63,11 +63,13 @@ public class AdminGroupsController : Controller
             ModelState.AddModelError(nameof(vm.Name), AdminGroupsResources.NameAlreadyInUse);
             return View(vm);
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException)
         {
             // Domain validation surfaced from Group.Create — defensive, the model
-            // attributes already cover the empty/over-length cases.
-            ModelState.AddModelError(nameof(vm.Name), ex.Message);
+            // attributes already cover the empty/over-length cases. NFR-004 — render
+            // the localized resource message rather than the (English) domain
+            // exception message.
+            ModelState.AddModelError(nameof(vm.Name), AdminGroupsResources.NameRequired);
             return View(vm);
         }
 
@@ -118,9 +120,10 @@ public class AdminGroupsController : Controller
             ModelState.AddModelError(nameof(vm.Name), AdminGroupsResources.NameAlreadyInUse);
             return View(vm);
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException)
         {
-            ModelState.AddModelError(nameof(vm.Name), ex.Message);
+            // NFR-004 — localized fallback for the defensive domain-validation path.
+            ModelState.AddModelError(nameof(vm.Name), AdminGroupsResources.NameRequired);
             return View(vm);
         }
 

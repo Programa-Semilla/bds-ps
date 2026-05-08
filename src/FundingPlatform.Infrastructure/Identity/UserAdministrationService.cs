@@ -167,7 +167,11 @@ public class UserAdministrationService : IUserAdministrationService
             return Result<UserDetailDto>.Failure(MapIdentityErrors(roleResult.Errors));
         }
 
-        // Spec 016 — insert membership rows (skipped for Admin role).
+        // Spec 016 — insert membership rows (skipped for Admin role). FR-007/008
+        // require non-admin users to have at least one membership when create
+        // succeeds; if persistence of the rows fails after the user+role were
+        // saved, roll back the user so we never leave behind a non-admin with
+        // zero memberships.
         if (requestedGroupIds.Count > 0)
         {
             foreach (var gid in requestedGroupIds)
@@ -182,7 +186,17 @@ public class UserAdministrationService : IUserAdministrationService
                     user.Id,
                     JsonSerializer.Serialize(new { added = requestedGroupIds, removed = Array.Empty<int>() })),
                 ct);
-            await _dbContext.SaveChangesAsync(ct);
+            try
+            {
+                await _dbContext.SaveChangesAsync(ct);
+            }
+            catch
+            {
+                // Compensating action: undo the user creation so the partial state
+                // (user with role but no memberships) cannot exist.
+                try { await _userManager.DeleteAsync(user); } catch { /* best effort */ }
+                throw;
+            }
         }
 
         if (string.Equals(request.Role, ApplicantRole, StringComparison.Ordinal))

@@ -30,11 +30,18 @@
         </div>
 
         <div class="d-flex justify-content-between mt-2">
+            @* Spec 016 — confirm prompt copy is rendered as data-* attributes (HTML-encoded by
+               Razor) and read by inline JS. This avoids interpolating Model.Name into a JS string
+               literal, which Razor's HTML encoding does not protect against (browser HTML-decodes
+               the attribute before the JS engine sees it, allowing apostrophe escapes from the
+               group name to break out of confirm('...')). *@
             <button type="submit"
                     formaction="@Url.Action("Delete", "AdminGroups", new { id = Model.Id })"
                     class="btn btn-outline-danger"
                     data-testid="admin-group-delete-submit"
-                    onclick="return confirm('@deletePromptTitle\n\n@deletePromptBody');">
+                    data-confirm-title="@deletePromptTitle"
+                    data-confirm-body="@deletePromptBody"
+                    onclick="return (function(b){ return confirm(b.getAttribute('data-confirm-title') + '\n\n' + b.getAttribute('data-confirm-body')); })(this);">
                 <i class="ti ti-trash"></i> @AdminGroupsResources.Delete_Submit
             </button>
             <div class="d-flex gap-2">
