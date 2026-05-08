@@ -4,7 +4,7 @@ namespace FundingPlatform.Tests.E2E.PageObjects.Admin;
 
 /// <summary>
 /// Spec 015 / US3 / T303 — page object for the admin exchange-rate history
-/// list at <c>/Admin/AdminExchangeRates</c>.
+/// list at <c>/Admin/ExchangeRates</c>.
 /// </summary>
 public class AdminExchangeRatesPage : AdminBasePage
 {
@@ -19,10 +19,10 @@ public class AdminExchangeRatesPage : AdminBasePage
     public ILocator ActiveBadges => Page.Locator("[data-testid=\"rate-active-badge\"]");
 
     public Task GoToAsync(string baseUrl) =>
-        Page.GotoAsync($"{baseUrl}/Admin/AdminExchangeRates");
+        Page.GotoAsync($"{baseUrl}/Admin/ExchangeRates");
 
     public Task GoToCreateAsync(string baseUrl) =>
-        Page.GotoAsync($"{baseUrl}/Admin/AdminExchangeRates/Create");
+        Page.GotoAsync($"{baseUrl}/Admin/ExchangeRates/Create");
 }
 
 /// <summary>

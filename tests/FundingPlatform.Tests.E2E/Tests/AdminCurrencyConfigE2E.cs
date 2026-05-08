@@ -8,7 +8,7 @@ namespace FundingPlatform.Tests.E2E.Tests;
 
 /// <summary>
 /// Spec 015 / US3 / T302 — administrator manages the currency catalog at
-/// <c>/Admin/AdminCurrencies</c>. Three scenarios:
+/// <c>/Admin/Currencies</c>. Three scenarios:
 ///   1. Admin sees both CRC + USD rows on first load.
 ///   2. Admin disables USD, then re-enables USD; status badge flips both ways.
 ///   3. Admin attempts to disable CRC and sees the FR-002 inline error

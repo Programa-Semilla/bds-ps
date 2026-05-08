@@ -18,10 +18,10 @@
 
     <div class="card">
         @* The POST endpoint per contracts/exchange-rate-api.md is the bare
-           /Admin/AdminExchangeRates URL (NOT /Create). Hardcode the action so
+           /Admin/ExchangeRates URL (NOT /Create). Hardcode the action so
            Razor doesn't disambiguate to the GET-only Create route. *@
         <form method="post"
-              action="/Admin/AdminExchangeRates"
+              action="/Admin/ExchangeRates"
               data-testid="admin-exchange-rate-create-form">
             @Html.AntiForgeryToken()
 

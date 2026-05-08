@@ -20,11 +20,13 @@
 
     @if (Model.Rows.Count == 0)
     {
-        <div class="card">
-            <div class="card-body text-center text-muted" data-testid="admin-legacy-quotations-empty">
-                <i class="ti ti-mood-empty fs-2"></i>
-                <p class="mt-2 mb-0">No hay cotizaciones pendientes de revisión.</p>
-            </div>
+        <div data-testid="admin-legacy-quotations-empty">
+            @await Html.PartialAsync("Components/_EmptyState",
+                new EmptyStateViewModel(
+                    Headline: "Sin cotizaciones pendientes",
+                    Body: "Las cotizaciones legadas aparecerán aquí cuando necesiten una tasa histórica.",
+                    Icon: "ti ti-history",
+                    IllustrationSceneKey: "calm-horizon"))
         </div>
     }
     else

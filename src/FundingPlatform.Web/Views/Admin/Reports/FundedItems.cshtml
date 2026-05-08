@@ -56,9 +56,10 @@
         <div class="mt-3">
             @await Html.PartialAsync("Components/_EmptyState",
                 new EmptyStateViewModel(
-                    Headline: "Ningún ítem financiado coincide",
-                    Body: "Ajuste el filtro e inténtelo nuevamente.",
-                    Icon: "ti ti-mood-empty"))
+                    Headline: "Sin coincidencias",
+                    Body: "Ajuste el filtro y vuelva a intentar.",
+                    Icon: "ti ti-search",
+                    IllustrationSceneKey: "magnifier-on-empty"))
         </div>
     }
     else

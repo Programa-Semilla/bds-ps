@@ -26,15 +26,18 @@
 
     @if (Model.Groups.Count == 0)
     {
-        <div class="card" data-testid="admin-groups-empty">
-            <div class="card-body text-center text-muted">
-                <i class="ti ti-users-group fs-2"></i>
-                <h3 class="mt-2">@AdminGroupsResources.EmptyState_Title</h3>
-                <p>@AdminGroupsResources.EmptyState_Body</p>
-                <a class="btn btn-primary" href="@Url.Action("Create", "AdminGroups")">
-                    <i class="ti ti-plus"></i> @AdminGroupsResources.Action_Create
-                </a>
-            </div>
+        <div data-testid="admin-groups-empty">
+            @await Html.PartialAsync("Components/_EmptyState",
+                new EmptyStateViewModel(
+                    Headline: AdminGroupsResources.EmptyState_Title,
+                    Body: AdminGroupsResources.EmptyState_Body,
+                    Icon: "ti ti-users-group",
+                    IllustrationSceneKey: "folders-stack",
+                    PrimaryAction: new ActionItem(
+                        Label: AdminGroupsResources.Action_Create,
+                        Class: ActionClass.Primary,
+                        Url: Url.Action("Create", "AdminGroups"),
+                        Icon: "ti ti-plus")))
         </div>
     }
     else

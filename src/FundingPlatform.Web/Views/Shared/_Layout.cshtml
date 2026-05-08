@@ -3,20 +3,29 @@
     // when the visible label is Spanish. Tests assert via testid (e.g.
     // [data-testid="sidebar-entry-review-queue"]); the user-facing label is
     // free to change with localization.
-    var sidebarEntries = new List<SidebarEntry>
+    // Spec 017 / US4 — sidebar entries split into top-level + admin section.
+    // The admin section header reuses the legacy slug for back-compat (`admin`)
+    // AND publishes the new section testid (`admin-section` per FR-016).
+    var topLevelEntries = new List<SidebarEntry>
     {
         new("home", "Inicio", Url.Action("Index", "Home") ?? "/", "ti ti-home", Array.Empty<string>()),
         new("my-applications", "Mis solicitudes", Url.Action("Index", "Application") ?? "/Application", "ti ti-files", new[] { "Applicant" }),
         new("review-queue", "Cola de revisión", Url.Action("Index", "Review") ?? "/Review", "ti ti-clipboard-check", new[] { "Reviewer", "Admin" }),
         new("signing-inbox", "Bandeja de firmas", Url.Action("SigningInbox", "Review") ?? "/Review/SigningInbox", "ti ti-signature", new[] { "Reviewer", "Admin" }),
-        new("admin", "Administración", Url.Action("Index", "Admin") ?? "/Admin", "ti ti-settings", new[] { "Admin" }),
+    };
+
+    var adminSectionHeader = new SidebarEntry(
+        "admin", "Administración", Url.Action("Index", "Admin") ?? "/Admin", "ti ti-settings", new[] { "Admin" });
+
+    var adminEntries = new List<SidebarEntry>
+    {
         new("users", "Usuarios", "/Admin/Users", "ti ti-users", new[] { "Admin" }),
         new("groups", "Grupos", "/Admin/Groups", "ti ti-users-group", new[] { "Admin" }),
         new("suppliers", "Proveedores", "/Admin/Suppliers", "ti ti-building-store", new[] { "Admin" }),
         new("reports", "Reportes", "/Admin/Reports", "ti ti-chart-line", new[] { "Admin" }),
-        new("currencies", "Monedas", "/Admin/AdminCurrencies", "ti ti-coin", new[] { "Admin" }),
-        new("exchange-rates", "Tipos de Cambio", "/Admin/AdminExchangeRates", "ti ti-arrows-exchange", new[] { "Admin" }),
-        new("legacy-quotations", "Cotizaciones Pendientes", "/Admin/AdminLegacyQuotations", "ti ti-history", new[] { "Admin" }),
+        new("currencies", "Monedas", "/Admin/Currencies", "ti ti-coin", new[] { "Admin" }),
+        new("exchange-rates", "Tipos de Cambio", "/Admin/ExchangeRates", "ti ti-arrows-exchange", new[] { "Admin" }),
+        new("legacy-quotations", "Cotizaciones Pendientes", "/Admin/LegacyQuotations", "ti ti-history", new[] { "Admin" }),
     };
 
     bool IsEntryVisible(SidebarEntry entry)
@@ -71,7 +80,7 @@
                     </h1>
                     <div class="collapse navbar-collapse" id="sidebar-menu">
                         <ul class="navbar-nav pt-lg-3">
-                            @foreach (var entry in sidebarEntries.Where(IsEntryVisible))
+                            @foreach (var entry in topLevelEntries.Where(IsEntryVisible))
                             {
                                 var active = IsActive(entry.Url) ? " active" : string.Empty;
                                 <li class="nav-item@active">
@@ -80,6 +89,29 @@
                                         <span class="nav-link-title">@entry.Label</span>
                                     </a>
                                 </li>
+                            }
+                            @if (IsEntryVisible(adminSectionHeader))
+                            {
+                                var sectionActive = IsActive(adminSectionHeader.Url) ? " active" : string.Empty;
+                                <li class="nav-item nav-item-section-header@sectionActive">
+                                    <a class="nav-link fl-sidebar-section-header"
+                                       href="@adminSectionHeader.Url"
+                                       data-testid="sidebar-entry-@adminSectionHeader.Slug"
+                                       data-section-testid="admin-section">
+                                        <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@adminSectionHeader.Icon"></i></span>
+                                        <span class="nav-link-title fl-font-display">@adminSectionHeader.Label</span>
+                                    </a>
+                                </li>
+                                @foreach (var entry in adminEntries.Where(IsEntryVisible))
+                                {
+                                    var active = IsActive(entry.Url) ? " active" : string.Empty;
+                                    <li class="nav-item nav-item-admin-child@active">
+                                        <a class="nav-link ps-4" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
+                                            <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
+                                            <span class="nav-link-title">@entry.Label</span>
+                                        </a>
+                                    </li>
+                                }
                             }
                         </ul>
                     </div>

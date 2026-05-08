@@ -19,7 +19,7 @@ namespace FundingPlatform.Tests.E2E.Tests;
 ///      simulates exactly what the post-deploy migration produces on a real
 ///      upgrade.
 ///   3. Publish a USD↔CRC rate via the admin UI.
-///   4. Navigate to <c>/Admin/AdminLegacyQuotations</c>, see the row, pick the
+///   4. Navigate to <c>/Admin/LegacyQuotations</c>, see the row, pick the
 ///      rate, submit the attach form.
 ///   5. Assert the row disappears from the queue, the success banner shows,
 ///      and the Application Details surface now renders the conversion data
@@ -101,13 +101,13 @@ public class LegacyQuotationFlowE2E : AuthenticatedTestBase
         // 4. Admin logs in, publishes a USD rate.
         await LoginAsync(Page, adminEmail, Password);
         var createPage = new AdminExchangeRateCreatePage(Page);
-        await Page.GotoAsync($"{BaseUrl}/Admin/AdminExchangeRates/Create");
+        await Page.GotoAsync($"{BaseUrl}/Admin/ExchangeRates/Create");
         var localStamp = DateTime.Now.AddMinutes(-2)
             .ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
         await createPage.FillAsync(source: "USD", target: "CRC",
             buy: "520", sell: "525", effectiveLocal: localStamp);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/AdminExchangeRates(\\?.*)?$"));
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ExchangeRates(\\?.*)?$"));
 
         // 5. Navigate to the legacy queue, see the row, attach the rate.
         var legacyPage = new AdminLegacyQuotationsPage(Page);

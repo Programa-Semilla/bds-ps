@@ -24,11 +24,18 @@
 
     @if (Model.Rows.Count == 0)
     {
-        <div class="card">
-            <div class="card-body text-center text-muted" data-testid="admin-exchange-rates-empty">
-                <i class="ti ti-mood-empty fs-2"></i>
-                <p class="mt-2 mb-0">Aún no se han publicado tipos de cambio.</p>
-            </div>
+        <div data-testid="admin-exchange-rates-empty">
+            @await Html.PartialAsync("Components/_EmptyState",
+                new EmptyStateViewModel(
+                    Headline: "Aún no hay tipos de cambio",
+                    Body: "Registre el primer tipo de cambio para habilitar conversiones.",
+                    Icon: "ti ti-arrows-exchange",
+                    IllustrationSceneKey: "folders-stack",
+                    PrimaryAction: new ActionItem(
+                        Label: "Registrar tipo de cambio",
+                        Class: ActionClass.Primary,
+                        Url: "/Admin/ExchangeRates/Create",
+                        Icon: "ti ti-plus")))
         </div>
     }
     else

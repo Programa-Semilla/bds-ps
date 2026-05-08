@@ -4,7 +4,7 @@ namespace FundingPlatform.Tests.E2E.PageObjects.Admin;
 
 /// <summary>
 /// Spec 015 / US6 / T602 — page object for the admin "Cotizaciones Pendientes"
-/// queue at <c>/Admin/AdminLegacyQuotations</c>.
+/// queue at <c>/Admin/LegacyQuotations</c>.
 /// </summary>
 public class AdminLegacyQuotationsPage : AdminBasePage
 {
@@ -26,5 +26,5 @@ public class AdminLegacyQuotationsPage : AdminBasePage
         RowFor(quotationId).Locator("[data-testid=\"legacy-quotation-attach-button\"]");
 
     public Task GoToAsync(string baseUrl) =>
-        Page.GotoAsync($"{baseUrl}/Admin/AdminLegacyQuotations");
+        Page.GotoAsync($"{baseUrl}/Admin/LegacyQuotations");
 }

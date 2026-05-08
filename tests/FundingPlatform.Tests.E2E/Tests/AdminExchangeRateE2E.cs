@@ -9,7 +9,7 @@ namespace FundingPlatform.Tests.E2E.Tests;
 
 /// <summary>
 /// Spec 015 / US3 / T303 — administrator manages reference rates at
-/// <c>/Admin/AdminExchangeRates</c>. Scenarios:
+/// <c>/Admin/ExchangeRates</c>. Scenarios:
 ///   1. Create a valid USD↔CRC rate (520/525) and see it appear in the
 ///      history list as the active rate.
 ///   2. Submitting BuyRate=0 surfaces the validation error inline.
@@ -67,7 +67,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
         await DeleteAllUsdCrcRatesAsync();
 
         var createPage = new AdminExchangeRateCreatePage(Page);
-        await Page.GotoAsync($"{BaseUrl}/Admin/AdminExchangeRates/Create");
+        await Page.GotoAsync($"{BaseUrl}/Admin/ExchangeRates/Create");
 
         await createPage.FillAsync(
             source: "USD", target: "CRC",
@@ -75,7 +75,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
             effectiveLocal: MinutesAgoLocal(2));
         await createPage.SubmitAsync();
 
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/AdminExchangeRates(\\?.*)?$"));
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ExchangeRates(\\?.*)?$"));
 
         var listPage = new AdminExchangeRatesPage(Page);
         await Expect(listPage.Table).ToBeVisibleAsync();
@@ -90,7 +90,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
         await DeleteAllUsdCrcRatesAsync();
 
         var createPage = new AdminExchangeRateCreatePage(Page);
-        await Page.GotoAsync($"{BaseUrl}/Admin/AdminExchangeRates/Create");
+        await Page.GotoAsync($"{BaseUrl}/Admin/ExchangeRates/Create");
 
         await createPage.FillAsync(
             source: "USD", target: "CRC",
@@ -99,7 +99,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
         await createPage.SubmitAsync();
 
         // We must remain on the Create page rendering the inline error.
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/AdminExchangeRates"));
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ExchangeRates"));
         var summary = Page.Locator(".text-danger");
         await Expect(summary.First).ToBeVisibleAsync();
     }
@@ -111,7 +111,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
         await DeleteAllUsdCrcRatesAsync();
 
         var createPage = new AdminExchangeRateCreatePage(Page);
-        await Page.GotoAsync($"{BaseUrl}/Admin/AdminExchangeRates/Create");
+        await Page.GotoAsync($"{BaseUrl}/Admin/ExchangeRates/Create");
 
         var future = DateTime.Now.AddHours(1).ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
         await createPage.FillAsync(
@@ -120,7 +120,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
             effectiveLocal: future);
         await createPage.SubmitAsync();
 
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/AdminExchangeRates"));
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ExchangeRates"));
         var summary = Page.Locator(".text-danger");
         await Expect(summary.First).ToContainTextAsync(
             new Regex("no puede tener una fecha de vigencia en el futuro", RegexOptions.IgnoreCase));
@@ -156,7 +156,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
         }
 
         var createPage = new AdminExchangeRateCreatePage(Page);
-        await Page.GotoAsync($"{BaseUrl}/Admin/AdminExchangeRates/Create");
+        await Page.GotoAsync($"{BaseUrl}/Admin/ExchangeRates/Create");
 
         // datetime-local value reflects local time. Convert the seeded UTC stamp to local for the form.
         var localStamp = fixedUtc.ToLocalTime().ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
@@ -166,7 +166,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
             effectiveLocal: localStamp);
         await createPage.SubmitAsync();
 
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/AdminExchangeRates"));
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ExchangeRates"));
         var summary = Page.Locator(".text-danger");
         await Expect(summary.First).ToContainTextAsync(
             new Regex("Ya existe un tipo de cambio publicado", RegexOptions.IgnoreCase));
@@ -181,15 +181,15 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
         // Publish two rates at different times via the UI.
         var createPage = new AdminExchangeRateCreatePage(Page);
 
-        await Page.GotoAsync($"{BaseUrl}/Admin/AdminExchangeRates/Create");
+        await Page.GotoAsync($"{BaseUrl}/Admin/ExchangeRates/Create");
         await createPage.FillAsync("USD", "CRC", "500", "510", MinutesAgoLocal(120));
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/AdminExchangeRates(\\?.*)?$"));
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ExchangeRates(\\?.*)?$"));
 
-        await Page.GotoAsync($"{BaseUrl}/Admin/AdminExchangeRates/Create");
+        await Page.GotoAsync($"{BaseUrl}/Admin/ExchangeRates/Create");
         await createPage.FillAsync("USD", "CRC", "525", "530", MinutesAgoLocal(5));
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/AdminExchangeRates(\\?.*)?$"));
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ExchangeRates(\\?.*)?$"));
 
         var listPage = new AdminExchangeRatesPage(Page);
         // The newest (525/530) row is the first one and has the active badge.

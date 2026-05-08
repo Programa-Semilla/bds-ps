@@ -53,11 +53,29 @@
 
     @if (Model.Items.Count == 0)
     {
-        <div class="card">
-            <div class="card-body text-center text-muted">
-                <i class="ti ti-mood-empty fs-2"></i>
-                <p class="mt-2 mb-0">No hay proveedores que coincidan con los filtros.</p>
-            </div>
+        // Spec 017 / FR-014 — distinguish unfiltered-empty from filtered-no-results.
+        var supplierHasFilter = !string.IsNullOrWhiteSpace(Model.LegalIdFilter)
+            || !string.IsNullOrWhiteSpace(Model.NameFilter)
+            || Model.HasIncompleteCompliance;
+        <div data-testid="admin-suppliers-empty">
+            @if (supplierHasFilter)
+            {
+                @await Html.PartialAsync("Components/_EmptyState",
+                    new EmptyStateViewModel(
+                        Headline: "Sin coincidencias",
+                        Body: "Pruebe con otros filtros o quite los aplicados.",
+                        Icon: "ti ti-search",
+                        IllustrationSceneKey: "magnifier-on-empty"))
+            }
+            else
+            {
+                @await Html.PartialAsync("Components/_EmptyState",
+                    new EmptyStateViewModel(
+                        Headline: "Sin proveedores pendientes",
+                        Body: "Cuando un postulante envíe un proveedor para revisión, aparecerá acá.",
+                        Icon: "ti ti-building-store",
+                        IllustrationSceneKey: "folders-stack"))
+            }
         </div>
     }
     else
