@@ -42,10 +42,13 @@ public class AdminUserGroupAssignmentTests : AuthenticatedTestBase
             role: "Reviewer",
             initialPassword: TempUserPassword,
             legalId: null);
-        // Intentionally leave the multi-select empty.
+        // FillAsync auto-fills the multi-select for non-Admin roles to keep
+        // pre-016 tests green; this test specifically asserts the zero-groups
+        // blocker, so re-clear the selection.
+        var formPage = new AdminUserFormPage(Page);
+        await formPage.ClearGroupSelectionAsync();
         await createPage.SubmitAsync();
 
-        var formPage = new AdminUserFormPage(Page);
         await Expect(formPage.GroupsError).ToBeVisibleAsync();
         // Form should still be on the Create page, not redirected to Index.
         await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users/Create"));
@@ -132,10 +135,10 @@ public class AdminUserGroupAssignmentTests : AuthenticatedTestBase
         await listPage.SearchAsync(reviewerEmail);
         await listPage.RowEditLink(reviewerEmail).ClickAsync();
         var formPage2 = new AdminUserFormPage(Page);
-        // The selector itself is hidden when role=Admin via inline JS.
-        var groupsHidden = await Page.EvaluateAsync<bool>(
-            "() => { var el = document.getElementById('groupsField'); return !el || el.style.display === 'none'; }");
-        Assert.That(groupsHidden, Is.True, "Group selector must be hidden for Admin role.");
+        // Wait for the inline JS toggle to run; it sets display:none on
+        // groupsField when role=Admin. IsVisibleAsync auto-waits for the
+        // element to settle.
+        await Expect(formPage2.GroupsField).ToBeHiddenAsync();
     }
 
     /// <summary>

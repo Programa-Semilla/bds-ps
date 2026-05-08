@@ -4,6 +4,7 @@ using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Web.Controllers;
 
@@ -239,6 +240,74 @@ public class AccountController : Controller
             await _userManager.AddToRoleAsync(user, role);
         }
 
+        // Spec 016 — the Admin role MUST never carry group memberships
+        // (FR-008, Group.cs invariant). E2E tests register an admin and call
+        // AssignRole(role=Admin); without this strip, the
+        // RegisterUserAsync→AssignAllGroups default leaves stale memberships
+        // attached, which is observable on /Admin/Users/{id}/Edit (group
+        // selector pre-populated for an Admin role) and contradicts the
+        // documented invariant. The strip is idempotent.
+        if (string.Equals(role, "Admin", StringComparison.Ordinal))
+        {
+            var existingMemberships = _dbContext.UserGroupMemberships
+                .Where(m => m.UserId == user.Id);
+            _dbContext.UserGroupMemberships.RemoveRange(existingMemberships);
+            await _dbContext.SaveChangesAsync();
+        }
+
         return Ok($"Role '{role}' assigned to '{email}'.");
+    }
+
+    /// <summary>
+    /// Spec 016 — dev-only helper for the E2E suite. Assigns the user to every
+    /// row in <c>dbo.Groups</c> (idempotent: already-assigned rows are skipped).
+    /// Existing E2E tests register applicants/reviewers via
+    /// <c>RegisterUserAsync</c> + <c>AssignRoleAsync</c> and never touched the
+    /// group catalog; spec 016's reviewer-side group-overlap predicate would
+    /// otherwise hide every applicant from every reviewer that lacks a
+    /// membership. The new tests for spec 016 use the admin UI to seed
+    /// memberships explicitly and do NOT call this endpoint.
+    /// </summary>
+    [HttpGet]
+    [Route("Account/AssignAllGroups")]
+    public async Task<IActionResult> AssignAllGroups(string email)
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var allGroupIds = await _dbContext.Groups
+            .Select(g => g.Id)
+            .ToListAsync();
+
+        if (allGroupIds.Count == 0)
+        {
+            return Ok($"No groups exist; nothing assigned to '{email}'.");
+        }
+
+        var existing = await _dbContext.UserGroupMemberships
+            .Where(m => m.UserId == user.Id)
+            .Select(m => m.GroupId)
+            .ToListAsync();
+
+        var toAdd = allGroupIds.Except(existing).ToList();
+        foreach (var gid in toAdd)
+        {
+            _dbContext.UserGroupMemberships.Add(new Domain.Entities.UserGroupMembership(user.Id, gid));
+        }
+
+        if (toAdd.Count > 0)
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+
+        return Ok($"Assigned {toAdd.Count} group(s) to '{email}'.");
     }
 }

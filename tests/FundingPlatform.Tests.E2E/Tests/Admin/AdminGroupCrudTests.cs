@@ -56,7 +56,7 @@ public class AdminGroupCrudTests : AuthenticatedTestBase
         await page.GoToCreateAsync(BaseUrl);
         await page.CreateGroupAsync(groupName.ToLowerInvariant());
 
-        await Expect(page.NameError).ToContainTextAsync(new Regex("ya existe", RegexOptions.IgnoreCase));
+        await Expect(page.NameError).ToContainTextAsync(new Regex("[Yy]a existe"));
         // The form is still on Create — the redirect to Index is the success indicator.
         await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Groups/Create"));
     }

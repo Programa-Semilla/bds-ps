@@ -265,49 +265,28 @@ public class UserAdministrationService : IUserAdministrationService
         // Spec 016 — wrap the user-row mutations + applicant upsert + membership
         // diff in a single explicit transaction so a partial failure on a later
         // SaveChanges cannot leave a half-applied edit (REVIEW-CODE F-3).
-        // EF InMemory does not support relational transactions, so guard with
-        // Database.IsRelational(); the integration tests run on InMemory and
-        // continue to exercise the non-transactional branch.
-        var useExplicitTransaction = _dbContext.Database.IsRelational();
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
-        if (useExplicitTransaction)
+        // EF InMemory does not support relational transactions; guard via
+        // Database.IsRelational(). Under SQL Server we go through
+        // CreateExecutionStrategy().ExecuteAsync(...) so the configured retry
+        // strategy can wrap retries around the user-initiated transaction.
+        if (!_dbContext.Database.IsRelational())
         {
-            tx = await _dbContext.Database.BeginTransactionAsync(ct);
+            return await UpdateUserCoreAsync(target, request, actorUserId, ct);
         }
 
-        try
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
+            await using var tx = await _dbContext.Database.BeginTransactionAsync(ct);
             var inner = await UpdateUserCoreAsync(target, request, actorUserId, ct);
             if (!inner.Succeeded)
             {
-                if (tx is not null)
-                {
-                    await tx.RollbackAsync(ct);
-                }
+                await tx.RollbackAsync(ct);
                 return inner;
             }
-
-            if (tx is not null)
-            {
-                await tx.CommitAsync(ct);
-            }
+            await tx.CommitAsync(ct);
             return inner;
-        }
-        catch
-        {
-            if (tx is not null)
-            {
-                try { await tx.RollbackAsync(ct); } catch { /* best effort */ }
-            }
-            throw;
-        }
-        finally
-        {
-            if (tx is not null)
-            {
-                await tx.DisposeAsync();
-            }
-        }
+        });
     }
 
     private async Task<Result<UserDetailDto>> UpdateUserCoreAsync(

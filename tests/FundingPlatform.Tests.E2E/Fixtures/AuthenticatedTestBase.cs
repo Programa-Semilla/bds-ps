@@ -102,6 +102,32 @@ public class AuthenticatedTestBase : PageTest
         await page.FillAsync("[name=LastName]", lastName);
         await page.FillAsync("[name=LegalId]", legalId);
         await page.Locator("form[action*='Account/Register'] button[type=submit]").ClickAsync();
+
+        // Spec 016 — every reviewer-driven E2E surface (queue, signing inbox,
+        // application detail) composes a group-overlap predicate. Existing
+        // tests that register an applicant or reviewer via this helper never
+        // touched the group catalog; without a default membership the queue
+        // is empty and detail-page access is denied. The dev-only
+        // /Account/AssignAllGroups endpoint assigns the user to every seeded
+        // group so the legacy tests' real-user-journey assertions still see
+        // the data they expect. AssignRoleAsync(role=Admin) strips these
+        // memberships afterwards to preserve the FR-008 admin invariant.
+        await AssignAllGroupsAsync(email);
+    }
+
+    /// <summary>
+    /// Spec 016 — calls the dev-only <c>/Account/AssignAllGroups</c> endpoint
+    /// so a freshly registered user becomes a member of every seeded group.
+    /// </summary>
+    protected async Task AssignAllGroupsAsync(string email)
+    {
+        using var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+        };
+        using var client = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) };
+        var response = await client.GetAsync($"/Account/AssignAllGroups?email={Uri.EscapeDataString(email)}");
+        response.EnsureSuccessStatusCode();
     }
 
     protected async Task LoginAsync(IPage page, string email, string password)

@@ -73,7 +73,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         await LoginAsync(Page, applicantEmail, TempPwd);
         // First-login redirects to /Account/ChangePassword.
         var newPassword = "NewPass1!";
-        await Page.Locator("[name=CurrentPassword]").FillAsync(TempPwd);
+        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
         await Page.Locator("[name=NewPassword]").FillAsync(newPassword);
         await Page.Locator("[name=ConfirmPassword]").FillAsync(newPassword);
         await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
@@ -90,7 +90,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         // Sign in as the reviewer; first-login path.
         await LoginAsync(Page, reviewerEmail, TempPwd);
         var revNewPassword = "RevPass1!";
-        await Page.Locator("[name=CurrentPassword]").FillAsync(TempPwd);
+        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
         await Page.Locator("[name=NewPassword]").FillAsync(revNewPassword);
         await Page.Locator("[name=ConfirmPassword]").FillAsync(revNewPassword);
         await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
@@ -127,7 +127,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         await LogoutAsync();
         await LoginAsync(Page, reviewerEmail, TempPwd);
         var revPassword = "RevPass2!";
-        await Page.Locator("[name=CurrentPassword]").FillAsync(TempPwd);
+        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
         await Page.Locator("[name=NewPassword]").FillAsync(revPassword);
         await Page.Locator("[name=ConfirmPassword]").FillAsync(revPassword);
         await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
@@ -206,7 +206,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         await LogoutAsync();
         await LoginAsync(Page, surApplicantEmail, TempPwd);
         var newPwd = "NewPass1!";
-        await Page.Locator("[name=CurrentPassword]").FillAsync(TempPwd);
+        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
         await Page.Locator("[name=NewPassword]").FillAsync(newPwd);
         await Page.Locator("[name=ConfirmPassword]").FillAsync(newPwd);
         await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
@@ -234,7 +234,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         // Norte reviewer logs in, password change.
         await LoginAsync(Page, norteReviewerEmail, TempPwd);
         var revPwd = "RevPass1!";
-        await Page.Locator("[name=CurrentPassword]").FillAsync(TempPwd);
+        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
         await Page.Locator("[name=NewPassword]").FillAsync(revPwd);
         await Page.Locator("[name=ConfirmPassword]").FillAsync(revPwd);
         await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
@@ -302,7 +302,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         await LogoutAsync();
         await LoginAsync(Page, surApplicantEmail, TempPwd);
         var newPwd = "NewPass1!";
-        await Page.Locator("[name=CurrentPassword]").FillAsync(TempPwd);
+        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
         await Page.Locator("[name=NewPassword]").FillAsync(newPwd);
         await Page.Locator("[name=ConfirmPassword]").FillAsync(newPwd);
         await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
@@ -324,7 +324,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         // Norte reviewer logs in and visits the signing inbox.
         await LoginAsync(Page, norteReviewerEmail, TempPwd);
         var revPwd = "RevPass1!";
-        await Page.Locator("[name=CurrentPassword]").FillAsync(TempPwd);
+        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
         await Page.Locator("[name=NewPassword]").FillAsync(revPwd);
         await Page.Locator("[name=ConfirmPassword]").FillAsync(revPwd);
         await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
@@ -418,7 +418,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
             await LogoutAsync();
             await LoginAsync(Page, email, TempPwd);
             var newPwd = "AppPass1!";
-            await Page.Locator("[name=CurrentPassword]").FillAsync(TempPwd);
+            await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
             await Page.Locator("[name=NewPassword]").FillAsync(newPwd);
             await Page.Locator("[name=ConfirmPassword]").FillAsync(newPwd);
             await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
@@ -438,7 +438,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         // Reviewer logs in and runs the search.
         await LoginAsync(Page, reviewerEmail, TempPwd);
         var revPwd = "RevPass1!";
-        await Page.Locator("[name=CurrentPassword]").FillAsync(TempPwd);
+        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
         await Page.Locator("[name=NewPassword]").FillAsync(revPwd);
         await Page.Locator("[name=ConfirmPassword]").FillAsync(revPwd);
         await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();

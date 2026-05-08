@@ -40,9 +40,12 @@ public static class AdminGroupsResources
     public const string Delete_Submit = "Eliminar grupo";
 
     // Validation messages (FR-001)
-    public const string NameRequired = "El nombre del grupo es obligatorio.";
-    public const string NameTooLong = "El nombre del grupo debe tener máximo 100 caracteres.";
-    public const string NameAlreadyInUse = "Ya existe un grupo con ese nombre.";
+    // DataAnnotations reflects on ErrorMessageResourceName looking for a public
+    // static *property*, not a const/field. Expressed as static getters so the
+    // AdminGroupCreate/EditViewModel attribute lookups succeed at request time.
+    public static string NameRequired => "El nombre del grupo es obligatorio.";
+    public static string NameTooLong => "El nombre del grupo debe tener máximo 100 caracteres.";
+    public static string NameAlreadyInUse => "Ya existe un grupo con ese nombre.";
 
     // Flash messages
     public const string FlashCreated = "Grupo creado.";

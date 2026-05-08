@@ -33,7 +33,9 @@ public class AdminUserFormPage : AdminBasePage
     /// <summary>Clears all selected options in the multi-select.</summary>
     public async Task ClearGroupSelectionAsync()
     {
-        await GroupsSelect.SelectOptionAsync(new[] { new SelectOptionValue { Index = -1 } });
+        // Playwright's SelectOption with Index = -1 throws; deselect via JS.
+        await GroupsSelect.EvaluateAsync(
+            "el => { for (var i = 0; i < el.options.length; i++) el.options[i].selected = false; el.dispatchEvent(new Event('change', { bubbles: true })); }");
     }
 
     public Task<bool> IsGroupsFieldVisibleAsync() =>
