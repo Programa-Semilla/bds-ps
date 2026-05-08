@@ -13,6 +13,15 @@ public interface IApplicantCopyProvider
     string AwaitingActionDraft(string projectName);
     string AwaitingActionSentBack(string projectName);
     string AwaitingActionAgreement(string projectName);
+
+    // Spec 012 — action-button labels surfaced from the dashboard projection.
+    // Localized here (rather than hardcoded in the projection) so the voice
+    // guide stays the single source of truth for applicant-facing copy.
+    string ActionSignAgreement();
+    string ActionAddMissingDetails();
+    string ActionContinueApplication();
+    string ActionOpenApplication();
+
     string EmptyHeroHeadline();
     string EmptyHeroSubhead();
     string EmptyCtaLabel();
@@ -43,6 +52,11 @@ public sealed class ApplicantCopyProvider : IApplicantCopyProvider
 
     public string AwaitingActionAgreement(string projectName)
         => $"Su convenio de financiamiento para {projectName} está listo para firmar.";
+
+    public string ActionSignAgreement()      => "Firmar convenio";
+    public string ActionAddMissingDetails()  => "Agregar los detalles faltantes";
+    public string ActionContinueApplication() => "Continuar con la solicitud";
+    public string ActionOpenApplication()    => "Abrir solicitud";
 
     public string EmptyHeroHeadline() => "¿Listo para solicitar financiamiento?";
     public string EmptyHeroSubhead() => "Cuéntenos sobre su proyecto — le acompañamos en el resto del camino.";
