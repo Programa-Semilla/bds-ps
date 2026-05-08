@@ -1,10 +1,12 @@
 using FundingPlatform.Application.Admin.Reports;
 using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Admin.Users;
+using FundingPlatform.Application.Audit;
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Infrastructure.Audit;
 using FundingPlatform.Infrastructure.DocumentGeneration;
 using FundingPlatform.Infrastructure.Identity;
 using FundingPlatform.Infrastructure.Persistence.Reports;
@@ -55,6 +57,10 @@ public static class DependencyInjection
         services.AddScoped<ICurrencyConfigService, CurrencyConfigService>();
         services.AddScoped<IExchangeRateService, ExchangeRateService>();
         services.AddScoped<ILegacyQuotationRateAttachService, LegacyQuotationRateAttachService>();
+
+        // Spec 016 — admin audit writer (group catalog/services + reviewer scope
+        // are registered per-phase as their classes land).
+        services.AddScoped<IAdminAuditWriter, AdminAuditWriter>();
 
         return services;
     }

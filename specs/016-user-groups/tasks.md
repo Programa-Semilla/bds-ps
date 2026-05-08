@@ -40,35 +40,35 @@ _(no tasks)_
 
 ### Schema (dacpac)
 
-- [ ] T001 [P] Add `src/FundingPlatform.Database/Tables/dbo.Groups.sql` per data-model.md (Id IDENTITY PK, Name NVARCHAR(100) COLLATE Latin1_General_CI_AI NOT NULL, CreatedAt/UpdatedAt DATETIMEOFFSET NOT NULL, unique non-clustered index on Name)
-- [ ] T002 [P] Add `src/FundingPlatform.Database/Tables/dbo.UserGroupMemberships.sql` (composite PK (UserId, GroupId), FKs to AspNetUsers.Id and Groups.Id with ON DELETE CASCADE on both, AssignedAt DATETIMEOFFSET NOT NULL, non-clustered index on (GroupId, UserId))
-- [ ] T003 [P] Add `src/FundingPlatform.Database/Tables/dbo.AdminAuditEvents.sql` (Id BIGINT IDENTITY PK, OccurredAt DATETIMEOFFSET, ActorUserId FK to AspNetUsers NO CASCADE, Action/TargetType/TargetId NVARCHAR, PayloadJson NVARCHAR(MAX) NULL)
-- [ ] T004 Append demo seed to `src/FundingPlatform.Database/PostDeployment/SeedData.sql` — `MERGE INTO dbo.Groups USING (VALUES (N'Norte'), (N'Sur'), (N'Centro')) … WHEN NOT MATCHED THEN INSERT …` so re-runs of the post-deploy script are idempotent (matches data-model.md § Demo seed, supersedes the unconditional `INSERT` example shown there)
+- [x] T001 [P] Add `src/FundingPlatform.Database/Tables/dbo.Groups.sql` per data-model.md (Id IDENTITY PK, Name NVARCHAR(100) COLLATE Latin1_General_CI_AI NOT NULL, CreatedAt/UpdatedAt DATETIMEOFFSET NOT NULL, unique non-clustered index on Name)
+- [x] T002 [P] Add `src/FundingPlatform.Database/Tables/dbo.UserGroupMemberships.sql` (composite PK (UserId, GroupId), FKs to AspNetUsers.Id and Groups.Id with ON DELETE CASCADE on both, AssignedAt DATETIMEOFFSET NOT NULL, non-clustered index on (GroupId, UserId))
+- [x] T003 [P] Add `src/FundingPlatform.Database/Tables/dbo.AdminAuditEvents.sql` (Id BIGINT IDENTITY PK, OccurredAt DATETIMEOFFSET, ActorUserId FK to AspNetUsers NO CASCADE, Action/TargetType/TargetId NVARCHAR, PayloadJson NVARCHAR(MAX) NULL)
+- [x] T004 Append demo seed to `src/FundingPlatform.Database/PostDeployment/SeedData.sql` — `MERGE INTO dbo.Groups USING (VALUES (N'Norte'), (N'Sur'), (N'Centro')) … WHEN NOT MATCHED THEN INSERT …` so re-runs of the post-deploy script are idempotent (matches data-model.md § Demo seed, supersedes the unconditional `INSERT` example shown there)
 
 ### Domain entities
 
-- [ ] T005 [P] Create `src/FundingPlatform.Domain/Entities/Group.cs` with private setters, static `Create(string name)` and instance `Rename(string newName)` enforcing trim + non-empty + length ≤ 100; expose `IReadOnlyCollection<UserGroupMembership> Memberships`
-- [ ] T006 [P] Create `src/FundingPlatform.Domain/Entities/UserGroupMembership.cs` (UserId, GroupId, AssignedAt; constructor enforces non-empty UserId and positive GroupId)
-- [ ] T007 [P] Create `src/FundingPlatform.Domain/Entities/AdminAuditEvent.cs` with static `Record(...)` factory validating non-empty fields
-- [ ] T008 Modify `src/FundingPlatform.Domain/Entities/ApplicationUser.cs` to add `ICollection<UserGroupMembership> Memberships` navigation (private setter, initialized in constructor) — keep existing fields untouched
+- [x] T005 [P] Create `src/FundingPlatform.Domain/Entities/Group.cs` with private setters, static `Create(string name)` and instance `Rename(string newName)` enforcing trim + non-empty + length ≤ 100; expose `IReadOnlyCollection<UserGroupMembership> Memberships`
+- [x] T006 [P] Create `src/FundingPlatform.Domain/Entities/UserGroupMembership.cs` (UserId, GroupId, AssignedAt; constructor enforces non-empty UserId and positive GroupId)
+- [x] T007 [P] Create `src/FundingPlatform.Domain/Entities/AdminAuditEvent.cs` with static `Record(...)` factory validating non-empty fields
+- [x] T008 Modify `src/FundingPlatform.Domain/Entities/ApplicationUser.cs` to add `ICollection<UserGroupMembership> Memberships` navigation (private setter, initialized in constructor) — keep existing fields untouched
 
 ### EF configurations
 
-- [ ] T009 [P] Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/GroupConfiguration.cs` mapping table name, identity key, Name uniqueness via index, default `SYSUTCDATETIME()` on CreatedAt/UpdatedAt
-- [ ] T010 [P] Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/UserGroupMembershipConfiguration.cs` mapping composite key, both FKs with cascade-on-delete, and the `(GroupId, UserId)` index
-- [ ] T011 [P] Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/AdminAuditEventConfiguration.cs`
-- [ ] T012 [P] Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/ApplicationUserConfiguration.cs` (or extend an existing one if present) wiring the `ApplicationUser → Memberships` collection
-- [ ] T013 Modify `src/FundingPlatform.Infrastructure/Persistence/AppDbContext.cs` to add `DbSet<Group>`, `DbSet<UserGroupMembership>`, `DbSet<AdminAuditEvent>` (T013 depends on T005–T012 because the DbSet generic types reference the new entities and configurations are picked up by `ApplyConfigurationsFromAssembly`)
+- [x] T009 [P] Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/GroupConfiguration.cs` mapping table name, identity key, Name uniqueness via index, default `SYSUTCDATETIME()` on CreatedAt/UpdatedAt
+- [x] T010 [P] Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/UserGroupMembershipConfiguration.cs` mapping composite key, both FKs with cascade-on-delete, and the `(GroupId, UserId)` index
+- [x] T011 [P] Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/AdminAuditEventConfiguration.cs`
+- [x] T012 [P] Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/ApplicationUserConfiguration.cs` (or extend an existing one if present) wiring the `ApplicationUser → Memberships` collection
+- [x] T013 Modify `src/FundingPlatform.Infrastructure/Persistence/AppDbContext.cs` to add `DbSet<Group>`, `DbSet<UserGroupMembership>`, `DbSet<AdminAuditEvent>` (T013 depends on T005–T012 because the DbSet generic types reference the new entities and configurations are picked up by `ApplyConfigurationsFromAssembly`)
 
 ### Audit writer
 
-- [ ] T014 [P] Create `src/FundingPlatform.Application/Audit/IAdminAuditWriter.cs` (single async `WriteAsync(AdminAuditEvent ev, CancellationToken ct)`)
-- [ ] T015 [P] Create `src/FundingPlatform.Infrastructure/Audit/AdminAuditWriter.cs` implementing `IAdminAuditWriter` over the DbContext, register in DI in the same Identity/Persistence wiring as existing infrastructure services
+- [x] T014 [P] Create `src/FundingPlatform.Application/Audit/IAdminAuditWriter.cs` (single async `WriteAsync(AdminAuditEvent ev, CancellationToken ct)`)
+- [x] T015 [P] Create `src/FundingPlatform.Infrastructure/Audit/AdminAuditWriter.cs` implementing `IAdminAuditWriter` over the DbContext, register in DI in the same Identity/Persistence wiring as existing infrastructure services
 
 ### Localized copy
 
-- [ ] T016 [P] Create `src/FundingPlatform.Web/Resources/AdminGroupsResources.cs` (es-CR strings: page title, create/edit/delete labels, member-count column, validation messages `NameRequired`, `NameTooLong`, `NameAlreadyInUse`, delete-confirm copy)
-- [ ] T017 [P] Extend `src/FundingPlatform.Web/Resources/AdminUsersResources.cs` (or create if missing) with `GroupSelectorLabel`, `GroupSelectorHelpText`, `AtLeastOneGroupRequired`, `GroupNotFound`, `ConcurrencyConflict`
+- [x] T016 [P] Create `src/FundingPlatform.Web/Resources/AdminGroupsResources.cs` (es-CR strings: page title, create/edit/delete labels, member-count column, validation messages `NameRequired`, `NameTooLong`, `NameAlreadyInUse`, delete-confirm copy)
+- [x] T017 [P] Extend `src/FundingPlatform.Web/Resources/AdminUsersResources.cs` (or create if missing) with `GroupSelectorLabel`, `GroupSelectorHelpText`, `AtLeastOneGroupRequired`, `GroupNotFound`, `ConcurrencyConflict`
 
 **Checkpoint**: Schema, entities, EF wiring, audit, and copy are in place. User stories may now begin.
 
