@@ -24,16 +24,7 @@ public class AdminDashboardReducedMotionTests : AuthenticatedTestBase
     private async Task RegisterAndLoginAsAdminAsync(IPage page, string email, string password)
     {
         await RegisterUserAsync(page, email, password, "Admin", "Tester", $"LID-{Guid.NewGuid():N}"[..16]);
-        await page.GotoAsync($"{BaseUrl}/Account/Login");
-        var token = await page.Locator("input[name='__RequestVerificationToken']").GetAttributeAsync("value");
-        var formData = page.APIRequest.CreateFormData();
-        formData.Set("email", email);
-        formData.Set("__RequestVerificationToken", token ?? "");
-        var response = await page.APIRequest.PostAsync($"{BaseUrl}/Account/PromoteToAdmin", new()
-        {
-            Form = formData
-        });
-        Assert.That(response.Ok, Is.True, "Failed to promote user to admin");
+        await AssignRoleAsync(email, "Admin");
         await LoginAsync(page, email, password);
     }
 

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FundingPlatform.Tests.E2E.Fixtures;
 using FundingPlatform.Tests.E2E.PageObjects.Admin;
 using Microsoft.Playwright;
@@ -16,16 +17,7 @@ public class AdminActivityFeedTests : AuthenticatedTestBase
     private async Task RegisterAndLoginAsAdminAsync(IPage page, string email, string password)
     {
         await RegisterUserAsync(page, email, password, "Admin", "Tester", $"LID-{Guid.NewGuid():N}"[..16]);
-        await page.GotoAsync($"{BaseUrl}/Account/Login");
-        var token = await page.Locator("input[name='__RequestVerificationToken']").GetAttributeAsync("value");
-        var formData = page.APIRequest.CreateFormData();
-        formData.Set("email", email);
-        formData.Set("__RequestVerificationToken", token ?? "");
-        var response = await page.APIRequest.PostAsync($"{BaseUrl}/Account/PromoteToAdmin", new()
-        {
-            Form = formData
-        });
-        Assert.That(response.Ok, Is.True, "Failed to promote user to admin");
+        await AssignRoleAsync(email, "Admin");
         await LoginAsync(page, email, password);
     }
 
@@ -56,7 +48,7 @@ public class AdminActivityFeedTests : AuthenticatedTestBase
         await Page.GotoAsync($"{BaseUrl}/Admin/Groups/Create");
         await Page.Locator("[data-testid=admin-group-name-input]").FillAsync($"FeedTestGroup-{uniqueId}");
         await Page.Locator("[data-testid=admin-group-create-submit]").ClickAsync();
-        await Page.WaitForURLAsync($"{BaseUrl}/Admin/Groups");
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Groups(\\?.*)?$"));
 
         var dashboard = new AdminDashboardPage(Page);
         await dashboard.GotoAsync(BaseUrl);
