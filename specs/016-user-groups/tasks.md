@@ -163,12 +163,12 @@ _(no tasks)_
 
 ### Tests for User Story 4
 
-- [ ] T049 [US4] Add `tests/FundingPlatform.Tests.Integration/GroupDeletionCascadeTests.cs` against the real DB — exercises Story 4's three acceptance scenarios: dual-group user retains the surviving group; reviewer left with zero memberships sees an empty queue and stays signed-in; applicant left with zero memberships still appears in the admin user list and admin can still open their application
-- [ ] T050 [US4] Add `tests/FundingPlatform.Tests.E2E/Tests/GroupDeletionCascadeTests.cs` covering the same scenarios end-to-end through the admin and reviewer UIs
+- [x] T049 [US4] Add `tests/FundingPlatform.Tests.Integration/GroupDeletionCascadeTests.cs` against the real DB — exercises Story 4's three acceptance scenarios: dual-group user retains the surviving group; reviewer left with zero memberships sees an empty queue and stays signed-in; applicant left with zero memberships still appears in the admin user list and admin can still open their application
+- [x] T050 [US4] Add `tests/FundingPlatform.Tests.E2E/Tests/GroupDeletionCascadeTests.cs` covering the same scenarios end-to-end through the admin and reviewer UIs
 
 ### Implementation for User Story 4
 
-- [ ] T051 [US4] Add an explicit cascade-shape assertion to `tests/FundingPlatform.Tests.Integration/GroupDeletionCascadeTests.cs`: query `INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS` for the `UserGroupMemberships → Groups` FK and assert `DELETE_RULE = 'CASCADE'`; assert the same via EF metadata (`Model.FindEntityType<UserGroupMembership>().GetForeignKeys()`). If either assertion fails, the test fails and the engineer MUST fix `dbo.UserGroupMemberships.sql` or `UserGroupMembershipConfiguration.cs` before the story can be marked complete. No new production code is expected if both shapes already match `T002` + `T010`.
+- [x] T051 [US4] Add an explicit cascade-shape assertion to `tests/FundingPlatform.Tests.Integration/GroupDeletionCascadeTests.cs`: query `INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS` for the `UserGroupMemberships → Groups` FK and assert `DELETE_RULE = 'CASCADE'`; assert the same via EF metadata (`Model.FindEntityType<UserGroupMembership>().GetForeignKeys()`). If either assertion fails, the test fails and the engineer MUST fix `dbo.UserGroupMemberships.sql` or `UserGroupMembershipConfiguration.cs` before the story can be marked complete. No new production code is expected if both shapes already match `T002` + `T010`.
 
 **Checkpoint**: Story 4 is demonstrable. Feature scope is complete.
 
