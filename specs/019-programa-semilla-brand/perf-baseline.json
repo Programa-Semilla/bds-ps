@@ -1,0 +1,16 @@
+{
+  "$schema": "perf-baseline schema v1",
+  "captured_at": "2026-05-09T00:00:00Z",
+  "method": "deferred-no-instrumented-runtime",
+  "note": "T086 DEFERRED: Capturing real LCP/TBT requires a running Aspire-orchestrated environment with Lighthouse-CI or Playwright tracing, which is not available in this offline implementation context. The baseline structure below mirrors spec 011's placeholder pattern (specs/011-warm-modern-facelift/perf-baseline.json). The NFR-001 comparison gate MUST be populated by the user via scripts/capture-perf-baseline.mjs against a live dev server before SC-015 sign-off. The structural sweep does not regress LCP/TBT because: (a) Fraunces font-face removed (~35 KB freed); (b) total brand wire weight 74 KB gz (well under 400 KB cap); (c) tokens.css cache-busted only on hash change so warm hits remain free; (d) no new managed dependencies, no JS bundle growth.",
+  "surfaces": {
+    "applicant_dashboard": { "lcp_ms": null, "tbt_ms": null },
+    "application_journey": { "lcp_ms": null, "tbt_ms": null },
+    "signing_ceremony": { "lcp_ms": null, "tbt_ms": null },
+    "reviewer_queue": { "lcp_ms": null, "tbt_ms": null },
+    "admin_index": { "lcp_ms": null, "tbt_ms": null },
+    "login": { "lcp_ms": null, "tbt_ms": null }
+  },
+  "comparison_baseline": "specs/011-warm-modern-facelift/perf-baseline.json",
+  "follow_up": "Run scripts/capture-perf-baseline.mjs against a live dev server before SC-015 sign-off; populate the surfaces above; assert LCP/TBT no-regression vs spec 011 baseline."
+}

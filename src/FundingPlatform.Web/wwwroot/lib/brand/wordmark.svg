@@ -1,8 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 56" role="img" aria-label="Capital Semilla">
+<!-- PLACEHOLDER: pending designer pass — Programa Semilla wordmark in teal. Currently text-set in Inter Bold; designer may want a custom letterform pass. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 56" role="img" aria-label="Programa Semilla">
   <text x="0" y="40"
-        font-family="Fraunces, 'Times New Roman', serif"
-        font-weight="600"
-        font-size="42"
+        font-family="Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-weight="700"
+        font-size="40"
         letter-spacing="-0.5"
-        fill="currentColor">Capital Semilla</text>
+        fill="currentColor">Programa Semilla</text>
 </svg>

@@ -103,7 +103,7 @@
                     <strong>Evaluación de impacto:</strong> @item.ImpactTemplateName
                     @if (item.ImpactParameters.Count > 0)
                     {
-                        <table class="table table-sm mt-1">
+                        <table class="fl-table mt-1" data-density="reviewer">
                             <thead><tr><th>Parámetro</th><th>Valor</th></tr></thead>
                             <tbody>
                                 @foreach (var param in item.ImpactParameters)
@@ -118,7 +118,7 @@
 
             <div class="mb-3">
                 <strong>Cotizaciones:</strong>
-                <table class="table table-sm mt-1">
+                <table class="fl-table mt-1" data-density="reviewer">
                     <thead>
                         <tr>
                             <th>Proveedor</th>

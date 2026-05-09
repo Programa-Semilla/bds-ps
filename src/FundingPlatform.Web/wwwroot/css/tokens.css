@@ -1,37 +1,38 @@
-/* tokens.css — Spec 011 Warm-Modern Facelift design-token layer.
-   THIS IS THE ONLY FILE WHERE RAW HEX VALUES MAY APPEAR (FR-009, SC-001).
-   THIS IS THE ONLY FILE WHERE LITERAL DURATIONS MAY APPEAR (FR-014, SC-003).
-   Names are SEMANTIC — no value-bound names like --color-white or --motion-200ms (FR-070).
+/* tokens.css — Spec 019 Programa Semilla Brand Pivot design-token layer.
+   THIS IS THE ONLY FILE WHERE RAW HEX VALUES MAY APPEAR (FR-009 — spec 011 invariant).
+   THIS IS THE ONLY FILE WHERE LITERAL DURATIONS MAY APPEAR (FR-014 from spec 011, preserved).
+   Names are SEMANTIC — no value-bound names like --color-white or --motion-200ms.
+
+   Spec 019 retunes the palette / type stack / surfaces from the warm-modern (spec 011)
+   placeholder identity to the canonical Programa Semilla sponsor identity:
+     - page bg: warm cream #FAF7F2 → clean white #FFFFFF
+     - primary: forest #2E5E4E → teal #1FA0A0
+     - accent: amber #D98A1B → yellow #F2C014
+     - display: Fraunces serif → Inter sans (weight bumps preserve contrast)
+     - new --color-table-zebra: #FFF3E5 (PDF cream row sample, retained for table striping)
+
+   History note for SC-001 grep: legacy hex values (#2E5E4E #1F4438 #E1ECE6 #D98A1B
+   #FBEED6 #FAF7F2 #F4EFE6 #E5DED2) are intentionally absent from this file.
 
    Imported BEFORE site.css and BEFORE tabler.min.css from _Layout.cshtml so the
    --tblr-* bridge below takes effect. */
 
 /* ============================================================
-   FONT FACES — self-hosted (FR-003)
+   FONT FACES — self-hosted (FR-013 — sans-only after spec 019)
    Vendored as Latin-subsetted variable WOFF2 files under
    wwwroot/lib/fonts/<family>/. Sources:
-     - Fraunces: Google Fonts (SIL OFL 1.1)
      - Inter: Google Fonts (SIL OFL 1.1)
      - JetBrains Mono: Google Fonts (Apache 2.0)
-   Latin subset (U+0000-00FF + typographic extras) covers en + es-CO copy;
-   total wire weight ≈ 105 KB raw, well under the FR-074 / SC-016 400 KB
-   asset budget.
+   Latin subset (U+0000-00FF + typographic extras) covers en + es-CR copy.
+   Fraunces was retired by spec 019 (FR-013) and removed from the vendored
+   bundle to free ≈ 35 KB toward the NFR-002 / SC-011 ≤ 400 KB gz budget.
    ============================================================ */
-
-@font-face {
-  font-family: "Fraunces";
-  src: url("../lib/fonts/fraunces/fraunces-variable.woff2") format("woff2-variations"),
-       url("../lib/fonts/fraunces/fraunces-variable.woff2") format("woff2");
-  font-weight: 400 800;
-  font-style: normal;
-  font-display: swap;
-}
 
 @font-face {
   font-family: "Inter";
   src: url("../lib/fonts/inter/inter-variable.woff2") format("woff2-variations"),
        url("../lib/fonts/inter/inter-variable.woff2") format("woff2");
-  font-weight: 400 700;
+  font-weight: 400 800;
   font-style: normal;
   font-display: swap;
 }
@@ -49,37 +50,41 @@
    ============================================================ */
 
 :root {
-  /* ---------- Color: surfaces ---------- */
-  --color-bg-page:            #FAF7F2;
+  /* ---------- Color: surfaces (FR-007) ---------- */
+  --color-bg-page:            #FFFFFF;
   --color-bg-surface:         #FFFFFF;
-  --color-bg-surface-raised:  #F4EFE6;
+  --color-bg-surface-raised:  #F7F8F8;
 
-  /* ---------- Color: text ---------- */
+  /* ---------- Color: text (FR-011) ---------- */
   --color-text-primary:       #1A1A1A;
   --color-text-secondary:     #5A5A5A;
   --color-text-muted:         #8A8A8A;
 
-  /* ---------- Color: brand ---------- */
-  --color-primary:            #2E5E4E;
-  --color-primary-strong:     #1F4438;
-  --color-primary-subtle:     #E1ECE6;
-  --color-primary-rgb:        46, 94, 78;
+  /* ---------- Color: brand (FR-008) ---------- */
+  --color-primary:            #1FA0A0;
+  --color-primary-strong:     #15807F;
+  --color-primary-subtle:     #D7EDED;
+  --color-primary-rgb:        31, 160, 160;
 
-  --color-accent:             #D98A1B;
-  --color-accent-subtle:      #FBEED6;
+  /* ---------- Color: accent (FR-009) — decorative-only per NFR-003 ---------- */
+  --color-accent:             #F2C014;
+  --color-accent-subtle:      #FBEBA6;
 
-  /* ---------- Color: status ---------- */
-  --color-success:            #2E7D32;
-  --color-success-subtle:     #E1F0E2;
-  --color-warning:            #A86E18;
-  --color-warning-subtle:     #F8EAD0;
-  --color-danger:             #9E2A2A;
-  --color-danger-subtle:      #F5DBDB;
-  --color-info:               #2563AB;
-  --color-info-subtle:        #DDE9F4;
+  /* ---------- Color: table zebra (FR-010) — sampled from PDF cream row ---------- */
+  --color-table-zebra:        #FFF3E5;
+
+  /* ---------- Color: status (FR-012 — retuned for AA on white) ---------- */
+  --color-success:            #157A3F;
+  --color-success-subtle:     #DEF1E3;
+  --color-warning:            #8C5A0B;
+  --color-warning-subtle:     #FCEFD0;
+  --color-danger:             #B0271E;
+  --color-danger-subtle:      #F7DDDA;
+  --color-info:               #1F5BA8;
+  --color-info-subtle:        #DBE7F5;
 
   /* ---------- Color: structural ---------- */
-  --color-border:             #E5DED2;
+  --color-border:             #E2E5E5;
   --color-focus-ring:         var(--color-primary);
 
   /* ---------- Spacing (T-shirt scale on 8 px base) ---------- */
@@ -100,36 +105,44 @@
   --radius-xl: 16px;
   --radius-pill: 9999px;
 
-  /* ---------- Shadows ---------- */
+  /* ---------- Shadows (FR-016) ---------- */
   --shadow-sm: 0 1px 2px rgba(26, 26, 26, 0.04), 0 1px 1px rgba(26, 26, 26, 0.06);
   --shadow-md: 0 4px 12px rgba(26, 26, 26, 0.06), 0 2px 4px rgba(26, 26, 26, 0.04);
   --shadow-lg: 0 16px 32px rgba(26, 26, 26, 0.08), 0 4px 8px rgba(26, 26, 26, 0.04);
-  --shadow-glow-primary: 0 0 0 4px rgba(46, 94, 78, 0.18);
+  --shadow-glow-primary: 0 0 0 4px rgba(var(--color-primary-rgb), 0.18);
 
-  /* ---------- Typography families ---------- */
-  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  /* ---------- Typography families (FR-013 — sans-only) ---------- */
+  --font-display: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-body:    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono:    "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
 
-  /* ---------- Type scale ---------- */
-  --type-display-xl-size:  3.5rem;   --type-display-xl-lh: 1.05;  --type-display-xl-weight: 600;
-  --type-display-lg-size:  2.5rem;   --type-display-lg-lh: 1.10;  --type-display-lg-weight: 600;
-  --type-heading-lg-size:  1.75rem;  --type-heading-lg-lh: 1.20;  --type-heading-lg-weight: 700;
+  /* ---------- Type scale (FR-014 — display 700 / heading 600 to recover weight) ---------- */
+  --type-display-xl-size:  3.5rem;   --type-display-xl-lh: 1.05;  --type-display-xl-weight: 700;
+  --type-display-lg-size:  2.5rem;   --type-display-lg-lh: 1.10;  --type-display-lg-weight: 700;
+  --type-display-1-weight: 700;
+  --type-display-2-weight: 700;
+  --type-display-3-weight: 700;
+  --type-heading-lg-size:  1.75rem;  --type-heading-lg-lh: 1.20;  --type-heading-lg-weight: 600;
   --type-heading-md-size:  1.25rem;  --type-heading-md-lh: 1.30;  --type-heading-md-weight: 600;
   --type-heading-sm-size:  1rem;     --type-heading-sm-lh: 1.35;  --type-heading-sm-weight: 600;
+  --type-heading-1-weight: 600;
+  --type-heading-2-weight: 600;
+  --type-heading-3-weight: 600;
+  --type-heading-4-weight: 600;
   --type-body-size:        0.9375rem;--type-body-lh:       1.50;  --type-body-weight: 400;
+  --type-body-emphasis-weight: 600;
   --type-meta-size:        0.8125rem;--type-meta-lh:       1.40;  --type-meta-weight: 500;
   --type-micro-size:       0.6875rem;--type-micro-lh:      1.30;  --type-micro-weight: 500;
 
-  /* ---------- Motion durations (FR-012) ---------- */
+  /* ---------- Motion durations (FR-017 — preserved verbatim from spec 011) ---------- */
   --motion-instant:     50ms;
   --motion-fast:        150ms;
   --motion-base:        250ms;
   --motion-slow:        400ms;
   --motion-celebratory: 700ms;
-  --motion-opacity-exempt: 150ms; /* preserved under reduced-motion (FR-015) */
+  --motion-opacity-exempt: 150ms; /* preserved under reduced-motion */
 
-  /* ---------- Easings (FR-012) ---------- */
+  /* ---------- Easings (preserved verbatim from spec 011) ---------- */
   --ease-out:        cubic-bezier(0.2, 0.7, 0.2, 1);
   --ease-in-out:     cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -145,15 +158,15 @@
 }
 
 /* ============================================================
-   TABLER BRIDGE (FR-008, research §2.1)
+   TABLER BRIDGE (FR-015)
    Override the high-traffic --tblr-* tokens so every Tabler component
-   inherits the Capital Semilla palette. Tokens.css must load BEFORE tabler.min.css
-   for these to take effect.
+   inherits the Programa Semilla palette. Tokens.css must load BEFORE
+   tabler.min.css for these to take effect.
    ============================================================ */
 
 :root {
   --tblr-primary:        var(--color-primary);
-  --tblr-primary-rgb:    46, 94, 78;
+  --tblr-primary-rgb:    31, 160, 160;
   --tblr-secondary:      var(--color-text-secondary);
   --tblr-success:        var(--color-success);
   --tblr-warning:        var(--color-warning);
@@ -190,7 +203,7 @@ code, pre, .mono, [data-mono] {
 }
 
 /* ============================================================
-   REDUCED-MOTION CONTRACT (FR-015)
+   REDUCED-MOTION CONTRACT (FR-017 — preserved verbatim from spec 011)
    Clamps every duration token to 0; preserves opacity exemption at --motion-opacity-exempt.
    ============================================================ */
 
@@ -206,8 +219,21 @@ code, pre, .mono, [data-mono] {
 }
 
 /* ============================================================
+   PRINT STYLESHEET (research R13)
+   Surfaces flagged with data-print-hide="sponsor-strip" suppress the strip
+   on print (applicant detail, reviewer queue/detail). Auth surfaces and the
+   bare _Layout default omit the attribute and so retain the strip in print.
+   ============================================================ */
+
+@media print {
+  [data-print-hide="sponsor-strip"] {
+    display: none !important;
+  }
+}
+
+/* ============================================================
    FACELIFT-LOCAL UTILITY CLASSES
-   These are CSS classes — partials never use inline style= (FR-010, SC-002).
+   These are CSS classes — partials never use inline style=.
    ============================================================ */
 
 /* Fonts */
@@ -243,14 +269,14 @@ code, pre, .mono, [data-mono] {
 .fl-text-info        { color: var(--color-info); }
 
 /* Backgrounds (subtle status fills) */
-.fl-bg-primary-subtle  { background: var(--color-primary-subtle); color: var(--color-primary); }
-.fl-bg-accent-subtle   { background: var(--color-accent-subtle); color: var(--color-accent); }
+.fl-bg-primary-subtle  { background: var(--color-primary-subtle); color: var(--color-primary-strong); }
+.fl-bg-accent-subtle   { background: var(--color-accent-subtle); color: var(--color-text-primary); }
 .fl-bg-success-subtle  { background: var(--color-success-subtle); color: var(--color-success); }
 .fl-bg-warning-subtle  { background: var(--color-warning-subtle); color: var(--color-warning); }
 .fl-bg-danger-subtle   { background: var(--color-danger-subtle); color: var(--color-danger); }
 .fl-bg-info-subtle     { background: var(--color-info-subtle); color: var(--color-info); }
 
-/* Spacing helpers (only what tokens.css owns; partials may still use Tabler m-/p-) */
+/* Spacing helpers */
 .fl-pad-2 { padding: var(--space-2); }
 .fl-pad-3 { padding: var(--space-3); }
 .fl-pad-4 { padding: var(--space-4); }
@@ -259,7 +285,7 @@ code, pre, .mono, [data-mono] {
 .fl-gap-3 { gap: var(--space-3); }
 .fl-gap-4 { gap: var(--space-4); }
 
-/* Status pill (FR-011) — token-driven enum-to-color mapping */
+/* Status pill — token-driven enum-to-color mapping */
 .fl-status-pill {
   display: inline-flex;
   align-items: center;
@@ -268,19 +294,21 @@ code, pre, .mono, [data-mono] {
   font-family: var(--font-body);
   font-size: var(--type-meta-size);
   line-height: 1;
-  font-weight: 500;
+  font-weight: 600;
   border-radius: var(--radius-pill);
   background: var(--color-bg-surface-raised);
   color: var(--color-text-secondary);
 }
-.fl-status-pill[data-tone="primary"] { background: var(--color-primary-subtle); color: var(--color-primary); }
+.fl-status-pill[data-tone="primary"] { background: var(--color-primary-subtle); color: var(--color-primary-strong); }
 .fl-status-pill[data-tone="success"] { background: var(--color-success-subtle); color: var(--color-success); }
 .fl-status-pill[data-tone="warning"] { background: var(--color-warning-subtle); color: var(--color-warning); }
 .fl-status-pill[data-tone="danger"]  { background: var(--color-danger-subtle);  color: var(--color-danger); }
 .fl-status-pill[data-tone="info"]    { background: var(--color-info-subtle);    color: var(--color-info); }
 .fl-status-pill[data-tone="muted"]   { background: var(--color-bg-surface-raised); color: var(--color-text-muted); }
+/* Yellow-accent pill — semibold dark text overlay; keeps NFR-003 AA via #1A1A1A on #F2C014 / #FBEBA6 */
+.fl-status-pill[data-tone="accent"]  { background: var(--color-accent-subtle); color: var(--color-text-primary); }
 
-/* KPI tile + ticker (FR-026) */
+/* KPI tile + ticker (FR-027 — admin dashboard glow retunes to teal) */
 .fl-kpi-tile {
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
@@ -292,8 +320,9 @@ code, pre, .mono, [data-mono] {
 }
 .fl-kpi-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .fl-kpi-label { color: var(--color-text-secondary); font-size: var(--type-meta-size); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
-.fl-kpi-value { font-family: var(--font-display); font-size: 2rem; line-height: 1; color: var(--color-text-primary); margin-top: var(--space-2); }
+.fl-kpi-value { font-family: var(--font-display); font-size: 2rem; line-height: 1; color: var(--color-text-primary); margin-top: var(--space-2); font-weight: 700; }
 .fl-kpi-value[data-ticker-target] { font-variant-numeric: tabular-nums; }
+.fl-kpi-tile[data-glow="primary"]:hover { box-shadow: var(--shadow-md), var(--shadow-glow-primary); }
 
 /* Hero strip + welcome */
 .fl-hero-strip {
@@ -312,7 +341,7 @@ code, pre, .mono, [data-mono] {
 }
 .fl-welcome-subhead { color: var(--color-text-secondary); margin-top: var(--space-2); }
 
-/* Awaiting-action callout (US1, FR-027) */
+/* Awaiting-action callout (FR-023 — left teal accent bar + soft tinted bg + dark text) */
 .fl-awaiting {
   background: var(--color-accent-subtle);
   border-left: 4px solid var(--color-accent);
@@ -322,35 +351,36 @@ code, pre, .mono, [data-mono] {
   align-items: center;
   gap: var(--space-4);
   flex-wrap: wrap;
+  color: var(--color-text-primary);
 }
 .fl-awaiting-msg { color: var(--color-text-primary); font-weight: 500; flex: 1 1 auto; }
 
-/* Application card (US1, FR-028) */
+/* Application card (FR-020 — 1px solid border, no rest shadow, hover --shadow-md) */
 .fl-app-card {
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-5);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   transition: box-shadow var(--motion-fast) var(--ease-out),
               transform var(--motion-fast) var(--ease-out);
 }
-.fl-app-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-.fl-app-card-title { font-family: var(--font-display); font-size: var(--type-heading-md-size); margin: 0 0 var(--space-2); }
+.fl-app-card:hover, .fl-app-card:focus-within { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.fl-app-card-title { font-family: var(--font-display); font-size: var(--type-heading-md-size); margin: 0 0 var(--space-2); font-weight: var(--type-heading-md-weight); }
 .fl-app-card-meta  { color: var(--color-text-secondary); font-size: var(--type-meta-size); }
 .fl-app-card-mono  { font-family: var(--font-mono); color: var(--color-text-secondary); }
 
-/* Resources / trust strip (FR-030, FR-031) */
+/* Resources / trust strip */
 .fl-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); }
 .fl-strip-card {
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: var(--space-5);
 }
-.fl-strip-card-title { font-family: var(--font-display); font-size: var(--type-heading-sm-size); margin: 0 0 var(--space-2); }
+.fl-strip-card-title { font-family: var(--font-display); font-size: var(--type-heading-sm-size); margin: 0 0 var(--space-2); font-weight: var(--type-heading-sm-weight); }
 
-/* Journey timeline (US2, FR-034..FR-042) */
+/* Journey timeline */
 .fl-journey { display: flex; flex-direction: column; gap: var(--space-3); }
 .fl-journey-mainline { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .fl-journey-node {
@@ -366,8 +396,8 @@ code, pre, .mono, [data-mono] {
               color var(--motion-base) var(--ease-spring),
               transform var(--motion-base) var(--ease-spring);
 }
-.fl-journey-node[data-state="completed"] { color: var(--color-text-secondary); background: var(--color-primary-subtle); }
-.fl-journey-node[data-state="current"]   { color: var(--color-text-primary); background: var(--color-primary); color: #FFFFFF; box-shadow: var(--shadow-glow-primary); transform: scale(1.04); }
+.fl-journey-node[data-state="completed"] { color: var(--color-primary-strong); background: var(--color-primary-subtle); }
+.fl-journey-node[data-state="current"]   { color: #FFFFFF; background: var(--color-primary); box-shadow: var(--shadow-glow-primary); transform: scale(1.04); }
 .fl-journey-node[data-state="pending"]   { color: var(--color-text-muted); background: var(--color-bg-surface-raised); opacity: 0.6; }
 .fl-journey-connector { flex: 0 0 auto; width: 24px; height: 2px; background: var(--color-border); }
 .fl-journey-mini { gap: var(--space-1); }
@@ -384,13 +414,13 @@ code, pre, .mono, [data-mono] {
 .fl-journey-branch[data-kind="rejected"] .fl-journey-node { background: var(--color-danger-subtle);  color: var(--color-danger); }
 .fl-journey-branch[data-kind="appeal"]   .fl-journey-node { background: var(--color-info-subtle);    color: var(--color-info); }
 
-/* Event log highlight (FR-039) */
+/* Event log highlight */
 .is-highlighted {
   background: var(--color-accent-subtle);
   transition: background var(--motion-base) var(--ease-out);
 }
 
-/* Empty state (US7, FR-064, FR-065) */
+/* Empty state (FR-026 — 9 illustrations re-stroked teal) */
 .fl-empty {
   display: flex;
   flex-direction: column;
@@ -410,7 +440,7 @@ code, pre, .mono, [data-mono] {
 .fl-empty-illustration[data-size="xl"] { width: 280px; height: 280px; }
 @keyframes fl-empty-enter { to { opacity: 1; transform: translateY(0); } }
 
-/* Filter chip (US4, FR-054) */
+/* Filter chip — Reports tab pill chips active = teal bg + white text (US3) */
 .fl-chip-strip { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .fl-chip {
   display: inline-flex;
@@ -422,21 +452,22 @@ code, pre, .mono, [data-mono] {
   background: var(--color-bg-surface);
   color: var(--color-text-secondary);
   font-size: var(--type-meta-size);
+  font-weight: 500;
   cursor: pointer;
   transition: background var(--motion-fast) var(--ease-out),
               color var(--motion-fast) var(--ease-out);
 }
 .fl-chip:hover { background: var(--color-bg-surface-raised); color: var(--color-text-primary); }
-.fl-chip[aria-pressed="true"] { background: var(--color-primary-subtle); color: var(--color-primary); border-color: var(--color-primary-subtle); }
+.fl-chip[aria-pressed="true"] { background: var(--color-primary); color: #FFFFFF; border-color: var(--color-primary); }
 
-/* Reviewer queue row (US4, FR-057) */
+/* Reviewer queue row */
 .fl-queue-row {
   transition: box-shadow var(--motion-fast) var(--ease-out),
               transform var(--motion-fast) var(--ease-out);
 }
 .fl-queue-row:hover { box-shadow: var(--shadow-md); cursor: pointer; }
 
-/* Ceremony (US3, FR-045) */
+/* Ceremony */
 .fl-ceremony { display: flex; flex-direction: column; align-items: center; gap: var(--space-5); padding: var(--space-7) var(--space-4); }
 .fl-ceremony-seal { width: 200px; height: 200px; }
 .fl-ceremony-seal[data-state="static"] { /* used under reduced-motion or bookmark re-visit */ }
@@ -470,7 +501,7 @@ code, pre, .mono, [data-mono] {
   font-family: var(--font-mono);
   font-size: 2.25rem;
   font-weight: 600;
-  color: var(--color-primary);
+  color: var(--color-primary-strong);
 }
 .fl-confetti-canvas {
   position: fixed;
@@ -479,13 +510,40 @@ code, pre, .mono, [data-mono] {
   z-index: var(--z-toast);
 }
 
-/* Auth layout — clean focused single-CTA tone (research §9) */
+/* Auth layout (FR-004 — Login/Register hero + sponsor strip in footer) */
 .fl-auth-shell {
   min-height: 100vh;
   display: grid;
-  place-items: center;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   background: var(--color-bg-page);
-  padding: var(--space-5);
+}
+@media (max-width: 768px) {
+  .fl-auth-shell { grid-template-columns: 1fr; }
+}
+.fl-auth-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-7) var(--space-5);
+  background: var(--color-primary-subtle);
+  text-align: center;
+  gap: var(--space-4);
+}
+.fl-auth-hero-mark { width: 240px; height: 240px; max-width: 60vw; }
+@media (max-width: 480px) {
+  .fl-auth-hero-mark { width: 96px; height: 96px; }
+  .fl-auth-hero { padding: var(--space-5) var(--space-4); }
+}
+.fl-auth-hero-wordmark { width: 320px; max-width: 80vw; color: var(--color-primary-strong); }
+.fl-auth-hero-tagline { color: var(--color-text-secondary); font-size: var(--type-heading-sm-size); max-width: 28rem; }
+.fl-auth-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  padding: var(--space-7) var(--space-5);
+  background: var(--color-bg-surface);
 }
 .fl-auth-card {
   background: var(--color-bg-surface);
@@ -495,11 +553,259 @@ code, pre, .mono, [data-mono] {
   padding: var(--space-7);
   width: 100%;
   max-width: 28rem;
+  margin: 0 auto;
 }
 .fl-auth-headline {
   font-family: var(--font-display);
   font-size: var(--type-heading-lg-size);
+  font-weight: var(--type-heading-lg-weight);
   margin: 0 0 var(--space-4);
+}
+
+/* ============================================================
+   COMPONENT VOCABULARY (FR-018..FR-026)
+   ============================================================ */
+
+/* Buttons (FR-018) */
+.fl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--type-body-size);
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-primary);
+  transition: background var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+.fl-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.fl-btn[data-variant="primary"] {
+  background: var(--color-primary);
+  color: #FFFFFF;
+  border-color: var(--color-primary);
+}
+.fl-btn[data-variant="primary"]:hover:not(:disabled),
+.fl-btn[data-variant="primary"]:focus-visible {
+  background: var(--color-primary-strong);
+  border-color: var(--color-primary-strong);
+}
+.fl-btn[data-variant="secondary"] {
+  background: transparent;
+  color: var(--color-primary-strong);
+  border-color: var(--color-primary);
+}
+.fl-btn[data-variant="secondary"]:hover:not(:disabled),
+.fl-btn[data-variant="secondary"]:focus-visible {
+  background: var(--color-primary-subtle);
+}
+.fl-btn[data-variant="danger"] {
+  background: var(--color-danger);
+  color: #FFFFFF;
+  border-color: var(--color-danger);
+}
+.fl-btn[data-variant="danger"]:hover:not(:disabled),
+.fl-btn[data-variant="danger"]:focus-visible {
+  background: #8E1F18;
+  border-color: #8E1F18;
+}
+.fl-btn[data-size="sm"] {
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--type-meta-size);
+}
+
+/* Tables (FR-019, FR-031 — density via data-density attribute) */
+.fl-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  font-size: var(--type-body-size);
+}
+.fl-table thead th {
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-weight: 600;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+}
+.fl-table tbody td {
+  padding: var(--space-4);
+  border: none;
+  color: var(--color-text-primary);
+}
+.fl-table tbody tr:nth-child(even) td {
+  background: var(--color-table-zebra);
+}
+.fl-table[data-density="reviewer"] tbody td,
+.fl-table[data-density="reviewer"] thead th {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+.fl-table[data-density="applicant"] tbody td,
+.fl-table[data-density="applicant"] thead th,
+.fl-table:not([data-density]) tbody td,
+.fl-table:not([data-density]) thead th {
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+.fl-table[data-density="reviewer"] thead th { padding-top: var(--space-3); padding-bottom: var(--space-3); }
+
+/* Cards (FR-020) */
+.fl-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  box-shadow: none;
+  transition: box-shadow var(--motion-fast) var(--ease-out);
+}
+.fl-card:hover, .fl-card:focus-within { box-shadow: var(--shadow-md); }
+
+/* Badges (FR-021) */
+.fl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-meta-size);
+  font-weight: 600;
+  background: var(--color-bg-surface-raised);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+.fl-badge[data-variant="primary"] { background: var(--color-primary); color: #FFFFFF; }
+.fl-badge[data-variant="accent"]  { background: var(--color-accent); color: var(--color-text-primary); }
+.fl-badge[data-variant="success"] { background: var(--color-success); color: #FFFFFF; }
+.fl-badge[data-variant="warning"] { background: var(--color-warning); color: #FFFFFF; }
+.fl-badge[data-variant="danger"]  { background: var(--color-danger); color: #FFFFFF; }
+.fl-badge[data-variant="info"]    { background: var(--color-info); color: #FFFFFF; }
+
+/* Inputs (FR-022) */
+.fl-input {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--type-body-size);
+  line-height: 1.4;
+  transition: border-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+.fl-input:focus, .fl-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.20),
+              0 0 0 2px var(--color-primary) inset;
+}
+.fl-input[aria-invalid="true"] { border-color: var(--color-danger); }
+.fl-input[aria-invalid="true"]:focus { box-shadow: 0 0 0 4px rgba(176, 39, 30, 0.18); }
+
+/* Alerts (FR-023) */
+.fl-alert {
+  position: relative;
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-subtle);
+  color: var(--color-text-primary);
+  border-left: 4px solid var(--color-primary);
+}
+.fl-alert[data-variant="success"] { background: var(--color-success-subtle); border-left-color: var(--color-success); }
+.fl-alert[data-variant="warning"] { background: var(--color-warning-subtle); border-left-color: var(--color-warning); }
+.fl-alert[data-variant="danger"]  { background: var(--color-danger-subtle);  border-left-color: var(--color-danger); }
+.fl-alert[data-variant="info"]    { background: var(--color-info-subtle);    border-left-color: var(--color-info); }
+
+/* Modals (FR-024) */
+.fl-modal {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 20px 40px rgba(26, 26, 26, 0.10);
+  overflow: hidden;
+}
+.fl-modal-header {
+  background: var(--color-primary);
+  color: #FFFFFF;
+  padding: var(--space-4) var(--space-5);
+  font-family: var(--font-display);
+  font-size: var(--type-heading-md-size);
+  font-weight: var(--type-heading-md-weight);
+}
+.fl-modal-body { padding: var(--space-5); }
+.fl-modal-footer { padding: var(--space-4) var(--space-5); background: var(--color-bg-surface-raised); display: flex; gap: var(--space-3); justify-content: flex-end; }
+
+/* Sidebar header (FR-025) */
+.fl-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  text-decoration: none;
+  color: inherit;
+}
+.fl-sidebar-brand-mark { width: 32px; height: 32px; flex: 0 0 auto; }
+.fl-sidebar-brand-wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--type-heading-md-size);
+  color: var(--color-primary-strong);
+  white-space: nowrap;
+}
+
+/* Sponsor strip (FR-003) */
+.fl-sponsor-strip {
+  width: 100%;
+  max-height: 56px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border);
+}
+.fl-sponsor-strip img,
+.fl-sponsor-strip svg {
+  height: 32px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+}
+@media (max-width: 480px) {
+  .fl-sponsor-strip {
+    max-height: none;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .fl-sponsor-strip [data-sponsor="10-anos"] { display: none; }
+}
+
+/* Section divider — yellow accent decorative-only */
+.fl-divider-accent {
+  border: none;
+  height: 2px;
+  background: var(--color-accent);
+  margin: var(--space-5) 0;
+  opacity: 0.65;
 }
 
 /* Focus rings (a11y not suppressed under reduced-motion) */

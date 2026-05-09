@@ -18,4 +18,38 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!--
+    Spec 019 FR-003 / research R12 — emit BuildInfo.g.cs with a per-build short hash
+    used as a cache-bust query string for tokens.css in _Layout.cshtml.
+    Falls back to ticks if git is unavailable. Output is git-ignored in obj/.
+  -->
+  <Target Name="GenerateBuildInfo" BeforeTargets="CoreCompile">
+    <Exec Command="git rev-parse --short HEAD"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ConsoleToMSBuild="true"
+          ContinueOnError="true"
+          IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitShortHash" />
+      <Output TaskParameter="ExitCode" PropertyName="GitExitCode" />
+    </Exec>
+    <PropertyGroup>
+      <BuildInfoHashFallback>$([System.DateTime]::UtcNow.Ticks)</BuildInfoHashFallback>
+      <BuildInfoHash Condition="'$(GitExitCode)' == '0' and '$(GitShortHash)' != ''">$(GitShortHash)</BuildInfoHash>
+      <BuildInfoHash Condition="'$(BuildInfoHash)' == ''">$(BuildInfoHashFallback)</BuildInfoHash>
+      <BuildInfoFile>$(IntermediateOutputPath)BuildInfo.g.cs</BuildInfoFile>
+    </PropertyGroup>
+    <ItemGroup>
+      <_BuildInfoLines Include="// &lt;auto-generated /&gt; — produced by GenerateBuildInfo target (spec 019 R12)." />
+      <_BuildInfoLines Include="namespace FundingPlatform.Web%3B" />
+      <_BuildInfoLines Include="internal static class FundingPlatformBuildInfo" />
+      <_BuildInfoLines Include="{" />
+      <_BuildInfoLines Include="    public const string Hash = &quot;$(BuildInfoHash)&quot;%3B" />
+      <_BuildInfoLines Include="}" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(BuildInfoFile)" Lines="@(_BuildInfoLines)" Overwrite="true" />
+    <ItemGroup>
+      <Compile Include="$(BuildInfoFile)" />
+    </ItemGroup>
+  </Target>
+
 </Project>

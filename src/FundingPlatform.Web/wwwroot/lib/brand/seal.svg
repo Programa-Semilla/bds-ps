@@ -1,12 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Funding signed seal">
-  <defs>
-    <linearGradient id="seal-grad" x1="0" y1="0" x2="200" y2="200">
-      <stop offset="0%" stop-color="#2E5E4E"/>
-      <stop offset="100%" stop-color="#D98A1B"/>
-    </linearGradient>
-  </defs>
-  <circle cx="100" cy="100" r="84" fill="none" stroke="url(#seal-grad)" stroke-width="6"/>
-  <circle cx="100" cy="100" r="68" fill="#FAF7F2"/>
+<!-- PLACEHOLDER: pending designer pass — Programa Semilla teal seal. Geometric stand-in: teal ring + checkmark, white interior. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Acuerdo firmado">
+  <circle cx="100" cy="100" r="84" fill="none" stroke="#1FA0A0" stroke-width="6"/>
+  <circle cx="100" cy="100" r="68" fill="#FFFFFF"/>
   <path d="M68 104 L 92 128 L 138 78"
-        stroke="#2E5E4E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        stroke="#1FA0A0" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

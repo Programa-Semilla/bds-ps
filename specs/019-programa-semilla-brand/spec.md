@@ -30,7 +30,7 @@ A reviewer logs in to triage their queue, opens an application detail, signs the
 
 **Why this priority**: Reviewers spend more time in the platform than any other role; an inconsistent brand experience between applicant and reviewer surfaces would undermine the spec's "brand presence is felt continuously" claim from US1. Density rule from spec 011 (FR-060) must not regress.
 
-**Independent Test**: Run a reviewer E2E that visits queue, detail, signing inbox, history. Assert teal-band table headers across all four surfaces. Measure cell vertical padding ≈ 8 px (`--space-2`); contrast with applicant table padding ≈ 12 px (`--space-3`).
+**Independent Test**: Run a reviewer E2E that visits queue, detail, signing inbox, history. Assert teal-band table headers across all four surfaces. Measure cell vertical padding ≈ 8 px (`--space-2`); contrast with applicant table padding ≈ 16 px (`--space-4`, preserving spec 011 FR-060 canonical).
 
 **Acceptance Scenarios**:
 
@@ -42,7 +42,7 @@ A reviewer logs in to triage their queue, opens an application detail, signs the
 
 ### User Story 3 - Admin surfaces lift uniformly across the 10 sub-surfaces (Priority: P1)
 
-An admin signs in to manage Users, Groups, Currencies, Exchange Rates, Legacy Quotations, Suppliers, Reports, Audit. The `/Admin` dashboard from spec 017 (capability cards + KPI tiles + sub-tabs + activity feed) and every sub-surface re-walks at the new bar. KPI tickers retain their motion timing but glow color shifts to teal. Reports tab pill chips and sub-tabs read teal/yellow.
+An admin signs in to manage Users, Groups, Currencies, Exchange Rates, Legacy Quotations, Suppliers, Reports, Configuration, and Impact Templates. The `/Admin` dashboard from spec 017 (capability cards + KPI tiles + sub-tabs + activity feed) and every sub-surface re-walks at the new bar. KPI tickers retain their motion timing but glow color shifts to teal. Reports tab pill chips and sub-tabs read teal/yellow.
 
 **Why this priority**: Spec 017 just shipped (`017-admin-ux-facelift`); leaving its 10 surfaces on warm-modern tokens while applicants and reviewers are on Programa Semilla would re-introduce visible brand divergence. Same risk profile as spec 011 / 017 — pre-prod aggressive scope.
 
@@ -150,7 +150,7 @@ When a user receives an account confirmation, password reset, or any platform-ge
 **Component retune** *(must apply across every swept surface; tokens cascade through partials)*
 
 - **FR-018**: Buttons — primary button MUST render solid teal background with white text and pill radius. Secondary MUST render ghost-teal (transparent background, teal border + text). Danger MUST render solid danger color. Minimum touch height 44 px.
-- **FR-019**: Tables — header row MUST render a solid teal band with white semibold text. Body MUST zebra-stripe alternating `--color-bg-surface` and `--color-table-zebra`. Cell vertical padding MUST be `--space-3` on applicant surfaces and `--space-2` on reviewer surfaces (FR-031). No internal grid lines on body rows.
+- **FR-019**: Tables — header row MUST render a solid teal band with white semibold text. Body MUST zebra-stripe alternating `--color-bg-surface` and `--color-table-zebra`. Cell vertical padding MUST be `--space-4` on applicant surfaces and `--space-2` on reviewer surfaces (FR-031 — preserves spec 011 FR-060 canonical: applicant `--space-4` ≈ 16 px, reviewer `--space-2` ≈ 8 px). No internal grid lines on body rows.
 - **FR-020**: Cards — `1 px solid --color-border`, no rest shadow, `--shadow-md` on hover/focus, `--radius-md`.
 - **FR-021**: Badges — filled with pill radius, semibold weight. Variants: primary teal, accent yellow (with dark text overlay because `#F2C014` on white fails AA — see NFR-003), and the four status colors (success / warning / danger / info) on retuned tokens.
 - **FR-022**: Inputs — minimum height 44 px, soft border, teal focus ring (4 px outer, 2 px inner). Validation states MUST use the corresponding status colors.
@@ -161,7 +161,7 @@ When a user receives an account confirmation, password reset, or any platform-ge
 
 **Surface sweep**
 
-- **FR-027**: System MUST apply the new tokens + component retune across the full surface inventory: applicant (home, dashboard, journey, appeal, signing); reviewer (queue, detail, signing inbox, history); admin (index, Users, Groups, Currencies, Exchange Rates, Legacy Quotations, Suppliers, Reports, Audit); auth (Login, Register, Reset Password, Confirm Email); shared `_Layout` chrome.
+- **FR-027**: System MUST apply the new tokens + component retune across the full surface inventory: applicant (home, dashboard, journey, appeal, signing); reviewer (queue, detail, signing inbox, history); admin (index, Users, Groups, Currencies, Exchange Rates, Legacy Quotations, Suppliers, Reports, Configuration, ImpactTemplates) — matches the actual `Views/Admin/` project layout at the time of this spec; the spec-017 capability-card inventory; auth (Login, Register, Reset Password, Confirm Email — Reset Password and Confirm Email may rely on Identity scaffold defaults if no custom view exists; in that case the spec applies to whichever surface ASP.NET Identity emits); shared `_Layout` chrome.
 - **FR-028**: System MUST ship a manual `BRAND-PIVOT-SWEEP-CHECKLIST.md` deliverable inside the spec directory, with one row per swept surface and columns for each verification axis: visual tokens / component vocabulary / voice-guide compliance / sponsor chrome / motion / accessibility. Every row MUST be checked before merge.
 - **FR-029**: System MUST re-walk the four spec-011 wow moments (applicant home dashboard, journey timeline, signing ceremony, reviewer queue dashboard) at the new bar and update each surface's reference visual snapshot.
 - **FR-030**: System MUST rewrite `BRAND-VOICE.md` so that the display-name pivot (Forge / Capital Semilla → Programa Semilla) lands in title, examples, and display-name references. Tone, person, and stage-aware patterns from spec 011 MUST remain unchanged.

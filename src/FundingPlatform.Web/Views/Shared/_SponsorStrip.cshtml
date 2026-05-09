@@ -1,0 +1,39 @@
+@*
+    _SponsorStrip.cshtml — Spec 019 FR-003 sponsor partner-logo strip.
+
+    Renders the five sponsor SVGs vendored under wwwroot/lib/brand/sponsors/:
+      - SBD (Sistema de Banca para el Desarrollo)
+      - CROCUS
+      - nexo
+      - Programa Semilla
+      - 10 años badge
+
+    Layout: full-width <footer>, max 56 px tall, sponsors centered with
+    flex-wrap so a narrow viewport (≤ 480 px) drops to two rows; if still
+    tight, the 10 años badge hides via the .fl-sponsor-strip @media query
+    in tokens.css. Component CSS lives in tokens.css (.fl-sponsor-strip).
+
+    Optional model: anonymous { HideOnPrint = bool }. Pass HideOnPrint=true
+    on application detail and reviewer queue / detail surfaces (research R13);
+    omit / pass false on auth surfaces and the bare _Layout.
+
+    Voice / a11y: each <img> carries an alt attribute matching the sponsor
+    display name. role="contentinfo" / "complementary" is owned by the host
+    page footer; this partial only declares the strip element.
+*@
+@{
+    var hideOnPrint = (Model as dynamic)?.HideOnPrint == true;
+}
+@* When hideOnPrint is true, Razor emits data-print-hide="sponsor-strip";
+   when null/false, Razor suppresses the attribute entirely (built-in
+   conditional-attribute idiom — keeps the attribute well-formed). *@
+<footer class="fl-sponsor-strip"
+        data-testid="sponsor-strip"
+        data-print-hide="@(hideOnPrint ? "sponsor-strip" : null)"
+        aria-label="Patrocinadores">
+    <img src="~/lib/brand/sponsors/sbd.svg" alt="Sistema de Banca para el Desarrollo" data-sponsor="sbd" />
+    <img src="~/lib/brand/sponsors/crocus.svg" alt="CROCUS" data-sponsor="crocus" />
+    <img src="~/lib/brand/sponsors/nexo.svg" alt="nexo" data-sponsor="nexo" />
+    <img src="~/lib/brand/sponsors/programa-semilla.svg" alt="Programa Semilla" data-sponsor="programa-semilla" />
+    <img src="~/lib/brand/sponsors/10-anos.svg" alt="10 años" data-sponsor="10-anos" />
+</footer>

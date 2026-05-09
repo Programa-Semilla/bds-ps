@@ -58,10 +58,11 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Capital Semilla</title>
+    <title>@ViewData["Title"] - Programa Semilla</title>
     <link rel="icon" type="image/svg+xml" href="~/lib/brand/favicons/favicon.svg" />
-    @* tokens.css MUST load BEFORE Tabler so the --tblr-* bridge in tokens.css applies (FR-008). *@
-    <link rel="stylesheet" href="~/css/tokens.css" asp-append-version="true" />
+    @* tokens.css MUST load BEFORE Tabler so the --tblr-* bridge in tokens.css applies (spec 019 FR-015). *@
+    @* Cache-bust query string from per-build hash (research R12). *@
+    <link rel="stylesheet" href="~/css/tokens.css?v=@FundingPlatform.Web.FundingPlatformBuildInfo.Hash" />
     <link rel="stylesheet" href="~/lib/tabler/dist/css/tabler.min.css" />
     <link rel="stylesheet" href="~/lib/tabler/dist/css/tabler-icons.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -76,7 +77,7 @@
                         <span class="navbar-toggler-icon"></span>
                     </button>
                     <h1 class="navbar-brand navbar-brand-autodark">
-                        <a href="@Url.Action("Index", "Home")" class="fl-font-display">Capital Semilla</a>
+                        @await Html.PartialAsync("_BrandSidebarHeader")
                     </h1>
                     <div class="collapse navbar-collapse" id="sidebar-menu">
                         <ul class="navbar-nav pt-lg-3">
@@ -176,9 +177,11 @@
                     </main>
                 </div>
             </div>
-            <footer class="footer footer-transparent d-print-none">
+            @* Spec 019 FR-003 — sponsor partner-logo strip above the legal/copyright line. *@
+            @await Html.PartialAsync("_SponsorStrip")
+            <footer class="footer footer-transparent">
                 <div class="container-xl">
-                    <div class="text-secondary text-center py-3 fl-type-meta">&copy; 2026 Capital Semilla &middot; diseñado para emprendedores</div>
+                    <div class="text-secondary text-center py-3 fl-type-meta">&copy; 2026 Programa Semilla &middot; Sistema de Banca para el Desarrollo</div>
                 </div>
             </footer>
         </div>
