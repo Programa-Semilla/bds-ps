@@ -1,6 +1,7 @@
 using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.DTOs;
+using FundingPlatform.Application.Errors;
 using FundingPlatform.Application.Suppliers.Services;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
@@ -10,6 +11,13 @@ using Microsoft.Extensions.Logging;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
 namespace FundingPlatform.Application.Services;
+
+/// <summary>
+/// Spec 018 — the create flow now returns either the newly-created Application id
+/// or a <see cref="UserFacingError"/> when the entity rejects the supplied company
+/// name. <see cref="ApplicationId"/> is 0 when <see cref="Error"/> is non-null.
+/// </summary>
+public sealed record CreateApplicationResult(int ApplicationId, UserFacingError? Error);
 
 public class ApplicationService
 {
@@ -54,9 +62,36 @@ public class ApplicationService
         _logger = logger;
     }
 
-    public async Task<int> CreateApplicationAsync(CreateApplicationCommand cmd, string? userId = null)
+    /// <summary>
+    /// Spec 018 / FR-015 / FR-016 — creates a new draft Application with the
+    /// applicant-supplied company name. Domain-level validation (required, ≤200,
+    /// trim semantics) happens inside the entity constructor; ArgumentException
+    /// from the entity is mapped to a user-facing code via <see cref="UserFacingError"/>.
+    /// </summary>
+    public async Task<CreateApplicationResult> CreateApplicationAsync(
+        CreateApplicationCommand cmd, string? userId = null)
     {
-        var application = new AppEntity(cmd.ApplicantId);
+        AppEntity application;
+        try
+        {
+            application = new AppEntity(cmd.ApplicantId, cmd.CompanyName);
+        }
+        catch (ArgumentException ex)
+        {
+            // Map entity-level validation failures to user-facing codes via the
+            // stable Data["FundingPlatform.ValidationReason"] discriminator the
+            // entity sets (instead of fragile message-string matching). Lets the
+            // Web layer pick the right Spanish message per FR-014 / NFR-001
+            // even if the English exception text is later edited.
+            var reason = ex.Data[Item.ValidationReasonKey] as string;
+            var code = reason switch
+            {
+                AppEntity.CompanyNameTooLongReason => UserFacingErrorCode.CompanyNameTooLong,
+                AppEntity.CompanyNameRequiredReason => UserFacingErrorCode.CompanyNameRequired,
+                _ => UserFacingErrorCode.CompanyNameRequired,
+            };
+            return new CreateApplicationResult(0, UserFacingError.From(code, ex.Message));
+        }
 
         if (userId is not null)
         {
@@ -65,7 +100,7 @@ public class ApplicationService
 
         await _applicationRepository.AddAsync(application);
         await _applicationRepository.SaveChangesAsync();
-        return application.Id;
+        return new CreateApplicationResult(application.Id, null);
     }
 
     /// <summary>

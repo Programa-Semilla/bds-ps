@@ -45,7 +45,7 @@ public class SendBackApplicationTests : AuthenticatedTestBase
         // Request more info on the item with a comment
         await reviewPage.ItemDecisionRadio(itemId, "RequestMoreInfo").CheckAsync();
         await reviewPage.ItemCommentField(itemId).FillAsync("Please provide updated specifications");
-        await reviewPage.ItemSubmitButton(itemId).ClickAsync();
+        await reviewPage.SubmitDecisionWithTestLineCodeAsync(itemId);
         await Expect(Page.Locator(".alert-success")).ToBeVisibleAsync();
 
         // Send back the application (accept the confirm dialog)

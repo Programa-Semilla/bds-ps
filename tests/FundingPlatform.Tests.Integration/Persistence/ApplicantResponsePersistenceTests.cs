@@ -138,7 +138,7 @@ public class ApplicantResponsePersistenceTests
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new AppEntity(applicant.Id);
+        var application = new AppEntity(applicant.Id, "Test Company");
         foreach (var name in itemNames)
         {
             application.AddItem(new Item(name, category.Id, "specs"));

@@ -1,0 +1,41 @@
+@using FundingPlatform.Web.Localization
+@model FundingPlatform.Web.ViewModels.FundingAgreementDocumentViewModel
+@{
+    var culture = EsCrCultureFactory.Build();
+}
+@*
+    Spec 018 / FR-010 — Información empresas proveedoras table. One row per
+    distinct supplier referenced in the approved-lines set, with Hacienda /
+    CCSS / SICOP compliance status from the supplier catalog (spec 013).
+    Edge Case 2: the entire section is omitted when no approved lines exist.
+*@
+
+@if (Model.SupplierCompliance.Count > 0)
+{
+    <section class="supplier-verification-page page-break-before">
+        <h2 class="section-heading">Información empresas proveedoras</h2>
+        <table class="brand-table" data-testid="supplier-compliance-table">
+            <thead>
+                <tr>
+                    <th>Fecha de revisión</th>
+                    <th>Empresa proveedora</th>
+                    <th>Hacienda</th>
+                    <th>CCSS</th>
+                    <th>SICOP</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.SupplierCompliance)
+                {
+                    <tr>
+                        <td>@s.ReviewedAt.ToString("dd/MM/yyyy", culture)</td>
+                        <td>@s.SupplierName</td>
+                        <td>@s.Hacienda</td>
+                        <td>@s.Ccss</td>
+                        <td>@s.Sicop</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+}

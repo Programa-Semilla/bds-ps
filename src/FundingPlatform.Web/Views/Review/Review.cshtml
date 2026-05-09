@@ -251,6 +251,23 @@
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="ItemId" value="@item.ItemId" />
 
+                                @* Spec 018 / FR-012 — line code is required for Approve/Reject;
+                                   the input stays in the form so a re-render after a validation
+                                   error preserves the reviewer's input. *@
+                                <div class="mb-2">
+                                    <label for="lineCode_@item.ItemId" class="form-label">Código de línea</label>
+                                    <input type="text"
+                                           class="form-control form-control-sm"
+                                           id="lineCode_@item.ItemId"
+                                           name="LineCode"
+                                           value="@item.LineCode"
+                                           maxlength="16"
+                                           placeholder="p. ej. T1-1"
+                                           data-testid="review-item-line-code"
+                                           data-item-id="@item.ItemId" />
+                                    <small class="text-secondary">Máx. 16 caracteres. Único dentro de la solicitud.</small>
+                                </div>
+
                                 <div class="mb-2">
                                     <div class="form-check form-check-inline">
                                         <input class="form-check-input decision-radio" type="radio" name="Decision" value="Approve"

@@ -50,7 +50,7 @@ public class SupplierSelectionTests : AuthenticatedTestBase
         // Clear the pre-selected supplier (scoring auto-selects the recommended one)
         var supplierDropdownClear = reviewPage.ItemSupplierDropdown(itemId);
         await supplierDropdownClear.SelectOptionAsync("");
-        await reviewPage.ItemSubmitButton(itemId).ClickAsync();
+        await reviewPage.SubmitDecisionWithTestLineCodeAsync(itemId);
         await Expect(Page.Locator(".alert-danger")).ToBeVisibleAsync();
 
         // Approve with non-recommended (more expensive) supplier — should succeed
@@ -60,7 +60,7 @@ public class SupplierSelectionTests : AuthenticatedTestBase
         // Select the second supplier (more expensive, non-recommended)
         var lastOptionValue = await options[^1].GetAttributeAsync("value");
         await supplierDropdown.SelectOptionAsync(lastOptionValue!);
-        await reviewPage.ItemSubmitButton(itemId).ClickAsync();
+        await reviewPage.SubmitDecisionWithTestLineCodeAsync(itemId);
 
         await Expect(Page.Locator(".alert-success")).ToBeVisibleAsync();
         await Expect(reviewPage.ItemReviewStatusBadge(itemId)).ToContainTextAsync("Aprobado");

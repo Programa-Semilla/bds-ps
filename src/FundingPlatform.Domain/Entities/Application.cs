@@ -12,6 +12,12 @@ public class Application
 
     public int Id { get; private set; }
     public int ApplicantId { get; private set; }
+    /// <summary>
+    /// Spec 018 / FR-015 / FR-016 — commercial entity name (`Empresa solicitante`)
+    /// distinct from the applicant representative's legal name. Required (non-nullable),
+    /// trimmed, ≤200 chars. Mutated via <see cref="SetCompanyName"/>.
+    /// </summary>
+    public string CompanyName { get; private set; } = string.Empty;
     public ApplicationState State { get; private set; } = ApplicationState.Draft;
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
@@ -28,13 +34,53 @@ public class Application
 
     private Application() { }
 
-    public Application(int applicantId)
+    public Application(int applicantId, string companyName)
     {
         ApplicantId = applicantId;
         State = ApplicationState.Draft;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+        SetCompanyName(companyName);
     }
+
+    /// <summary>
+    /// Spec 018 / FR-015 / FR-016 — sets the commercial entity name. Trims whitespace,
+    /// rejects null/empty/whitespace-only input, and enforces a 200-character maximum
+    /// after trim. Persists the trimmed value and bumps <see cref="UpdatedAt"/>.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="companyName"/> is null/whitespace or exceeds 200 chars after trim.
+    /// </exception>
+    public void SetCompanyName(string companyName)
+    {
+        if (companyName is null)
+        {
+            var ex = new ArgumentException("Company name is required.", nameof(companyName));
+            ex.Data[Item.ValidationReasonKey] = CompanyNameRequiredReason;
+            throw ex;
+        }
+        var trimmed = companyName.Trim();
+        if (trimmed.Length == 0)
+        {
+            var ex = new ArgumentException("Company name is required.", nameof(companyName));
+            ex.Data[Item.ValidationReasonKey] = CompanyNameRequiredReason;
+            throw ex;
+        }
+        if (trimmed.Length > 200)
+        {
+            var ex = new ArgumentException("Company name must be 200 characters or fewer.", nameof(companyName));
+            ex.Data[Item.ValidationReasonKey] = CompanyNameTooLongReason;
+            throw ex;
+        }
+
+        CompanyName = trimmed;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Spec 018 — stable discriminator value for the CompanyName-required validation branch.</summary>
+    public const string CompanyNameRequiredReason = "CompanyNameRequired";
+    /// <summary>Spec 018 — stable discriminator value for the CompanyName-too-long validation branch.</summary>
+    public const string CompanyNameTooLongReason = "CompanyNameTooLong";
 
     /// <summary>
     /// Adds an item to the application.
@@ -42,6 +88,45 @@ public class Application
     public void AddItem(Item item)
     {
         _items.Add(item);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 018 / FR-012 / FR-013 / FR-014 — assigns the reviewer-supplied line code
+    /// to the item identified by <paramref name="itemId"/>. Trims whitespace, rejects
+    /// null/empty/whitespace-only input, enforces a 16-character maximum after trim,
+    /// and rejects duplicates against any sibling item in this Application
+    /// (case-sensitive, per-Application uniqueness scope).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the item is not found in this Application or another sibling item
+    /// already carries the same trimmed code.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown via <see cref="Item.AssignLineCode"/> when the trimmed code is empty or > 16 chars.
+    /// </exception>
+    public void AssignLineCodeToItem(int itemId, string lineCode)
+    {
+        var item = _items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException($"Item {itemId} is not part of this application.");
+
+        var trimmed = (lineCode ?? string.Empty).Trim();
+
+        // Per-Application uniqueness: only check sibling items (exclude self).
+        // Allows reviewers to re-assign the same code to the same item idempotently.
+        if (trimmed.Length > 0)
+        {
+            var collision = _items
+                .Where(i => i.Id != itemId)
+                .Any(i => string.Equals(i.LineCode, trimmed, StringComparison.Ordinal));
+            if (collision)
+            {
+                throw new InvalidOperationException(
+                    $"Line code '{trimmed}' is already assigned to another item in this application.");
+            }
+        }
+
+        item.AssignLineCode(trimmed);
         UpdatedAt = DateTime.UtcNow;
     }
 

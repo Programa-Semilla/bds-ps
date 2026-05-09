@@ -1,0 +1,30 @@
+@model FundingPlatform.Web.ViewModels.FundingAgreementDocumentViewModel
+@*
+    Spec 018 / FR-005 / FR-006 — cover page. Brand title, teal divider, applicant
+    block (`Empresa solicitante` + `Representante` + `Fecha de emisión`), and the
+    Comisión evaluadora list (one name per line, distinct ReviewItem actors only).
+*@
+
+<section class="cover-page">
+    <h1 class="cover-title">Informe de evaluación de solicitudes de desembolso</h1>
+    <div class="teal-divider"></div>
+
+    <dl class="applicant-block">
+        <dt><strong>Empresa solicitante:</strong></dt>
+        <dd data-testid="cover-company-name">@Model.CompanyName</dd>
+
+        <dt><strong>Representante:</strong></dt>
+        <dd data-testid="cover-representative-name">@Model.ApplicantRepresentativeName</dd>
+
+        <dt><strong>Fecha de emisión:</strong></dt>
+        <dd data-testid="cover-emission-date">@Model.GenerationDateLong</dd>
+    </dl>
+
+    <h2 class="section-heading" style="font-size:14pt; margin-top:18pt;">Comisión evaluadora:</h2>
+    <ul class="commission-list" data-testid="cover-commission-list">
+        @foreach (var member in Model.CommissionMembers)
+        {
+            <li>@member</li>
+        }
+    </ul>
+</section>

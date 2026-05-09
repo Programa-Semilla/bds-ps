@@ -1,0 +1,46 @@
+@using FundingPlatform.Web.Localization
+@model FundingPlatform.Web.ViewModels.FundingAgreementDocumentViewModel
+@{
+    var culture = EsCrCultureFactory.Build();
+    string Money(decimal value) => $"₡{value.ToString("N2", culture)}";
+}
+@*
+    Spec 018 / FR-008 — Recursos solicitados table. Lists every item on the
+    Application (approved + rejected) with the reviewer-assigned LineCode in
+    the `Variable` column, the supplier-quotation total in CRC, and the
+    selected supplier name. Per-row currency-conversion notes (spec 015) appear
+    inline under non-CRC lines.
+*@
+
+<section class="requested-resources-page page-break-before">
+    <h2 class="section-heading">Recursos solicitados</h2>
+    <table class="brand-table" data-testid="requested-resources-table">
+        <thead>
+            <tr>
+                <th>Tipo</th>
+                <th>Descripción</th>
+                <th>Variable</th>
+                <th class="amount">Monto</th>
+                <th>Empresa seleccionada</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Model.RequestedResources)
+            {
+                <tr>
+                    <td>@row.ProductName</td>
+                    <td>@row.CategoryName</td>
+                    <td>@row.LineCode</td>
+                    <td class="amount">@Money(row.Amount)</td>
+                    <td>@row.SelectedSupplierName</td>
+                </tr>
+                @if (!string.IsNullOrWhiteSpace(row.CurrencyConversionNote))
+                {
+                    <tr class="conversion-note" data-testid="requested-resources-conversion-note">
+                        <td colspan="5">@row.CurrencyConversionNote</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</section>

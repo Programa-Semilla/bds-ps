@@ -34,8 +34,9 @@ public static class DependencyInjection
         services.AddScoped<Application.Interfaces.ISignedUploadRepository, SignedUploadRepository>();
         services.AddScoped<IUserAdministrationService, UserAdministrationService>();
 
-        services.Configure<FunderOptions>(configuration.GetSection(FunderOptions.SectionName));
-        services.Configure<FundingAgreementOptions>(configuration.GetSection(FundingAgreementOptions.SectionName));
+        // Spec 018 / FR-019 — FunderOptions and FundingAgreementOptions removed. Funder
+        // identity is hardcoded in the sworn declaration partial; locale + currency are
+        // resolved via EsCrCultureFactory and FundingAgreement:CurrencyIsoCode at use-time.
         services.Configure<AdminReportsOptions>(configuration.GetSection(AdminReportsOptions.SectionName));
 
         services.AddScoped<IAdminReportsService, AdminReportsService>();

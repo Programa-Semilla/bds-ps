@@ -147,7 +147,7 @@ public class ApplicationSigningTests
 
     private static AppEntity BuildReadyToGenerate()
     {
-        var application = new AppEntity(applicantId: 1);
+        var application = new AppEntity(applicantId: 1, companyName: "Test Company");
         AddItem(application, 1);
         ApplicationResponseTransitionsTests.SetState(application, ApplicationState.Resolved);
 

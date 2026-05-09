@@ -1,0 +1,93 @@
+@using FundingPlatform.Web.Localization
+@model FundingPlatform.Web.ViewModels.FundingAgreementDocumentViewModel
+@{
+    var culture = EsCrCultureFactory.Build();
+    string Money(decimal value) => $"₡{value.ToString("N2", culture)}";
+}
+@*
+    Spec 018 / FR-011 — sworn declaration page. Funder identity ("Sistema de
+    Banca para el Desarrollo" + "Fondo CROCUS de Programa Semilla") is hardcoded
+    inside the legal copy below per FR-019..023; no FunderOptions read here.
+    The signature box is a CSS-drawn rounded rectangle (R-002) so the spec 006
+    digital-signature ceremony has a stable anchor element.
+*@
+
+<section class="declaration page-break-before">
+    <h2 class="section-heading" style="text-align:center;">DECLARO BAJO LA FE DEL JURAMENTO</h2>
+
+    <p>
+        Quien suscribe, en su condición de representante legal de la empresa solicitante
+        identificada en la portada de este informe, comparece ante el Sistema de Banca
+        para el Desarrollo y el Fondo CROCUS de Programa Semilla a efectos de aceptar las
+        líneas aprobadas en este documento y suscribir las obligaciones que se detallan a
+        continuación, de conformidad con los siguientes acuerdos:
+    </p>
+
+    <p><strong>PRIMERO.</strong>
+        Que destinaré los recursos desembolsados exclusivamente a la adquisición de los
+        bienes o servicios consignados en las líneas aprobadas y a los proveedores
+        identificados para cada una de ellas, sin posibilidad de reasignación sin
+        autorización previa por escrito del fondo.
+    </p>
+
+    <p><strong>SEGUNDO.</strong>
+        Que mantendré actualizada y disponible la documentación contable y fiscal que
+        respalde el uso de los recursos durante todo el periodo de ejecución, así como por
+        los plazos legales de conservación posteriores al cierre del proyecto.
+    </p>
+
+    <p><strong>TERCERO.</strong>
+        Que cumpliré con los requisitos de cumplimiento ante las entidades de control
+        nacionales (Hacienda, Caja Costarricense de Seguro Social y SICOP) durante toda la
+        vigencia del acuerdo, y daré aviso oportuno ante cualquier modificación que afecte
+        dicho cumplimiento.
+    </p>
+
+    <p><strong>CUARTO.</strong>
+        Que entregaré los reportes de avance, comprobantes de ejecución y los informes de
+        cierre que el Fondo CROCUS de Programa Semilla solicite razonablemente, conforme
+        al cronograma que se establezca al inicio del proyecto.
+    </p>
+
+    <p><strong>QUINTO.</strong>
+        Que asumo la responsabilidad civil, administrativa y, en su caso, penal por la
+        veracidad de la información contenida en mi solicitud, así como por el correcto
+        uso de los recursos otorgados.
+    </p>
+
+    <h3 class="section-heading" style="font-size:14pt;">Líneas aprobadas (referencia)</h3>
+    <table class="brand-table" data-testid="declaration-approved-table">
+        <thead>
+            <tr>
+                <th>Acuerdo</th>
+                <th>Detalle</th>
+                <th>Tipo</th>
+                <th>Variable</th>
+                <th>Empresa</th>
+                <th class="amount">Desembolso</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var line in Model.ApprovedLines)
+            {
+                <tr>
+                    <td>@line.AcuerdoLabel</td>
+                    <td>@line.LineCode</td>
+                    <td>@line.ProductName</td>
+                    <td>@line.LineCode</td>
+                    <td>@line.SelectedSupplierName</td>
+                    <td class="amount">@Money(line.Disbursement)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <p style="margin-top:18pt;">
+        Leída la presente declaración y consciente de su alcance legal, firmo digitalmente.
+    </p>
+
+    @* R-002 / FR-011 — empty rounded-rectangle signature box. Spec 006 ceremony
+       stamps inside this anchor. The id is the contract; do not rename without
+       updating the digital-signature flow. *@
+    <div id="signature-box" data-testid="declaration-signature-box"></div>
+</section>

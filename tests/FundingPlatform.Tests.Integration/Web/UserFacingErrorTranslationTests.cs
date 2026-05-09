@@ -163,6 +163,7 @@ public class UserFacingErrorTranslationTests
             decision: "Approve",
             comment: null,
             selectedSupplierId: 1,
+            lineCode: "T1-1",
             userId: "reviewer-1");
 
         Assert.That(error, Is.Not.Null);
@@ -232,7 +233,7 @@ internal static class SignedUploadEndpointsTestSeeder
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new FundingPlatform.Domain.Entities.Application(applicant.Id);
+        var application = new FundingPlatform.Domain.Entities.Application(applicant.Id, "Test Company");
         application.AddItem(new FundingPlatform.Domain.Entities.Item("Laptop", category.Id, "specs"));
         typeof(FundingPlatform.Domain.Entities.Application)
             .GetProperty("State")!

@@ -3,118 +3,183 @@
 <html lang="@Model.LocaleCode">
 <head>
     <meta charset="utf-8" />
-    <title>Convenio de financiamiento @Model.AgreementReference</title>
+    <title>Informe de evaluación de solicitudes de desembolso</title>
     <style>
+        /* Spec 018 / FR-003 — A4 portrait. Page margins are set on the renderer
+           (BlinkConverterSettings.Margin) so they coordinate with the renderer-
+           drawn header (~32mm top reserve) and footer (~25mm bottom reserve).
+           CSS @@page is still declared so previewing the HTML in a browser
+           shows roughly the same flow. */
         @@page {
-            size: A4;
-            margin: 20mm 18mm;
+            size: A4 portrait;
+            margin: 32mm 18mm 25mm 18mm;
+        }
+
+        /* FR-004 — vendored fonts only. Files live under wwwroot/lib/fonts/.
+           Paths are relative (no leading slash) so Blink HTML→PDF resolves
+           them against the file:// baseUrl that FundingAgreementController
+           computes from IWebHostEnvironment.WebRootPath at render time. */
+        @@font-face {
+            font-family: 'Fraunces';
+            src: url('lib/fonts/fraunces/fraunces-variable.woff2') format('woff2');
+            font-weight: 100 900;
+            font-style: normal;
+        }
+        @@font-face {
+            font-family: 'Inter';
+            src: url('lib/fonts/inter/inter-variable.woff2') format('woff2');
+            font-weight: 100 900;
+            font-style: normal;
+        }
+
+        /* FR-004 — brand teal sampled from the seed for headings + table-header
+           band, body text in near-black, alternating cream row shading, gold
+           footer divider. Adjust within the 1–2 hex tolerance per NFR-001 once
+           a final pixel-pick lands. */
+        :root {
+            --brand-teal: #1f6363;
+            --brand-teal-soft: #d4e6e1;
+            --brand-cream: #f7f1e3;
+            --brand-cream-stripe: #fbf6e9;
+            --brand-gold: #c8a85b;
+            --brand-text: #1f2937;
         }
 
         body {
-            font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
-            font-size: 11pt;
-            color: #111;
-            line-height: 1.4;
+            font-family: 'Inter', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
+            font-size: 12pt;
+            color: var(--brand-text);
+            line-height: 1.5;
+            margin: 0;
         }
 
-        h1 {
-            font-size: 18pt;
-            margin: 0 0 4pt;
-            text-align: center;
+        h1, h2, h3 {
+            font-family: 'Fraunces', 'Liberation Serif', 'DejaVu Serif', Georgia, serif;
+            color: var(--brand-teal);
+            margin: 0;
         }
 
-        h2 {
+        /* Cover-page title — large Fraunces serif matching the seed proportions
+           (FR-005, ±5pt per SC-001). The cover-page wrapper adds breathing room
+           so the title doesn't sit immediately under the renderer-drawn header
+           band. */
+        .cover-page {
+            padding-top: 60pt;
+        }
+        /* Spec 018 / FR-007 — intro-page subtitle uses bold sans-serif
+           (Inter) per the seed treatment, not Fraunces serif. */
+        .intro-subtitle {
+            font-family: 'Inter', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
+            font-weight: 700;
+            color: var(--brand-text);
             font-size: 13pt;
-            margin: 12pt 0 4pt;
-            border-bottom: 1pt solid #333;
-            padding-bottom: 2pt;
-        }
-
-        .document-reference {
             text-align: center;
+            margin: 18pt 0 18pt 0;
+        }
+        h1.cover-title {
+            font-size: 36pt;
+            line-height: 1.1;
+            margin-bottom: 8pt;
+            font-weight: 600;
+        }
+
+        .teal-divider {
+            height: 2pt;
+            background-color: var(--brand-teal);
+            margin: 6pt 0 22pt 0;
+        }
+
+        h2.section-heading {
+            font-size: 20pt;
+            margin-top: 14pt;
             margin-bottom: 12pt;
-            color: #555;
+            page-break-after: avoid;
+            font-weight: 600;
         }
 
-        .parties {
-            display: table;
-            width: 100%;
-            margin-bottom: 12pt;
-        }
-
-        .party {
-            display: table-cell;
-            width: 50%;
-            vertical-align: top;
-            padding-right: 10pt;
-        }
-
-        table.items {
+        /* R-003 — repeating <thead>: Blink honours display: table-header-group;
+           per-row break-avoidance prevents row content splitting across pages.
+           MediaType.Print on the renderer reinforces the repeat behaviour. */
+        table.brand-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12pt;
+            margin-bottom: 14pt;
             page-break-inside: auto;
+            font-size: 10.5pt;
         }
-
-        table.items thead th {
-            background-color: #eee;
+        table.brand-table thead {
+            display: table-header-group;
+        }
+        table.brand-table thead th {
+            background-color: var(--brand-teal);
+            color: #ffffff;
             text-align: left;
-            padding: 4pt 6pt;
-            border-bottom: 1pt solid #333;
+            padding: 8pt 10pt;
+            font-weight: 600;
+            font-size: 10.5pt;
         }
-
-        table.items tbody td {
-            padding: 4pt 6pt;
-            border-bottom: 0.5pt solid #ccc;
-            vertical-align: top;
+        table.brand-table tbody tr {
             page-break-inside: avoid;
         }
-
-        table.items tr.total-row td {
-            font-weight: bold;
-            border-top: 1pt solid #333;
-            border-bottom: 1pt solid #333;
+        table.brand-table tbody td {
+            padding: 7pt 10pt;
+            border-bottom: 0.5pt solid #e5e7eb;
+            vertical-align: top;
         }
-
+        table.brand-table tbody tr:nth-child(odd) td {
+            background-color: var(--brand-cream-stripe);
+        }
+        table.brand-table tbody tr:nth-child(even) td {
+            background-color: var(--brand-cream);
+        }
         .amount {
             text-align: right;
             white-space: nowrap;
         }
 
-        .terms {
-            text-align: justify;
-            margin: 12pt 0;
-            page-break-inside: avoid;
+        .page-break-before {
+            page-break-before: always;
         }
 
-        .signature-blocks {
-            margin-top: 30pt;
-            display: table;
-            width: 100%;
-            page-break-inside: avoid;
+        /* R-002 — signature box rendered as CSS rounded rectangle so spec 006's
+           digital-signature ceremony has a stable anchor element. */
+        #signature-box {
+            border: 1pt solid var(--brand-text);
+            border-radius: 6pt;
+            height: 90pt;
+            width: 70%;
+            margin: 22pt auto 0 auto;
         }
 
-        .signature-blocks .signature {
-            display: table-cell;
-            width: 50%;
-            vertical-align: top;
-            padding: 8pt;
-            text-align: center;
+        .applicant-block {
+            margin: 8pt 0 22pt 0;
+            font-size: 13pt;
+            line-height: 1.6;
+        }
+        .applicant-block dt,
+        .applicant-block dd {
+            display: inline;
+            margin: 0;
+        }
+        .applicant-block dt::after { content: ' '; }
+        .applicant-block dd::after { content: '\A'; white-space: pre; }
+
+        .commission-list { margin: 8pt 0 0 0; padding-left: 0; list-style: none; font-size: 13pt; }
+        .commission-list li { padding: 3pt 0; }
+
+        .conversion-note {
+            font-size: 9.5pt;
+            color: #4b5563;
+            font-style: italic;
         }
 
-        .signature-line {
-            margin-top: 40pt;
-            border-top: 1pt solid #000;
-            padding-top: 4pt;
-        }
+        .declaration p { text-align: justify; margin: 10pt 0; }
+        .declaration .clause-label { font-weight: 700; }
 
-        .placeholder-note {
-            background-color: #fff8dc;
-            border: 1pt dashed #b8860b;
-            padding: 6pt 8pt;
-            margin-top: 8pt;
-            font-size: 10pt;
-        }
+        .intro-page p { text-align: justify; margin: 10pt 0; }
+
+        ul.rejected-bullets { padding-left: 18pt; }
+        ul.rejected-bullets li { margin-bottom: 5pt; }
     </style>
 </head>
 <body>

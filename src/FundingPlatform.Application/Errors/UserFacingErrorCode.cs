@@ -79,4 +79,24 @@ public enum UserFacingErrorCode
     DuplicateRateTimestamp,
     /// <summary>FR-007a — admin tried to publish a rate with a future-dated EffectiveAtUtc.</summary>
     FutureDatedRateRejected,
+
+    // Spec 018 — applicant CompanyName invariants (FR-015 / FR-016).
+    /// <summary>FR-015 — applicant submitted the create-application form without a
+    /// non-blank company name (whitespace-only also fails per FR-016 trim semantics).</summary>
+    CompanyNameRequired,
+    /// <summary>FR-016 — applicant submitted a company name that exceeds 200 chars after trim.</summary>
+    CompanyNameTooLong,
+
+    // Spec 018 — reviewer LineCode invariants (FR-012 / FR-013 / FR-014).
+    /// <summary>FR-012 / FR-014 — reviewer attempted to record an Approve/Reject decision
+    /// without a non-blank line code (whitespace-only also fails per trim semantics).</summary>
+    LineCodeRequired,
+    /// <summary>FR-013 — reviewer submitted a line code that exceeds 16 chars after trim.</summary>
+    LineCodeTooLong,
+    /// <summary>FR-013 — another item in the same application already carries the supplied code.</summary>
+    LineCodeDuplicate,
+    /// <summary>Defence-in-depth — funder operator triggered Generate while one or more
+    /// approved items still lack a line code. The reviewer flow guarantees this at write
+    /// time; this code surfaces if a fixture or admin-edited row slipped past.</summary>
+    LineCodeMissingOnApprovedItems,
 }

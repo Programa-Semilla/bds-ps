@@ -171,9 +171,15 @@ public class ReviewController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("Review/{id:int}/ReviewItem")]
-    public async Task<IActionResult> ReviewItem(int id, int ItemId, string Decision, string? Comment, int? SelectedSupplierId)
+    public async Task<IActionResult> ReviewItem(
+        int id, int ItemId, string Decision, string? Comment, int? SelectedSupplierId, string? LineCode)
     {
-        var error = await _reviewService.ReviewItemAsync(id, ItemId, Decision, Comment, SelectedSupplierId, GetUserId());
+        // Spec 018 / FR-012..FR-014 — LineCode threads through the same POST that
+        // captures the per-item decision. The service composes
+        // `Application.AssignLineCodeToItem` (uniqueness + length) with the decision
+        // call inside one transaction; either failure rolls back the other.
+        var error = await _reviewService.ReviewItemAsync(
+            id, ItemId, Decision, Comment, SelectedSupplierId, LineCode, GetUserId());
         if (error is not null)
             TempData["ErrorMessage"] = _errorTranslator.Translate(error);
         else
@@ -270,6 +276,7 @@ public class ReviewController : Controller
                 ReviewComment = item.ReviewComment,
                 SelectedSupplierId = item.SelectedSupplierId,
                 IsNotTechnicallyEquivalent = item.IsNotTechnicallyEquivalent,
+                LineCode = item.LineCode,
                 ImpactTemplateName = item.ImpactTemplateName,
                 Quotations = item.Quotations.Select(q => new ReviewQuotationViewModel
                 {

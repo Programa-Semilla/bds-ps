@@ -15,6 +15,16 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.Property(i => i.ApplicationId).IsRequired();
         builder.HasIndex(i => i.ApplicationId).HasDatabaseName("IX_Items_ApplicationId");
 
+        // Spec 018 / FR-013 — reviewer-assigned line code, nullable until assigned,
+        // ≤16 chars. Per-Application uniqueness is enforced by the filtered unique
+        // index (see below) so the reviewer flow can rely on the DB to backstop the
+        // aggregate-root invariant under concurrency.
+        builder.Property(i => i.LineCode).HasMaxLength(16).IsRequired(false);
+        builder.HasIndex(i => new { i.ApplicationId, i.LineCode })
+            .IsUnique()
+            .HasFilter("[LineCode] IS NOT NULL")
+            .HasDatabaseName("UX_Items_Application_LineCode");
+
         builder.Property(i => i.ProductName).IsRequired().HasMaxLength(500);
 
         builder.Property(i => i.CategoryId).IsRequired();

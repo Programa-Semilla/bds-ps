@@ -218,7 +218,7 @@ public class SigningWayfindingTests : AuthenticatedTestBase
         var supplierDropdown = reviewPage.ItemSupplierDropdown(itemId);
         var suppOptions = await supplierDropdown.Locator("option").AllAsync();
         await supplierDropdown.SelectOptionAsync(await suppOptions[1].GetAttributeAsync("value") ?? "");
-        await reviewPage.ItemSubmitButton(itemId).ClickAsync();
+        await reviewPage.SubmitDecisionWithTestLineCodeAsync(itemId);
         await Expect(Page.Locator(".alert-success")).ToBeVisibleAsync();
 
         await reviewPage.FinalizeButton.ClickAsync();

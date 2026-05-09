@@ -68,7 +68,22 @@ public class ReviewService
         return MapToReviewDto(application);
     }
 
-    public async Task<UserFacingError?> ReviewItemAsync(int applicationId, int itemId, string decision, string? comment, int? selectedSupplierId, string userId)
+    /// <summary>
+    /// Spec 018 / FR-012 / FR-013 / FR-014 — reviewer records a per-item decision
+    /// and assigns the line code that surfaces in the Funding Agreement PDF tables.
+    /// LineCode is required when <paramref name="decision"/> is <c>Approve</c> or
+    /// <c>Reject</c>; for <c>RequestMoreInfo</c> a blank LineCode is allowed (the
+    /// reviewer is iterating before deciding). Both calls run in the same UoW so a
+    /// duplicate-LineCode error rolls back the decision write.
+    /// </summary>
+    public async Task<UserFacingError?> ReviewItemAsync(
+        int applicationId,
+        int itemId,
+        string decision,
+        string? comment,
+        int? selectedSupplierId,
+        string? lineCode,
+        string userId)
     {
         var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId);
         if (application is null) return UserFacingError.From(UserFacingErrorCode.ApplicationNotFound);
@@ -78,8 +93,48 @@ public class ReviewService
         var item = application.Items.FirstOrDefault(i => i.Id == itemId);
         if (item is null) return UserFacingError.From(UserFacingErrorCode.ApplicationItemNotFound);
 
+        // FR-012: Approve / Reject require a non-blank line code; RequestMoreInfo allows
+        // blank because the reviewer hasn't decided on a code yet (R-008).
+        var requiresLineCode = decision is "Approve" or "Reject";
+        var trimmedLineCode = (lineCode ?? string.Empty).Trim();
+        if (requiresLineCode && trimmedLineCode.Length == 0)
+        {
+            return UserFacingError.From(UserFacingErrorCode.LineCodeRequired);
+        }
+
         try
         {
+            // Assign the line code first so an aggregate-level rejection (duplicate
+            // / over-length) short-circuits before we mutate the decision state.
+            // For RequestMoreInfo with a non-blank code the reviewer also gets to
+            // record it; for blank we skip the call.
+            if (trimmedLineCode.Length > 0)
+            {
+                try
+                {
+                    application.AssignLineCodeToItem(itemId, trimmedLineCode);
+                }
+                catch (ArgumentException ex)
+                {
+                    // Read the stable Data["FundingPlatform.ValidationReason"] marker
+                    // the entity sets instead of brittle message-string matching.
+                    // Renaming the English validation message no longer silently
+                    // miscategorises the user-facing error code (FR-014 / NFR-001).
+                    var reason = ex.Data[Item.ValidationReasonKey] as string;
+                    var code = reason switch
+                    {
+                        Item.LineCodeTooLongReason => UserFacingErrorCode.LineCodeTooLong,
+                        Item.LineCodeRequiredReason => UserFacingErrorCode.LineCodeRequired,
+                        _ => UserFacingErrorCode.LineCodeRequired,
+                    };
+                    return UserFacingError.From(code, ex.Message);
+                }
+                catch (InvalidOperationException ex) when (ex.Message.Contains("already assigned", StringComparison.Ordinal))
+                {
+                    return UserFacingError.From(UserFacingErrorCode.LineCodeDuplicate, ex.Message);
+                }
+            }
+
             switch (decision)
             {
                 case "Approve":
@@ -259,7 +314,8 @@ public class ReviewService
                 item.Impact?.ParameterValues.Select(pv => new ImpactParameterDisplayDto(
                     pv.ImpactTemplateParameter?.Name ?? string.Empty,
                     pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
-                    pv.Value ?? string.Empty)).ToList() ?? []);
+                    pv.Value ?? string.Empty)).ToList() ?? [],
+                LineCode: item.LineCode);
         }).ToList();
 
         // Spec 013 FR-052: count distinct quotations referencing a Rejected supplier

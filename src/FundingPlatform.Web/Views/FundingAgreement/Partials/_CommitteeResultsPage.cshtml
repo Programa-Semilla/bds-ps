@@ -1,0 +1,89 @@
+@using FundingPlatform.Web.Localization
+@model FundingPlatform.Web.ViewModels.FundingAgreementDocumentViewModel
+@{
+    var culture = EsCrCultureFactory.Build();
+    string Money(decimal value) => $"₡{value.ToString("N2", culture)}";
+}
+@*
+    Spec 018 / FR-009 — Resultados comisión section. Auto-composed summary
+    paragraph; bulleted rejected list; approved + rejected subtables.
+    Edge Case 1: rejected-bullets, rejected table, and the "2. Líneas no
+    aprobadas" header are omitted entirely when there are no rejected lines.
+*@
+
+<section class="committee-results-page page-break-before">
+    <h2 class="section-heading">Resultados comisión</h2>
+
+    <p data-testid="committee-summary-paragraph">@Model.ApprovedSummaryParagraph</p>
+
+    @if (Model.RejectedLines.Count > 0)
+    {
+        <ul class="rejected-bullets" data-testid="committee-rejected-bullets">
+            @foreach (var line in Model.RejectedLines)
+            {
+                <li>Línea @line.LineCode: @line.Motivo</li>
+            }
+        </ul>
+    }
+
+    <h3 class="section-heading" style="font-size:14pt;">1. Líneas aprobadas</h3>
+    <table class="brand-table" data-testid="committee-approved-table">
+        <thead>
+            <tr>
+                <th>Acuerdo</th>
+                <th>Detalle</th>
+                <th>Variable</th>
+                <th>Tipo</th>
+                <th>Empresa proveedora</th>
+                <th class="amount">Desembolso</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var line in Model.ApprovedLines)
+            {
+                <tr>
+                    <td>@line.AcuerdoLabel</td>
+                    <td>@line.LineCode</td>
+                    <td>@line.LineCode</td>
+                    <td>@line.ProductName</td>
+                    <td>@line.SelectedSupplierName</td>
+                    <td class="amount">@Money(line.Disbursement)</td>
+                </tr>
+                @if (!string.IsNullOrWhiteSpace(line.CurrencyConversionNote))
+                {
+                    <tr class="conversion-note">
+                        <td colspan="6">@line.CurrencyConversionNote</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    @if (Model.RejectedLines.Count > 0)
+    {
+        <h3 class="section-heading" style="font-size:14pt;">2. Líneas no aprobadas</h3>
+        <table class="brand-table" data-testid="committee-rejected-table">
+            <thead>
+                <tr>
+                    <th>Acuerdo</th>
+                    <th>Detalle</th>
+                    <th>Variable</th>
+                    <th>Tipo</th>
+                    <th>Motivo</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var line in Model.RejectedLines)
+                {
+                    <tr>
+                        <td>@line.AcuerdoLabel</td>
+                        <td>@line.LineCode</td>
+                        <td>@line.LineCode</td>
+                        <td>@line.ProductName</td>
+                        <td>@line.Motivo</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>

@@ -16,11 +16,24 @@
 
 <div class="card">
     <div class="card-body">
-        <p class="text-secondary">Presione el botón a continuación para crear un nuevo borrador de solicitud. Después podrá agregar ítems y enviarla cuando esté lista.</p>
+        <p class="text-secondary">Indique el nombre comercial de la empresa solicitante; podrá agregar ítems y enviarla cuando esté lista.</p>
         <form asp-action="Create" asp-controller="Application" method="post">
             @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <div class="mb-3">
+                <label asp-for="CompanyName" class="form-label"></label>
+                <input asp-for="CompanyName"
+                       class="form-control"
+                       autocomplete="organization"
+                       maxlength="200"
+                       data-testid="application-create-company-name" />
+                <span asp-validation-for="CompanyName" class="invalid-feedback d-block"
+                      data-testid="application-create-company-name-error"></span>
+            </div>
+
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" data-testid="application-create-submit">
                     <i class="ti ti-plus me-1"></i>Crear borrador de solicitud
                 </button>
                 <a asp-action="Index" asp-controller="Application" class="btn btn-outline-secondary">
@@ -30,3 +43,7 @@
         </form>
     </div>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

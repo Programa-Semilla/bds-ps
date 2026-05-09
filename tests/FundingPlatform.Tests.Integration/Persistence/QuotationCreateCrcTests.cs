@@ -58,7 +58,7 @@ public class QuotationCreateCrcTests
             ctx.Categories.Add(category);
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id);
+            var application = new AppEntity(applicant.Id, "Test Company");
             application.AddItem(new Item("Server", category.Id, "specs"));
             ctx.Applications.Add(application);
             await ctx.SaveChangesAsync();

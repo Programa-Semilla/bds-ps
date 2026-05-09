@@ -21,6 +21,7 @@ Last updated: 2026-05-08
 | 13 | 2026-04-30 | supplier-catalog | spec-created | 013 |
 | 14 | 2026-05-07 | user-groups | spec-created | 016 |
 | 15 | 2026-05-08 | admin-ux-facelift | spec-created | 017 |
+| 16 | 2026-05-08 | pdf-template-lift | spec-created | 018 |
 
 ## Open Threads
 
@@ -124,6 +125,11 @@ Last updated: 2026-05-08
 - Section grouping cardinality — three sections vs four (split Catálogo into entity catalog vs config catalog) — defaults to three (from #15)
 - Whether route normalization should also touch class names + namespaces — currently attribute-only; revisit only if a future "admin module reorganization" spec is queued (from #15)
 - Whether sub-surfaces that already passed spec 011's sweep need a fresh manual checklist walk vs a quick re-grep — defaults to manual walk (from #15)
+- Is the sworn-declaration copy on the seed Legal-approved canonical text, or is the seed itself a draft? Default = canonical; revisit if Legal pushes back (from #16)
+- Should `Application.CompanyName` surface on existing list/detail admin/reviewer screens beyond the new applicant form? Defer to plan phase (from #16)
+- Source of clean per-partner footer logo files (BancaDesarrollo / CROCUS / nexo / Programa Semilla / 10 años) — needed if we ever want per-logo edit beyond composite swap (from #16)
+- Brand-guideline hex codes — sampled from PDF; if a real brand guideline exists with different values, NFR-001 needs revisit (from #16)
+- Whether to add automated PDF visual-diff regression harness in a future spec (e.g., `pdfimages` + image-hash against golden-PDF fixture) — recurring from #08/#11 (from #16)
 
 ## Closed Threads
 

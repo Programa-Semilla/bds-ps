@@ -61,7 +61,7 @@ public class ReviewItemDecisionTests : AuthenticatedTestBase
         await reviewPage.ItemCommentField(id).FillAsync("Approved with selected supplier");
 
         // Submit decision
-        await reviewPage.ItemSubmitButton(id).ClickAsync();
+        await reviewPage.SubmitDecisionWithTestLineCodeAsync(id);
 
         // Verify success and status update
         await Expect(Page.Locator(".alert-success")).ToBeVisibleAsync();
@@ -87,7 +87,7 @@ public class ReviewItemDecisionTests : AuthenticatedTestBase
         // Select Reject
         await reviewPage.ItemDecisionRadio(itemId, "Reject").CheckAsync();
         await reviewPage.ItemCommentField(itemId).FillAsync("Item rejected - budget constraints");
-        await reviewPage.ItemSubmitButton(itemId).ClickAsync();
+        await reviewPage.SubmitDecisionWithTestLineCodeAsync(itemId);
 
         await Expect(Page.Locator(".alert-success")).ToBeVisibleAsync();
         await Expect(reviewPage.ItemReviewStatusBadge(itemId)).ToContainTextAsync("Rechazado");
@@ -111,7 +111,7 @@ public class ReviewItemDecisionTests : AuthenticatedTestBase
 
         // Select Request More Info without comment
         await reviewPage.ItemDecisionRadio(itemId, "RequestMoreInfo").CheckAsync();
-        await reviewPage.ItemSubmitButton(itemId).ClickAsync();
+        await reviewPage.SubmitDecisionWithTestLineCodeAsync(itemId);
 
         await Expect(Page.Locator(".alert-success")).ToBeVisibleAsync();
         await Expect(reviewPage.ItemReviewStatusBadge(itemId)).ToContainTextAsync("Requiere información");
