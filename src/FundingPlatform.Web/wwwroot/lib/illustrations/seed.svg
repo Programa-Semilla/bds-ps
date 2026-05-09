@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img">
   <defs>
     <linearGradient id="seed-bg" x1="0" y1="200" x2="0" y2="0">
-      <stop offset="0" stop-color="#F4EFE6"/>
-      <stop offset="1" stop-color="#FAF7F2"/>
+      <stop offset="0" stop-color="#F7F8F8"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
     </linearGradient>
   </defs>
   <rect width="200" height="200" rx="24" fill="url(#seed-bg)"/>
-  <ellipse cx="100" cy="160" rx="56" ry="8" fill="#E5DED2"/>
-  <path d="M100 158 Q 96 120 80 96 Q 90 100 100 124 Q 110 100 120 96 Q 104 120 100 158 Z" fill="#2E5E4E"/>
-  <circle cx="100" cy="156" r="6" fill="#D98A1B"/>
+  <ellipse cx="100" cy="160" rx="56" ry="8" fill="#E2E5E5"/>
+  <path d="M100 158 Q 96 120 80 96 Q 90 100 100 124 Q 110 100 120 96 Q 104 120 100 158 Z" fill="#1FA0A0"/>
+  <circle cx="100" cy="156" r="6" fill="#F2C014"/>
 </svg>

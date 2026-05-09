@@ -1,3 +1,5 @@
+# (HISTORICAL — see /BRAND-VOICE.md)
+
 # Brand Voice — Forge
 
 **Spec**: 011-warm-modern-facelift

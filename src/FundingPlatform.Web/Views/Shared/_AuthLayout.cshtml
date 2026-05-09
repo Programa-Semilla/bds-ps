@@ -1,42 +1,54 @@
+@*
+    _AuthLayout — auth-shell layout for Login / Register / Reset Password / Confirm Email.
+    Spec 019 FR-004: hero left-rail (mark + Programa Semilla wordmark + tagline) on left,
+    auth card on right, sponsor strip in footer. Below 768 px, columns stack to a single
+    column with the hero on top.
+*@
 <!DOCTYPE html>
 <html lang="es-CR">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Capital Semilla</title>
+    <title>@ViewData["Title"] - Programa Semilla</title>
+    <link rel="icon" type="image/svg+xml" href="~/lib/brand/favicons/favicon.svg" />
+    @* tokens.css MUST load BEFORE Tabler so the --tblr-* bridge applies. *@
+    <link rel="stylesheet" href="~/css/tokens.css?v=@FundingPlatform.Web.FundingPlatformBuildInfo.Hash" />
     <link rel="stylesheet" href="~/lib/tabler/dist/css/tabler.min.css" />
     <link rel="stylesheet" href="~/lib/tabler/dist/css/tabler-icons.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body class="d-flex flex-column">
-    <div class="page page-center" data-testid="auth-shell">
-        <div class="container container-tight py-4">
-            <div class="text-center mb-4">
-                <a href="@Url.Action("Index", "Home")" class="navbar-brand navbar-brand-autodark">Capital Semilla</a>
+    <div class="fl-auth-shell" data-testid="auth-shell">
+        <aside class="fl-auth-hero" data-testid="auth-hero" aria-label="Programa Semilla">
+            <img src="~/lib/brand/mark.svg" class="fl-auth-hero-mark" alt="Programa Semilla" />
+            <img src="~/lib/brand/wordmark.svg" class="fl-auth-hero-wordmark" alt="Programa Semilla" />
+            <p class="fl-auth-hero-tagline">
+                Financiamiento para emprendedores en Costa Rica.<br />
+                <em>Sistema de Banca para el Desarrollo</em>
+            </p>
+        </aside>
+        <section class="fl-auth-content">
+            <div class="fl-auth-card">
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="fl-alert" data-variant="success" role="alert" data-testid="success-banner">
+                        @TempData["SuccessMessage"]
+                    </div>
+                }
+                @if (TempData["ErrorMessage"] != null)
+                {
+                    <div class="fl-alert" data-variant="danger" role="alert" data-testid="error-banner">
+                        @TempData["ErrorMessage"]
+                    </div>
+                }
+                <main role="main">
+                    @RenderBody()
+                </main>
             </div>
-            <div class="card card-md">
-                <div class="card-body">
-                    @if (TempData["SuccessMessage"] != null)
-                    {
-                        <div class="alert alert-success alert-dismissible" role="alert" data-testid="success-banner">
-                            @TempData["SuccessMessage"]
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                        </div>
-                    }
-                    @if (TempData["ErrorMessage"] != null)
-                    {
-                        <div class="alert alert-danger alert-dismissible" role="alert" data-testid="error-banner">
-                            @TempData["ErrorMessage"]
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                        </div>
-                    }
-                    <main role="main">
-                        @RenderBody()
-                    </main>
-                </div>
-            </div>
-        </div>
+        </section>
     </div>
+    @* Spec 019 FR-004 — sponsor strip on auth surfaces (low cost, high brand introduction). *@
+    @await Html.PartialAsync("_SponsorStrip")
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/tabler/dist/js/tabler.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>

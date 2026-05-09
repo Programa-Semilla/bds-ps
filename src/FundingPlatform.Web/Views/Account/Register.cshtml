@@ -5,57 +5,58 @@
     Layout = "_AuthLayout";
 }
 
-<h2 class="card-title text-center mb-4">Cree su cuenta</h2>
+<h1 class="fl-auth-headline">Crea tu cuenta</h1>
+<p class="fl-text-secondary mb-4">Bienvenido — solo necesitamos algunos datos para empezar.</p>
 
-<form asp-action="Register" asp-controller="Account" method="post">
-    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+<form asp-action="Register" asp-controller="Account" method="post" novalidate>
+    <div asp-validation-summary="All" class="fl-text-danger mb-3"></div>
 
     <div class="mb-3" data-testid="form-section" data-field="Email">
-        <label asp-for="Email" class="form-label"></label>
-        <input asp-for="Email" class="form-control" autocomplete="email" />
+        <label asp-for="Email" class="form-label fl-type-meta"></label>
+        <input asp-for="Email" class="fl-input" autocomplete="email" />
         <span asp-validation-for="Email" class="invalid-feedback d-block"></span>
     </div>
 
     <div class="mb-3" data-testid="form-section" data-field="Password">
-        <label asp-for="Password" class="form-label"></label>
-        <input asp-for="Password" class="form-control" autocomplete="new-password" />
+        <label asp-for="Password" class="form-label fl-type-meta"></label>
+        <input asp-for="Password" type="password" class="fl-input" autocomplete="new-password" />
         <span asp-validation-for="Password" class="invalid-feedback d-block"></span>
     </div>
 
     <div class="mb-3" data-testid="form-section" data-field="ConfirmPassword">
-        <label asp-for="ConfirmPassword" class="form-label"></label>
-        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+        <label asp-for="ConfirmPassword" class="form-label fl-type-meta"></label>
+        <input asp-for="ConfirmPassword" type="password" class="fl-input" autocomplete="new-password" />
         <span asp-validation-for="ConfirmPassword" class="invalid-feedback d-block"></span>
     </div>
 
     <div class="row g-2">
         <div class="col-md-6">
             <div class="mb-3" data-testid="form-section" data-field="FirstName">
-                <label asp-for="FirstName" class="form-label"></label>
-                <input asp-for="FirstName" class="form-control" autocomplete="given-name" />
+                <label asp-for="FirstName" class="form-label fl-type-meta"></label>
+                <input asp-for="FirstName" class="fl-input" autocomplete="given-name" />
                 <span asp-validation-for="FirstName" class="invalid-feedback d-block"></span>
             </div>
         </div>
         <div class="col-md-6">
             <div class="mb-3" data-testid="form-section" data-field="LastName">
-                <label asp-for="LastName" class="form-label"></label>
-                <input asp-for="LastName" class="form-control" autocomplete="family-name" />
+                <label asp-for="LastName" class="form-label fl-type-meta"></label>
+                <input asp-for="LastName" class="fl-input" autocomplete="family-name" />
                 <span asp-validation-for="LastName" class="invalid-feedback d-block"></span>
             </div>
         </div>
     </div>
 
     <div class="mb-3" data-testid="form-section" data-field="LegalId">
-        <label asp-for="LegalId" class="form-label"></label>
-        <input asp-for="LegalId" class="form-control" />
+        <label asp-for="LegalId" class="form-label fl-type-meta"></label>
+        <input asp-for="LegalId" class="fl-input" />
         <span asp-validation-for="LegalId" class="invalid-feedback d-block"></span>
     </div>
 
     <div class="form-footer">
-        <button type="submit" class="btn btn-primary w-100">Crear cuenta</button>
+        <button type="submit" class="fl-btn w-100" data-variant="primary">Crear cuenta</button>
     </div>
 </form>
 
-<div class="text-center text-secondary mt-3">
-    ¿Ya tiene cuenta? <a asp-action="Login" asp-controller="Account">Inicie sesión aquí</a>
+<div class="text-center fl-text-secondary mt-4">
+    ¿Ya tienes cuenta? <a asp-action="Login" asp-controller="Account" class="fl-text-brand">Inicia sesión</a>
 </div>

@@ -115,11 +115,14 @@
     }
     if (opts.confettiOn && typeof root.confetti === 'function') {
       try {
-        // Pull confetti colors from design tokens (FR-009 — no raw hex in JS).
+        // Spec 019 R5 — 4-color palette: teal + yellow + neutral white + primary subtle.
+        // Pulled from design tokens so tokens.css remains the only source of raw hex
+        // (spec 011 FR-009 invariant carries forward).
         const colors = [
           readToken('--color-primary'),
           readToken('--color-accent'),
-          readToken('--color-bg-surface-raised'),
+          readToken('--color-bg-surface'),
+          readToken('--color-primary-subtle'),
         ].filter(Boolean);
         root.confetti({
           particleCount: 80,

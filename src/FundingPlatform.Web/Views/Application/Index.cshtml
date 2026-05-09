@@ -27,9 +27,9 @@
 }
 else
 {
-    <div class="card">
+    <div class="fl-card">
         <div class="table-responsive">
-            <table class="table card-table table-vcenter">
+            <table class="fl-table" data-density="applicant">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -62,14 +62,14 @@ else
                                 }
                                 else
                                 {
-                                    <span class="text-secondary">-</span>
+                                    <span class="fl-text-muted">—</span>
                                 }
                             </td>
                             <td>
-                                <a asp-action="Details" asp-route-id="@app.Id" class="btn btn-sm btn-outline-primary">Ver</a>
+                                <a asp-action="Details" asp-route-id="@app.Id" class="fl-btn" data-variant="secondary" data-size="sm">Ver</a>
                                 @if (app.State == nameof(ApplicationState.Draft))
                                 {
-                                    <a asp-action="Edit" asp-route-id="@app.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                                    <a asp-action="Edit" asp-route-id="@app.Id" class="fl-btn" data-variant="secondary" data-size="sm">Editar</a>
                                 }
                             </td>
                         </tr>

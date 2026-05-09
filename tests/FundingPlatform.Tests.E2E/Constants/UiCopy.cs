@@ -12,8 +12,8 @@ namespace FundingPlatform.Tests.E2E.Constants;
 /// </summary>
 public static class UiCopy
 {
-    // Brand
-    public const string BrandName = "Capital Semilla";
+    // Brand (spec 019 — pivoted from "Capital Semilla" to "Programa Semilla").
+    public const string BrandName = "Programa Semilla";
 
     // Auth
     public const string Login = "Iniciar sesión";

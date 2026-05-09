@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-08
+Last updated: 2026-05-09
 
 ## Sessions
 
@@ -22,6 +22,7 @@ Last updated: 2026-05-08
 | 14 | 2026-05-07 | user-groups | spec-created | 016 |
 | 15 | 2026-05-08 | admin-ux-facelift | spec-created | 017 |
 | 16 | 2026-05-08 | pdf-template-lift | spec-created | 018 |
+| 17 | 2026-05-09 | programa-semilla-brand | spec-created | 019 |
 
 ## Open Threads
 
@@ -130,6 +131,19 @@ Last updated: 2026-05-08
 - Source of clean per-partner footer logo files (BancaDesarrollo / CROCUS / nexo / Programa Semilla / 10 años) — needed if we ever want per-logo edit beyond composite swap (from #16)
 - Brand-guideline hex codes — sampled from PDF; if a real brand guideline exists with different values, NFR-001 needs revisit (from #16)
 - Whether to add automated PDF visual-diff regression harness in a future spec (e.g., `pdfimages` + image-hash against golden-PDF fixture) — recurring from #08/#11 (from #16)
+- Exact teal hex sampled `#1FA0A0` from PDF logo disc; designer override at SC-015 if Programa Semilla brand book differs (from #17)
+- Sponsor logo source — extract from PDF (low fidelity) vs request originals from sponsors (from #17)
+- Login hero — large seedling mark only vs commissioned scene; defaults to mark-only (from #17)
+- Sidebar collapsed-state breakpoint — Tabler default 992 px vs custom (from #17)
+- Confetti palette specifics — teal + yellow only vs include cream + danger-soft (from #17)
+- Email signature layout — text-only vs inline seedling mark; defaults to text-only (from #17)
+- 10 años badge graceful retirement plan when "10 años" stops being current — future spec (from #17)
+- BRAND-VOICE.md canonical location — repo root, new spec dir, or replace spec 011's in place (from #17)
+- Visual-regression tooling — continue Playwright snapshot comparison vs adopt Percy/Chromatic; defaults to Playwright (from #17; recurring from #08/#11)
+- Spec 018 PDF type-stack (Fraunces) vs spec 019 web type-stack (sans-only Inter) — designer reconciliation at SC-015 if dual-stack reads as a problem (from #17)
+- FR-014: pin display + heading weight floors (e.g., ≥ 700 / ≥ 600) during planning so spec is fully testable without depending on SC-015 sign-off (from #17)
+- FR-021: pin yellow-badge dark-text contrast ratio (e.g., ≥ 4.5:1 against fill) during planning (from #17)
+- Reviewer-surface sponsor-strip chrome density vs visual real-estate — confirm with reviewer feedback if available (from #17)
 
 ## Closed Threads
 
@@ -139,7 +153,7 @@ Last updated: 2026-05-08
 - Specific default locale code for LatAm formatting (e.g., `es-CO`, `es-MX`) — to be pinned during planning (from #05) — **Closed by #12**: pinned to `es-CR` (FR-016). Funding Agreement PDF format-separator shifts from `1.234,56` (es-CO) to `1,234.56` (es-CR) per CR business convention.
 - Future localization-layer spec — partials must be checked to ensure no UI copy was embedded during the 008 sweep (from #08; reaffirmed by #11) — **Closed by #12**: executed during the localization sweep (User Story 2 + NFR-004); the partial-parameterization rule from spec 008 was preserved.
 - Future localization-layer spec — voice-guide rewrites in spec 011 must keep copy out of partials' code paths to remain compatible (from #11; carries forward from #08) — **Closed by #12**: validated during the spec 012 sweep; voice-guide rewrites in 011 stayed compatible with the inline-replace pattern.
-- Display brand name selection — Forge / Ascent / keep FundingPlatform — user sign-off gate (from #11) — **Closed by #12**: **Capital Semilla** chosen (FR-006). Display brand only; code namespaces, project names, and config keys remain `FundingPlatform`.
+- Display brand name selection — Forge / Ascent / keep FundingPlatform — user sign-off gate (from #11) — **Closed by #12**: **Capital Semilla** chosen (FR-006). Display brand only; code namespaces, project names, and config keys remain `FundingPlatform`. — **Reopened and re-closed by #17**: display brand pivots again to **Programa Semilla** (spec 019 FR-001) to align with the actual sponsor-program identity from the funding-agreement PDF. Code namespaces still remain `FundingPlatform`.
 
 ## Parked Ideas
 

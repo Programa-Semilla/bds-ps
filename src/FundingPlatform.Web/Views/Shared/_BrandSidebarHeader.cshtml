@@ -1,0 +1,19 @@
+@*
+    _BrandSidebarHeader.cshtml — Spec 019 FR-025 sidebar brand header.
+
+    Renders teal seedling mark + "Programa Semilla" wordmark.
+    Collapsed sidebar (Tabler default 992 px breakpoint per research R4)
+    surfaces the wordmark via the title attribute as a hover tooltip.
+
+    Preserves spec-017 FR-016 sidebar data-testid slugs at the parent <aside>
+    level (this partial only renders the brand header subtree); the wordmark
+    text "Programa Semilla" is the FR-033 brand-presence assertion target
+    (visible to E2E tests).
+*@
+<a class="fl-sidebar-brand"
+   href="@(Url.Action("Index", "Home") ?? "/")"
+   title="Programa Semilla"
+   data-testid="sidebar-brand">
+    <img src="~/lib/brand/mark.svg" class="fl-sidebar-brand-mark" alt="" aria-hidden="true" />
+    <span class="fl-sidebar-brand-wordmark">Programa Semilla</span>
+</a>
