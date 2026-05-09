@@ -26,10 +26,20 @@ public interface IFundingAgreementPdfRenderer
     /// The <paramref name="renderHtmlAsync"/> delegate is invoked only after
     /// the pre-flight succeeds, so a failed validation never spends Razor
     /// rendering work.
+    ///
+    /// Spec 018 — when <paramref name="headerImageAbsolutePath"/> /
+    /// <paramref name="footerImageAbsolutePath"/> are supplied, the renderer
+    /// draws those images as repeating per-page header / footer via
+    /// Syncfusion's <c>PdfPageTemplateElement</c> path (FR-001 / FR-002 /
+    /// R-001-revised). CSS <c>position: fixed</c> does not repeat across pages
+    /// in Blink HTML→PDF, so the brand chrome is drawn at the renderer level
+    /// rather than from inside the HTML body.
     /// </summary>
     Task<byte[]> RenderFromModelAsync(
         IReadOnlyList<FundingAgreementItemRowDto> items,
         Func<Task<string>> renderHtmlAsync,
         string? baseUrl = null,
+        string? headerImageAbsolutePath = null,
+        string? footerImageAbsolutePath = null,
         CancellationToken ct = default);
 }

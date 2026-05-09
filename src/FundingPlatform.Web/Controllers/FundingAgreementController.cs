@@ -180,14 +180,26 @@ public class FundingAgreementController : Controller
             // MissingConversionMetadataException for any non-CRC line that
             // lacks an embedded rate snapshot.
             // Spec 018 / FR-001 + FR-004 — Blink HTML→PDF resolves relative
-            // asset URLs (vendored fonts under wwwroot/lib/fonts/, brand PNGs
-            // under wwwroot/lib/brand/pdf/) against this baseUrl. Without it,
-            // the rendered PDF shows alt text where the seedling header and
-            // partner-strip footer should be, and the Fraunces+Inter font
-            // stack falls back to default sans-serif.
+            // asset URLs (vendored fonts under wwwroot/lib/fonts/) against
+            // this baseUrl. Without it, the Fraunces+Inter font stack falls
+            // back to default sans-serif and the cover/section typography
+            // breaks parity with the seed.
             var assetsBaseUrl = new Uri(
                 Path.GetFullPath(_env.WebRootPath) + Path.DirectorySeparatorChar
             ).AbsoluteUri;
+
+            // Spec 018 / FR-001 + FR-002 (R-001-revised) — the seedling header
+            // and partner-strip footer images are drawn at the renderer level
+            // via PdfPageTemplateElement so they repeat reliably on every
+            // page. CSS `position: fixed` was the original technique but
+            // Blink does not honour it across page breaks, leaving the chrome
+            // mis-positioned (overlapping body content / dropping off after
+            // page 1). The images live under wwwroot/lib/brand/pdf/ and are
+            // swap-file-only per FR-018.
+            var headerImagePath = Path.Combine(
+                _env.WebRootPath, "lib", "brand", "pdf", "header-seedling.png");
+            var footerImagePath = Path.Combine(
+                _env.WebRootPath, "lib", "brand", "pdf", "footer-partners-strip.png");
 
             pdfBytes = await _pdfRenderer.RenderFromModelAsync(
                 documentModel.Items,
@@ -195,6 +207,10 @@ public class FundingAgreementController : Controller
                     "~/Views/FundingAgreement/Document.cshtml",
                     documentModel),
                 baseUrl: assetsBaseUrl,
+                headerImageAbsolutePath: System.IO.File.Exists(headerImagePath)
+                    ? headerImagePath : null,
+                footerImageAbsolutePath: System.IO.File.Exists(footerImagePath)
+                    ? footerImagePath : null,
                 ct: HttpContext.RequestAborted);
         }
         catch (MissingConversionMetadataException ex)

@@ -192,7 +192,12 @@ public class PdfRenderingTests
             "Mixed-currency requests must render the conversion note (FR-027).");
         Assert.That(text, Does.Contain("Tipo Compra"),
             "Conversion note must include the localised RateType (Compra).");
-        Assert.That(text, Does.Contain("vigente desde 2026-05-01"),
+        // Spec 018 — narrower Blink viewport may wrap "vigente desde" onto
+        // a separate line from the date; assert the two tokens independently
+        // rather than as a fixed-spaced substring.
+        Assert.That(text, Does.Contain("vigente desde"),
+            "Conversion note must include the 'vigente desde' phrase.");
+        Assert.That(text, Does.Contain("2026-05-01"),
             "Conversion note must include the effective-since date.");
         Assert.That(text, Does.Contain("520"),
             "Conversion note must include the rate value.");

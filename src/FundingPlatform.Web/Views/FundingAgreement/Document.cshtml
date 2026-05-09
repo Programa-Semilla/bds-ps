@@ -5,15 +5,14 @@
 
 @*
     Spec 018 — branded "Informe de evaluación de solicitudes de desembolso" PDF.
-    Header + footer ride on `position: fixed` from the layout so they repeat on
-    every page (R-001). Section partials are composed in narrative order:
-    cover → intro → recursos → resultados → proveedores → declaración jurada.
-    Each section partial owns its own page-break-before to keep the structure
-    flat.
+    The seedling header (FR-001) and partner-strip footer (FR-002) are drawn
+    at the renderer level via Syncfusion's PdfPageTemplateElement (R-001-revised
+    — `position: fixed` did not repeat across pages in Blink HTML→PDF, so the
+    chrome moved out of the HTML body). Section partials below are composed in
+    narrative order: cover → intro → recursos → resultados → proveedores →
+    declaración jurada. Each section partial owns its own page-break-before
+    to keep the structure flat.
 *@
-
-@await Html.PartialAsync("Partials/_BrandHeader", Model)
-@await Html.PartialAsync("Partials/_BrandFooter", Model)
 
 @await Html.PartialAsync("Partials/_CoverPage", Model)
 @await Html.PartialAsync("Partials/_IntroPage", Model)
