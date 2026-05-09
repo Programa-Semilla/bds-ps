@@ -260,14 +260,36 @@ public class Item
     internal void AssignLineCode(string lineCode)
     {
         if (lineCode is null)
-            throw new ArgumentException("Line code is required.", nameof(lineCode));
+        {
+            var ex = new ArgumentException("Line code is required.", nameof(lineCode));
+            ex.Data[ValidationReasonKey] = LineCodeRequiredReason;
+            throw ex;
+        }
         var trimmed = lineCode.Trim();
         if (trimmed.Length == 0)
-            throw new ArgumentException("Line code is required.", nameof(lineCode));
+        {
+            var ex = new ArgumentException("Line code is required.", nameof(lineCode));
+            ex.Data[ValidationReasonKey] = LineCodeRequiredReason;
+            throw ex;
+        }
         if (trimmed.Length > 16)
-            throw new ArgumentException("Line code must be 16 characters or fewer.", nameof(lineCode));
+        {
+            var ex = new ArgumentException("Line code must be 16 characters or fewer.", nameof(lineCode));
+            ex.Data[ValidationReasonKey] = LineCodeTooLongReason;
+            throw ex;
+        }
 
         LineCode = trimmed;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// Spec 018 — stable discriminator key on <see cref="ArgumentException.Data"/> for
+    /// the application-layer exception-mapping path to read instead of brittle
+    /// message-string matching. Co-located with the entity so renaming the
+    /// validation messages does not silently break the user-facing error mapping.
+    /// </summary>
+    public const string ValidationReasonKey = "FundingPlatform.ValidationReason";
+    public const string LineCodeRequiredReason = "LineCodeRequired";
+    public const string LineCodeTooLongReason = "LineCodeTooLong";
 }

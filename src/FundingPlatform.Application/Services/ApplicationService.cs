@@ -78,14 +78,18 @@ public class ApplicationService
         }
         catch (ArgumentException ex)
         {
-            // Map entity-level validation failures to user-facing codes.
-            // The trim-then-check ordering in SetCompanyName means an over-length
-            // input always trips the length branch; null/blank trips the required
-            // branch. Distinguishing them lets the Web layer pick the right
-            // Spanish message per FR-014 / NFR-001.
-            var code = ex.Message.Contains("200", StringComparison.Ordinal)
-                ? UserFacingErrorCode.CompanyNameTooLong
-                : UserFacingErrorCode.CompanyNameRequired;
+            // Map entity-level validation failures to user-facing codes via the
+            // stable Data["FundingPlatform.ValidationReason"] discriminator the
+            // entity sets (instead of fragile message-string matching). Lets the
+            // Web layer pick the right Spanish message per FR-014 / NFR-001
+            // even if the English exception text is later edited.
+            var reason = ex.Data[Item.ValidationReasonKey] as string;
+            var code = reason switch
+            {
+                AppEntity.CompanyNameTooLongReason => UserFacingErrorCode.CompanyNameTooLong,
+                AppEntity.CompanyNameRequiredReason => UserFacingErrorCode.CompanyNameRequired,
+                _ => UserFacingErrorCode.CompanyNameRequired,
+            };
             return new CreateApplicationResult(0, UserFacingError.From(code, ex.Message));
         }
 

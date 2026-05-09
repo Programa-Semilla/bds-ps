@@ -54,16 +54,33 @@ public class Application
     public void SetCompanyName(string companyName)
     {
         if (companyName is null)
-            throw new ArgumentException("Company name is required.", nameof(companyName));
+        {
+            var ex = new ArgumentException("Company name is required.", nameof(companyName));
+            ex.Data[Item.ValidationReasonKey] = CompanyNameRequiredReason;
+            throw ex;
+        }
         var trimmed = companyName.Trim();
         if (trimmed.Length == 0)
-            throw new ArgumentException("Company name is required.", nameof(companyName));
+        {
+            var ex = new ArgumentException("Company name is required.", nameof(companyName));
+            ex.Data[Item.ValidationReasonKey] = CompanyNameRequiredReason;
+            throw ex;
+        }
         if (trimmed.Length > 200)
-            throw new ArgumentException("Company name must be 200 characters or fewer.", nameof(companyName));
+        {
+            var ex = new ArgumentException("Company name must be 200 characters or fewer.", nameof(companyName));
+            ex.Data[Item.ValidationReasonKey] = CompanyNameTooLongReason;
+            throw ex;
+        }
 
         CompanyName = trimmed;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    /// <summary>Spec 018 — stable discriminator value for the CompanyName-required validation branch.</summary>
+    public const string CompanyNameRequiredReason = "CompanyNameRequired";
+    /// <summary>Spec 018 — stable discriminator value for the CompanyName-too-long validation branch.</summary>
+    public const string CompanyNameTooLongReason = "CompanyNameTooLong";
 
     /// <summary>
     /// Adds an item to the application.

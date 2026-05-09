@@ -116,9 +116,17 @@ public class ReviewService
                 }
                 catch (ArgumentException ex)
                 {
-                    var code = ex.Message.Contains("16", StringComparison.Ordinal)
-                        ? UserFacingErrorCode.LineCodeTooLong
-                        : UserFacingErrorCode.LineCodeRequired;
+                    // Read the stable Data["FundingPlatform.ValidationReason"] marker
+                    // the entity sets instead of brittle message-string matching.
+                    // Renaming the English validation message no longer silently
+                    // miscategorises the user-facing error code (FR-014 / NFR-001).
+                    var reason = ex.Data[Item.ValidationReasonKey] as string;
+                    var code = reason switch
+                    {
+                        Item.LineCodeTooLongReason => UserFacingErrorCode.LineCodeTooLong,
+                        Item.LineCodeRequiredReason => UserFacingErrorCode.LineCodeRequired,
+                        _ => UserFacingErrorCode.LineCodeRequired,
+                    };
                     return UserFacingError.From(code, ex.Message);
                 }
                 catch (InvalidOperationException ex) when (ex.Message.Contains("already assigned", StringComparison.Ordinal))

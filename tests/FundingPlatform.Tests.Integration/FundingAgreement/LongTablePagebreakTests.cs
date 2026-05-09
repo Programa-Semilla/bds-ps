@@ -7,12 +7,27 @@ using AppEntity = FundingPlatform.Domain.Entities.Application;
 namespace FundingPlatform.Tests.Integration.FundingAgreement;
 
 /// <summary>
-/// Spec 018 / R-003 / Outstanding Risk #2 — long-table smoke test. With 50
-/// items, the requested-resources table must span multiple pages and the
-/// brand header / footer (CSS `position: fixed`) must repeat. The scenario
-/// exercises the entity-side cardinality without spinning up the full
-/// Aspire-orchestrated PDF render; the visual fidelity assertion lives in
-/// the E2E layer (T022).
+/// Spec 018 / R-003 / Outstanding Risk #2 — entity-side cardinality smoke for the
+/// long-table scenario.
+///
+/// <para>
+/// **Scope:** This integration test only exercises the aggregate-root path
+/// (<see cref="FundingPlatform.Domain.Entities.Application.AssignLineCodeToItem"/>)
+/// 50 times to confirm the per-Application uniqueness invariant scales without
+/// rejecting any of the distinct codes. It does NOT render a PDF, does NOT run
+/// <c>pdftotext -layout</c>, and does NOT verify that the brand header / footer
+/// CSS (<c>position: fixed</c>) repeats across page breaks. Those assertions
+/// require the live Aspire-orchestrated PDF render path and live in the E2E
+/// layer (T022 — <c>FundingAgreementPdfDownloadTests</c>) where the renderer is
+/// available.
+/// </para>
+///
+/// <para>
+/// **Why it lives here:** the entity-level invariant cost (50 calls to
+/// <see cref="FundingPlatform.Domain.Entities.Application.AssignLineCodeToItem"/>)
+/// is cheap to assert without spinning up AppHost, and a regression in the
+/// uniqueness loop would surface here before the slower E2E pipeline catches it.
+/// </para>
 /// </summary>
 [TestFixture]
 public class LongTablePagebreakTests
