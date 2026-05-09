@@ -22,7 +22,14 @@
     page footer; this partial only declares the strip element.
 *@
 @{
-    var hideOnPrint = (Model as dynamic)?.HideOnPrint == true;
+    // Read HideOnPrint without `dynamic` — _Layout passes the parent view's
+    // model through to the partial, so a typed model without `HideOnPrint`
+    // would otherwise raise RuntimeBinderException. Reflection probes the
+    // member safely; absent → defaults to false. Caller surfaces opt-in by
+    // invoking with an anonymous `new { HideOnPrint = true }`.
+    var hideOnPrint = Model?.GetType()
+        .GetProperty("HideOnPrint", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)
+        ?.GetValue(Model) is bool flag && flag;
 }
 @* When hideOnPrint is true, Razor emits data-print-hide="sponsor-strip";
    when null/false, Razor suppresses the attribute entirely (built-in
