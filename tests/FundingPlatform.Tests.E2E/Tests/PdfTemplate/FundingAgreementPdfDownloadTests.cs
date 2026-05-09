@@ -58,6 +58,16 @@ public class FundingAgreementPdfDownloadTests : AuthenticatedTestBase
         Assert.That(FundingAgreementDownloadFlow.LooksLikePdf(bytes), Is.True,
             "Downloaded bytes must have a %PDF- header.");
 
+        // Spec 018 / FR-001 + FR-002 + FR-004 — anti-regression: a branded PDF
+        // that includes the seedling header (~61 KB), the partner-logo footer
+        // (~58 KB), and the embedded Fraunces+Inter variable font streams must
+        // weigh substantially more than a text-only render. An empty-baseUrl
+        // regression (where Blink fails to resolve /lib/* and ships alt text
+        // instead of images) produces a payload around 60 KB; assets-resolved
+        // builds land north of 150 KB. 100 KB is a conservative floor.
+        Assert.That(bytes.Length, Is.GreaterThan(100_000),
+            $"Rendered PDF is only {bytes.Length:N0} bytes — too small to contain the brand assets and embedded fonts. Likely a baseUrl/asset-resolution regression.");
+
         // Persist the bytes to a temp file so we can run pdftotext against it.
         var pdfPath = Path.Combine(Path.GetTempPath(), $"branded-pdf-{Guid.NewGuid():N}.pdf");
         await File.WriteAllBytesAsync(pdfPath, bytes);

@@ -42,6 +42,7 @@ public class FundingAgreementController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IUserFacingErrorTranslator _errorTranslator;
     private readonly Application.Services.IUserStoreReader _userStoreReader;
+    private readonly IWebHostEnvironment _env;
     private readonly ILogger<FundingAgreementController> _logger;
 
     private const string SignedPdfRequiredMessage = "Se requiere un archivo PDF firmado.";
@@ -57,6 +58,7 @@ public class FundingAgreementController : Controller
         UserManager<ApplicationUser> userManager,
         IUserFacingErrorTranslator errorTranslator,
         Application.Services.IUserStoreReader userStoreReader,
+        IWebHostEnvironment env,
         ILogger<FundingAgreementController> logger)
     {
         _service = service;
@@ -68,6 +70,7 @@ public class FundingAgreementController : Controller
         _userManager = userManager;
         _errorTranslator = errorTranslator;
         _userStoreReader = userStoreReader;
+        _env = env;
         _logger = logger;
     }
 
@@ -176,12 +179,22 @@ public class FundingAgreementController : Controller
             // before spending Razor work. RenderFromModelAsync throws
             // MissingConversionMetadataException for any non-CRC line that
             // lacks an embedded rate snapshot.
+            // Spec 018 / FR-001 + FR-004 — Blink HTML→PDF resolves relative
+            // asset URLs (vendored fonts under wwwroot/lib/fonts/, brand PNGs
+            // under wwwroot/lib/brand/pdf/) against this baseUrl. Without it,
+            // the rendered PDF shows alt text where the seedling header and
+            // partner-strip footer should be, and the Fraunces+Inter font
+            // stack falls back to default sans-serif.
+            var assetsBaseUrl = new Uri(
+                Path.GetFullPath(_env.WebRootPath) + Path.DirectorySeparatorChar
+            ).AbsoluteUri;
+
             pdfBytes = await _pdfRenderer.RenderFromModelAsync(
                 documentModel.Items,
                 renderHtmlAsync: () => _htmlRenderer.RenderAsync(
                     "~/Views/FundingAgreement/Document.cshtml",
                     documentModel),
-                baseUrl: null,
+                baseUrl: assetsBaseUrl,
                 ct: HttpContext.RequestAborted);
         }
         catch (MissingConversionMetadataException ex)

@@ -14,17 +14,18 @@
         }
 
         /* FR-004 — vendored fonts only. Files live under wwwroot/lib/fonts/.
-           The renderer resolves /lib/fonts/* against the Web project's static
-           file root, so file:// + base-url plumbing is not required here. */
+           Paths are relative (no leading slash) so Blink HTML→PDF resolves
+           them against the file:// baseUrl that FundingAgreementController
+           computes from IWebHostEnvironment.WebRootPath at render time. */
         @@font-face {
             font-family: 'Fraunces';
-            src: url('/lib/fonts/fraunces/fraunces-variable.woff2') format('woff2');
+            src: url('lib/fonts/fraunces/fraunces-variable.woff2') format('woff2');
             font-weight: 100 900;
             font-style: normal;
         }
         @@font-face {
             font-family: 'Inter';
-            src: url('/lib/fonts/inter/inter-variable.woff2') format('woff2');
+            src: url('lib/fonts/inter/inter-variable.woff2') format('woff2');
             font-weight: 100 900;
             font-style: normal;
         }
