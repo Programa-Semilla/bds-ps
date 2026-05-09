@@ -39,9 +39,11 @@ public class CompanyNameApplicationFlowTests : AuthenticatedTestBase
         var error = appPage.CompanyNameError;
         await Expect(error).ToContainTextAsync("nombre de la empresa");
 
-        // No application should be persisted — list is empty.
+        // No application should be persisted — empty applications list shows
+        // the empty-state component (no <table>), confirming the failed
+        // submission did not produce a row.
         await appPage.GotoListAsync(BaseUrl);
-        await Expect(appPage.ApplicationsTable).Not.ToContainTextAsync("Crear");
+        await Expect(appPage.ItemRows).ToHaveCountAsync(0);
     }
 
     [Test]
