@@ -1,26 +1,87 @@
 using FundingPlatform.Application.DTOs;
-using FundingPlatform.Application.Options;
 
 namespace FundingPlatform.Web.ViewModels;
 
+/// <summary>
+/// Spec 018 — Razor projection contract for the branded "Informe de evaluación
+/// de solicitudes de desembolso" PDF. Replaces the prior funder-block-driven
+/// shape (FR-019..FR-023). The funder identity is hardcoded inside the sworn
+/// declaration partial; applicant email / phone / legal id and the agreement
+/// reference are no longer rendered.
+/// </summary>
 public class FundingAgreementDocumentViewModel
 {
-    public string AgreementReference { get; set; } = string.Empty;
+    // Cover page (FR-005, FR-006)
+    public string CompanyName { get; set; } = string.Empty;
+    public string ApplicantRepresentativeName { get; set; } = string.Empty;
     public DateTime GeneratedAtUtc { get; set; }
+    /// <summary>es-CR long form, e.g. "8 de mayo de 2026".</summary>
+    public string GenerationDateLong { get; set; } = string.Empty;
+    /// <summary>Distinct names of users who took at least one ReviewItem action.</summary>
+    public IReadOnlyList<string> CommissionMembers { get; set; } = Array.Empty<string>();
 
-    public FunderOptions Funder { get; set; } = new();
-
-    public string ApplicantLegalName { get; set; } = string.Empty;
-    public string ApplicantLegalId { get; set; } = string.Empty;
-    public string ApplicantEmail { get; set; } = string.Empty;
-    public string? ApplicantPhone { get; set; }
-
+    // Localisation
     public string LocaleCode { get; set; } = "es-CR";
     public string CurrencyIsoCode { get; set; } = "CRC";
 
-    public IReadOnlyList<FundingAgreementItemRowDto> Items { get; set; } = Array.Empty<FundingAgreementItemRowDto>();
-    public decimal TotalAmount { get; set; }
-    public IReadOnlyList<CurrencyTotal> TotalsByCurrency { get; set; } = Array.Empty<CurrencyTotal>();
+    // Requested resources (FR-008)
+    public IReadOnlyList<RequestedResourceRow> RequestedResources { get; set; }
+        = Array.Empty<RequestedResourceRow>();
+
+    // Committee results (FR-009)
+    public IReadOnlyList<ApprovedLineRow> ApprovedLines { get; set; }
+        = Array.Empty<ApprovedLineRow>();
+    public IReadOnlyList<RejectedLineRow> RejectedLines { get; set; }
+        = Array.Empty<RejectedLineRow>();
+    /// <summary>Pre-composed "Se aprueban las líneas …" sentence.</summary>
+    public string ApprovedSummaryParagraph { get; set; } = string.Empty;
+    public decimal ApprovedDisbursementTotal { get; set; }
+
+    // Supplier verification (FR-010)
+    public IReadOnlyList<SupplierComplianceRow> SupplierCompliance { get; set; }
+        = Array.Empty<SupplierComplianceRow>();
+
+    /// <summary>
+    /// Engine-level pre-flight contract used by
+    /// <c>SyncfusionFundingAgreementPdfRenderer.EnsureConversionMetadata</c> to
+    /// flag missing rate snapshots before Razor work runs. This survives the
+    /// view-model rewrite per T012/T019; the new <see cref="RequestedResources"/>
+    /// is the Razor-facing shape.
+    /// </summary>
+    public IReadOnlyList<FundingAgreementItemRowDto> Items { get; set; }
+        = Array.Empty<FundingAgreementItemRowDto>();
 }
 
-public sealed record CurrencyTotal(string Currency, decimal Amount);
+/// <summary>FR-008 — one row of the `Recursos solicitados` table.</summary>
+public sealed record RequestedResourceRow(
+    string LineCode,                  // Variable column
+    string ProductName,               // Tipo
+    string CategoryName,              // Descripción
+    decimal Amount,                   // Monto (CRC)
+    string Currency,                  // ISO code of original quotation currency
+    string SelectedSupplierName,      // Empresa seleccionada
+    string? CurrencyConversionNote);  // Spec 015 conversion note (CRC lines null)
+
+/// <summary>FR-009 / FR-011 — one row of the approved-lines subtable.</summary>
+public sealed record ApprovedLineRow(
+    string AcuerdoLabel,              // Acuerdo (e.g. "FI_SBDCR25-002")
+    string LineCode,                  // Detalle / Variable
+    string ProductName,               // Tipo
+    string SelectedSupplierName,      // Empresa proveedora
+    decimal Disbursement,             // Desembolso (CRC)
+    string? CurrencyConversionNote);
+
+/// <summary>FR-009 — one row of the rejected-lines subtable.</summary>
+public sealed record RejectedLineRow(
+    string AcuerdoLabel,
+    string LineCode,
+    string ProductName,
+    string Motivo);                   // ItemResponse rejection reason
+
+/// <summary>FR-010 — one row of the `Información empresas proveedoras` table.</summary>
+public sealed record SupplierComplianceRow(
+    DateTime ReviewedAt,              // Fecha de revisión
+    string SupplierName,              // Empresa proveedora
+    string Hacienda,
+    string Ccss,
+    string Sicop);

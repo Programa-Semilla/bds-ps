@@ -5,7 +5,7 @@
     ViewData["Title"] = $"Convenio de financiamiento — Solicitud N.º {Model.Panel.ApplicationId}";
     var preview = Model.Preview;
     var culture = EsCrCultureFactory.Build();
-    string Money(string currency, decimal value) => $"{currency} {value.ToString("N2", culture)}";
+    string Money(decimal value) => $"₡{value.ToString("N2", culture)}";
 }
 
 @await Html.PartialAsync("Components/_PageHeader",
@@ -31,7 +31,7 @@
 <div class="card mb-4" data-testid="funding-agreement-preview">
     <div class="card-header">
         <strong>Resumen del convenio</strong>
-        <span class="text-muted ms-2 small">Vista previa de los ítems aceptados que se incluirán en el documento.</span>
+        <span class="text-muted ms-2 small">Vista previa de los ítems aprobados que se incluirán en el documento.</span>
     </div>
     <div class="card-body">
         @if (preview is null)
@@ -46,7 +46,7 @@
                 A la espera de la respuesta del solicitante. Una vez que el solicitante acepte o rechace los ítems aprobados, aquí aparecerá el detalle final del convenio.
             </p>
         }
-        else if (preview.Items.Count == 0)
+        else if (preview.ApprovedLines.Count == 0)
         {
             <p class="text-muted mb-0" data-testid="funding-agreement-preview-no-accepted-items">
                 El solicitante no aceptó ningún ítem. No hay nada por incluir en el convenio.
@@ -55,59 +55,39 @@
         else
         {
             <dl class="row mb-3">
-                <dt class="col-sm-3">Solicitante</dt>
-                <dd class="col-sm-9" data-testid="funding-agreement-preview-applicant-name">@preview.ApplicantLegalName</dd>
+                <dt class="col-sm-3">Empresa solicitante</dt>
+                <dd class="col-sm-9" data-testid="funding-agreement-preview-company-name">@preview.CompanyName</dd>
 
-                @if (!string.IsNullOrWhiteSpace(preview.ApplicantLegalId))
-                {
-                    <dt class="col-sm-3">Identificación</dt>
-                    <dd class="col-sm-9">@preview.ApplicantLegalId</dd>
-                }
-
-                @if (!string.IsNullOrWhiteSpace(preview.ApplicantEmail))
-                {
-                    <dt class="col-sm-3">Correo electrónico</dt>
-                    <dd class="col-sm-9">@preview.ApplicantEmail</dd>
-                }
-
-                @if (!string.IsNullOrWhiteSpace(preview.ApplicantPhone))
-                {
-                    <dt class="col-sm-3">Teléfono</dt>
-                    <dd class="col-sm-9">@preview.ApplicantPhone</dd>
-                }
+                <dt class="col-sm-3">Representante</dt>
+                <dd class="col-sm-9" data-testid="funding-agreement-preview-applicant-name">@preview.ApplicantRepresentativeName</dd>
             </dl>
 
             <div class="table-responsive">
                 <table class="table table-vcenter card-table" data-testid="funding-agreement-preview-items">
                     <thead>
                         <tr>
-                            <th>Producto</th>
-                            <th>Categoría</th>
-                            <th>Proveedor</th>
-                            <th class="text-end">Precio unitario</th>
-                            <th class="text-end">Total de la línea</th>
+                            <th>Variable</th>
+                            <th>Tipo</th>
+                            <th>Empresa proveedora</th>
+                            <th class="text-end">Desembolso</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var item in preview.Items)
+                        @foreach (var line in preview.ApprovedLines)
                         {
-                            <tr data-item-id="@item.ItemId">
-                                <td>@item.ProductName</td>
-                                <td>@item.CategoryName</td>
-                                <td>@item.SupplierName</td>
-                                <td class="text-end">@Money(item.Currency, item.UnitPrice)</td>
-                                <td class="text-end">@Money(item.Currency, item.LineTotal)</td>
+                            <tr>
+                                <td>@line.LineCode</td>
+                                <td>@line.ProductName</td>
+                                <td>@line.SelectedSupplierName</td>
+                                <td class="text-end">@Money(line.Disbursement)</td>
                             </tr>
                         }
                     </tbody>
                     <tfoot>
-                        @foreach (var t in preview.TotalsByCurrency)
-                        {
-                            <tr class="fw-bold" data-testid="funding-agreement-preview-total" data-currency="@t.Currency">
-                                <td colspan="4" class="text-end">Total (@t.Currency)</td>
-                                <td class="text-end">@Money(t.Currency, t.Amount)</td>
-                            </tr>
-                        }
+                        <tr class="fw-bold" data-testid="funding-agreement-preview-total" data-currency="CRC">
+                            <td colspan="3" class="text-end">Total</td>
+                            <td class="text-end">@Money(preview.ApprovedDisbursementTotal)</td>
+                        </tr>
                     </tfoot>
                 </table>
             </div>

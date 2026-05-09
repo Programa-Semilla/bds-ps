@@ -22,7 +22,10 @@ public record ReviewItemDto(
     bool IsNotTechnicallyEquivalent,
     List<ReviewQuotationDto> Quotations,
     string? ImpactTemplateName,
-    List<ImpactParameterDisplayDto> ImpactParameters);
+    List<ImpactParameterDisplayDto> ImpactParameters,
+    /// <summary>Spec 018 / FR-012 — reviewer-assigned line code, null until first
+    /// assignment.</summary>
+    string? LineCode = null);
 
 public record ReviewQuotationDto(
     int QuotationId,

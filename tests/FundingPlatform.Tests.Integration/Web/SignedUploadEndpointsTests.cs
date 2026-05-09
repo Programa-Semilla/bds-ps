@@ -475,7 +475,7 @@ public class SignedUploadEndpointsTests
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new AppEntity(applicant.Id);
+        var application = new AppEntity(applicant.Id, "Test Company");
         application.AddItem(new Item("Laptop", category.Id, "specs"));
         typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Resolved);
         ctx.Applications.Add(application);

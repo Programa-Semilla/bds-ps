@@ -61,7 +61,7 @@ public class ReviewerScopeNextRequestTests
             ctx.UserGroupMemberships.Add(new UserGroupMembership(applicantUser.Id, norte.Id));
             await ctx.SaveChangesAsync();
 
-            app = new AppEntity(applicantId: applicant.Id);
+            app = new AppEntity(applicantId: applicant.Id, companyName: "Test Company");
             typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);
             ctx.Applications.Add(app);
             await ctx.SaveChangesAsync();

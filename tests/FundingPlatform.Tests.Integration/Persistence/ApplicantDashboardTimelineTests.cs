@@ -50,7 +50,7 @@ public class ApplicantDashboardTimelineTests
             ctx.Categories.Add(category);
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id);
+            var application = new AppEntity(applicant.Id, "Test Company");
             application.AddItem(new Item("Widget", category.Id, "specs"));
             // Move state to Submitted directly + record matching VersionHistory entry.
             typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Submitted);
@@ -106,7 +106,7 @@ public class ApplicantDashboardTimelineTests
             ctx.Categories.Add(category);
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id);
+            var application = new AppEntity(applicant.Id, "Test Company");
             application.AddItem(new Item("Widget", category.Id, "specs"));
             typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Submitted);
             application.AddVersionHistory(new VersionHistory(applicant.UserId, "Created", null));

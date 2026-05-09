@@ -25,4 +25,8 @@ public record FundingAgreementItemRowDto(
     decimal? ConvertedCrcAmount = null,
     decimal? SnapshotRateValue = null,
     string? SnapshotRateType = null,
-    DateTime? SnapshotEffectiveAtUtc = null);
+    DateTime? SnapshotEffectiveAtUtc = null,
+    // Spec 018 / FR-008 — reviewer-assigned LineCode surfaces in the Funding
+    // Agreement PDF tables. Carried on the DTO so the renderer-level conversion
+    // pre-flight can identify rows by code in diagnostics.
+    string? LineCode = null);

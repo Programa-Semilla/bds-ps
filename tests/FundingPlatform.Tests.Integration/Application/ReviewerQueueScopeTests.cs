@@ -58,7 +58,7 @@ public class ReviewerQueueScopeTests
                 ctx.UserGroupMemberships.Add(new UserGroupMembership(u.Id, gid));
             }
             await ctx.SaveChangesAsync();
-            var app = new AppEntity(applicantId: ap.Id);
+            var app = new AppEntity(applicantId: ap.Id, companyName: "Test Company");
             typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);
             ctx.Applications.Add(app);
             await ctx.SaveChangesAsync();

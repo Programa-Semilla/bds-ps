@@ -14,10 +14,21 @@ public class SyncfusionFundingAgreementPdfRenderer : IFundingAgreementPdfRendere
     {
         var converter = new HtmlToPdfConverter(HtmlRenderingEngine.Blink);
 
+        // Spec 018 / FR-003 — A4 portrait, 20mm top/bottom + 18mm left/right.
+        // Conversion: 1mm ≈ 2.83465pt → 20mm ≈ 56.69pt, 18mm ≈ 51.02pt. The
+        // CSS @page rule in _FundingAgreementLayout.cshtml controls layout;
+        // these renderer-side values mirror it so Blink reserves the same
+        // strip for the position: fixed header / footer (R-001).
         var blinkSettings = new BlinkConverterSettings
         {
             PdfPageSize = PdfPageSize.A4,
-            Margin = new PdfMargins { All = 36 },
+            Margin = new PdfMargins
+            {
+                Top = 56.69f,
+                Bottom = 56.69f,
+                Left = 51.02f,
+                Right = 51.02f,
+            },
             EnableJavaScript = false
         };
 

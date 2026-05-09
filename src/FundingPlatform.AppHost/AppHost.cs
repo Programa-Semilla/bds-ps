@@ -103,11 +103,8 @@ var localeCode = builder.Configuration["FundingAgreement:LocaleCode"] ?? "es-CR"
 // Spec 015 / T907 — base currency is CRC; the prior "COP" default predates the
 // multi-currency feature and contradicts the platform's only base currency.
 var currencyIsoCode = builder.Configuration["FundingAgreement:CurrencyIsoCode"] ?? "CRC";
-var funderLegalName = builder.Configuration["FundingAgreement:Funder:LegalName"] ?? "";
-var funderTaxId = builder.Configuration["FundingAgreement:Funder:TaxId"] ?? "";
-var funderAddress = builder.Configuration["FundingAgreement:Funder:Address"] ?? "";
-var funderContactEmail = builder.Configuration["FundingAgreement:Funder:ContactEmail"] ?? "";
-var funderContactPhone = builder.Configuration["FundingAgreement:Funder:ContactPhone"] ?? "";
+// Spec 018 / FR-019 — FundingAgreement:Funder:* keys removed. Funder identity is
+// now hardcoded inside the sworn-declaration partial of the branded PDF.
 var signedUploadMaxSizeBytes = builder.Configuration["SignedUpload:MaxSizeBytes"] ?? "20971520";
 // Spec 015 / T907 follow-up — base currency is CRC. The prior "COP" fallback was
 // incompatible with the multi-currency conversion path (no rate, no FK to the
@@ -132,11 +129,6 @@ var webApp = builder.AddProject<Projects.FundingPlatform_Web>("webapp")
     .WithEnvironment("Syncfusion__LicenseKey", syncfusionLicense)
     .WithEnvironment("FundingAgreement__LocaleCode", localeCode)
     .WithEnvironment("FundingAgreement__CurrencyIsoCode", currencyIsoCode)
-    .WithEnvironment("FundingAgreement__Funder__LegalName", funderLegalName)
-    .WithEnvironment("FundingAgreement__Funder__TaxId", funderTaxId)
-    .WithEnvironment("FundingAgreement__Funder__Address", funderAddress)
-    .WithEnvironment("FundingAgreement__Funder__ContactEmail", funderContactEmail)
-    .WithEnvironment("FundingAgreement__Funder__ContactPhone", funderContactPhone)
     .WithEnvironment("SignedUpload__MaxSizeBytes", signedUploadMaxSizeBytes)
     .WithEnvironment("AdminReports__DefaultCurrency", adminReportsDefaultCurrency)
     .WithEnvironment("AdminReports__CsvRowLimit", adminReportsCsvRowLimit);

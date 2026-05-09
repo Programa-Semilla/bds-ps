@@ -291,7 +291,7 @@ public class FundingAgreementEndpointsTests
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new AppEntity(applicant.Id);
+        var application = new AppEntity(applicant.Id, "Test Company");
         application.AddItem(new Item("Item 1", category.Id, "specs"));
         ctx.Applications.Add(application);
         ctx.SaveChanges();
@@ -514,7 +514,7 @@ public class FundingAgreementEndpointsTests
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new AppEntity(applicant.Id);
+        var application = new AppEntity(applicant.Id, "Test Company");
         application.AddItem(new Item("Laptop", category.Id, "specs"));
         typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Resolved);
         ctx.Applications.Add(application);
@@ -545,7 +545,7 @@ public class FundingAgreementEndpointsTests
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new AppEntity(applicant.Id);
+        var application = new AppEntity(applicant.Id, "Test Company");
         application.AddItem(new Item("Laptop", category.Id, "specs"));
         ctx.Applications.Add(application);
         ctx.SaveChanges();

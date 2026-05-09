@@ -30,7 +30,7 @@ public class ApplicationResponseTransitionsTests
     [Test]
     public void SubmitResponse_FromDraft_Throws()
     {
-        var application = new AppEntity(applicantId: 1);
+        var application = new AppEntity(applicantId: 1, companyName: "Test Company");
         SetItem(application, 1);
 
         Assert.Throws<InvalidOperationException>(() =>
@@ -81,7 +81,7 @@ public class ApplicationResponseTransitionsTests
     [Test]
     public void OpenAppeal_FromDraft_Throws()
     {
-        var application = new AppEntity(applicantId: 1);
+        var application = new AppEntity(applicantId: 1, companyName: "Test Company");
         Assert.Throws<InvalidOperationException>(() => application.OpenAppeal("user-1", maxAppeals: 1));
     }
 
@@ -214,7 +214,7 @@ public class ApplicationResponseTransitionsTests
 
     internal static AppEntity BuildResolvedApplication(int[] itemIds)
     {
-        var application = new AppEntity(applicantId: 1);
+        var application = new AppEntity(applicantId: 1, companyName: "Test Company");
         foreach (var id in itemIds)
         {
             SetItem(application, id);

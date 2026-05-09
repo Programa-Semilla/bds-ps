@@ -2,6 +2,7 @@ using System.Security.Claims;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Infrastructure.Persistence;
+using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,13 +15,16 @@ public class ApplicationController : Controller
 {
     private readonly ApplicationService _applicationService;
     private readonly AppDbContext _dbContext;
+    private readonly IUserFacingErrorTranslator _errorTranslator;
 
     public ApplicationController(
         ApplicationService applicationService,
-        AppDbContext dbContext)
+        AppDbContext dbContext,
+        IUserFacingErrorTranslator errorTranslator)
     {
         _applicationService = applicationService;
         _dbContext = dbContext;
+        _errorTranslator = errorTranslator;
     }
 
     [HttpGet]
@@ -55,13 +59,29 @@ public class ApplicationController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateApplicationViewModel model)
     {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
         var applicantId = await GetCurrentApplicantIdAsync();
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var command = new CreateApplicationCommand(applicantId);
-        var applicationId = await _applicationService.CreateApplicationAsync(command, userId);
+        var command = new CreateApplicationCommand(applicantId, model.CompanyName);
+        var result = await _applicationService.CreateApplicationAsync(command, userId);
+
+        if (result.Error is not null)
+        {
+            // Defence-in-depth: the data-annotation Required/StringLength on the
+            // view-model has already short-circuited blank/over-length input. The
+            // entity-level fallback fires only on race conditions or programmatic
+            // bypass — surface the Spanish translation against the offending field.
+            ModelState.AddModelError(nameof(CreateApplicationViewModel.CompanyName),
+                _errorTranslator.Translate(result.Error));
+            return View(model);
+        }
 
         TempData["SuccessMessage"] = "Solicitud creada con éxito.";
-        return RedirectToAction(nameof(Details), new { id = applicationId });
+        return RedirectToAction(nameof(Details), new { id = result.ApplicationId });
     }
 
     [HttpGet]

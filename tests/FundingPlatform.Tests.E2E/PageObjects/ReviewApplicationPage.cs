@@ -43,9 +43,48 @@ public class ReviewApplicationPage : BasePage
         return ItemCard(itemId).Locator("textarea[name='Comment']");
     }
 
+    /// <summary>
+    /// Spec 018 / FR-012 — reviewer-assigned LineCode input on the per-item
+    /// decision form. The input is bound by data-testid+data-item-id; the
+    /// existing Approve/Reject form posts both the LineCode and the Decision
+    /// in a single round-trip.
+    /// </summary>
+    public ILocator ItemLineCodeInput(int itemId)
+    {
+        return Page.Locator($"[data-testid='review-item-line-code'][data-item-id='{itemId}']");
+    }
+
+    /// <summary>
+    /// Spec 018 / T043 — convenience helper for legacy review tests that don't
+    /// assert on the LineCode itself. Fills a deterministic <c>TEST-{itemId}</c>
+    /// value (intentionally distinct from the <c>T1-N</c> production codes used
+    /// in seed scenarios so debugging stays unambiguous).
+    /// </summary>
+    public async Task FillTestLineCodeAsync(int itemId)
+    {
+        var input = ItemLineCodeInput(itemId);
+        if (await input.CountAsync() > 0)
+        {
+            await input.FillAsync($"TEST-{itemId}");
+        }
+    }
+
     public ILocator ItemSubmitButton(int itemId)
     {
         return Page.Locator($"button[data-item-id='{itemId}'].submit-decision");
+    }
+
+    /// <summary>
+    /// Spec 018 / T043 — submits the per-item decision after threading a
+    /// deterministic test LineCode through the form. Use this from legacy
+    /// review-flow tests that don't otherwise assert on LineCode behaviour;
+    /// tests that do exercise LineCode validation should fill the input
+    /// directly via <see cref="ItemLineCodeInput(int)"/>.
+    /// </summary>
+    public async Task SubmitDecisionWithTestLineCodeAsync(int itemId)
+    {
+        await FillTestLineCodeAsync(itemId);
+        await ItemSubmitButton(itemId).ClickAsync();
     }
 
     public ILocator ItemReviewStatusBadge(int itemId)

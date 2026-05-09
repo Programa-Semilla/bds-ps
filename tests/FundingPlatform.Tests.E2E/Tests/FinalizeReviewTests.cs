@@ -46,7 +46,7 @@ public class FinalizeReviewTests : AuthenticatedTestBase
         var supplierDropdown = reviewPage.ItemSupplierDropdown(itemId);
         var options = await supplierDropdown.Locator("option").AllAsync();
         await supplierDropdown.SelectOptionAsync(await options[1].GetAttributeAsync("value") ?? "");
-        await reviewPage.ItemSubmitButton(itemId).ClickAsync();
+        await reviewPage.SubmitDecisionWithTestLineCodeAsync(itemId);
         await Expect(Page.Locator(".alert-success")).ToBeVisibleAsync();
 
         // Finalize the review

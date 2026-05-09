@@ -15,6 +15,9 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<AppEntity>
         builder.Property(a => a.ApplicantId).IsRequired();
         builder.HasIndex(a => a.ApplicantId).HasDatabaseName("IX_Applications_ApplicantId");
 
+        // Spec 018 / FR-015 / FR-016 — required commercial entity name, ≤200 chars.
+        builder.Property(a => a.CompanyName).IsRequired().HasMaxLength(200);
+
         builder.Property(a => a.State).IsRequired();
         builder.HasIndex(a => a.State).HasDatabaseName("IX_Applications_State");
 

@@ -8,6 +8,14 @@ public class Item
 
     public int Id { get; private set; }
     public int ApplicationId { get; private set; }
+    /// <summary>
+    /// Spec 018 / FR-012 / FR-013 / FR-014 — reviewer-assigned line code (e.g. "T1-1").
+    /// Nullable until a reviewer assigns it; ≤16 chars after trim; per-Application
+    /// uniqueness enforced at the aggregate root via <see cref="Application.AssignLineCodeToItem"/>.
+    /// Mutated only via <see cref="AssignLineCode"/>, which is internal so the
+    /// aggregate root is the single entry point.
+    /// </summary>
+    public string? LineCode { get; private set; }
     public string ProductName { get; private set; } = string.Empty;
     public int CategoryId { get; private set; }
     public string TechnicalSpecifications { get; private set; } = string.Empty;
@@ -236,6 +244,30 @@ public class Item
         ReviewStatus = ItemReviewStatus.Pending;
         SelectedSupplierId = null;
         IsNotTechnicallyEquivalent = false;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 018 / FR-012 / FR-013 / FR-014 — writes the reviewer-supplied line code
+    /// to this item. Trims whitespace, rejects null/empty/whitespace-only input, and
+    /// enforces a 16-character maximum after trim. Marked <c>internal</c> so only the
+    /// aggregate root (<see cref="Application.AssignLineCodeToItem"/>) can call it,
+    /// which lets the aggregate enforce per-Application uniqueness in the same call.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="lineCode"/> is null/whitespace or exceeds 16 chars after trim.
+    /// </exception>
+    internal void AssignLineCode(string lineCode)
+    {
+        if (lineCode is null)
+            throw new ArgumentException("Line code is required.", nameof(lineCode));
+        var trimmed = lineCode.Trim();
+        if (trimmed.Length == 0)
+            throw new ArgumentException("Line code is required.", nameof(lineCode));
+        if (trimmed.Length > 16)
+            throw new ArgumentException("Line code must be 16 characters or fewer.", nameof(lineCode));
+
+        LineCode = trimmed;
         UpdatedAt = DateTime.UtcNow;
     }
 }

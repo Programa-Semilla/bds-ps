@@ -65,7 +65,7 @@ public class RequestTotalRollupTests
             ctx.ExchangeRates.Add(rate);
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id);
+            var application = new AppEntity(applicant.Id, "Test Company");
             application.AddItem(new Item("ItemCrc", category.Id, "specs1"));
             application.AddItem(new Item("ItemUsd", category.Id, "specs2"));
             application.AddItem(new Item("ItemLegacy", category.Id, "specs3"));
@@ -187,7 +187,7 @@ public class RequestTotalRollupTests
             ctx.Categories.Add(category);
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id);
+            var application = new AppEntity(applicant.Id, "Test Company");
             application.AddItem(new Item("ItemA", category.Id, "specsA"));
             ctx.Applications.Add(application);
             await ctx.SaveChangesAsync();

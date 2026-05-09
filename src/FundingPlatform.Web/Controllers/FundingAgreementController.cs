@@ -6,11 +6,11 @@ using FundingPlatform.Application.Errors;
 using FundingPlatform.Application.FundingAgreements.Commands;
 using FundingPlatform.Application.FundingAgreements.Queries;
 using FundingPlatform.Application.Interfaces;
-using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Application.SignedUploads.Commands;
 using FundingPlatform.Application.SignedUploads.Queries;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Exceptions;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Web.Filters;
@@ -19,7 +19,6 @@ using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
 namespace FundingPlatform.Web.Controllers;
@@ -41,9 +40,8 @@ public class FundingAgreementController : Controller
     // the funding-agreement document is privileged.
     private readonly IObjectStorage _objectStorage;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IOptions<FunderOptions> _funderOptions;
-    private readonly IOptions<FundingAgreementOptions> _agreementOptions;
     private readonly IUserFacingErrorTranslator _errorTranslator;
+    private readonly Application.Services.IUserStoreReader _userStoreReader;
     private readonly ILogger<FundingAgreementController> _logger;
 
     private const string SignedPdfRequiredMessage = "Se requiere un archivo PDF firmado.";
@@ -57,9 +55,8 @@ public class FundingAgreementController : Controller
         IFundingAgreementPdfRenderer pdfRenderer,
         IObjectStorage objectStorage,
         UserManager<ApplicationUser> userManager,
-        IOptions<FunderOptions> funderOptions,
-        IOptions<FundingAgreementOptions> agreementOptions,
         IUserFacingErrorTranslator errorTranslator,
+        Application.Services.IUserStoreReader userStoreReader,
         ILogger<FundingAgreementController> logger)
     {
         _service = service;
@@ -69,9 +66,8 @@ public class FundingAgreementController : Controller
         _pdfRenderer = pdfRenderer;
         _objectStorage = objectStorage;
         _userManager = userManager;
-        _funderOptions = funderOptions;
-        _agreementOptions = agreementOptions;
         _errorTranslator = errorTranslator;
+        _userStoreReader = userStoreReader;
         _logger = logger;
     }
 
@@ -160,6 +156,18 @@ public class FundingAgreementController : Controller
         }
 
         var documentModel = await BuildDocumentViewModelAsync(application);
+
+        // Spec 018 / T024 — defence-in-depth: every approved item must have a non-blank
+        // LineCode before we render. The reviewer flow already enforces this at write
+        // time via Application.AssignLineCodeToItem (FR-012); this guards against
+        // fixtures or admin-edited rows that bypassed that path.
+        if (application.Items.Any(i => i.ReviewStatus == Domain.Enums.ItemReviewStatus.Approved
+                                       && string.IsNullOrWhiteSpace(i.LineCode)))
+        {
+            TempData["FundingAgreementError"] = _errorTranslator.Translate(
+                UserFacingErrorCode.LineCodeMissingOnApprovedItems);
+            return RedirectToRoute(new { controller = "FundingAgreement", action = "Details", applicationId });
+        }
 
         byte[] pdfBytes;
         try
@@ -680,82 +688,176 @@ public class FundingAgreementController : Controller
 
     private async Task<FundingAgreementDocumentViewModel> BuildDocumentViewModelAsync(AppEntity application)
     {
-        var options = _agreementOptions.Value;
-        var funder = _funderOptions.Value;
-
+        // Spec 018 — branded PDF projection (Contract 4 in contracts/README.md).
+        // Funder identity is hardcoded inside the sworn declaration partial; we no
+        // longer read the deleted FunderOptions here.
+        var culture = EsCrCultureFactory.Build();
         var applicant = application.Applicant;
-        var items = application.Items
-            .Where(i => i.ReviewStatus == Domain.Enums.ItemReviewStatus.Approved
-                && i.SelectedSupplierId is not null)
-            .ToList();
-
-        var latestResponse = application.ApplicantResponses
-            .OrderByDescending(r => r.CycleNumber)
-            .FirstOrDefault();
-
-        var acceptedItemIds = latestResponse?.ItemResponses
-            .Where(ir => ir.Decision == Domain.Enums.ItemResponseDecision.Accept)
-            .Select(ir => ir.ItemId)
-            .ToHashSet() ?? new HashSet<int>();
-
-        var rows = new List<FundingAgreementItemRowDto>();
-        decimal total = 0m;
-
-        foreach (var item in items.Where(i => acceptedItemIds.Contains(i.Id)))
-        {
-            var quotation = item.Quotations
-                .FirstOrDefault(q => q.SupplierId == item.SelectedSupplierId);
-            if (quotation is null) continue;
-
-            var supplierName = quotation.Supplier?.Name ?? "(Supplier)";
-            var price = quotation.Price;
-
-            // Spec 015 / US5 / T511 — propagate the converted CRC amount and the
-            // embedded rate snapshot so the PDF renderer can emit the per-line
-            // conversion note. CRC lines leave the snapshot fields null and the
-            // renderer skips the note.
-            rows.Add(new FundingAgreementItemRowDto(
-                ItemId: item.Id,
-                ProductName: item.ProductName,
-                CategoryName: item.Category?.Name ?? string.Empty,
-                SupplierName: supplierName,
-                UnitPrice: price,
-                LineTotal: price,
-                Currency: quotation.Currency,
-                QuotationId: quotation.Id,
-                ConvertedCrcAmount: quotation.ConvertedCrcAmount,
-                SnapshotRateValue: quotation.Snapshot?.RateValue,
-                SnapshotRateType: quotation.Snapshot?.RateType.ToString(),
-                SnapshotEffectiveAtUtc: quotation.Snapshot?.EffectiveAtUtc));
-
-            total += price;
-        }
-
-        var totalsByCurrency = rows
-            .GroupBy(r => r.Currency)
-            .Select(g => new CurrencyTotal(g.Key, g.Sum(r => r.LineTotal)))
-            .OrderBy(t => t.Currency)
-            .ToList();
-
-        var applicantFullName = applicant is null
+        var representativeName = applicant is null
             ? string.Empty
             : $"{applicant.FirstName} {applicant.LastName}".Trim();
+        var generatedAt = DateTime.UtcNow;
+
+        // FR-006 / SC-004 — distinct review-action takers, hydrated to display names.
+        var commissionUserIds = application.VersionHistory
+            .Where(vh => vh.Action == "ReviewItem")
+            .Select(vh => vh.UserId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        var commissionMembers = new List<string>(commissionUserIds.Count);
+        foreach (var userId in commissionUserIds)
+        {
+            var displayName = await _userStoreReader.GetDisplayNameAsync(userId, HttpContext.RequestAborted);
+            commissionMembers.Add(displayName);
+        }
+        commissionMembers.Sort(StringComparer.CurrentCulture);
+
+        // FR-008 — every item (approved + rejected) feeds Recursos solicitados;
+        // approved-only items feed Resultados comisión and the supplier table.
+        var requestedResources = new List<RequestedResourceRow>();
+        var approvedLines = new List<ApprovedLineRow>();
+        var rejectedLines = new List<RejectedLineRow>();
+        var supplierByDate = new Dictionary<int, (DateTime ReviewedAt, string Name, string Hac, string Ccss, string Sicop)>();
+        var preFlightItems = new List<FundingAgreementItemRowDto>();
+        decimal approvedDisbursementTotal = 0m;
+        var acuerdoLabel = $"FA-{application.Id}";
+
+        var sortedItems = application.Items
+            .OrderBy(i => i.LineCode ?? "￿", StringComparer.Ordinal)
+            .ThenBy(i => i.Id)
+            .ToList();
+
+        foreach (var item in sortedItems)
+        {
+            var lineCodeDisplay = item.LineCode ?? string.Empty;
+            var supplierQuotation = item.SelectedSupplierId is int supplierId
+                ? item.Quotations.FirstOrDefault(q => q.SupplierId == supplierId)
+                : item.Quotations.OrderBy(q => q.Price).FirstOrDefault();
+
+            var supplierName = supplierQuotation?.Supplier?.Name ?? string.Empty;
+            var crcAmount = supplierQuotation?.ConvertedCrcAmount ?? supplierQuotation?.Price ?? 0m;
+            var origCurrency = supplierQuotation?.Currency ?? "CRC";
+            var conversionNote = BuildConversionNote(supplierQuotation, culture);
+
+            requestedResources.Add(new RequestedResourceRow(
+                LineCode: lineCodeDisplay,
+                ProductName: item.ProductName,
+                CategoryName: item.Category?.Name ?? string.Empty,
+                Amount: crcAmount,
+                Currency: origCurrency,
+                SelectedSupplierName: supplierName,
+                CurrencyConversionNote: conversionNote));
+
+            if (supplierQuotation is not null)
+            {
+                preFlightItems.Add(new FundingAgreementItemRowDto(
+                    ItemId: item.Id,
+                    ProductName: item.ProductName,
+                    CategoryName: item.Category?.Name ?? string.Empty,
+                    SupplierName: supplierName,
+                    UnitPrice: supplierQuotation.Price,
+                    LineTotal: supplierQuotation.Price,
+                    Currency: supplierQuotation.Currency,
+                    QuotationId: supplierQuotation.Id,
+                    ConvertedCrcAmount: supplierQuotation.ConvertedCrcAmount,
+                    SnapshotRateValue: supplierQuotation.Snapshot?.RateValue,
+                    SnapshotRateType: supplierQuotation.Snapshot?.RateType.ToString(),
+                    SnapshotEffectiveAtUtc: supplierQuotation.Snapshot?.EffectiveAtUtc,
+                    LineCode: item.LineCode));
+            }
+
+            if (item.ReviewStatus == ItemReviewStatus.Approved && supplierQuotation is not null)
+            {
+                approvedLines.Add(new ApprovedLineRow(
+                    AcuerdoLabel: acuerdoLabel,
+                    LineCode: lineCodeDisplay,
+                    ProductName: item.ProductName,
+                    SelectedSupplierName: supplierName,
+                    Disbursement: crcAmount,
+                    CurrencyConversionNote: conversionNote));
+                approvedDisbursementTotal += crcAmount;
+
+                if (supplierQuotation.Supplier is { } supplier
+                    && !supplierByDate.ContainsKey(supplier.Id))
+                {
+                    supplierByDate[supplier.Id] = (
+                        supplier.UpdatedAt,
+                        supplier.Name,
+                        FormatCompliance(supplier.IsCompliantHacienda),
+                        FormatCompliance(supplier.IsCompliantCCSS),
+                        FormatCompliance(supplier.IsCompliantSICOP));
+                }
+            }
+            else if (item.ReviewStatus == ItemReviewStatus.Rejected)
+            {
+                rejectedLines.Add(new RejectedLineRow(
+                    AcuerdoLabel: acuerdoLabel,
+                    LineCode: lineCodeDisplay,
+                    ProductName: item.ProductName,
+                    Motivo: item.ReviewComment ?? string.Empty));
+            }
+        }
+
+        var supplierCompliance = supplierByDate
+            .Values
+            .OrderBy(s => s.Name, StringComparer.CurrentCulture)
+            .Select(s => new SupplierComplianceRow(s.ReviewedAt, s.Name, s.Hac, s.Ccss, s.Sicop))
+            .ToList();
+
+        var summaryParagraph = ComposeApprovedSummaryParagraph(approvedLines, approvedDisbursementTotal, culture);
+
+        var generationDateLong = generatedAt.ToString("d 'de' MMMM 'de' yyyy", culture);
 
         return new FundingAgreementDocumentViewModel
         {
-            AgreementReference = application.Id.ToString(),
-            GeneratedAtUtc = DateTime.UtcNow,
-            Funder = funder,
-            ApplicantLegalName = applicantFullName,
-            ApplicantLegalId = applicant?.LegalId ?? string.Empty,
-            ApplicantEmail = applicant?.Email ?? string.Empty,
-            ApplicantPhone = applicant?.Phone,
-            LocaleCode = string.IsNullOrWhiteSpace(options.LocaleCode) ? "es-CR" : options.LocaleCode,
-            CurrencyIsoCode = string.IsNullOrWhiteSpace(options.CurrencyIsoCode) ? "CRC" : options.CurrencyIsoCode,
-            Items = rows,
-            TotalAmount = total,
-            TotalsByCurrency = totalsByCurrency
+            CompanyName = application.CompanyName,
+            ApplicantRepresentativeName = representativeName,
+            GeneratedAtUtc = generatedAt,
+            GenerationDateLong = generationDateLong,
+            CommissionMembers = commissionMembers,
+            LocaleCode = culture.Name,
+            CurrencyIsoCode = "CRC",
+            RequestedResources = requestedResources,
+            ApprovedLines = approvedLines,
+            RejectedLines = rejectedLines,
+            ApprovedSummaryParagraph = summaryParagraph,
+            ApprovedDisbursementTotal = approvedDisbursementTotal,
+            SupplierCompliance = supplierCompliance,
+            Items = preFlightItems,
         };
+    }
+
+    private static string FormatCompliance(bool ok) => ok ? "Al día" : "Pendiente";
+
+    private static string? BuildConversionNote(Domain.Entities.Quotation? q, System.Globalization.CultureInfo culture)
+    {
+        if (q is null || q.Currency == "CRC" || q.Snapshot is null) return null;
+        var rate = q.Snapshot.RateValue.ToString("N6", culture);
+        var rateType = q.Snapshot.RateType.ToString() switch
+        {
+            "Buy" => "Compra",
+            "Sell" => "Venta",
+            var s => s ?? string.Empty,
+        };
+        var effective = q.Snapshot.EffectiveAtUtc.ToString("yyyy-MM-dd", culture);
+        return $"Conversión: 1 {q.Currency} = ₡{rate} (Tipo {rateType}, vigente desde {effective})";
+    }
+
+    private static string ComposeApprovedSummaryParagraph(
+        IReadOnlyList<ApprovedLineRow> approved,
+        decimal total,
+        System.Globalization.CultureInfo culture)
+    {
+        if (approved.Count == 0)
+        {
+            return "No se aprueban líneas en este tracto.";
+        }
+
+        var codes = string.Join(", ", approved.Select(a => a.LineCode));
+        var totalText = total.ToString("N2", culture);
+        return $"Se aprueban las líneas {codes} por un monto total de ₡{totalText}, " +
+               "que serán reembolsadas mediante depósito a la cuenta indicada por el solicitante.";
     }
 
     /// <summary>

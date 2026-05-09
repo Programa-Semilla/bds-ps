@@ -41,7 +41,6 @@ brainstorm/                        Working scratchpad for in-flight design explo
 | `Syncfusion:LicenseKey` | dev fallback embedded | Override in real envs. |
 | `FundingAgreement:LocaleCode` | `es-CR` | Default culture. |
 | `FundingAgreement:CurrencyIsoCode` | `CRC` | Funding-agreement currency (spec 015 — was `COP` before multi-currency). |
-| `FundingAgreement:Funder:*` | empty | Legal name, tax id, address, contact email/phone. |
 | `SignedUpload:MaxSizeBytes` | `20971520` (20 MiB) | Signed-PDF upload cap. |
 | `AdminReports:DefaultCurrency` | `CRC` | Reports currency code; also pre-fills the supplier quotation Currency input. Spec 015: must match a code in the seeded `dbo.Currencies` catalog so the conversion path can resolve a rate. |
 | `AdminReports:CsvRowLimit` | `50000` | Streaming CSV row cap. |
@@ -96,5 +95,5 @@ brainstorm/                        Working scratchpad for in-flight design explo
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/017-admin-ux-facelift/plan.md`
+`specs/018-pdf-template-lift/plan.md`
 <!-- SPECKIT END -->

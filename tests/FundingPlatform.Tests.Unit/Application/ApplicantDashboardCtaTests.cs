@@ -93,7 +93,7 @@ public class ApplicantDashboardCtaTests
 
     private static AppEntity BuildApplicationAwaitingSignature()
     {
-        var application = new AppEntity(applicantId: 42);
+        var application = new AppEntity(applicantId: 42, companyName: "Test Company");
         application.AddItem(new Item("Widget", categoryId: 1, technicalSpecifications: "specs"));
         SetState(application, ApplicationState.ResponseFinalized);
         SetId(application, 7);
@@ -110,7 +110,7 @@ public class ApplicantDashboardCtaTests
 
     private static AppEntity BuildDraftApplication()
     {
-        var application = new AppEntity(applicantId: 42);
+        var application = new AppEntity(applicantId: 42, companyName: "Test Company");
         application.AddItem(new Item("Widget", categoryId: 1, technicalSpecifications: "specs"));
         SetState(application, ApplicationState.Draft);
         SetId(application, 9);

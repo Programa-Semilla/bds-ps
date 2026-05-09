@@ -175,7 +175,7 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
         var options = await supplierDropdown.Locator("option").AllAsync();
         var lastOptionValue = await options[^1].GetAttributeAsync("value");
         await supplierDropdown.SelectOptionAsync(lastOptionValue!);
-        await reviewPage.ItemSubmitButton(itemId).ClickAsync();
+        await reviewPage.SubmitDecisionWithTestLineCodeAsync(itemId);
 
         await Expect(Page.Locator(".alert-success")).ToBeVisibleAsync();
         await Expect(reviewPage.ItemReviewStatusBadge(itemId)).ToContainTextAsync("Aprobado");
@@ -203,7 +203,7 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
         var options = await supplierDropdown.Locator("option").AllAsync();
         var lastOptionValue = await options[^1].GetAttributeAsync("value");
         await supplierDropdown.SelectOptionAsync(lastOptionValue!);
-        await reviewPage.ItemSubmitButton(itemId).ClickAsync();
+        await reviewPage.SubmitDecisionWithTestLineCodeAsync(itemId);
 
         await Expect(Page.Locator(".alert-success")).ToBeVisibleAsync();
 

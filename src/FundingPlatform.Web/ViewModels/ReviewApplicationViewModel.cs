@@ -24,6 +24,10 @@ public class ReviewItemViewModel
     public string? ReviewComment { get; set; }
     public int? SelectedSupplierId { get; set; }
     public bool IsNotTechnicallyEquivalent { get; set; }
+    /// <summary>Spec 018 / FR-012 — the existing LineCode value (null until the
+    /// reviewer assigns one) so re-renders after a validation error preserve the
+    /// reviewer's input alongside the new decision controls.</summary>
+    public string? LineCode { get; set; }
     public List<ReviewQuotationViewModel> Quotations { get; set; } = [];
     public string? ImpactTemplateName { get; set; }
     public List<ImpactParameterDisplayViewModel> ImpactParameters { get; set; } = [];

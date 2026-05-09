@@ -3,7 +3,21 @@
     Layout = "_FundingAgreementLayout";
 }
 
-@await Html.PartialAsync("Partials/_FundingAgreementHeader", Model)
-@await Html.PartialAsync("Partials/_FundingAgreementItemsTable", Model)
-@await Html.PartialAsync("Partials/_FundingAgreementTermsAndConditions", Model)
-@await Html.PartialAsync("Partials/_FundingAgreementSignatureBlocks", Model)
+@*
+    Spec 018 — branded "Informe de evaluación de solicitudes de desembolso" PDF.
+    Header + footer ride on `position: fixed` from the layout so they repeat on
+    every page (R-001). Section partials are composed in narrative order:
+    cover → intro → recursos → resultados → proveedores → declaración jurada.
+    Each section partial owns its own page-break-before to keep the structure
+    flat.
+*@
+
+@await Html.PartialAsync("Partials/_BrandHeader", Model)
+@await Html.PartialAsync("Partials/_BrandFooter", Model)
+
+@await Html.PartialAsync("Partials/_CoverPage", Model)
+@await Html.PartialAsync("Partials/_IntroPage", Model)
+@await Html.PartialAsync("Partials/_RequestedResourcesPage", Model)
+@await Html.PartialAsync("Partials/_CommitteeResultsPage", Model)
+@await Html.PartialAsync("Partials/_SupplierVerificationPage", Model)
+@await Html.PartialAsync("Partials/_SwornDeclarationPage", Model)

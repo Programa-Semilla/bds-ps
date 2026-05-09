@@ -128,6 +128,22 @@ public sealed class UserFacingErrorTranslator : IUserFacingErrorTranslator
         UserFacingErrorCode.FutureDatedRateRejected =>
             "El tipo de cambio no puede tener una fecha de vigencia en el futuro.",
 
+        // Spec 018 — applicant CompanyName invariants (FR-015 / FR-016)
+        UserFacingErrorCode.CompanyNameRequired =>
+            "Debe ingresar el nombre de la empresa.",
+        UserFacingErrorCode.CompanyNameTooLong =>
+            "El nombre de la empresa no puede exceder 200 caracteres.",
+
+        // Spec 018 — reviewer LineCode invariants (FR-012 / FR-013 / FR-014)
+        UserFacingErrorCode.LineCodeRequired =>
+            "Debe ingresar un código de línea.",
+        UserFacingErrorCode.LineCodeTooLong =>
+            "El código de línea no puede exceder 16 caracteres.",
+        UserFacingErrorCode.LineCodeDuplicate =>
+            "Ya existe otro ítem con el mismo código de línea en esta solicitud.",
+        UserFacingErrorCode.LineCodeMissingOnApprovedItems =>
+            "Falta el código de línea en uno o más ítems aprobados.",
+
         _ => "La operación no se pudo completar. Inténtelo nuevamente o contacte al soporte.",
     };
 }
