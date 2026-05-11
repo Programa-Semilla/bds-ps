@@ -62,6 +62,6 @@ public class LastAdminGuardTests : AuthenticatedTestBase
         var editPage = new AdminUserEditPage(Page);
         await editPage.SetRoleAsync("Reviewer");
         await editPage.SubmitAsync();
-        await Expect(Page.Locator(".text-danger, .validation-summary-errors").First).ToBeVisibleAsync();
+        await Expect(Page.Locator(".validation-summary-errors, .field-validation-error").First).ToBeVisibleAsync();
     }
 }

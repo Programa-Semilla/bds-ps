@@ -116,7 +116,14 @@ public class AdminExchangeRatesController : Controller
         }
         catch (UserFacingException ex)
         {
-            var key = ex.FieldKey ?? string.Empty;
+            // Map domain field keys to ViewModel property names so the inline
+            // <span asp-validation-for="..."> binds the error to the correct input.
+            var key = ex.FieldKey switch
+            {
+                nameof(ExchangeRate.EffectiveAtUtc) => nameof(vm.EffectiveAtLocal),
+                nameof(ExchangeRate.TargetCurrency) => nameof(vm.TargetCurrencyCode),
+                _ => ex.FieldKey ?? string.Empty,
+            };
             ModelState.AddModelError(key, _errorTranslator.Translate(ex.Code));
             await PopulateAvailableCurrencies(vm, ct);
             return View(vm);

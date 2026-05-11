@@ -111,7 +111,7 @@ public class CurrencyRolloutTests : AuthenticatedTestBase
 
         // Server-side rejection: form re-renders with a validation error.
         await Expect(Page).ToHaveURLAsync(new Regex("/Supplier/Add"));
-        var validationVisible = await Page.Locator(".text-danger").First.IsVisibleAsync();
+        var validationVisible = await Page.Locator(".validation-summary-errors, .field-validation-error").First.IsVisibleAsync();
         Assert.That(validationVisible, Is.True,
             "Form must surface a validation error for a tampered Currency value.");
     }

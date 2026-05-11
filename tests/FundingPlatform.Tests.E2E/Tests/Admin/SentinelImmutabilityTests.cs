@@ -105,7 +105,7 @@ public class SentinelImmutabilityTests : AuthenticatedTestBase
         await Page.Locator("[data-testid=admin-user-create-submit]").ClickAsync();
 
         // Form re-renders with an error (still on /Admin/Users/Create or with validation summary).
-        await Expect(Page.Locator(".text-danger, .validation-summary-errors").First).ToBeVisibleAsync();
+        await Expect(Page.Locator(".validation-summary-errors, .field-validation-error").First).ToBeVisibleAsync();
 
         // Confirm the sentinel hasn't been clobbered.
         using var conn = new SqlConnection(ConnectionString);

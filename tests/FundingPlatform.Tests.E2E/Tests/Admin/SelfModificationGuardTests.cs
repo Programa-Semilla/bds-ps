@@ -44,7 +44,7 @@ public class SelfModificationGuardTests : AuthenticatedTestBase
         await editPage.SetRoleAsync("Reviewer");
         await editPage.SubmitAsync();
 
-        await Expect(Page.Locator(".text-danger, .validation-summary-errors").First).ToBeVisibleAsync();
+        await Expect(Page.Locator(".validation-summary-errors, .field-validation-error").First).ToBeVisibleAsync();
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/Admin/Users/[^/]+/Edit"));
     }
 
@@ -61,7 +61,7 @@ public class SelfModificationGuardTests : AuthenticatedTestBase
         await editPage.SetEmailAsync($"new_{adminEmail}");
         await editPage.SubmitAsync();
 
-        await Expect(Page.Locator(".text-danger, .validation-summary-errors").First).ToBeVisibleAsync();
+        await Expect(Page.Locator(".validation-summary-errors, .field-validation-error").First).ToBeVisibleAsync();
     }
 
     [Test]

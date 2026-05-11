@@ -17,7 +17,7 @@ public class AdminUserEditPage : AdminBasePage
     public ILocator LegalIdField => Page.Locator("[data-testid=\"legalid-field\"]");
     public ILocator SubmitButton => Page.Locator("[data-testid=\"admin-user-edit-submit\"]");
     public ILocator ResetPasswordLink => Page.Locator("[data-testid=\"admin-user-edit-reset-password-link\"]");
-    public ILocator ValidationSummary => Page.Locator(".validation-summary-errors, .text-danger");
+    public ILocator ValidationSummary => Page.Locator(".validation-summary-errors, .field-validation-error");
 
     public Task GoToAsync(string baseUrl, string userId) =>
         Page.GotoAsync($"{baseUrl}/Admin/Users/{userId}/Edit");

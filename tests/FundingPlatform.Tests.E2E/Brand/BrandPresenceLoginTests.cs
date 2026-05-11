@@ -15,10 +15,12 @@ public class BrandPresenceLoginTests : AuthenticatedTestBase
     {
         await Page.GotoAsync($"{BaseUrl}/Account/Login");
 
-        // Hero elements (FR-004): the seedling mark + "Programa Semilla" wordmark
-        // text + a tagline. Brand wordmark text is the FR-033 brand-presence target.
-        var wordmarkInPage = Page.GetByText("Programa Semilla", new() { Exact = false }).First;
-        await Expect(wordmarkInPage).ToBeVisibleAsync();
+        // Hero elements (FR-004): seedling mark + "Programa Semilla" wordmark
+        // image + a tagline. The wordmark is rendered as <img alt="Programa Semilla">
+        // so it is reachable via accessibility name (alt text), not page text.
+        // Brand wordmark is the FR-033 brand-presence assertion target.
+        var wordmark = Page.GetByAltText("Programa Semilla").First;
+        await Expect(wordmark).ToBeVisibleAsync();
 
         // Sponsor strip rendered in the footer (FR-003 / FR-033).
         var sponsorStrip = Page.Locator("[data-testid=\"sponsor-strip\"]");
