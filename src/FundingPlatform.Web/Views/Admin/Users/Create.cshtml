@@ -26,7 +26,7 @@
 
     <form method="post" asp-action="Create" class="row" data-testid="admin-user-create-form">
         @Html.AntiForgeryToken()
-        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
         <div class="col-md-6 mb-3">
             <label class="form-label" asp-for="FirstName">Nombre</label>

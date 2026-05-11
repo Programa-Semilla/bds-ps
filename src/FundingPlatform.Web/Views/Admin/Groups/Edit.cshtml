@@ -21,7 +21,7 @@
         @Html.AntiForgeryToken()
         <input asp-for="Id" type="hidden" />
         <input asp-for="MemberCount" type="hidden" />
-        <div asp-validation-summary="All" class="text-danger mb-3" data-testid="admin-group-validation-summary"></div>
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3" data-testid="admin-group-validation-summary"></div>
 
         <div class="col-md-6 mb-3">
             <label class="form-label" asp-for="Name">@AdminGroupsResources.Label_Name</label>
