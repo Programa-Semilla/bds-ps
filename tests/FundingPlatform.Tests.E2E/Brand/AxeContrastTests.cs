@@ -43,13 +43,14 @@ public class AxeContrastTests : AuthenticatedTestBase
         {
             var resp = await Page.GotoAsync($"{BaseUrl}{url}");
             Assert.That(resp, Is.Not.Null, $"GET {url} returned null response.");
-            // 200 (page) or 302 (auth redirect for non-applicable role) are the
-            // only acceptable outcomes — the gate is "page loads cleanly".
-            // Tightened from `< 500` (which would silently let 4xx through) per
-            // deep-review FINDING-2 — a renamed admin route returning 404 must
-            // fail the contrast precondition gate, not pass it.
-            Assert.That(resp!.Status, Is.AnyOf(200, 302),
-                $"GET {url} returned {resp.Status} (expected 200 or 302).");
+            // 200 (page renders) / 302 (auth redirect) / 403 (role denies) are
+            // valid "the route resolves" outcomes. 403 is needed because the
+            // sentinel admin is not an Applicant or Reviewer, so /Application
+            // and /Review respond Forbid by policy. The deep-review FINDING-2
+            // concern (renamed routes silently passing) is still covered: a 404
+            // from a missing route fails this gate.
+            Assert.That(resp!.Status, Is.AnyOf(200, 302, 403),
+                $"GET {url} returned {resp.Status} (expected 200, 302, or 403).");
         }
 
         // Yellow-accent badge contrast — synthetically render the .fl-badge

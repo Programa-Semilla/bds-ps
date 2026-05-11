@@ -100,7 +100,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
 
         // We must remain on the Create page rendering the inline error.
         await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ExchangeRates"));
-        var summary = Page.Locator(".text-danger");
+        var summary = Page.Locator(".validation-summary-errors, .field-validation-error");
         await Expect(summary.First).ToBeVisibleAsync();
     }
 
@@ -121,7 +121,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
         await createPage.SubmitAsync();
 
         await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ExchangeRates"));
-        var summary = Page.Locator(".text-danger");
+        var summary = Page.Locator(".validation-summary-errors, .field-validation-error");
         await Expect(summary.First).ToContainTextAsync(
             new Regex("no puede tener una fecha de vigencia en el futuro", RegexOptions.IgnoreCase));
     }
@@ -167,7 +167,7 @@ public class AdminExchangeRateE2E : AuthenticatedTestBase
         await createPage.SubmitAsync();
 
         await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ExchangeRates"));
-        var summary = Page.Locator(".text-danger");
+        var summary = Page.Locator(".validation-summary-errors, .field-validation-error");
         await Expect(summary.First).ToContainTextAsync(
             new Regex("Ya existe un tipo de cambio publicado", RegexOptions.IgnoreCase));
     }

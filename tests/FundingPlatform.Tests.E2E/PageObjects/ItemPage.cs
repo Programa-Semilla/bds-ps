@@ -12,7 +12,7 @@ public class ItemPage : BasePage
     public ILocator CategorySelect => Page.Locator("[name=CategoryId]");
     public ILocator TechnicalSpecificationsInput => Page.Locator("[name=TechnicalSpecifications]");
     public ILocator SubmitButton => Page.Locator("main button[type=submit]");
-    public ILocator ValidationSummary => Page.Locator(".text-danger");
+    public ILocator ValidationSummary => Page.Locator(".validation-summary-errors, .field-validation-error");
 
     public async Task AddItemAsync(int appId, string productName, int categoryIndex, string techSpecs, string baseUrl)
     {

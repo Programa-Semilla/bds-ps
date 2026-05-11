@@ -18,7 +18,7 @@ public class AdminUserCreatePage : AdminBasePage
     public ILocator LegalId => Page.Locator("input[name=\"LegalId\"]");
     public ILocator LegalIdField => Page.Locator("[data-testid=\"legalid-field\"]");
     public ILocator SubmitButton => Page.Locator("[data-testid=\"admin-user-create-submit\"]");
-    public ILocator ValidationSummary => Page.Locator(".validation-summary-errors, .text-danger");
+    public ILocator ValidationSummary => Page.Locator(".validation-summary-errors, .field-validation-error");
 
     public Task GoToAsync(string baseUrl) =>
         Page.GotoAsync($"{baseUrl}/Admin/Users/Create");
@@ -69,5 +69,13 @@ public class AdminUserCreatePage : AdminBasePage
         }
     }
 
-    public Task SubmitAsync() => SubmitButton.ClickAsync();
+    public async Task SubmitAsync()
+    {
+        // Scroll the button into view before clicking. Under tall forms + the
+        // brand sponsor-strip footer the submit can land below the viewport,
+        // and Playwright's auto-scroll heuristic occasionally reports the
+        // element as still off-screen — observed flake in CI runs.
+        await SubmitButton.ScrollIntoViewIfNeededAsync();
+        await SubmitButton.ClickAsync();
+    }
 }

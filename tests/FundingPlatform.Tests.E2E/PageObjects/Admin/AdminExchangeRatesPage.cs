@@ -40,7 +40,7 @@ public class AdminExchangeRateCreatePage : AdminBasePage
     public ILocator EffectiveAtInput => Page.Locator("[data-testid=\"effective-at-input\"]");
     public ILocator SubmitButton => Page.Locator("[data-testid=\"admin-exchange-rate-submit\"]");
     public ILocator ValidationSummary =>
-        Page.Locator("[data-testid=\"validation-summary\"], .text-danger");
+        Page.Locator("[data-testid=\"validation-summary\"].validation-summary-errors, .field-validation-error");
 
     public async Task FillAsync(
         string source, string target, string buy, string sell, string effectiveLocal)

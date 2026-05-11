@@ -12,7 +12,7 @@ public class ChangePasswordPage : BasePage
     public ILocator NewPassword => Page.Locator("input[name=\"NewPassword\"]");
     public ILocator ConfirmPassword => Page.Locator("input[name=\"ConfirmPassword\"]");
     public ILocator SubmitButton => Page.Locator("[data-testid=\"change-password-submit\"]");
-    public ILocator ValidationSummary => Page.Locator(".validation-summary-errors, .text-danger");
+    public ILocator ValidationSummary => Page.Locator(".validation-summary-errors, .field-validation-error");
 
     public Task GoToAsync(string baseUrl) =>
         Page.GotoAsync($"{baseUrl}/Account/ChangePassword");
