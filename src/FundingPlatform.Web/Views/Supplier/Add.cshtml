@@ -25,7 +25,7 @@
               data-quote-form
               data-convert-url="@convertUrl">
             @Html.AntiForgeryToken()
-            <div asp-validation-summary="All" class="text-danger" data-testid="supplier-validation-summary"></div>
+            <div asp-validation-summary="ModelOnly" class="text-danger" data-testid="supplier-validation-summary"></div>
 
             <input type="hidden" asp-for="ApplicationId" />
             <input type="hidden" asp-for="ItemId" />

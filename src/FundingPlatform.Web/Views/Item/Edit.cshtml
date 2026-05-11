@@ -18,7 +18,7 @@
     <div class="card-body">
         <form asp-controller="Item" asp-action="Edit" asp-route-appId="@Model.ApplicationId" asp-route-itemId="@Model.Id" method="post">
             @Html.AntiForgeryToken()
-            <div asp-validation-summary="All" class="text-danger"></div>
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="ApplicationId" />
