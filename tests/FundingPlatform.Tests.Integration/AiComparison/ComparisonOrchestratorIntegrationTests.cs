@@ -1,4 +1,5 @@
 using FundingPlatform.Application.Abstractions.AiComparison;
+using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.AiComparison;
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Domain.Entities;
@@ -68,7 +69,9 @@ public class ComparisonOrchestratorIntegrationTests
         _orchestrator = new ComparisonOrchestrator(
             assembler, redactor, _stub, catalog, validator,
             artifactRepo, jobRepo, rateLimitGuard, tokenCapGuard,
-            auditFactory, auditWriter, _config, NullLogger<ComparisonOrchestrator>.Instance);
+            auditFactory, auditWriter,
+            new InMemoryObjectStorage(),
+            _config, NullLogger<ComparisonOrchestrator>.Instance);
     }
 
     [TearDown]

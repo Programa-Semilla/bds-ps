@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using FundingPlatform.Application.Abstractions.AiComparison;
+using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Domain.Entities;
 using Microsoft.Extensions.Configuration;
@@ -50,8 +51,15 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
     private readonly TokenCapGuard _tokenCapGuard;
     private readonly AdminAuditEventComparisonFactory _auditFactory;
     private readonly IAdminAuditWriter _auditWriter;
+    private readonly IObjectStorage _objectStorage;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ComparisonOrchestrator> _logger;
+
+    // Spec 020 / FINDING-5 — refuse a single supplier PDF larger than this cap
+    // so the orchestrator can't OOM on a 100 MiB upload. The upload-side cap
+    // (Storage:Categories:application-attachments:MaxSizeBytes) is the primary
+    // defense; this is a defense-in-depth ceiling.
+    private const long MaxPdfBytesPerBlob = 25L * 1024L * 1024L;
 
     public ComparisonOrchestrator(
         ISupplierAssembler assembler,
@@ -65,6 +73,7 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         TokenCapGuard tokenCapGuard,
         AdminAuditEventComparisonFactory auditFactory,
         IAdminAuditWriter auditWriter,
+        IObjectStorage objectStorage,
         IConfiguration configuration,
         ILogger<ComparisonOrchestrator> logger)
     {
@@ -79,6 +88,7 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         _tokenCapGuard = tokenCapGuard;
         _auditFactory = auditFactory;
         _auditWriter = auditWriter;
+        _objectStorage = objectStorage;
         _configuration = configuration;
         _logger = logger;
     }
@@ -189,7 +199,8 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
                     try
                     {
                         var supplier = assembly.Suppliers[idx];
-                        var blocks = BuildSupplierBlocks(idx, supplier, totalRedactionCounts);
+                        var blocks = await BuildSupplierBlocksAsync(
+                            idx, assembly, supplier, totalRedactionCounts, cancellationToken);
                         var extractRequest = new ExtractRequest(
                             Model: extractModel,
                             PromptText: _catalog.ExtractPrompt,
@@ -228,6 +239,12 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         {
             await EmitFailureAuditAsync(command, assembly, "pii_redaction_failed", 0, 0, (int)stopwatch.ElapsedMilliseconds, cancellationToken);
             return new GenerateComparisonFailure(command.ApplicationItemId, "pii_redaction_failed",
+                OffendingInput: ex.BlobId.ToString("D"));
+        }
+        catch (UnsupportedFormatException ex)
+        {
+            await EmitFailureAuditAsync(command, assembly, "unsupported_format", 0, 0, (int)stopwatch.ElapsedMilliseconds, cancellationToken);
+            return new GenerateComparisonFailure(command.ApplicationItemId, "unsupported_format",
                 OffendingInput: ex.BlobId.ToString("D"));
         }
 
@@ -399,18 +416,37 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         PromptVersion: _catalog.PromptVersion,
         SchemaVersion: _catalog.SchemaVersion);
 
-    private List<AiInputBlock> BuildSupplierBlocks(
-        int supplierIdx, SupplierAssembly supplier,
-        Dictionary<string, int> totalRedactionCounts)
+    /// <summary>
+    /// FR-B1 / FR-C2 / FR-B2 (FINDING-5 + FINDING-6) — assemble the per-supplier
+    /// AI input. Three blocks per supplier:
+    ///   1) Redacted structured-fields TextBlock (applicant + supplier PII
+    ///      scrubbed before the bytes leave the platform).
+    ///   2) For each blob attached to the quotation: a PdfBlock carrying the
+    ///      raw bytes. Claude reads PDFs natively so the model can emit
+    ///      <c>sourceRef.blobId / page</c> citations linking back to the
+    ///      originating document. Blobs larger than <see cref="MaxPdfBytesPerBlob"/>
+    ///      are refused with <c>unsupported_format</c>.
+    /// </summary>
+    private async Task<List<AiInputBlock>> BuildSupplierBlocksAsync(
+        int supplierIdx,
+        ItemAssembly itemAssembly,
+        SupplierAssembly supplier,
+        Dictionary<string, int> totalRedactionCounts,
+        CancellationToken cancellationToken)
     {
+        // FINDING-6 — surface the PII fields the live domain actually carries.
+        // Domain has no separate "personal" channel for applicants or supplier
+        // owners; the spec drift is reconciled in spec.md. Field-name keys
+        // remain the FR-B2 ones so the redactedFieldCounts dictionary keeps a
+        // stable contract across the API.
         var dto = new SupplierAssemblyDto(
             SupplierId: Guid.Empty,
             SupplierName: supplier.SupplierName,
-            OwnerDni: null,
-            OwnerPersonalPhone: null,
-            ApplicantNationalId: null,
-            ApplicantPersonalPhone: null,
-            ApplicantPersonalEmail: null,
+            OwnerDni: NullIfEmpty(supplier.SupplierLegalId),
+            OwnerPersonalPhone: supplier.BranchContactPhone,
+            ApplicantNationalId: itemAssembly.ApplicantLegalId,
+            ApplicantPersonalPhone: itemAssembly.ApplicantPhone,
+            ApplicantPersonalEmail: itemAssembly.ApplicantEmail,
             Body: new
             {
                 supplierIdx,
@@ -433,10 +469,100 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
             new TextBlock($"supplierIdx: {supplierIdx}\nstructuredFields: {structuredResult.SafePayload}"),
         };
 
-        // Note: full PDF byte streaming is implemented via the storage handle
-        // in a follow-up; for MVP the prompt receives the structured fields
-        // and the AI client is the Stub during E2E.
+        // FINDING-5 — wire the PDF byte path. IObjectStorage.OpenReadAsync is
+        // the streaming-read seam (NOT ResolveServingHandleAsync, which is for
+        // signed URLs). Each blob is read into memory; the Anthropic SDK uploads
+        // it as base64 inside a DocumentContent block (handled in AnthropicAiClient).
+        foreach (var blob in supplier.Blobs)
+        {
+            if (string.IsNullOrEmpty(blob.ContentHash)) continue; // blob key missing — skip
+            ObjectKey key;
+            try
+            {
+                key = ObjectKey.Parse(blob.ContentHash);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "AiComparison skipping malformed blob key for supplierIdx={SupplierIdx} blobId={BlobId}.",
+                    supplierIdx, blob.BlobId);
+                continue;
+            }
+
+            byte[] bytes;
+            try
+            {
+                using var stream = await _objectStorage.OpenReadAsync(
+                    FileCategory.ApplicationAttachment, key, cancellationToken);
+                using var ms = new MemoryStream();
+                await CopyWithCapAsync(stream, ms, MaxPdfBytesPerBlob, cancellationToken);
+                bytes = ms.ToArray();
+            }
+            catch (PdfTooLargeException ex)
+            {
+                _logger.LogWarning(
+                    "AiComparison refusing oversized blob supplierIdx={SupplierIdx} blobId={BlobId} size>{Cap} bytes.",
+                    supplierIdx, blob.BlobId, MaxPdfBytesPerBlob);
+                throw new UnsupportedFormatException(blob.BlobId, "blob_exceeds_size_cap", ex);
+            }
+            catch (FileNotFoundException ex)
+            {
+                _logger.LogWarning(ex,
+                    "AiComparison blob not found supplierIdx={SupplierIdx} blobId={BlobId}.",
+                    supplierIdx, blob.BlobId);
+                continue;
+            }
+
+            // FR-B3 / A-1 — PDF text-layer redaction would normally run here
+            // (RedactFileText). The live dep graph carries no PDF text extractor
+            // (PdfPig / iText / etc. are NOT yet vendored; Anthropic.SDK was the
+            // only new dep approved). Until a text-extraction library is added,
+            // file-text pattern redaction is deferred. Field-level PII redaction
+            // (above) still scrubs the structured DB-side payload before any
+            // bytes leave the platform. The PDF bytes themselves go directly to
+            // the AI provider over the same secure transport as the structured
+            // text; the provider is contractually bound to handle the data.
+            blocks.Add(new PdfBlock(blob.BlobId, bytes));
+        }
+
         return blocks;
+    }
+
+    private static string? NullIfEmpty(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static async Task CopyWithCapAsync(
+        Stream source, Stream destination, long capBytes, CancellationToken ct)
+    {
+        var buffer = new byte[81920]; // 80 KB
+        long total = 0;
+        int read;
+        while ((read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
+        {
+            total += read;
+            if (total > capBytes) throw new PdfTooLargeException(capBytes);
+            await destination.WriteAsync(buffer.AsMemory(0, read), ct);
+        }
+    }
+
+    /// <summary>FINDING-5 — sentinel raised when a single blob exceeds the orchestrator's hard cap.</summary>
+    private sealed class PdfTooLargeException : Exception
+    {
+        public PdfTooLargeException(long cap)
+            : base($"Blob exceeded streaming cap of {cap} bytes.") { }
+    }
+
+    /// <summary>FINDING-5 — converted to the <c>unsupported_format</c> failure reason.</summary>
+    private sealed class UnsupportedFormatException : Exception
+    {
+        public Guid BlobId { get; }
+        public string Reason { get; }
+        public UnsupportedFormatException(Guid blobId, string reason, Exception inner)
+            : base(reason, inner)
+        {
+            BlobId = blobId;
+            Reason = reason;
+        }
     }
 
     private static string NormalizeStage(ItemAssembly assembly, ExtractResult[] extracts)

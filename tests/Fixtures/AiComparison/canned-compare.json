@@ -21,15 +21,35 @@
         {
           "label": "Producto",
           "cells": [
-            { "supplierIdx": 0, "value": "Bomba centrífuga 1HP" },
-            { "supplierIdx": 1, "value": "Bomba centrífuga 1HP" }
+            {
+              "supplierIdx": 0, "value": "Bomba centrífuga 1HP",
+              "sourceRefs": [
+                { "supplierIdx": 0, "blobId": "00000000-0000-0000-0000-000000000010", "page": 1, "label": "Proveedor Económico — quote-A.pdf" }
+              ]
+            },
+            {
+              "supplierIdx": 1, "value": "Bomba centrífuga 1HP",
+              "sourceRefs": [
+                { "supplierIdx": 1, "blobId": "00000000-0000-0000-0000-000000000020", "page": 1, "label": "Proveedor Premium — quote-B.pdf" }
+              ]
+            }
           ]
         },
         {
           "label": "Marca",
           "cells": [
-            { "supplierIdx": 0, "value": "Pedrollo" },
-            { "supplierIdx": 1, "value": "Grundfos" }
+            {
+              "supplierIdx": 0, "value": "Pedrollo",
+              "sourceRefs": [
+                { "supplierIdx": 0, "blobId": "00000000-0000-0000-0000-000000000010", "page": 1, "label": "Proveedor Económico — quote-A.pdf" }
+              ]
+            },
+            {
+              "supplierIdx": 1, "value": "Grundfos",
+              "sourceRefs": [
+                { "supplierIdx": 1, "blobId": "00000000-0000-0000-0000-000000000020", "page": 1, "label": "Proveedor Premium — quote-B.pdf" }
+              ]
+            }
           ]
         },
         {
@@ -61,7 +81,11 @@
         },
         {
           "title": "Plazos de Respaldo",
-          "body": "El Proveedor Premium ofrece 24 meses de garantía, el doble del plazo del Proveedor Económico."
+          "body": "El Proveedor Premium ofrece 24 meses de garantía, el doble del plazo del Proveedor Económico.",
+          "sourceRefs": [
+            { "supplierIdx": 0, "blobId": "00000000-0000-0000-0000-000000000010", "page": 2, "label": "Proveedor Económico — quote-A.pdf" },
+            { "supplierIdx": 1, "blobId": "00000000-0000-0000-0000-000000000020", "page": 2, "label": "Proveedor Premium — quote-B.pdf" }
+          ]
         },
         {
           "title": "Análisis de Costos",

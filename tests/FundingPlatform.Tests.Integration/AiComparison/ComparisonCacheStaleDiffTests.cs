@@ -1,4 +1,5 @@
 using FundingPlatform.Application.Abstractions.AiComparison;
+using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.AiComparison;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
@@ -67,7 +68,9 @@ public class ComparisonCacheStaleDiffTests
         _orchestrator = new ComparisonOrchestrator(
             assembler, redactor, stub, catalog, validator,
             artifactRepo, jobRepo, rateLimitGuard, tokenCapGuard,
-            auditFactory, auditWriter, _config, NullLogger<ComparisonOrchestrator>.Instance);
+            auditFactory, auditWriter,
+            new InMemoryObjectStorage(),
+            _config, NullLogger<ComparisonOrchestrator>.Instance);
     }
 
     [TearDown]

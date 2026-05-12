@@ -39,6 +39,15 @@ public class SupplierAssembler : ISupplierAssembler
         var applicationIsClosed = application.State is ApplicationState.Resolved
             or ApplicationState.AgreementExecuted;
 
+        // FINDING-6 — applicant-level PII (legal id / email / phone) is surfaced
+        // once per item so the orchestrator can hand it to the PII redactor on
+        // every supplier block it builds. Note: the live Applicant entity has
+        // only one Email + Phone (no separate "personal" channel). Spec FR-B2
+        // is reconciled in the spec.md follow-up.
+        var applicant = await _context.Applicants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == application.ApplicantId, ct);
+
         var suppliers = item.Quotations
             .OrderBy(q => q.SupplierId)
             .Select(q =>
@@ -60,6 +69,8 @@ public class SupplierAssembler : ISupplierAssembler
                     SupplierVerificationStatus: (q.Supplier?.VerificationStatus ?? SupplierVerificationStatus.Draft).ToString(),
                     SupplierBranchId: q.SupplierBranchId,
                     BranchName: q.SupplierBranch?.BranchName,
+                    BranchContactEmail: q.SupplierBranch?.Email,
+                    BranchContactPhone: q.SupplierBranch?.Phone,
                     Price: q.Price,
                     CurrencyCode: string.IsNullOrEmpty(q.Currency) ? "CRC" : q.Currency,
                     ConvertedCrcAmount: q.ConvertedCrcAmount,
@@ -83,6 +94,9 @@ public class SupplierAssembler : ISupplierAssembler
             ApplicationId: item.ApplicationId,
             ItemHeader: header,
             ApplicationIsClosed: applicationIsClosed,
+            ApplicantLegalId: applicant?.LegalId,
+            ApplicantEmail: applicant?.Email,
+            ApplicantPhone: applicant?.Phone,
             Suppliers: suppliers);
     }
 
