@@ -29,12 +29,12 @@ description: "Task list for spec 020 AI-Powered Quote Comparison for Reviewers"
 
 **Purpose**: Bring the new dependency, configuration knobs, and source-tree artifacts into place.
 
-- [ ] T001 Add `Anthropic.SDK` NuGet package to `src/FundingPlatform.Infrastructure/FundingPlatform.Infrastructure.csproj` (pinned to latest stable at time of work; record exact version in plan.md if it drifts).
-- [ ] T002 [P] Create `prompts/extract.v1.md` with the per-supplier extract system + user prompt (in es-CR, includes the prompt-injection mitigation language from NFR-S5, references `schemas/ExtractedSupplierOffering.v1.schema.json`).
-- [ ] T003 [P] Create `prompts/compare.v1.md` with the comparator system + user prompt (in es-CR, includes prompt-injection mitigation, enforces narrative-section titles, references `schemas/ComparisonArtifact.v1.schema.json`).
-- [ ] T004 [P] Copy `specs/020-ai-quote-comparison/contracts/ComparisonArtifact.v1.schema.json` to `schemas/ComparisonArtifact.v1.schema.json` (source-tree home per NFR-M2 — the file in `contracts/` is the spec-time artifact; the file in `schemas/` is the runtime reference).
-- [ ] T005 [P] Copy `specs/020-ai-quote-comparison/contracts/ExtractedSupplierOffering.v1.schema.json` to `schemas/ExtractedSupplierOffering.v1.schema.json`.
-- [ ] T006 Register the new configuration knobs in `src/FundingPlatform.AppHost/AppHost.cs` (`AiComparison:*` keys from plan.md Configuration Knobs table) and wire them to the web app via `WithEnvironment("AiComparison__...", ...)`.
+- [x] T001 Add `Anthropic.SDK` NuGet package to `src/FundingPlatform.Infrastructure/FundingPlatform.Infrastructure.csproj` (pinned to latest stable at time of work; record exact version in plan.md if it drifts).
+- [x] T002 [P] Create `prompts/extract.v1.md` with the per-supplier extract system + user prompt (in es-CR, includes the prompt-injection mitigation language from NFR-S5, references `schemas/ExtractedSupplierOffering.v1.schema.json`).
+- [x] T003 [P] Create `prompts/compare.v1.md` with the comparator system + user prompt (in es-CR, includes prompt-injection mitigation, enforces narrative-section titles, references `schemas/ComparisonArtifact.v1.schema.json`).
+- [x] T004 [P] Copy `specs/020-ai-quote-comparison/contracts/ComparisonArtifact.v1.schema.json` to `schemas/ComparisonArtifact.v1.schema.json` (source-tree home per NFR-M2 — the file in `contracts/` is the spec-time artifact; the file in `schemas/` is the runtime reference).
+- [x] T005 [P] Copy `specs/020-ai-quote-comparison/contracts/ExtractedSupplierOffering.v1.schema.json` to `schemas/ExtractedSupplierOffering.v1.schema.json`.
+- [x] T006 Register the new configuration knobs in `src/FundingPlatform.AppHost/AppHost.cs` (`AiComparison:*` keys from plan.md Configuration Knobs table) and wire them to the web app via `WithEnvironment("AiComparison__...", ...)`.
 
 ---
 

@@ -112,6 +112,25 @@ var signedUploadMaxSizeBytes = builder.Configuration["SignedUpload:MaxSizeBytes"
 var adminReportsDefaultCurrency = builder.Configuration["AdminReports:DefaultCurrency"] ?? "CRC";
 var adminReportsCsvRowLimit = builder.Configuration["AdminReports:CsvRowLimit"] ?? "50000";
 
+// Spec 020 — AI quote comparison knobs. The provider defaults to the offline
+// "Stub" so E2E (constitution Principle III) runs without an Anthropic API key.
+// Real environments override AiComparison:Provider=Anthropic and supply the
+// API key via the configured secret store (never appsettings).
+var aiProvider = builder.Configuration["AiComparison:Provider"] ?? "Stub";
+var aiApiKey = builder.Configuration["AiComparison:Anthropic:ApiKey"];
+var aiExtractModel = builder.Configuration["AiComparison:Anthropic:ExtractModel"] ?? "claude-sonnet-4-6";
+var aiCompareModel = builder.Configuration["AiComparison:Anthropic:CompareModel"] ?? "claude-opus-4-7";
+var aiBaseUrl = builder.Configuration["AiComparison:Anthropic:BaseUrl"];
+var aiExtractConcurrency = builder.Configuration["AiComparison:ExtractConcurrency"] ?? "4";
+var aiWorkerConcurrency = builder.Configuration["AiComparison:WorkerConcurrency"] ?? "2";
+var aiPollIntervalSeconds = builder.Configuration["AiComparison:PollIntervalSeconds"] ?? "3";
+var aiSyncHardTimeoutSeconds = builder.Configuration["AiComparison:SyncHardTimeoutSeconds"] ?? "90";
+var aiRateLimitPerApp24h = builder.Configuration["AiComparison:RateLimitPerApp24h"] ?? "10";
+var aiTokenCapPerRunInput = builder.Configuration["AiComparison:TokenCapPerRunInput"] ?? "200000";
+var aiOrphanReapAfterMinutes = builder.Configuration["AiComparison:OrphanReapAfterMinutes"] ?? "5";
+var aiPromptVersion = builder.Configuration["AiComparison:PromptVersion"] ?? "2026-05-11";
+var aiSchemaVersion = builder.Configuration["AiComparison:SchemaVersion"] ?? "v1";
+
 // E2E fixture runs with EphemeralStorage=true and a fresh DB per fixture run, so
 // the sentinel admin (admin@FundingPlatform.com) is seeded on every startup. In
 // ephemeral mode we force the deterministic test password regardless of other
@@ -131,7 +150,28 @@ var webApp = builder.AddProject<Projects.FundingPlatform_Web>("webapp")
     .WithEnvironment("FundingAgreement__CurrencyIsoCode", currencyIsoCode)
     .WithEnvironment("SignedUpload__MaxSizeBytes", signedUploadMaxSizeBytes)
     .WithEnvironment("AdminReports__DefaultCurrency", adminReportsDefaultCurrency)
-    .WithEnvironment("AdminReports__CsvRowLimit", adminReportsCsvRowLimit);
+    .WithEnvironment("AdminReports__CsvRowLimit", adminReportsCsvRowLimit)
+    .WithEnvironment("AiComparison__Provider", aiProvider)
+    .WithEnvironment("AiComparison__Anthropic__ExtractModel", aiExtractModel)
+    .WithEnvironment("AiComparison__Anthropic__CompareModel", aiCompareModel)
+    .WithEnvironment("AiComparison__ExtractConcurrency", aiExtractConcurrency)
+    .WithEnvironment("AiComparison__WorkerConcurrency", aiWorkerConcurrency)
+    .WithEnvironment("AiComparison__PollIntervalSeconds", aiPollIntervalSeconds)
+    .WithEnvironment("AiComparison__SyncHardTimeoutSeconds", aiSyncHardTimeoutSeconds)
+    .WithEnvironment("AiComparison__RateLimitPerApp24h", aiRateLimitPerApp24h)
+    .WithEnvironment("AiComparison__TokenCapPerRunInput", aiTokenCapPerRunInput)
+    .WithEnvironment("AiComparison__OrphanReapAfterMinutes", aiOrphanReapAfterMinutes)
+    .WithEnvironment("AiComparison__PromptVersion", aiPromptVersion)
+    .WithEnvironment("AiComparison__SchemaVersion", aiSchemaVersion);
+
+if (!string.IsNullOrEmpty(aiApiKey))
+{
+    webApp.WithEnvironment("AiComparison__Anthropic__ApiKey", aiApiKey);
+}
+if (!string.IsNullOrEmpty(aiBaseUrl))
+{
+    webApp.WithEnvironment("AiComparison__Anthropic__BaseUrl", aiBaseUrl);
+}
 
 if (!string.IsNullOrEmpty(adminDefaultPassword))
 {
