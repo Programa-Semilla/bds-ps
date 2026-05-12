@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using Anthropic.SDK;
 using Anthropic.SDK.Messaging;
@@ -98,19 +100,30 @@ public class AnthropicAiClient : IAiClient
         {
             response = await client.Messages.GetClaudeMessageAsync(parameters, cancellationToken);
         }
-        catch (OperationCanceledException) { throw; }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (TaskCanceledException ex)
+        {
+            // SDK raises TaskCanceledException for upstream HTTP timeouts when
+            // the caller's CT is not cancelled — treat as transient (FR-I1).
+            throw new AiProviderTransientException("Anthropic request timed out.", ex);
+        }
+        catch (TimeoutException ex)
+        {
+            throw new AiProviderTransientException("Anthropic request timed out.", ex);
+        }
         catch (HttpRequestException ex)
         {
-            throw new AiProviderTransientException("Network error calling Anthropic API.", ex);
+            throw ClassifyHttpFailure(ex);
         }
         catch (Exception ex)
         {
-            // Anthropic SDK throws subclasses of Exception; classify by message
-            // text. 5xx / 429 are transient.
-            var msg = ex.Message ?? string.Empty;
-            if (msg.Contains("429") || msg.Contains("5xx") || msg.Contains("timed out", StringComparison.OrdinalIgnoreCase))
-                throw new AiProviderTransientException(msg, ex);
-            throw new AiProviderHardException("unknown", msg, ex);
+            // Anthropic.SDK has no typed exception hierarchy with a status code
+            // (only standard System types). If a status code surfaces in the
+            // message, classify it; otherwise fail-safe to transient so the user
+            // sees "Reintentar" rather than "Contacte un administrador".
+            var classified = TryClassifyByMessage(ex);
+            if (classified is not null) throw classified;
+            throw new AiProviderTransientException(ex.Message, ex);
         }
         sw.Stop();
 
@@ -129,6 +142,56 @@ public class AnthropicAiClient : IAiClient
         var tokenIn = (int)(usage?.InputTokens ?? 0);
         var tokenOut = (int)(usage?.OutputTokens ?? 0);
         return (text, tokenIn, tokenOut, (int)sw.ElapsedMilliseconds);
+    }
+
+    /// <summary>
+    /// FR-I1 / FR-I2 — map an <see cref="HttpRequestException"/> raised from the
+    /// Anthropic SDK onto the typed provider exceptions:
+    /// 5xx / 408 / 429 → transient (retryable);
+    /// other 4xx → hard with the concrete status code embedded;
+    /// unknown (StatusCode null) → fail-safe transient.
+    /// </summary>
+    private static Exception ClassifyHttpFailure(HttpRequestException ex)
+    {
+        // .NET 5+ HttpRequestException exposes StatusCode when the SDK uses
+        // HttpClient.SendAsync + EnsureSuccessStatusCode-style flows.
+        var status = ex.StatusCode;
+        if (status is null)
+        {
+            // No status — DNS / TLS / socket failure. Treat as transient.
+            return new AiProviderTransientException("Network error calling Anthropic API.", ex);
+        }
+
+        var code = (int)status.Value;
+        if (code >= 500 || code == 408 || code == 429)
+        {
+            return new AiProviderTransientException(
+                $"Anthropic returned HTTP {code} ({status.Value}); retryable.", ex);
+        }
+
+        return new AiProviderHardException(code.ToString(), $"Anthropic returned HTTP {code} ({status.Value}).", ex);
+    }
+
+    /// <summary>
+    /// Backstop classifier for exceptions that don't carry a typed status code.
+    /// Matches `429`, `5xx`, or any explicit 3-digit 5xx pattern in the message
+    /// before giving up. Returns <c>null</c> when no classification could be
+    /// inferred — caller falls back to transient.
+    /// </summary>
+    private static Exception? TryClassifyByMessage(Exception ex)
+    {
+        var msg = ex.Message ?? string.Empty;
+        // Match a 3-digit code in the message.
+        var match = System.Text.RegularExpressions.Regex.Match(msg, @"\b(\d{3})\b");
+        if (!match.Success) return null;
+        if (!int.TryParse(match.Groups[1].Value, out var code)) return null;
+        if (code is < 100 or > 599) return null;
+
+        if (code >= 500 || code == 408 || code == 429)
+            return new AiProviderTransientException(msg, ex);
+        if (code >= 400)
+            return new AiProviderHardException(code.ToString(), msg, ex);
+        return null;
     }
 
     private static string StripCodeFences(string text)

@@ -112,7 +112,9 @@ public static class DependencyInjection
         }
         else
         {
-            services.AddSingleton<IAiClient, StubAiClient>();
+            // FINDING-8 — keep Scoped for parity with the live provider. The
+            // stub's static call counters are independent of DI lifetime.
+            services.AddScoped<IAiClient, StubAiClient>();
         }
 
         return services;

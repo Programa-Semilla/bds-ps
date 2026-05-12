@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -17,7 +16,28 @@ namespace FundingPlatform.Application.AiComparison;
 /// </summary>
 public class ComparisonOrchestrator : IComparisonOrchestrator
 {
-    private static readonly ConcurrentDictionary<int, SemaphoreSlim> _itemLocks = new();
+    // Striped lock: fixed memory footprint (1024 SemaphoreSlim instances) shared
+    // across all application-item ids. The same item id always maps to the same
+    // stripe; collisions only cost serialization on a different item — exclusion
+    // for the same item is still guaranteed. Replaces the previous unbounded
+    // ConcurrentDictionary that leaked one Semaphore per ever-seen item id.
+    private const int LockStripeCount = 1024;
+    private static readonly SemaphoreSlim[] _itemLocks = CreateStripes(LockStripeCount);
+
+    private static SemaphoreSlim[] CreateStripes(int count)
+    {
+        var stripes = new SemaphoreSlim[count];
+        for (var i = 0; i < count; i++)
+            stripes[i] = new SemaphoreSlim(1, 1);
+        return stripes;
+    }
+
+    private static SemaphoreSlim GetLockFor(int applicationItemId)
+    {
+        // Mask with stripe count - 1 (power of two) for a uniform, fast index.
+        var idx = applicationItemId.GetHashCode() & (LockStripeCount - 1);
+        return _itemLocks[idx];
+    }
 
     private readonly ISupplierAssembler _assembler;
     private readonly IPiiRedactor _redactor;
@@ -66,7 +86,7 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
     public async Task<GenerateComparisonResult> GenerateAsync(
         GenerateComparisonCommand command, CancellationToken cancellationToken)
     {
-        var sem = _itemLocks.GetOrAdd(command.ApplicationItemId, _ => new SemaphoreSlim(1, 1));
+        var sem = GetLockFor(command.ApplicationItemId);
         var acquired = await sem.WaitAsync(0, cancellationToken);
         if (!acquired)
         {
@@ -419,15 +439,16 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         return blocks;
     }
 
-    private string NormalizeStage(ItemAssembly assembly, ExtractResult[] extracts)
+    private static string NormalizeStage(ItemAssembly assembly, ExtractResult[] extracts)
     {
-        var rows = new List<object>();
+        // FINDING-11: route through the unit-tested ComparisonNormalizer helper
+        // so unit coverage actually exercises the production code path. Conversion
+        // / es-CR formatting / discrepancy passthrough all live in the helper.
+        var normalized = new List<NormalizedSupplier>(assembly.Suppliers.Count);
         for (var i = 0; i < assembly.Suppliers.Count; i++)
         {
             var s = assembly.Suppliers[i];
             decimal totalCrc;
-            decimal originalTotal = s.Price;
-            string originalCurrency = s.CurrencyCode;
             if (string.Equals(s.CurrencyCode, "CRC", StringComparison.OrdinalIgnoreCase))
                 totalCrc = s.Price;
             else if (s.ConvertedCrcAmount.HasValue)
@@ -437,20 +458,20 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
             else
                 totalCrc = s.Price; // best-effort fallback
 
-            rows.Add(new
-            {
-                supplierIdx = i,
-                supplierName = s.SupplierName,
-                branchName = s.BranchName,
-                verificationStatus = s.SupplierVerificationStatus,
-                originalCurrency,
-                originalTotal,
-                totalCrc,
-                appliedRate = s.SnapshotRateValue,
-                extractRaw = SafeParse(extracts[i].Json),
-            });
+            var extractedFields = SafeParse(extracts[i].Json) ?? EmptyJsonObject;
+            normalized.Add(new NormalizedSupplier(
+                SupplierIdx: i,
+                SupplierName: s.SupplierName,
+                BranchName: s.BranchName,
+                VerificationStatus: s.SupplierVerificationStatus,
+                OriginalCurrency: s.CurrencyCode,
+                AppliedRate: s.SnapshotRateValue,
+                TotalCrc: totalCrc,
+                OriginalTotal: s.Price,
+                ExtractedFields: extractedFields,
+                Discrepancies: Array.Empty<NormalizedDiscrepancy>()));
         }
-        return JsonSerializer.Serialize(rows);
+        return ComparisonNormalizer.BuildNormalizedSuppliersJson(normalized);
     }
 
     private static JsonElement? SafeParse(string json)
@@ -464,6 +485,9 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
             return null;
         }
     }
+
+    private static readonly JsonElement EmptyJsonObject =
+        JsonDocument.Parse("{}").RootElement.Clone();
 
     private static IReadOnlyList<TokenCapInput> BuildTokenCapInputs(ItemAssembly assembly)
     {
