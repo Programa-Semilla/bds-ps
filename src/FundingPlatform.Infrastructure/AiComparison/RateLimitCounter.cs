@@ -26,10 +26,14 @@ public class AdminAuditRateLimitCounter : IRateLimitCounter
 
     public async Task<int> CountAttemptsAsync(int applicationId, DateTimeOffset windowStart, CancellationToken ct)
     {
-        // PayloadJson contains "applicationId":<int>. We do a string contains
-        // filter on the JSON column to avoid a JSON parsing function for SQL
-        // Server compatibility across environments.
-        var needle = "\"applicationId\":" + applicationId;
+        // PayloadJson contains "applicationId":<int>. We do a substring filter
+        // on the JSON column to avoid SQL Server-specific JSON functions.
+        // CRITICAL: include the trailing "," to prevent prefix matches —
+        // searching for "applicationId":1 must NOT match "applicationId":10
+        // or "applicationId":100. The audit factory always emits applicationId
+        // before bypassedRateLimit (see AdminAuditEventComparisonFactory.BuildBaseDict),
+        // so the comma terminator is stable.
+        var needle = "\"applicationId\":" + applicationId + ",";
 
         return await _context.AdminAuditEvents
             .Where(e => ActionsCounted.Contains(e.Action))

@@ -1,4 +1,5 @@
 @using System.Text.Json
+@using Microsoft.AspNetCore.Html
 @using FundingPlatform.Application.Abstractions.AiComparison
 @using FundingPlatform.Domain.Entities
 @model FundingPlatform.Web.ViewModels.Review.ItemComparisonViewModel
@@ -19,6 +20,39 @@
         ChangedInput.SchemaBumped => "esquema actualizado",
         ChangedInput.PromptVersionBumped => "prompt actualizado",
         _ => input.ToString(),
+    };
+
+    // Spec 020 / FR-E3 + US5 — render numeric superscript citation markers for
+    // any cell value or narrative paragraph that carries `sourceRefs`. Each
+    // marker links to GET /Review/Citations/{applicationItemId}/{blobId} which
+    // resolves to a signed URL via the existing spec-014 storage flow.
+    Func<JsonElement, IHtmlContent> RenderSourceRefs = node =>
+    {
+        if (!node.TryGetProperty("sourceRefs", out var refs) || refs.ValueKind != JsonValueKind.Array || refs.GetArrayLength() == 0)
+            return HtmlString.Empty;
+
+        var html = new System.Text.StringBuilder();
+        var idx = 1;
+        foreach (var sref in refs.EnumerateArray())
+        {
+            var blobId = sref.TryGetProperty("blobId", out var b) ? b.GetString() : null;
+            if (string.IsNullOrEmpty(blobId)) { idx++; continue; }
+            var label = sref.TryGetProperty("label", out var l) ? l.GetString() : null;
+            var page = sref.TryGetProperty("page", out var pg) && pg.ValueKind == JsonValueKind.Number ? (int?)pg.GetInt32() : null;
+            var tooltip = label ?? "Ver archivo de proveedor";
+            if (page.HasValue) tooltip += $" (pág. {page.Value})";
+
+            var href = Url.Action("Citation", "Review", new { applicationItemId = Model.ApplicationItemId, sourceRefId = blobId }) ?? "#";
+            html.Append("<sup data-testid=\"comparison-citation\"><a href=\"")
+                .Append(System.Net.WebUtility.HtmlEncode(href))
+                .Append("\" target=\"_blank\" rel=\"noopener\" title=\"")
+                .Append(System.Net.WebUtility.HtmlEncode(tooltip))
+                .Append("\">")
+                .Append(idx)
+                .Append("</a></sup>");
+            idx++;
+        }
+        return new HtmlString(html.ToString());
     };
 }
 
@@ -96,7 +130,7 @@
                                         if (cellsByIdx.TryGetValue(i, out var cell))
                                         {
                                             var value = cell.TryGetProperty("value", out var v) ? v.GetString() : null;
-                                            <td>@value</td>
+                                            <td>@value@RenderSourceRefs(cell)</td>
                                         }
                                         else
                                         {
@@ -118,7 +152,7 @@
                             var body = section.GetProperty("body").GetString() ?? string.Empty;
                             <div class="comparison-narrative mb-2">
                                 <strong>@title</strong>
-                                <p class="mb-0">@body</p>
+                                <p class="mb-0">@body@RenderSourceRefs(section)</p>
                             </div>
                         }
                     </div>
