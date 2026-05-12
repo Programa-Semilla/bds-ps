@@ -46,56 +46,56 @@ description: "Task list for spec 020 AI-Powered Quote Comparison for Reviewers"
 
 ### Schema
 
-- [ ] T007 Add `src/FundingPlatform.Database/Tables/dbo.ComparisonArtifacts.sql` per data-model.md (PK on `ApplicationItemId`, FK to `dbo.Items` ON DELETE CASCADE, non-clustered index on `InputHash`).
-- [ ] T008 [P] Add `src/FundingPlatform.Database/Tables/dbo.ComparisonJobs.sql` per data-model.md (PK on `Id`, FK to `dbo.Items` ON DELETE CASCADE, indexes `(Status, LastStatusChangeAt)` + `(ApplicationItemId, Status)`).
-- [ ] T009 [P] Add the project file include lines for the two new `.sql` files to `src/FundingPlatform.Database/FundingPlatform.Database.sqlproj` if MSBuild does not auto-include them.
+- [x] T007 Add `src/FundingPlatform.Database/Tables/dbo.ComparisonArtifacts.sql` per data-model.md (PK on `ApplicationItemId`, FK to `dbo.Items` ON DELETE CASCADE, non-clustered index on `InputHash`).
+- [x] T008 [P] Add `src/FundingPlatform.Database/Tables/dbo.ComparisonJobs.sql` per data-model.md (PK on `Id`, FK to `dbo.Items` ON DELETE CASCADE, indexes `(Status, LastStatusChangeAt)` + `(ApplicationItemId, Status)`).
+- [x] T009 [P] Add the project file include lines for the two new `.sql` files to `src/FundingPlatform.Database/FundingPlatform.Database.sqlproj` if MSBuild does not auto-include them. (No-op — Build.Sql SDK auto-includes.)
 
 ### Domain entities + value objects
 
-- [ ] T010 Create `src/FundingPlatform.Domain/Entities/ComparisonArtifact.cs` aggregate root with private setters, factory `Create(...)`, behavior methods `IsStaleAgainst(InputDescriptor) → FreshnessResult` and `ReplaceWith(...)`, invariants (64-hex hash, non-negative tokens/latency, non-empty schema/prompt versions). Throw `ArgumentException` on construction violations.
-- [ ] T011 [P] Create `src/FundingPlatform.Domain/Entities/ComparisonJob.cs` aggregate root with `Status` enum (`Pending`/`Running`/`Completed`/`Failed`), state-machine-guarded `Enqueue(...)` factory, `Start(IClock)`, `RecordSuccess(...)`, `RecordFailure(...)`, `Reap(IClock)` per data-model.md. Illegal transitions throw `InvalidOperationException`.
-- [ ] T012 [P] Create `src/FundingPlatform.Domain/Entities/FreshnessResult.cs` and `ChangedInput` enum (FileAdded, FileRemoved, LineEdited, SupplierAdded, SupplierRemoved, SnapshotChanged, SchemaBumped, PromptVersionBumped).
+- [x] T010 Create `src/FundingPlatform.Domain/Entities/ComparisonArtifact.cs` aggregate root with private setters, factory `Create(...)`, behavior methods `IsStaleAgainst(InputDescriptor) → FreshnessResult` and `ReplaceWith(...)`, invariants (64-hex hash, non-negative tokens/latency, non-empty schema/prompt versions). Throw `ArgumentException` on construction violations.
+- [x] T011 [P] Create `src/FundingPlatform.Domain/Entities/ComparisonJob.cs` aggregate root with `Status` enum (`Pending`/`Running`/`Completed`/`Failed`), state-machine-guarded `Enqueue(...)` factory, `Start(IClock)`, `RecordSuccess(...)`, `RecordFailure(...)`, `Reap(IClock)` per data-model.md. Illegal transitions throw `InvalidOperationException`.
+- [x] T012 [P] Create `src/FundingPlatform.Domain/Entities/FreshnessResult.cs` and `ChangedInput` enum (FileAdded, FileRemoved, LineEdited, SupplierAdded, SupplierRemoved, SnapshotChanged, SchemaBumped, PromptVersionBumped).
 
 ### Application abstractions
 
-- [ ] T013 [P] Create `src/FundingPlatform.Application/Abstractions/AiComparison/IAiClient.cs` with `ExtractRequest`/`CompareRequest`/`AiInputBlock` (`TextBlock`, `PdfBlock`)/`ExtractResult`/`CompareResult` record types per contracts/ai-client.md.
-- [ ] T014 [P] Create `src/FundingPlatform.Application/Abstractions/AiComparison/IPiiRedactor.cs` with `SupplierAssemblyDto`, `RedactionResult`, `RedactedSpan` per contracts/ai-client.md.
-- [ ] T015 [P] Create `src/FundingPlatform.Application/Abstractions/AiComparison/IComparisonOrchestrator.cs` with `GenerateComparisonCommand`, `GenerateComparisonResult` (Success/Failure variants), `ItemStatusResult`, `ItemState` enum, `Freshness` enum per contracts/ai-client.md.
-- [ ] T016 [P] Create `src/FundingPlatform.Application/Abstractions/AiComparison/InputDescriptor.cs` value object per data-model.md (immutable record with `OrderedSupplierIds`, `OrderedBranchIds`, `BlobReferences`, `LineState`, `PromptVersion`, `SchemaVersion`).
-- [ ] T017 [P] Create `src/FundingPlatform.Application/Abstractions/AiComparison/IComparisonArtifactRepository.cs` + `IComparisonJobRepository.cs` with method signatures from data-model.md.
-- [ ] T018 Create `src/FundingPlatform.Application/Abstractions/AiComparison/AiProviderExceptions.cs` (`AiProviderTransientException`, `AiProviderHardException` with `ProviderCode` property, `AiSchemaInvalidException` with validator path).
+- [x] T013 [P] Create `src/FundingPlatform.Application/Abstractions/AiComparison/IAiClient.cs` with `ExtractRequest`/`CompareRequest`/`AiInputBlock` (`TextBlock`, `PdfBlock`)/`ExtractResult`/`CompareResult` record types per contracts/ai-client.md.
+- [x] T014 [P] Create `src/FundingPlatform.Application/Abstractions/AiComparison/IPiiRedactor.cs` with `SupplierAssemblyDto`, `RedactionResult`, `RedactedSpan` per contracts/ai-client.md.
+- [x] T015 [P] Create `src/FundingPlatform.Application/Abstractions/AiComparison/IComparisonOrchestrator.cs` with `GenerateComparisonCommand`, `GenerateComparisonResult` (Success/Failure variants), `ItemStatusResult`, `ItemState` enum, `Freshness` enum per contracts/ai-client.md.
+- [x] T016 [P] Create `src/FundingPlatform.Application/Abstractions/AiComparison/InputDescriptor.cs` value object per data-model.md (immutable record with `OrderedSupplierIds`, `OrderedBranchIds`, `BlobReferences`, `LineState`, `PromptVersion`, `SchemaVersion`).
+- [x] T017 [P] Create `src/FundingPlatform.Application/Abstractions/AiComparison/IComparisonArtifactRepository.cs` + `IComparisonJobRepository.cs` with method signatures from data-model.md.
+- [x] T018 Create `src/FundingPlatform.Application/Abstractions/AiComparison/AiProviderExceptions.cs` (`AiProviderTransientException`, `AiProviderHardException` with `ProviderCode` property, `AiSchemaInvalidException` with validator path).
 
 ### Application services (non-orchestrator pieces, used across stories)
 
-- [ ] T019 Implement `src/FundingPlatform.Application/AiComparison/InputHasher.cs` — pure function `Compute(InputDescriptor) → string`. Canonical JSON: sorted keys, declared array order, SHA-256 lower-case hex. No null-vs-missing ambiguity.
-- [ ] T020 [P] Implement `src/FundingPlatform.Application/AiComparison/ComparisonNormalizer.cs` — pure server-side normalize stage: unit alignment (kg/lb, m/cm, unit/box), date normalization to es-CR `MMM DD, YYYY`, CRC conversion using each quotation's spec-015 snapshot id, DB-vs-file discrepancy passthrough (both values + flag, per A-6).
-- [ ] T021 [P] Implement `src/FundingPlatform.Application/AiComparison/PromptCatalog.cs` — loads `prompts/extract.v1.md` and `prompts/compare.v1.md` at startup; exposes `ExtractPrompt`, `ComparePrompt`, `PromptVersion`, `SchemaVersion`. Singleton.
-- [ ] T022 [P] Implement `src/FundingPlatform.Application/AiComparison/SchemaValidator.cs` — wraps `JsonSchema.Net` to validate JSON strings against the v1 schemas; throws `AiSchemaInvalidException` with the validator's first error path on failure.
+- [x] T019 Implement `src/FundingPlatform.Application/AiComparison/InputHasher.cs` — pure function `Compute(InputDescriptor) → string`. Canonical JSON: sorted keys, declared array order, SHA-256 lower-case hex. No null-vs-missing ambiguity.
+- [x] T020 [P] Implement `src/FundingPlatform.Application/AiComparison/ComparisonNormalizer.cs` — pure server-side normalize stage: unit alignment (kg/lb, m/cm, unit/box), date normalization to es-CR `MMM DD, YYYY`, CRC conversion using each quotation's spec-015 snapshot id, DB-vs-file discrepancy passthrough (both values + flag, per A-6).
+- [x] T021 [P] Implement `src/FundingPlatform.Application/AiComparison/PromptCatalog.cs` — loads `prompts/extract.v1.md` and `prompts/compare.v1.md` at startup; exposes `ExtractPrompt`, `ComparePrompt`, `PromptVersion`, `SchemaVersion`. Singleton.
+- [x] T022 [P] Implement `src/FundingPlatform.Application/AiComparison/SchemaValidator.cs` — wraps `JsonSchema.Net` to validate JSON strings against the v1 schemas; throws `AiSchemaInvalidException` with the validator's first error path on failure.
 
 ### Infrastructure: redactor + repositories + EF config
 
-- [ ] T023 Implement `src/FundingPlatform.Infrastructure/AiComparison/Redaction/PiiRedactor.cs` (and `Patterns/` regex helpers). FR-B2 fields: cédula (CR national-ID pattern), CR phone (e.g. `^[+]?506?[ ]?[0-9]{4}[-]?[0-9]{4}$` family), email pattern. Structured-field redaction for applicant national id / applicant phone / applicant email / supplier owner DNI / supplier owner phone. Deterministic. Refuses (throws) if a supplied "file text" is empty/whitespace-only, signaling the caller to surface `pii_redaction_failed`.
-- [ ] T024 [P] Implement `src/FundingPlatform.Infrastructure/Persistence/Configurations/ComparisonArtifactConfiguration.cs` (EF entity config).
-- [ ] T025 [P] Implement `src/FundingPlatform.Infrastructure/Persistence/Configurations/ComparisonJobConfiguration.cs` (EF entity config; `Status` as `HasConversion<string>`).
-- [ ] T026 Add `DbSet<ComparisonArtifact> ComparisonArtifacts` and `DbSet<ComparisonJob> ComparisonJobs` to `src/FundingPlatform.Infrastructure/Persistence/AppDbContext.cs` (re-uses existing `ApplyConfigurationsFromAssembly`).
-- [ ] T027 [P] Implement `src/FundingPlatform.Infrastructure/Persistence/Repositories/ComparisonArtifactRepository.cs` against `IComparisonArtifactRepository`.
-- [ ] T028 [P] Implement `src/FundingPlatform.Infrastructure/Persistence/Repositories/ComparisonJobRepository.cs` against `IComparisonJobRepository`.
+- [x] T023 Implement `src/FundingPlatform.Infrastructure/AiComparison/Redaction/PiiRedactor.cs` (and `Patterns/` regex helpers). FR-B2 fields: cédula (CR national-ID pattern), CR phone (e.g. `^[+]?506?[ ]?[0-9]{4}[-]?[0-9]{4}$` family), email pattern. Structured-field redaction for applicant national id / applicant phone / applicant email / supplier owner DNI / supplier owner phone. Deterministic. Refuses (throws) if a supplied "file text" is empty/whitespace-only, signaling the caller to surface `pii_redaction_failed`.
+- [x] T024 [P] Implement `src/FundingPlatform.Infrastructure/Persistence/Configurations/ComparisonArtifactConfiguration.cs` (EF entity config).
+- [x] T025 [P] Implement `src/FundingPlatform.Infrastructure/Persistence/Configurations/ComparisonJobConfiguration.cs` (EF entity config; `Status` as `HasConversion<string>`).
+- [x] T026 Add `DbSet<ComparisonArtifact> ComparisonArtifacts` and `DbSet<ComparisonJob> ComparisonJobs` to `src/FundingPlatform.Infrastructure/Persistence/AppDbContext.cs` (re-uses existing `ApplyConfigurationsFromAssembly`).
+- [x] T027 [P] Implement `src/FundingPlatform.Infrastructure/Persistence/Repositories/ComparisonArtifactRepository.cs` against `IComparisonArtifactRepository`.
+- [x] T028 [P] Implement `src/FundingPlatform.Infrastructure/Persistence/Repositories/ComparisonJobRepository.cs` against `IComparisonJobRepository`.
 
 ### Infrastructure: AI client + DI
 
-- [ ] T029 Implement `src/FundingPlatform.Infrastructure/AiComparison/Anthropic/AnthropicAiClient.cs` (`IAiClient` impl via `Anthropic.SDK`). Uses JSON-mode/tool-use to enforce schema; surfaces transient vs hard via the typed exceptions (T018). No retry. No raw logging. Constructor takes `IOptions<AnthropicOptions>` reading `AiComparison:Anthropic:*`. **Fail-fast at DI registration** if API key missing in non-Development env.
-- [ ] T030 [P] Implement a stub `src/FundingPlatform.Infrastructure/AiComparison/Anthropic/StubAiClient.cs` returning canned schema-valid responses loaded from `tests/Fixtures/AiComparison/canned-extract.json` and `tests/Fixtures/AiComparison/canned-compare.json` when `AiComparison:Provider == "Stub"`.
-- [ ] T031 Add DI wiring in `src/FundingPlatform.Infrastructure/InfrastructureServiceCollectionExtensions.cs` (or equivalent existing extension class) for: `IPiiRedactor`, `IAiClient` (`Anthropic` / `Stub`), `IComparisonArtifactRepository`, `IComparisonJobRepository`, `PromptCatalog`, `SchemaValidator`. Pick provider by `AiComparison:Provider`.
+- [x] T029 Implement `src/FundingPlatform.Infrastructure/AiComparison/Anthropic/AnthropicAiClient.cs` (`IAiClient` impl via `Anthropic.SDK`). Uses JSON-mode/tool-use to enforce schema; surfaces transient vs hard via the typed exceptions (T018). No retry. No raw logging. Constructor takes `IOptions<AnthropicOptions>` reading `AiComparison:Anthropic:*`. **Fail-fast at DI registration** if API key missing in non-Development env.
+- [x] T030 [P] Implement a stub `src/FundingPlatform.Infrastructure/AiComparison/Anthropic/StubAiClient.cs` returning canned schema-valid responses loaded from `tests/Fixtures/AiComparison/canned-extract.json` and `tests/Fixtures/AiComparison/canned-compare.json` when `AiComparison:Provider == "Stub"`.
+- [x] T031 Add DI wiring in `src/FundingPlatform.Infrastructure/InfrastructureServiceCollectionExtensions.cs` (or equivalent existing extension class) for: `IPiiRedactor`, `IAiClient` (`Anthropic` / `Stub`), `IComparisonArtifactRepository`, `IComparisonJobRepository`, `PromptCatalog`, `SchemaValidator`. Pick provider by `AiComparison:Provider`.
 
 ### Unit tests (foundational)
 
-- [ ] T032 [P] Create `tests/Fixtures/Pii/` fixtures: representative supplier text snippets (CR national IDs, phones, emails, supplier-owner DNI, supplier-owner phones, mixed in narrative text). Include negative fixtures (no PII present).
-- [ ] T033 [P] Implement `tests/FundingPlatform.Tests.Unit/AiComparison/PiiRedactorTests.cs` — fixture sweep proving SC-006 (no enumerated PII pattern appears in `SafePayload`), determinism (same input ⇒ same output across runs), span counts populated.
-- [ ] T034 [P] Implement `tests/FundingPlatform.Tests.Unit/AiComparison/InputHasherTests.cs` — invariance under map-key reordering, sensitivity to declared list order, 64-hex shape, mutation of any field changes the hash.
-- [ ] T035 [P] Implement `tests/FundingPlatform.Tests.Unit/AiComparison/ComparisonNormalizerTests.cs` — unit conversion (kg↔lb, m↔cm), date formatting es-CR, CRC conversion using snapshot id (not live rate), discrepancy passthrough.
-- [ ] T036 [P] Implement `tests/FundingPlatform.Tests.Unit/AiComparison/SchemaValidationTests.cs` — happy-path validation, malformed JSON, missing required field, `additionalProperties` violation; all surface as `AiSchemaInvalidException` with validator path.
-- [ ] T037 [P] Implement `tests/FundingPlatform.Tests.Unit/Domain/ComparisonArtifactBehaviorTests.cs` — `IsStaleAgainst` enumerates the right `ChangedInput`s; `ReplaceWith` rejects bad hash / negative tokens / schema-invalid JSON.
-- [ ] T038 [P] Implement `tests/FundingPlatform.Tests.Unit/Domain/ComparisonJobBehaviorTests.cs` — state machine: legal transitions succeed, every illegal transition throws `InvalidOperationException`; `Reap` only acts on stale `Running`.
+- [x] T032 [P] Create `tests/Fixtures/Pii/` fixtures: representative supplier text snippets (CR national IDs, phones, emails, supplier-owner DNI, supplier-owner phones, mixed in narrative text). Include negative fixtures (no PII present).
+- [x] T033 [P] Implement `tests/FundingPlatform.Tests.Unit/AiComparison/PiiRedactorTests.cs` — fixture sweep proving SC-006 (no enumerated PII pattern appears in `SafePayload`), determinism (same input ⇒ same output across runs), span counts populated.
+- [x] T034 [P] Implement `tests/FundingPlatform.Tests.Unit/AiComparison/InputHasherTests.cs` — invariance under map-key reordering, sensitivity to declared list order, 64-hex shape, mutation of any field changes the hash.
+- [x] T035 [P] Implement `tests/FundingPlatform.Tests.Unit/AiComparison/ComparisonNormalizerTests.cs` — unit conversion (kg↔lb, m↔cm), date formatting es-CR, CRC conversion using snapshot id (not live rate), discrepancy passthrough.
+- [x] T036 [P] Implement `tests/FundingPlatform.Tests.Unit/AiComparison/SchemaValidationTests.cs` — happy-path validation, malformed JSON, missing required field, `additionalProperties` violation; all surface as `AiSchemaInvalidException` with validator path.
+- [x] T037 [P] Implement `tests/FundingPlatform.Tests.Unit/Domain/ComparisonArtifactBehaviorTests.cs` — `IsStaleAgainst` enumerates the right `ChangedInput`s; `ReplaceWith` rejects bad hash / negative tokens / schema-invalid JSON.
+- [x] T038 [P] Implement `tests/FundingPlatform.Tests.Unit/Domain/ComparisonJobBehaviorTests.cs` — state machine: legal transitions succeed, every illegal transition throws `InvalidOperationException`; `Reap` only acts on stale `Running`.
 
 **Checkpoint**: Foundation ready. Domain + persistence + AI seam + redactor + hashing + schema validation are all in place and unit-verified. User stories can now begin.
 

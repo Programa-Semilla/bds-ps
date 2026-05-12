@@ -1,11 +1,15 @@
+using FundingPlatform.Application.Abstractions.AiComparison;
 using FundingPlatform.Application.Admin.Reports;
 using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Admin.Users;
+using FundingPlatform.Application.AiComparison;
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Infrastructure.AiComparison.Anthropic;
+using FundingPlatform.Infrastructure.AiComparison.Redaction;
 using FundingPlatform.Infrastructure.Audit;
 using FundingPlatform.Infrastructure.DocumentGeneration;
 using FundingPlatform.Infrastructure.Identity;
@@ -67,6 +71,39 @@ public static class DependencyInjection
         // Spec 017 — admin dashboard reader + activity feed source + user-store reader.
         services.AddScoped<Application.Services.IAdminAuditEventReader, Persistence.AdminAuditEventReader>();
         services.AddScoped<Application.Services.IUserStoreReader, Identity.UserStoreReader>();
+
+        // Spec 020 — AI quote comparison wiring.
+        services.AddAiComparison(configuration);
+
+        return services;
+    }
+
+    /// <summary>Spec 020 — AI quote comparison wiring extracted for clarity.</summary>
+    public static IServiceCollection AddAiComparison(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<AnthropicOptions>(configuration.GetSection("AiComparison:Anthropic"));
+
+        services.AddSingleton<PromptCatalog>();
+        services.AddSingleton<SchemaValidator>();
+        services.AddSingleton<IPiiRedactor, PiiRedactor>();
+
+        services.AddScoped<IComparisonArtifactRepository, ComparisonArtifactRepository>();
+        services.AddScoped<IComparisonJobRepository, ComparisonJobRepository>();
+
+        // Phase 3+ wiring (orchestrator + handler + guards + worker) is added
+        // by AddAiComparisonOrchestration once those classes land.
+
+        var provider = configuration["AiComparison:Provider"] ?? "Stub";
+        if (string.Equals(provider, "Anthropic", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddScoped<IAiClient, AnthropicAiClient>();
+        }
+        else
+        {
+            services.AddSingleton<IAiClient, StubAiClient>();
+        }
 
         return services;
     }
