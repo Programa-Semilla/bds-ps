@@ -1,8 +1,10 @@
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
+using FundingPlatform.Application.Notifications;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.Notifications;
 using FundingPlatform.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
@@ -12,13 +14,21 @@ namespace FundingPlatform.Application.Services;
 public class ReviewService
 {
     private readonly IApplicationRepository _applicationRepository;
+    private readonly INotificationOutboxWriter _outboxWriter;
+    private readonly IWorkflowTransactionScope _txScope;
     private readonly ILogger<ReviewService> _logger;
 
     private const int PageSize = 25;
 
-    public ReviewService(IApplicationRepository applicationRepository, ILogger<ReviewService> logger)
+    public ReviewService(
+        IApplicationRepository applicationRepository,
+        INotificationOutboxWriter outboxWriter,
+        IWorkflowTransactionScope txScope,
+        ILogger<ReviewService> logger)
     {
         _applicationRepository = applicationRepository;
+        _outboxWriter = outboxWriter;
+        _txScope = txScope;
         _logger = logger;
     }
 
@@ -205,10 +215,36 @@ public class ReviewService
         try
         {
             application.SendBack();
-            application.AddVersionHistory(new VersionHistory(userId, "SendBack",
-                "Application sent back to applicant for more information"));
+            var vhRow = new VersionHistory(userId, "SendBack",
+                "Application sent back to applicant for more information");
+            application.AddVersionHistory(vhRow);
+
+            // Spec 021 / US2 / FR-008 — enqueue a RETURNED_TO_APPLICANT outbox row
+            // in the same transaction as the workflow-state change. Recipient
+            // resolution at dispatch time targets the applicant + participating
+            // admins; the reviewer bucket is empty.
+            await using var tx = await _txScope.BeginAsync(CancellationToken.None);
+
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+            // vhRow.Id now assigned by EF.
+
+            var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
+                application.Id, CancellationToken.None);
+            var applicantDisplayName = application.Applicant is not null
+                ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+                : "Solicitante";
+            var applicantUserId = application.Applicant?.UserId ?? string.Empty;
+            var payload = new NotificationPayload(
+                application.Id, applicantUserId, applicantDisplayName,
+                stageGroupIds, OutcomeCode: null);
+
+            await _outboxWriter.EnqueueAsync(
+                NotificationEvent.ReturnedToApplicant,
+                application.Id, vhRow.Id, payload, CancellationToken.None);
+
+            await _applicationRepository.SaveChangesAsync();
+            await tx.CommitAsync(CancellationToken.None);
             return null;
         }
         catch (InvalidOperationException ex)
@@ -230,10 +266,40 @@ public class ReviewService
         try
         {
             application.Finalize(force);
-            application.AddVersionHistory(new VersionHistory(userId, "Finalize",
-                $"Review finalized{(force ? " (force — unresolved items implicitly rejected)" : "")}"));
+            var vhRow = new VersionHistory(userId, "Finalize",
+                $"Review finalized{(force ? " (force — unresolved items implicitly rejected)" : "")}");
+            application.AddVersionHistory(vhRow);
+
+            // Spec 021 / US4 + US5 / R-004 — derive terminal outcome from per-item
+            // decisions: every required item Approved → Approved; otherwise Rejected.
+            // The corresponding outbox row is enqueued in the same transaction as
+            // Finalize + the VersionHistory append.
+            var allApproved = application.Items.All(i => i.ReviewStatus == ItemReviewStatus.Approved);
+            var outcomeEvent = allApproved
+                ? NotificationEvent.ApplicationApproved
+                : NotificationEvent.ApplicationRejected;
+            var outcomeCode = allApproved ? "Approved" : "Rejected";
+
+            await using var tx = await _txScope.BeginAsync(CancellationToken.None);
+
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+
+            var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
+                application.Id, CancellationToken.None);
+            var applicantDisplayName = application.Applicant is not null
+                ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+                : "Solicitante";
+            var applicantUserId = application.Applicant?.UserId ?? string.Empty;
+            var payload = new NotificationPayload(
+                application.Id, applicantUserId, applicantDisplayName,
+                stageGroupIds, OutcomeCode: outcomeCode);
+
+            await _outboxWriter.EnqueueAsync(
+                outcomeEvent, application.Id, vhRow.Id, payload, CancellationToken.None);
+
+            await _applicationRepository.SaveChangesAsync();
+            await tx.CommitAsync(CancellationToken.None);
             return (null, null);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("unresolved"))

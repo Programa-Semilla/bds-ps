@@ -34,7 +34,14 @@ public class LineCodeRequiredAndUniqueTests
             .Options;
         _ctx = new AppDbContext(options);
         _repo = new ApplicationRepository(_ctx);
-        _service = new ReviewService(_repo, NullLogger<ReviewService>.Instance);
+        // Spec 021 — ReviewService now also depends on INotificationOutboxWriter
+        // + IWorkflowTransactionScope. Not exercised by this test (line-code
+        // validation runs on ReviewItemAsync which does not enqueue notifications);
+        // substitute lightweight no-ops.
+        var outboxWriter = NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>();
+        var txScope = NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.IWorkflowTransactionScope>();
+        _service = new ReviewService(_repo, outboxWriter, txScope,
+            NullLogger<ReviewService>.Instance);
     }
 
     [TearDown]
