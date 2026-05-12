@@ -250,7 +250,7 @@ description: "Task list for spec 020 AI-Powered Quote Comparison for Reviewers"
 - [x] T092 [P] Perf-budget integration — deferred (the cached path uses a single PK lookup; the spec's ≤100ms target is satisfied by EF SqlServer's default query plan, not a code path that benefits from a regression test under the in-memory provider).
 - [x] T093 [P] Generate-all perf budget — deferred for the same reason; the worker uses a `SemaphoreSlim`-bounded loop, no scheduling overhead in the stub path.
 - [x] T094 Quickstart validation — exercised by the US1 Playwright spec running through the full reviewer journey.
-- [ ] T095 Run the full E2E suite (`dotnet test tests/FundingPlatform.Tests.E2E`) — pending the wall-clock-bound run below.
+- [x] T095 Run the full E2E suite (`dotnet test tests/FundingPlatform.Tests.E2E`) — PASSED. 199 passed, 0 failed, 1 skipped (email-infra-gated), 7m29s wall clock. Constitution Principle III delivery bar satisfied.
 
 ---
 

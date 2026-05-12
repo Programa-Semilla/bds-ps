@@ -7,9 +7,7 @@
     var appState = Enum.Parse<ApplicationState>(Model.State);
 }
 
-@section Styles {
-    <link rel="stylesheet" href="~/css/comparison.css" />
-}
+<link rel="stylesheet" href="~/css/comparison.css" />
 
 @await Html.PartialAsync("Components/_PageHeader",
     new PageHeaderViewModel(
