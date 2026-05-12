@@ -101,6 +101,10 @@ public static class DependencyInjection
         services.AddScoped<IComparisonOrchestrator, Application.AiComparison.ComparisonOrchestrator>();
         services.AddScoped<Application.AiComparison.Commands.GenerateComparisonCommandHandler>();
 
+        // Hosted services — comparison worker + reaper.
+        services.AddHostedService<Infrastructure.AiComparison.ComparisonJobWorker>();
+        services.AddHostedService<Infrastructure.AiComparison.ComparisonJobReaper>();
+
         var provider = configuration["AiComparison:Provider"] ?? "Stub";
         if (string.Equals(provider, "Anthropic", StringComparison.OrdinalIgnoreCase))
         {

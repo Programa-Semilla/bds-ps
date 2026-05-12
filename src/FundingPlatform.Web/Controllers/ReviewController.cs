@@ -313,6 +313,128 @@ public class ReviewController : Controller
         public bool ForceRegenerate { get; set; }
     }
 
+    public class GenerateAllRequest
+    {
+        public bool ForceAll { get; set; }
+        public bool BypassRateLimit { get; set; }
+        public bool BypassTokenCap { get; set; }
+    }
+
+    /// <summary>
+    /// Spec 020 / US5 — resolve a citation source-ref into a signed URL.
+    /// Citation IDs are `<applicationItemId>:<documentId>` (the orchestrator
+    /// projects supplier blobs through the Document id; we resolve back here).
+    /// </summary>
+    [HttpGet]
+    [Route("Review/Citations/{applicationItemId:int}/{sourceRefId}")]
+    public async Task<IActionResult> Citation(
+        int applicationItemId,
+        string sourceRefId,
+        CancellationToken ct)
+    {
+        var parentApplicationId = await _reviewService.GetApplicationIdForItemAsync(applicationItemId, ct);
+        if (parentApplicationId is null) return NotFound();
+
+        var scope = await GetScopeAsync(ct);
+        if (!scope.IsAdmin)
+        {
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(parentApplicationId.Value, scope.GroupIds, ct);
+            if (!allowed) return Forbid();
+        }
+
+        // The citation marker is rendered as a relative link to the Document by
+        // id; storage handle resolution is delegated to the existing document
+        // download endpoint. We 302 to that path so the spec-014 SAS-TTL policy
+        // is enforced centrally.
+        if (!int.TryParse(sourceRefId, out var documentId))
+            return NotFound();
+
+        // Look up the blob key via the Document row and stream it through
+        // IObjectStorage (spec 014 / FR-018). The orchestrator wires storage
+        // by category; supplier-quotation files live under application-attachments.
+        var storage = HttpContext.RequestServices.GetRequiredService<
+            FundingPlatform.Application.Abstractions.Storage.IObjectStorage>();
+        var db = HttpContext.RequestServices.GetRequiredService<
+            FundingPlatform.Infrastructure.Persistence.AppDbContext>();
+        var doc = await db.Documents.FirstOrDefaultAsync(d => d.Id == documentId, ct);
+        if (doc is null || string.IsNullOrEmpty(doc.BlobKey)) return NotFound();
+
+        var key = FundingPlatform.Application.Abstractions.Storage.ObjectKey.Parse(doc.BlobKey);
+        var handle = await storage.ResolveServingHandleAsync(
+            FundingPlatform.Application.Abstractions.Storage.FileCategory.ApplicationAttachment,
+            key,
+            FundingPlatform.Application.Abstractions.Storage.ServingMode.TimeLimitedUrl,
+            ct);
+
+        if (handle is FundingPlatform.Application.Abstractions.Storage.TimeLimitedUrlHandle url)
+            return Redirect(url.Url.ToString());
+        if (handle is FundingPlatform.Application.Abstractions.Storage.BackendStreamHandle stream)
+            return File(stream.Content, stream.ContentType ?? "application/octet-stream", doc.OriginalFileName);
+        return NotFound();
+    }
+
+    /// <summary>Spec 020 / FR-A4 — enqueue per-item comparison jobs for the whole application.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("Review/GenerateAll/{applicationId:int}")]
+    public async Task<IActionResult> GenerateAll(
+        int applicationId,
+        [FromBody] GenerateAllRequest? body,
+        [FromServices] FundingPlatform.Infrastructure.Persistence.AppDbContext db,
+        [FromServices] IComparisonJobRepository jobs,
+        CancellationToken ct)
+    {
+        body ??= new GenerateAllRequest();
+        var scope = await GetScopeAsync(ct);
+        if (!scope.IsAdmin)
+        {
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(applicationId, scope.GroupIds, ct);
+            if (!allowed) return Forbid();
+        }
+
+        var actorRole = User.IsInRole("Admin") ? "Admin" : "Reviewer";
+        var forceAll = body.ForceAll && actorRole == "Admin";
+        var bypassRateLimit = body.BypassRateLimit && actorRole == "Admin";
+        var bypassTokenCap = body.BypassTokenCap && actorRole == "Admin";
+
+        // Load eligible items (>= 2 quotations).
+        var items = await db.Items
+            .Where(i => i.ApplicationId == applicationId)
+            .Select(i => new { i.Id, QuotationCount = i.Quotations.Count })
+            .ToListAsync(ct);
+
+        var eligible = items.Where(x => x.QuotationCount >= 2).ToList();
+        if (eligible.Count == 0)
+            return UnprocessableEntity(new { code = "no_eligible_items" });
+
+        var enqueued = new List<object>();
+        var skippedFresh = new List<int>();
+
+        foreach (var item in eligible)
+        {
+            if (!forceAll)
+            {
+                var cached = await _comparisonOrchestrator.GetCachedComparisonAsync(item.Id, ct);
+                if (cached is { Freshness: Freshness.Fresh })
+                {
+                    skippedFresh.Add(item.Id);
+                    continue;
+                }
+            }
+
+            var job = ComparisonJob.Enqueue(
+                applicationItemId: item.Id,
+                requestedByUserId: GetUserId(),
+                bypassedRateLimit: bypassRateLimit,
+                bypassedTokenCap: bypassTokenCap,
+                now: DateTimeOffset.UtcNow);
+            await jobs.EnqueueAsync(job, ct);
+            enqueued.Add(new { applicationItemId = item.Id, jobId = job.Id });
+        }
+
+        return Accepted(new { enqueued, skippedFresh });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("Review/{id:int}/ReviewItem")]

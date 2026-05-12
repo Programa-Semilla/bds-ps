@@ -141,6 +141,11 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
                 EstimatedTokens: ex.EstimatedTokens, Cap: ex.Cap);
         }
 
+        _logger.LogInformation(
+            "AiComparison stage=guards.passed applicationItemId={ItemId} supplierIds=[{SupplierIds}]",
+            command.ApplicationItemId,
+            string.Join(",", assembly.Suppliers.Select(s => s.SupplierId)));
+
         // Extract per supplier (parallel, bounded).
         var stopwatch = Stopwatch.StartNew();
         var extractModel = _configuration["AiComparison:Anthropic:ExtractModel"] ?? "claude-sonnet-4-6";
