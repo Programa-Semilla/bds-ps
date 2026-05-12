@@ -4,7 +4,7 @@
 
 All routes are added to `ReviewController` under the existing `/Review` prefix. Authentication: existing ASP.NET Identity cookie. Authorization: `[Authorize(Roles="Reviewer,Admin")]` + spec-016 group-overlap predicate enforced inside the action.
 
-## `POST /Review/GenerateComparison/{applicationItemId:guid}`
+## `POST /Review/GenerateComparison/{applicationItemId:int}`
 
 Synchronously generates (or regenerates) the comparison for a single item. Returns within `AiComparison:SyncHardTimeoutSeconds` (default 90 s).
 
@@ -25,8 +25,8 @@ Both flags are ignored unless the caller is in role `Admin`. Default both `false
 |---|---|---|
 | `200 OK` | `ItemComparisonViewModel` JSON | Success. Includes the artifact JSON + `freshness: "Fresh"` + `lastUpdatedAt`. |
 | `400 Bad Request` | `{ "code": "single_supplier" }` | Item has < 2 supplier quotations (button shouldn't render; defensive). |
-| `400 Bad Request` | `{ "code": "unsupported_format", "supplierId": "<guid>" }` | Spreadsheet / non-PDF attachment that can't be processed. |
-| `400 Bad Request` | `{ "code": "pii_redaction_failed", "supplierId": "<guid>", "blobId": "<guid>" }` | Image-only PDF refused; tells the reviewer which file to replace. |
+| `400 Bad Request` | `{ "code": "unsupported_format", "offendingInput": "<blobId>" }` | Spreadsheet / non-PDF attachment that can't be processed. |
+| `400 Bad Request` | `{ "code": "pii_redaction_failed", "offendingInput": "<blobId>" }` | Image-only PDF refused; tells the reviewer which file to replace. |
 | `403 Forbidden` | empty | Reviewer outside the application's group scope (spec 016). |
 | `409 Conflict` | `{ "code": "concurrent_generation" }` | Another generation is already in flight for this item. |
 | `422 Unprocessable Entity` | `{ "code": "rate_limit_exceeded", "remaining": 0, "windowResetsAt": "..." }` | FR-G1. Admin can retry with `bypassRateLimit: true`. |
@@ -37,7 +37,7 @@ Both flags are ignored unless the caller is in role `Admin`. Default both `false
 
 Every response (success or failure) emits one `AdminAuditEvent` per the contract in `audit-event-payload.md`.
 
-## `POST /Review/GenerateAll/{applicationId:guid}`
+## `POST /Review/GenerateAll/{applicationId:int}`
 
 Enqueues per-item `ComparisonJob` rows. Returns immediately.
 
@@ -62,7 +62,7 @@ Enqueues per-item `ComparisonJob` rows. Returns immediately.
 | `409 Conflict` | `{ "code": "application_closed" }` | Application is archived / closed. |
 | `422 Unprocessable Entity` | `{ "code": "no_eligible_items" }` | Every item has only 1 supplier; nothing to compare. |
 
-## `GET /Review/ItemStatus/{applicationItemId:guid}`
+## `GET /Review/ItemStatus/{applicationItemId:int}`
 
 Polled by the review screen while any job for the parent application is `Pending` or `Running`.
 
@@ -70,7 +70,7 @@ Polled by the review screen while any job for the parent application is `Pending
 
 ```json
 {
-  "applicationItemId": "...",
+  "applicationItemId": 42,
   "state": "None | Cached-Fresh | Cached-Stale | Pending | Running | Failed",
   "freshness": "Fresh | Stale | None",
   "changedInputs": ["FileAdded", "LineEdited"],
@@ -83,16 +83,16 @@ Polled by the review screen while any job for the parent application is `Pending
 
 ETag / cache headers: `Cache-Control: no-store`. The client side computes a per-application "all-done" predicate over the per-item statuses to stop polling.
 
-## `GET /Review/Citations/{artifactId:guid}/{sourceRefId}`
+## `GET /Review/Citations/{applicationItemId:int}/{sourceRefId}`
 
-Resolves a citation `SourceRef` to a signed URL via the existing `IObjectStorage.ResolveServingHandleAsync` (spec 014). `sourceRefId` is the position-based index of the source-ref within the artifact (encoded as `<itemIdx>:<rowOrSectionLocator>:<sourceRefIdx>`).
+Resolves a citation `SourceRef` to a signed URL via the existing `IObjectStorage.ResolveServingHandleAsync` (spec 014). `sourceRefId` is the originating document/blob id — the `Document.Id` (INT) that the orchestrator projects through `DeriveBlobGuid` to populate the artifact's `sourceRefs[].blobId`. The view layer renders the marker with `sourceRefId = documentId` so the controller can look up the `Document` row and stream the same blob through the existing spec-014 SAS-TTL policy. (The earlier draft described a position-based `<itemIdx>:<rowOrSectionLocator>:<sourceRefIdx>` locator; the live implementation is simpler — a direct document id.)
 
 **Response**:
 
 | HTTP | Body | Notes |
 |---|---|---|
 | `302 Found` | (redirect to signed URL) | Default behavior. TTL respects the per-category storage policy. |
-| `404 Not Found` | empty | Artifact or source-ref unknown. |
+| `404 Not Found` | empty | Document unknown or no blob key on the row. |
 | `403 Forbidden` | empty | Group-scope violation. |
 
 ## Notes

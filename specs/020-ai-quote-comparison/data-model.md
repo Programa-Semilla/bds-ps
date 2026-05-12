@@ -10,7 +10,7 @@ Represents the cached output of a successful comparison for one `ApplicationItem
 
 | Field | Type | Notes |
 |---|---|---|
-| `ApplicationItemId` | `Guid` | Primary key. 1:1 with `Item`. |
+| `ApplicationItemId` | `int` | Primary key. 1:1 with `dbo.Items.Id` (INT IDENTITY). |
 | `JsonContent` | `string` | Schema-validated artifact JSON (`ComparisonArtifact.v1.json`). Encrypted-at-rest is a host responsibility (NFR carry-over from spec 014). |
 | `InputHash` | `string` (64 hex chars) | SHA-256 of canonical-JSON `InputDescriptor`. Determines staleness. |
 | `PromptVersion` | `string` | Prompt-catalog version. Bumped with prompt-file changes. |
@@ -33,7 +33,7 @@ Represents the cached output of a successful comparison for one `ApplicationItem
 - `ReplaceWith(string json, string inputHash, string promptVersion, string schemaVersion, string aiModel, string userId, int tokenIn, int tokenOut, int latencyMs)` — atomic in-place replace; rejects negative tokens, malformed hash, schema-invalid JSON.
 
 **Factory**:
-- `ComparisonArtifact.Create(Guid applicationItemId, string json, string inputHash, string promptVersion, string schemaVersion, string aiModel, string userId, int tokenIn, int tokenOut, int latencyMs, IClock clock)`.
+- `ComparisonArtifact.Create(int applicationItemId, string json, string inputHash, string promptVersion, string schemaVersion, string aiModel, string userId, int tokenIn, int tokenOut, int latencyMs, IClock clock)`.
 
 ### `ComparisonJob` (aggregate root) — Domain
 
@@ -42,13 +42,14 @@ Represents a queued or in-flight generation request triggered by "Generar todo" 
 | Field | Type | Notes |
 |---|---|---|
 | `Id` | `Guid` | Primary key. |
-| `ApplicationItemId` | `Guid` | The item being compared. |
+| `ApplicationItemId` | `int` | The item being compared (`dbo.Items.Id`). |
 | `RequestedByUserId` | `string` | Who enqueued. |
+| `ActorRole` | `string` | `"Reviewer"` or `"Admin"` captured at enqueue time so the worker preserves bypass-attribution on FR-H1 audit rows (FINDING-4). |
 | `Status` | `ComparisonJobStatus` enum | `Pending` | `Running` | `Completed` | `Failed` |
 | `BypassedRateLimit` | `bool` | Was the per-app rate limit overridden? |
 | `BypassedTokenCap` | `bool` | Was the per-run token cap overridden? |
 | `LastStatusChangeAt` | `DateTimeOffset` | Updated on every transition. Reaper input. |
-| `ResultingArtifactId` | `Guid?` | Set on `Completed`. References `ComparisonArtifacts.ApplicationItemId`. |
+| `ResultingArtifactId` | `int?` | Set on `Completed`. References `ComparisonArtifacts.ApplicationItemId`. |
 | `FailureReason` | `string?` | Set on `Failed`. Constants: `provider_transient`, `provider_hard:<code>`, `schema_invalid`, `rate_limit_exceeded`, `token_cap_exceeded`, `worker_crashed`, `unsupported_format`, `pii_redaction_failed`, `application_closed`. |
 | `StartedAt` | `DateTimeOffset?` | Set on `Running`. |
 | `FinishedAt` | `DateTimeOffset?` | Set on `Completed` or `Failed`. |
@@ -60,13 +61,13 @@ Represents a queued or in-flight generation request triggered by "Generar todo" 
 - `StartedAt != null ⟺ Status ∈ {Running, Completed, Failed-after-Start}`. Pre-flight `Failed` (pre-`Start`) sets only `FinishedAt`.
 
 **Behavior methods**:
-- Static factory `Enqueue(Guid applicationItemId, string requestedByUserId, bool bypassedRateLimit, bool bypassedTokenCap, IClock clock) : ComparisonJob` — initial status `Pending`; sets `LastStatusChangeAt = clock.Now`.
+- Static factory `Enqueue(int applicationItemId, string requestedByUserId, string actorRole, bool bypassedRateLimit, bool bypassedTokenCap, IClock clock) : ComparisonJob` — initial status `Pending`; sets `LastStatusChangeAt = clock.Now`. Rejects unknown `actorRole` (must be `"Reviewer"` or `"Admin"`).
 - `Start(IClock clock)` — `Pending → Running`; updates `StartedAt` + `LastStatusChangeAt`.
-- `RecordSuccess(Guid artifactId, int tokenIn, int tokenOut, int latencyMs, IClock clock)` — `Running → Completed`; sets `ResultingArtifactId`, `FinishedAt`, `LastStatusChangeAt`.
+- `RecordSuccess(int artifactId, int tokenIn, int tokenOut, int latencyMs, IClock clock)` — `Running → Completed`; sets `ResultingArtifactId`, `FinishedAt`, `LastStatusChangeAt`.
 - `RecordFailure(string failureReason, IClock clock)` — to `Failed` from `Pending` (pre-flight guard reject) or `Running` (mid-run failure). Sets `FailureReason`, `FinishedAt`, `LastStatusChangeAt`.
 - `Reap(IClock clock) : bool` — iff `Status == Running` AND `LastStatusChangeAt < clock.Now - OrphanReapWindow`, transitions to `Failed` with `failureReason = "worker_crashed"` and returns `true`; otherwise no-op returns `false`.
 
-**Factory rejects**: empty `applicationItemId`, empty `requestedByUserId`.
+**Factory rejects**: non-positive `applicationItemId`, empty `requestedByUserId`, `actorRole ∉ {Reviewer, Admin}`.
 
 ### `InputDescriptor` (Application value object)
 
@@ -74,11 +75,11 @@ Pure data carrier for hash computation. Not persisted.
 
 | Field | Type | Source |
 |---|---|---|
-| `ApplicationItemId` | `Guid` | Caller |
-| `OrderedSupplierIds` | `Guid[]` | Live state via repository |
-| `OrderedBranchIds` | `Guid[]` | Live state |
-| `BlobReferences` | `(Guid blobId, string contentHash)[]` | `IObjectStorage` returns content hash via existing handle |
-| `LineState` | `(Guid lineId, decimal quantity, decimal unitPrice, string currencyCode, Guid exchangeRateSnapshotId)[]` | Live state |
+| `ApplicationItemId` | `int` | Caller (matches `dbo.Items.Id`) |
+| `OrderedSupplierIds` | `int[]` | Live state via repository (matches `dbo.Suppliers.Id`) |
+| `OrderedBranchIds` | `int[]` | Live state (matches `dbo.SupplierBranches.Id`; `0` if no branch link) |
+| `BlobReferences` | `(Guid blobId, string contentHash)[]` | `IObjectStorage` returns content hash via existing handle; `blobId` is a deterministic `Guid` derived from the `Document.Id` |
+| `LineState` | `(int lineId, decimal quantity, decimal unitPrice, string currencyCode, Guid? exchangeRateSnapshotId)[]` | Live state (`lineId` = `Document.Id` per current 1-quotation-per-supplier shape) |
 | `PromptVersion` | `string` | Constants in `AnthropicPromptCatalog` |
 | `SchemaVersion` | `string` | Constants in `AnthropicPromptCatalog` |
 
@@ -95,10 +96,13 @@ No schema changes. Comparison events use:
 
 ### `dbo.ComparisonArtifacts.sql`
 
+ApplicationItemId is `INT` to match `dbo.Items.Id` (INT IDENTITY). The
+data-model draft originally sketched a Guid id; the live schema is INT.
+
 ```sql
 CREATE TABLE [dbo].[ComparisonArtifacts]
 (
-    [ApplicationItemId]    UNIQUEIDENTIFIER  NOT NULL,
+    [ApplicationItemId]    INT               NOT NULL,
     [JsonContent]          NVARCHAR(MAX)     NOT NULL,
     [InputHash]            CHAR(64)          NOT NULL,
     [PromptVersion]        NVARCHAR(64)      NOT NULL,
@@ -123,17 +127,22 @@ CREATE INDEX [IX_ComparisonArtifacts_InputHash]
 
 ### `dbo.ComparisonJobs.sql`
 
+ApplicationItemId is `INT`. Id remains `UNIQUEIDENTIFIER` so the worker can
+pre-allocate identifiers and write rows in a single insert. ActorRole was
+added under FINDING-4 so the worker preserves bypass-attribution.
+
 ```sql
 CREATE TABLE [dbo].[ComparisonJobs]
 (
     [Id]                     UNIQUEIDENTIFIER  NOT NULL,
-    [ApplicationItemId]      UNIQUEIDENTIFIER  NOT NULL,
+    [ApplicationItemId]      INT               NOT NULL,
     [RequestedByUserId]      NVARCHAR(450)     NOT NULL,
+    [ActorRole]              NVARCHAR(16)      NOT NULL,  -- Reviewer|Admin
     [Status]                 NVARCHAR(16)      NOT NULL,  -- Pending|Running|Completed|Failed
     [BypassedRateLimit]      BIT               NOT NULL,
     [BypassedTokenCap]       BIT               NOT NULL,
     [LastStatusChangeAt]     DATETIMEOFFSET    NOT NULL,
-    [ResultingArtifactId]    UNIQUEIDENTIFIER  NULL,
+    [ResultingArtifactId]    INT               NULL,
     [FailureReason]          NVARCHAR(128)     NULL,
     [StartedAt]              DATETIMEOFFSET    NULL,
     [FinishedAt]             DATETIMEOFFSET    NULL,
@@ -175,8 +184,8 @@ EF configurations:
 
 ## Repository contracts (Application abstractions)
 
-- `IComparisonArtifactRepository.GetByItemIdAsync(Guid applicationItemId, CancellationToken) : Task<ComparisonArtifact?>`.
+- `IComparisonArtifactRepository.GetByItemIdAsync(int applicationItemId, CancellationToken) : Task<ComparisonArtifact?>`.
 - `IComparisonArtifactRepository.UpsertAsync(ComparisonArtifact artifact, CancellationToken)` — entity factory enforces invariants; persists or replaces by `ApplicationItemId`.
-- `IComparisonJobRepository.GetAsync(Guid id, ...)`, `GetPendingForApplicationAsync(Guid applicationId, ...)`, `GetByApplicationItemAsync(Guid applicationItemId, ...)`, `EnqueueAsync(ComparisonJob, ...)`, `UpdateAsync(ComparisonJob, ...)`, `GetOrphanedRunningAsync(DateTimeOffset cutoff, ...)`.
+- `IComparisonJobRepository.GetAsync(Guid id, ...)`, `GetPendingForApplicationAsync(int applicationId, ...)`, `GetByApplicationItemAsync(int applicationItemId, ...)`, `EnqueueAsync(ComparisonJob, ...)`, `UpdateAsync(ComparisonJob, ...)`, `GetOrphanedRunningAsync(DateTimeOffset cutoff, ...)`.
 
 Authorization layer: `GetByItemIdAsync` does **not** filter by group; the caller (controller / orchestrator) applies the group-overlap predicate to the parent application via the existing spec-016 helper before invoking the orchestrator. Pattern matches the existing repository surface in `ApplicationRepository.GetByStateForReviewerAsync`.

@@ -99,29 +99,36 @@ public sealed record RedactedSpan(string FieldOrPatternName, int Count);
 public interface IComparisonOrchestrator
 {
     Task<GenerateComparisonResult> GenerateAsync(GenerateComparisonCommand command, CancellationToken cancellationToken);
-    Task<ItemStatusResult> GetStatusAsync(Guid applicationItemId, CancellationToken cancellationToken);
+    Task<ItemStatusResult> GetStatusAsync(int applicationItemId, CancellationToken cancellationToken);
+    Task<CachedComparisonResult?> GetCachedComparisonAsync(int applicationItemId, CancellationToken cancellationToken);
 }
 
 public sealed record GenerateComparisonCommand(
-    Guid ApplicationItemId,
+    int ApplicationItemId,
     string ActorUserId,
     string ActorRole,
     bool BypassRateLimit,
-    bool BypassTokenCap);
+    bool BypassTokenCap,
+    bool ForceRegenerate = false);
 
 public abstract record GenerateComparisonResult;
 public sealed record GenerateComparisonSuccess(
-    Guid ApplicationItemId,
+    int ApplicationItemId,
     string ArtifactJson,
-    DateTimeOffset GeneratedAt) : GenerateComparisonResult;
+    DateTimeOffset GeneratedAt,
+    Freshness Freshness,
+    IReadOnlyList<ChangedInput> ChangedInputs) : GenerateComparisonResult;
 public sealed record GenerateComparisonFailure(
-    Guid ApplicationItemId,
+    int ApplicationItemId,
     string FailureReason,
     string? ProviderCode = null,
-    string? OffendingInput = null) : GenerateComparisonResult;
+    string? OffendingInput = null,
+    int? EstimatedTokens = null,
+    int? Cap = null,
+    DateTimeOffset? WindowResetsAt = null) : GenerateComparisonResult;
 
 public sealed record ItemStatusResult(
-    Guid ApplicationItemId,
+    int ApplicationItemId,
     ItemState State,
     Freshness Freshness,
     IReadOnlyList<ChangedInput> ChangedInputs,
