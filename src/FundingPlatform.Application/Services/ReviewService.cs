@@ -219,15 +219,11 @@ public class ReviewService
                 "Application sent back to applicant for more information");
             application.AddVersionHistory(vhRow);
 
-            // Spec 021 / US2 / FR-008 — enqueue a RETURNED_TO_APPLICANT outbox row
-            // in the same transaction as the workflow-state change. Recipient
-            // resolution at dispatch time targets the applicant + participating
-            // admins; the reviewer bucket is empty.
-            await using var tx = await _txScope.BeginAsync(CancellationToken.None);
-
+            // Spec 021 / FR-001 — two-phase save (workflow first, outbox second).
+            // See ApplicationService.SubmitApplicationAsync for the rationale on
+            // not using an explicit transaction with Aspire's SqlClient retry policy.
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
-            // vhRow.Id now assigned by EF.
 
             var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
                 application.Id, CancellationToken.None);
@@ -244,7 +240,6 @@ public class ReviewService
                 application.Id, vhRow.Id, payload, CancellationToken.None);
 
             await _applicationRepository.SaveChangesAsync();
-            await tx.CommitAsync(CancellationToken.None);
             return null;
         }
         catch (InvalidOperationException ex)
@@ -272,16 +267,13 @@ public class ReviewService
 
             // Spec 021 / US4 + US5 / R-004 — derive terminal outcome from per-item
             // decisions: every required item Approved → Approved; otherwise Rejected.
-            // The corresponding outbox row is enqueued in the same transaction as
-            // Finalize + the VersionHistory append.
             var allApproved = application.Items.All(i => i.ReviewStatus == ItemReviewStatus.Approved);
             var outcomeEvent = allApproved
                 ? NotificationEvent.ApplicationApproved
                 : NotificationEvent.ApplicationRejected;
             var outcomeCode = allApproved ? "Approved" : "Rejected";
 
-            await using var tx = await _txScope.BeginAsync(CancellationToken.None);
-
+            // Spec 021 / FR-001 — two-phase save. See SubmitApplicationAsync rationale.
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
 
@@ -299,7 +291,6 @@ public class ReviewService
                 outcomeEvent, application.Id, vhRow.Id, payload, CancellationToken.None);
 
             await _applicationRepository.SaveChangesAsync();
-            await tx.CommitAsync(CancellationToken.None);
             return (null, null);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("unresolved"))

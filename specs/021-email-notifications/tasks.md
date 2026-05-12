@@ -248,7 +248,23 @@ Single-solution Clean Architecture monolith. Paths are relative to repo root.
 - [x] T083 [P] Perf assertion deferred to the live T086 pass — the source-level harness does not execute the worker against a real Aspire stack, so NotificationOutbox→NotificationDelivery latency cannot be timed in a non-fixture run. Documented as a delivery-gate item under T086.
 - [x] T084 [P] `EmailRenderException` permanent-failure path covered in `DeadLetterPathTests.Render_exception_marks_outbox_DeadLetter_without_provider_call` (the integration test has a real DbContext + worker; richer than a unit-level assertion).
 - [x] T085 CLAUDE.md updated during T007 (Phase 1 commit) — Active Technologies + Recent Changes entries for 021 + the eleven new `Notifications:*` rows in the configuration-knobs table + the smtp4dev sidecar note.
-- [ ] T086 Run the **full** E2E suite locally: `dotnet test tests/FundingPlatform.Tests.E2E`. Confirm 100% green. Per memory feedback `delivery_requires_e2e_green`, NOTHING ships until this passes. **Status: deferred — full E2E suite has not been executed in this session; requires Docker daemon + dotnet runtime available and 10-20 minutes for the shared-fixture run. Phase-11 polish + all in-scope test code is in place; this task is the final delivery gate.**
+- [ ] T086 Run the **full** E2E suite locally: `dotnet test tests/FundingPlatform.Tests.E2E`. Confirm 100% green. Per memory feedback `delivery_requires_e2e_green`, NOTHING ships until this passes.
+
+  **Status during this session**:
+  - `Tests.ApplicationSubmissionTests.SubmitApplication_Successfully` — **PASS** after iterating the FR-001 pattern (two-phase save, no explicit transaction; explicit transaction conflicted with Aspire's SQL Server retry policy and produced silent save failures).
+  - `Brand.EmailTemplateSenderTests` (6 cases) — **PASS** (source-level, no Aspire needed).
+  - `Notifications.ApplicationSubmittedNotificationsTests.SubmitFiresApplicantAndReviewerVariants` — **FAIL** (`MailCaptureClient.WaitForAsync timed out after 60s. observed=0`). Submit completes successfully (status flips to "Enviada") but no captured email arrives at smtp4dev within 60 s.
+
+  **Likely root causes still to investigate** (see report — not yet diagnosed during pipeline run):
+  1. Worker is running but the outbox row is not being persisted on the live SQL Server side (vs. in-memory tests where it works).
+  2. MailtrapSmtpEmailSender cannot reach the Aspire smtp4dev sidecar at the resolved host:port (Aspire's `services__smtp4dev__smtp__0` env var format may not match what my code reads, or the StartTlsWhenAvailable path is failing against smtp4dev which speaks plain SMTP).
+  3. RecipientAllowlistFilter is dropping the recipients even with `@programa-semilla.test` allowlist (allowlist parse from `IConfiguration.GetSection().Get<string[]>()` may not bind from appsettings.json correctly).
+
+  **Next-pass plan** (15-min budget per item):
+  - Add temporary Web-side diagnostics endpoint `/Notifications/_diag` that dumps `select status, count(*) from NotificationOutbox group by status` so the test can verify whether rows even exist post-submit.
+  - Inspect Aspire-resolved env vars at Web boot to confirm `services__smtp4dev__smtp__0` is set.
+  - Pivot MailtrapSmtpEmailSender to use `SecureSocketOptions.None` for the Local sidecar (smtp4dev does not negotiate STARTTLS).
+  - If outbox is empty post-submit, investigate whether the second `_applicationRepository.SaveChangesAsync()` is being silently rolled back by the SqlClient retry-strategy wrapper.
 
 ---
 

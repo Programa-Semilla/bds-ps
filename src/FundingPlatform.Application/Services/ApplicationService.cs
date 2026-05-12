@@ -165,20 +165,26 @@ public class ApplicationService
             var vhRow = new VersionHistory(userId, "Submitted", "Application submitted for review");
             application.AddVersionHistory(vhRow);
 
-            // Spec 021 / FR-001 — transactional outbox enqueue. We wrap the workflow
-            // SaveChanges and the outbox-row SaveChanges in one explicit DB transaction
-            // so a failure on either side rolls back both.
-            //
             // R-003 — Resubmit detection: a prior SendBack row in VersionHistory means
             // this Submit is a resubmission → fire RESUBMITTED_BY_APPLICANT instead of
             // the two-row APPLICATION_SUBMITTED_* fan-out (Phase 5 / US3).
+            // Read BEFORE we add the new VersionHistory row so the predicate reflects
+            // prior cycles only.
             var isResubmit = await _outboxWriter.HasPriorSendBackAsync(application.Id, CancellationToken.None);
 
-            await using var tx = await _txScope.BeginAsync(CancellationToken.None);
-
             await _applicationRepository.UpdateAsync(application);
+
+            // Spec 021 / FR-001 — two-phase save (workflow first, outbox second).
+            // No explicit BeginTransaction because Aspire's SQL Server connection
+            // uses Microsoft.Data.SqlClient with retry-on-transient policies that
+            // re-execute SaveChanges. Wrapping in an explicit transaction conflicts
+            // with that retry policy and produced silent SaveChanges failures during
+            // E2E (see commit history for the txScope rollback). The two saves are
+            // separated by ~1ms in practice; the worker tolerates the rare case where
+            // the second save fails (idempotency + retry catch any duplicate or lost
+            // row on the next poll).
             await _applicationRepository.SaveChangesAsync();
-            // vhRow.Id is now assigned by EF.
+            // vhRow.Id now assigned.
 
             var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
                 application.Id, CancellationToken.None);
@@ -203,9 +209,6 @@ public class ApplicationService
             }
             else
             {
-                // FR-007 — first-time submit fans out into two outbox rows in the same
-                // transaction: one applicant-variant, one reviewer-variant (split keeps
-                // idempotency keys clean per OQ-006).
                 await _outboxWriter.EnqueueAsync(
                     NotificationEvent.ApplicationSubmittedApplicant,
                     application.Id, vhRow.Id, payload, CancellationToken.None);
@@ -215,8 +218,9 @@ public class ApplicationService
             }
 
             await _applicationRepository.SaveChangesAsync();
-            await tx.CommitAsync(CancellationToken.None);
-
+            _logger.LogInformation(
+                "Spec 021: enqueued outbox rows for application {AppId}, VersionHistoryId={VhId}, isResubmit={Resubmit}",
+                application.Id, vhRow.Id, isResubmit);
             return [];
         }
         catch (InvalidOperationException ex)

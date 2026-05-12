@@ -43,8 +43,10 @@ public class ApplicationSubmittedNotificationsTests : AuthenticatedTestBase
 
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         const string password = "Test123!";
-        var applicantEmail = $"submit_app_{uniqueId}@example.com";
-        var reviewerEmail = $"submit_rev_{uniqueId}@example.com";
+        // Spec 021 / FR-017 — emails must be in the dev-default allowlist
+        // (@programa-semilla.test) so the allowlist filter doesn't block them.
+        var applicantEmail = $"submit_app_{uniqueId}@programa-semilla.test";
+        var reviewerEmail = $"submit_rev_{uniqueId}@programa-semilla.test";
 
         // 1) Register a reviewer (auto-assigned to every seeded group → shares groups with the applicant below).
         await RegisterUserAsync(Page, reviewerEmail, password, "Test", "Reviewer", $"R-{uniqueId}");

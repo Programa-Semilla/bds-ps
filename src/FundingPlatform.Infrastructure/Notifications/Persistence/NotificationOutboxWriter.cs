@@ -40,6 +40,7 @@ public sealed class NotificationOutboxWriter : INotificationOutboxWriter
         return Task.CompletedTask;
     }
 
+
     public Task<bool> HasPriorSendBackAsync(int applicationId, CancellationToken ct)
     {
         return _context.VersionHistories

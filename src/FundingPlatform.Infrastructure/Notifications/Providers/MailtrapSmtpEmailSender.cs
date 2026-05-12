@@ -71,10 +71,17 @@ public sealed class MailtrapSmtpEmailSender : IEmailSender
         try
         {
             using var client = new SmtpClient();
-            // smtp4dev does not require TLS; production SMTP via a real mail
-            // service typically uses StartTls. Default to StartTlsWhenAvailable
-            // so both environments work without per-env code paths.
-            await client.ConnectAsync(host, port, SecureSocketOptions.StartTlsWhenAvailable, ct);
+            // smtp4dev sidecar (Local) speaks plain SMTP on port 25 — no TLS
+            // negotiation. Mailtrap (cloud) supports STARTTLS on alt ports.
+            // Pick the socket-options policy per the port: 25 → None,
+            // 465 → SslOnConnect, anything else → StartTlsWhenAvailable.
+            var socketOptions = port switch
+            {
+                25 => SecureSocketOptions.None,
+                465 => SecureSocketOptions.SslOnConnect,
+                _ => SecureSocketOptions.StartTlsWhenAvailable,
+            };
+            await client.ConnectAsync(host, port, socketOptions, ct);
             if (!string.IsNullOrWhiteSpace(username))
             {
                 await client.AuthenticateAsync(username, password ?? string.Empty, ct);
@@ -109,19 +116,34 @@ public sealed class MailtrapSmtpEmailSender : IEmailSender
 
     private (string Host, int Port) ResolveEndpoint()
     {
-        // Aspire propagates the smtp4dev sidecar's host:port under the
-        // generated env var schema services__{resource}__{endpoint}__0.
-        // When set, that wins over the configured fallback.
-        var aspireHost = Environment.GetEnvironmentVariable("services__smtp4dev__smtp__0");
-        if (!string.IsNullOrWhiteSpace(aspireHost) &&
-            Uri.TryCreate(aspireHost, UriKind.Absolute, out var aspireUri))
+        // Aspire propagates the smtp4dev sidecar's host:port via env vars
+        // matching its WithReference convention. The smtp endpoint surfaces as
+        // services__smtp4dev__smtp__0 = tcp://host:port (or just host:port).
+        var aspireRaw = Environment.GetEnvironmentVariable("services__smtp4dev__smtp__0")
+                     ?? _config["services:smtp4dev:smtp:0"];
+        if (!string.IsNullOrWhiteSpace(aspireRaw))
         {
-            return (aspireUri.Host, aspireUri.Port > 0 ? aspireUri.Port : 25);
+            // tcp://host:port form
+            if (Uri.TryCreate(aspireRaw, UriKind.Absolute, out var uri) && uri.Port > 0)
+            {
+                _logger.LogDebug("Resolved smtp4dev endpoint from Aspire URI: {Host}:{Port}", uri.Host, uri.Port);
+                return (uri.Host, uri.Port);
+            }
+            // host:port form
+            var trimmed = aspireRaw.Trim();
+            var colonIdx = trimmed.LastIndexOf(':');
+            if (colonIdx > 0 && int.TryParse(trimmed[(colonIdx + 1)..], out var aspirePort) && aspirePort > 0)
+            {
+                var hostPart = trimmed[..colonIdx];
+                _logger.LogDebug("Resolved smtp4dev endpoint from Aspire host:port: {Host}:{Port}", hostPart, aspirePort);
+                return (hostPart, aspirePort);
+            }
         }
 
         var host = _config["Notifications:Mailtrap:Host"] ?? "localhost";
         var portStr = _config["Notifications:Mailtrap:Port"];
         var port = int.TryParse(portStr, out var p) ? p : 25;
+        _logger.LogDebug("Resolved smtp4dev endpoint from config fallback: {Host}:{Port}", host, port);
         return (host, port);
     }
 }

@@ -40,6 +40,13 @@ public class NotificationOutbox
         };
     }
 
+    /// <summary>
+    /// Spec 021 — placeholder navigation that EF ignores via
+    /// <c>NotificationOutboxConfiguration.Ignore</c>. Reserved for a future
+    /// audit-projection seam. Not used by the runtime; setting it has no effect.
+    /// </summary>
+    public Domain.Entities.VersionHistory? VersionHistory { get; private set; }
+
     public long Id { get; private set; }
 
     /// <summary>Upper-snake-case storage form. Use <see cref="EventTypeEnum"/> to read as enum.</summary>

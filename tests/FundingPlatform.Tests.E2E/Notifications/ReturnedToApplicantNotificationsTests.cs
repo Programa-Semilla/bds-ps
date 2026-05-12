@@ -42,8 +42,9 @@ public class ReturnedToApplicantNotificationsTests : AuthenticatedTestBase
 
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         const string password = "Test123!";
-        var applicantEmail = $"sb_app_{uniqueId}@example.com";
-        var reviewerEmail = $"sb_rev_{uniqueId}@example.com";
+        // Spec 021 / FR-017 — emails must be in the dev allowlist (@programa-semilla.test).
+        var applicantEmail = $"sb_app_{uniqueId}@programa-semilla.test";
+        var reviewerEmail = $"sb_rev_{uniqueId}@programa-semilla.test";
 
         await RegisterUserAsync(Page, reviewerEmail, password, "SB", "Reviewer", $"R-{uniqueId}");
         await AssignRoleAsync(reviewerEmail, "Reviewer");

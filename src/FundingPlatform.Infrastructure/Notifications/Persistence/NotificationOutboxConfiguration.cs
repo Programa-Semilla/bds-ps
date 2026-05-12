@@ -60,5 +60,11 @@ public class NotificationOutboxConfiguration : IEntityTypeConfiguration<Notifica
 
         builder.HasIndex(e => new { e.ApplicationId, e.CreatedAt })
             .HasDatabaseName("IX_NotificationOutbox_ApplicationId");
+
+        // Spec 021 — dacpac owns the FK_NotificationOutbox_VersionHistory + FK_NotificationOutbox_Applications
+        // constraints; EF only reads the table, no navigation needed in this v1.
+        // The VersionHistory CLR-side navigation is ignored so EF doesn't try to
+        // discover an implicit relationship.
+        builder.Ignore(e => e.VersionHistory);
     }
 }
