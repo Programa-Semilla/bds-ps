@@ -111,10 +111,15 @@ public class ApplicationSubmittedNotificationsTests : AuthenticatedTestBase
             filter: m => m.Subject.Contains("Solicitud #" + appId) || m.Subject.Contains("Nueva solicitud"));
 
         // Applicant message: confirmation subject + deep link to /Application/Details/{id}.
+        // NOTE: AssignAllGroupsAsync (called by RegisterUserAsync) places the applicant
+        // in every seeded group; the resolver therefore fans the reviewer-variant out
+        // to the applicant as well. Filter by SUBJECT + recipient so the assertion
+        // doesn't pick the reviewer-variant copy first.
         var applicantMsg = allMessages.FirstOrDefault(m =>
-            m.ToAddresses.Any(t => t.Contains(applicantEmail, StringComparison.OrdinalIgnoreCase)));
+            m.ToAddresses.Any(t => t.Contains(applicantEmail, StringComparison.OrdinalIgnoreCase)) &&
+            m.Subject.Contains("Recibimos tu solicitud"));
         Assert.That(applicantMsg, Is.Not.Null,
-            $"Expected at least one captured email to the applicant {applicantEmail}.");
+            $"Expected at least one applicant-variant email to {applicantEmail}.");
         Assert.That(applicantMsg!.Subject, Does.Contain("Recibimos tu solicitud"));
         Assert.That(applicantMsg.Subject, Does.Contain($"Solicitud #{appId}"));
         Assert.That(applicantMsg.HtmlBody + applicantMsg.TextBody,
@@ -122,9 +127,10 @@ public class ApplicationSubmittedNotificationsTests : AuthenticatedTestBase
 
         // Reviewer message: review subject + deep link to /Review/{id}.
         var reviewerMsg = allMessages.FirstOrDefault(m =>
-            m.ToAddresses.Any(t => t.Contains(reviewerEmail, StringComparison.OrdinalIgnoreCase)));
+            m.ToAddresses.Any(t => t.Contains(reviewerEmail, StringComparison.OrdinalIgnoreCase)) &&
+            m.Subject.StartsWith("Nueva solicitud para revisar"));
         Assert.That(reviewerMsg, Is.Not.Null,
-            $"Expected at least one captured email to the reviewer {reviewerEmail}.");
+            $"Expected at least one reviewer-variant email to {reviewerEmail}.");
         Assert.That(reviewerMsg!.Subject, Does.StartWith("Nueva solicitud para revisar"));
         Assert.That(reviewerMsg.HtmlBody + reviewerMsg.TextBody, Does.Contain($"/Review/{appId}"));
 

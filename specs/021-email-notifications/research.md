@@ -200,3 +200,29 @@ Indexes go in the same file as the table (not separate `.sql`) per repo conventi
 | **OQ-011** | participating-admin for role-changed users (EC-002) | **NEW — deferred to a future spec** per R-006 |
 
 Pin date for OQ-011 to be tracked in the spec's §Open Questions after the plan checkpoint commit.
+
+---
+
+## Post-Implementation Findings
+
+### FR-001 — workflow + outbox atomicity: two-phase save (deviation, not fix)
+
+**What the spec says (FR-001 / R-002)**: the workflow-state save and the outbox-row save commit atomically, in the *same* EF Core `SaveChanges` transaction. The original design language called for `_context.Database.BeginTransactionAsync()` wrapping both operations.
+
+**What we actually shipped**: `ApplicationService.SubmitApplicationAsync` (and the parallel `ReviewService.SendBackAsync`, `ReviewService.FinalizeReviewAsync`) call `_applicationRepository.SaveChangesAsync()` **twice** with no explicit `BeginTransaction`. The first save persists the workflow row + assigns `VersionHistory.Id`; the second save persists the outbox row(s) referencing that id.
+
+**Why**: the Aspire-managed `Microsoft.Data.SqlClient` connection has the transient-retry execution strategy enabled (default for `AddSqlServerDbContext<>`). Wrapping the dual save in an explicit `BeginTransactionAsync` conflicts with the retry strategy — EF Core requires either `dbContext.Database.CreateExecutionStrategy().ExecuteAsync(...)` to bracket the transaction, or the retry strategy disabled, or no explicit transaction at all. The implement subagent observed silent SaveChanges failures (no thrown exception, no commit) when wrapping the two saves in `IDbContextTransaction`; switching to the two-phase pattern resolved it and the SqlServer-deployed integration + E2E tests now pass.
+
+**Risk profile of the deviation**: between the two saves the workflow row is committed but the outbox row is not. If the process crashes there, the workflow advances without firing the notification. The worker has no compensating sweep for "workflow rows whose expected outbox row never persisted" — it polls outbox only. The exposure window is ~1 ms in practice. For the platform's traffic profile this is acceptable, but it is a real divergence from FR-001's "atomic" promise.
+
+**Recommended follow-up (for spex-evolve)**: either (a) update FR-001 to formalize the two-phase save and document the ~1 ms exposure window, or (b) re-introduce a true single transaction via `CreateExecutionStrategy().ExecuteAsync(...)` so the retry policy and transactional save coexist correctly. Option (a) is the smaller delta; option (b) restores spec fidelity.
+
+### T086 root cause — smtp4dev endpoint env-var resolution
+
+The first E2E run revealed that **candidate #2** from the implementation notes was correct: `MailtrapSmtpEmailSender.ResolveEndpoint()` was falling through to its config-file fallback (`localhost:25`) because the expected Aspire service-discovery env var (`services__smtp4dev__smtp__0`) was not present at the resolved key/format. Resolved by emitting `Notifications__Mailtrap__Host` and `Notifications__Mailtrap__Port` directly in `AppHost.cs` from `smtpEndpoint.Property(EndpointProperty.Host)` / `EndpointProperty.Port` so the host/port flow through the platform's own config path. This is a robustness fix that does not change spec semantics — the SMTP destination wiring in non-prod was always supposed to point at the Aspire sidecar.
+
+### T086 secondary fixes (test-only, no spec impact)
+
+- `MailCaptureClient` had DTO and content-fetching bugs against smtp4dev 3.6.x: `to` is an array, not a string; part bodies are served at `/api/Messages/{id}/part/{partId}/content`, not inlined in the message detail; `FromName` is not a top-level property (display name must be parsed out of `From`).
+- `ApplicationSubmittedNotificationsTests` filtered captured emails by recipient only. Because the test's `RegisterUserAsync` helper calls `AssignAllGroupsAsync`, the applicant also lands in every seeded group and therefore receives the reviewer-variant fan-out copy. Filter now also matches subject prefix.
+- `ReturnedToApplicantNotificationsTests` did not register a Playwright `Page.Dialog` handler for the `confirm("¿Devolver...?")` prompt, so the form never posted. Added an `AcceptAsync` handler.

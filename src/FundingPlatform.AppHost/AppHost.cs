@@ -132,13 +132,28 @@ var smtp4dev = builder.AddContainer("smtp4dev", "rnwood/smtp4dev", "3.6.1")
     .WithEndpoint(targetPort: 25, name: "smtp", scheme: "tcp")
     .WithHttpEndpoint(targetPort: 80, name: "http");
 
+var smtpEndpoint = smtp4dev.GetEndpoint("smtp");
+
 var webApp = builder.AddProject<Projects.FundingPlatform_Web>("webapp")
     .WithExternalHttpEndpoints()
     .WithReference(sqlServer)
     .WaitFor(sqlServer)
-    .WithReference(smtp4dev.GetEndpoint("smtp"))
+    .WithReference(smtpEndpoint)
     .WithReference(smtp4dev.GetEndpoint("http"))
     .WaitFor(smtp4dev)
+    // Spec 021 / T086 fix — Aspire's WithReference on the smtp endpoint emits a
+    // service-discovery env var whose exact key shape varies across Aspire
+    // versions / contexts (host process vs. testing builder). Resolving via
+    // that env var inside MailtrapSmtpEmailSender produced "connection refused"
+    // against localhost:25 in the E2E run because the env var was absent and
+    // the host-fallback fired against an unmapped port. Bind the resolved
+    // dynamic host:port directly into the platform's own
+    // Notifications:Mailtrap:Host/Port config keys so the existing config
+    // fallback path resolves to the right endpoint deterministically.
+    .WithEnvironment("Notifications__Mailtrap__Host",
+        ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Host)}"))
+    .WithEnvironment("Notifications__Mailtrap__Port",
+        ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Port)}"))
     .WithEnvironment("Syncfusion__LicenseKey", syncfusionLicense)
     .WithEnvironment("FundingAgreement__LocaleCode", localeCode)
     .WithEnvironment("FundingAgreement__CurrencyIsoCode", currencyIsoCode)

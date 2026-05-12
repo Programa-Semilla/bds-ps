@@ -102,7 +102,10 @@ public class ReturnedToApplicantNotificationsTests : AuthenticatedTestBase
         await LoginAsync(Page, reviewerEmail, password);
         var reviewPage = new ReviewApplicationPage(Page);
         await reviewPage.GotoAsync(BaseUrl, appId);
-        // Click the SendBack control.
+        // The SendBack button confirms via window.confirm() — Playwright's
+        // default handler dismisses dialogs which would cancel the submit.
+        // Accept the dialog so the form posts.
+        Page.Dialog += (_, dialog) => dialog.AcceptAsync();
         var sendBack = Page.Locator("button[type=submit]:has-text('Devolver')").First;
         await Expect(sendBack).ToBeVisibleAsync();
         await sendBack.ClickAsync();

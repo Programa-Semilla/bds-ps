@@ -49,10 +49,13 @@ public sealed class MailCaptureClient : IDisposable
         var results = new List<CapturedMessage>(page.Results?.Count ?? 0);
         foreach (var summary in page.Results ?? new List<MessageSummary>())
         {
-            if (recipientEmailFilter is not null &&
-                (summary.To?.IndexOf(recipientEmailFilter, StringComparison.OrdinalIgnoreCase) ?? -1) < 0)
+            if (recipientEmailFilter is not null)
             {
-                continue;
+                var summaryToString = string.Join(",", summary.To ?? new List<string>());
+                if (summaryToString.IndexOf(recipientEmailFilter, StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    continue;
+                }
             }
 
             var detail = await FetchDetailAsync(summary.Id, ct);
@@ -120,23 +123,74 @@ public sealed class MailCaptureClient : IDisposable
         var detail = await response.Content.ReadFromJsonAsync<MessageDetail>(JsonOptions, ct);
         if (detail is null) return null;
 
-        var htmlPart = detail.Parts?.FirstOrDefault(p =>
-            string.Equals(p.ContentType, "text/html", StringComparison.OrdinalIgnoreCase));
-        var textPart = detail.Parts?.FirstOrDefault(p =>
-            string.Equals(p.ContentType, "text/plain", StringComparison.OrdinalIgnoreCase));
+        // smtp4dev's MessageEntitySummary tree carries metadata only; the part body
+        // is served separately at /api/Messages/{id}/part/{partId}/content. Walk
+        // the tree recursively, find the first text/html and text/plain parts
+        // (via the part's Content-Type header), and fetch their bodies.
+        var flatParts = FlattenParts(detail.Parts).ToList();
+        var htmlPart = flatParts.FirstOrDefault(p => MatchesContentType(p, "text/html"));
+        var textPart = flatParts.FirstOrDefault(p => MatchesContentType(p, "text/plain"));
 
+        var htmlBody = htmlPart is null ? string.Empty : await FetchPartContentAsync(id, htmlPart.Id ?? string.Empty, ct);
+        var textBody = textPart is null ? string.Empty : await FetchPartContentAsync(id, textPart.Id ?? string.Empty, ct);
+
+        var fromAddress = detail.From ?? string.Empty;
         return new CapturedMessage(
             Id: detail.Id ?? id,
-            FromAddress: detail.From ?? string.Empty,
-            FromDisplayName: detail.FromName ?? string.Empty,
-            ToAddresses: detail.To?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                               .ToArray() ?? Array.Empty<string>(),
+            FromAddress: fromAddress,
+            FromDisplayName: ExtractDisplayName(fromAddress),
+            ToAddresses: detail.To?.ToArray() ?? Array.Empty<string>(),
             Subject: detail.Subject ?? string.Empty,
-            HtmlBody: htmlPart?.Content ?? string.Empty,
-            TextBody: textPart?.Content ?? string.Empty,
+            HtmlBody: htmlBody,
+            TextBody: textBody,
             ReceivedAt: detail.ReceivedDate ?? DateTimeOffset.UtcNow,
             Headers: detail.Headers?.ToDictionary(h => h.Name ?? string.Empty, h => h.Value ?? string.Empty)
                      ?? new Dictionary<string, string>());
+    }
+
+    private static IEnumerable<MessageEntitySummary> FlattenParts(IEnumerable<MessageEntitySummary>? parts)
+    {
+        if (parts is null) yield break;
+        foreach (var p in parts)
+        {
+            yield return p;
+            foreach (var child in FlattenParts(p.ChildParts))
+            {
+                yield return child;
+            }
+        }
+    }
+
+    private static bool MatchesContentType(MessageEntitySummary part, string mediaType)
+    {
+        // smtp4dev encodes the part's Content-Type as a header on the part itself.
+        // Match the prefix so charset / boundary params don't break the lookup.
+        var ct = part.Headers?.FirstOrDefault(h =>
+            string.Equals(h.Name, "Content-Type", StringComparison.OrdinalIgnoreCase))?.Value
+            ?? string.Empty;
+        return ct.StartsWith(mediaType, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<string> FetchPartContentAsync(string messageId, string partId, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(partId)) return string.Empty;
+        using var response = await _httpClient.GetAsync($"api/Messages/{messageId}/part/{partId}/content", ct);
+        if (!response.IsSuccessStatusCode) return string.Empty;
+        return await response.Content.ReadAsStringAsync(ct);
+    }
+
+    private static string ExtractDisplayName(string from)
+    {
+        // RFC 5322 address: '"Display Name" <email@example.com>' or 'email@example.com'.
+        // Strip surrounding quotes around the name part.
+        var idx = from.IndexOf('<');
+        if (idx <= 0) return string.Empty;
+        var raw = from[..idx].Trim();
+        if (raw.StartsWith('"') && raw.EndsWith('"') && raw.Length >= 2)
+        {
+            return raw[1..^1];
+        }
+        return raw;
     }
 
     public void Dispose() => _httpClient.Dispose();
@@ -151,8 +205,9 @@ public sealed class MailCaptureClient : IDisposable
     private sealed class MessageSummary
     {
         public string Id { get; set; } = string.Empty;
+        // smtp4dev exposes From as a string and To as an array of strings in /api/Messages.
         public string? From { get; set; }
-        public string? To { get; set; }
+        public List<string>? To { get; set; }
         public string? Subject { get; set; }
         public DateTimeOffset? ReceivedDate { get; set; }
     }
@@ -161,18 +216,22 @@ public sealed class MailCaptureClient : IDisposable
     {
         public string? Id { get; set; }
         public string? From { get; set; }
-        public string? FromName { get; set; }
-        public string? To { get; set; }
+        // smtp4dev (3.6.x) returns `to` as an array of strings on both the
+        // summary and detail endpoints.
+        public List<string>? To { get; set; }
         public string? Subject { get; set; }
         public DateTimeOffset? ReceivedDate { get; set; }
-        public List<MessagePart>? Parts { get; set; }
+        public List<MessageEntitySummary>? Parts { get; set; }
         public List<MessageHeader>? Headers { get; set; }
     }
 
-    private sealed class MessagePart
+    private sealed class MessageEntitySummary
     {
-        public string? ContentType { get; set; }
-        public string? Content { get; set; }
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+        public string? ContentId { get; set; }
+        public List<MessageHeader>? Headers { get; set; }
+        public List<MessageEntitySummary>? ChildParts { get; set; }
     }
 
     private sealed class MessageHeader
