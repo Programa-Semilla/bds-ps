@@ -23,7 +23,7 @@ A logged-in applicant completes their application and presses Submit. Within sec
 
 **Why this priority**: This is the single most visible deliverable — the closed-loop "I submitted, the system acknowledged, the people who can act know about it" promise. If only ONE event were ever implemented, this is the one that delivers the most user-felt value (applicant relief + reviewer awareness). P1.
 
-**Independent Test**: Run an E2E that signs in as an applicant, submits an application, and asserts via the SMTP-capture sidecar that (a) the applicant inbox received exactly one email with the applicant-variant subject `Recibimos tu solicitud — {Folio}` and a deep link to `/Applications/Details/{id}`, AND (b) each reviewer of the intake group received exactly one email with the reviewer-variant subject `Nueva solicitud para revisar: {ApplicantName}` and a deep link to `/Reviewer/Applications/Details/{id}`. No duplicates. Sender display reads "Programa Semilla / Sistema de Banca para el Desarrollo".
+**Independent Test**: Run an E2E that signs in as an applicant, submits an application, and asserts via the SMTP-capture sidecar that (a) the applicant inbox received exactly one email with the applicant-variant subject `Recibimos tu solicitud — Solicitud #{Id}` and a deep link to `/Application/Details/{id}`, AND (b) each reviewer of the intake group received exactly one email with the reviewer-variant subject `Nueva solicitud para revisar: {ApplicantName}` and a deep link to `/Review/{id}`. No duplicates. Sender display reads "Programa Semilla / Sistema de Banca para el Desarrollo".
 
 **Acceptance Scenarios**:
 
@@ -36,15 +36,15 @@ A logged-in applicant completes their application and presses Submit. Within sec
 
 ### User Story 2 - Reviewer sends back, applicant gets called to action (Priority: P1)
 
-A reviewer working an application identifies issues and sends the application back to the applicant. Within seconds, the applicant receives an email titled `Acción requerida: actualiza tu solicitud — {Folio}` with a deep link to their application detail. Reviewers receive no email on this transition (it's the applicant's turn). Participating admins receive a copy.
+A reviewer working an application identifies issues and sends the application back to the applicant. Within seconds, the applicant receives an email titled `Acción requerida: actualiza tu solicitud — Solicitud #{Id}` with a deep link to their application detail. Reviewers receive no email on this transition (it's the applicant's turn). Participating admins receive a copy.
 
 **Why this priority**: This is the workflow's primary feedback loop. Without it, an applicant has to poll the UI repeatedly to discover whether their application has come back to them. P1 because it directly determines how quickly applicants can resume work on a returned application.
 
-**Independent Test**: Run an E2E that submits an application, signs in as a reviewer, sends it back with a reason, and asserts the SMTP sidecar captures exactly one applicant-variant email — and zero reviewer-variant emails — with the `RETURNED_TO_APPLICANT` subject and an `/Applications/Details/{id}` deep link.
+**Independent Test**: Run an E2E that submits an application, signs in as a reviewer, sends it back with a reason, and asserts the SMTP sidecar captures exactly one applicant-variant email — and zero reviewer-variant emails — with the `RETURNED_TO_APPLICANT` subject and an `/Application/Details/{id}` deep link.
 
 **Acceptance Scenarios**:
 
-1. **Given** a submitted application with at least one reviewer-in-group having opened it, **When** a reviewer sends the application back, **Then** the applicant receives the `Acción requerida: actualiza tu solicitud — {Folio}` email and reviewers receive no email for this event.
+1. **Given** a submitted application with at least one reviewer-in-group having opened it, **When** a reviewer sends the application back, **Then** the applicant receives the `Acción requerida: actualiza tu solicitud — Solicitud #{Id}` email and reviewers receive no email for this event.
 2. **Given** the same send-back, **When** the participating-admin predicate is evaluated, **Then** any admin who has explicitly acted on this application history receives the same email body as the applicant variant (or a participating-admin variant of the send-back template).
 3. **Given** the applicant's email has been changed by an admin between submission and send-back, **When** the worker dispatches, **Then** the email is delivered to the applicant's *current* email address — not the address recorded at submission time.
 
@@ -68,7 +68,7 @@ The applicant addresses the send-back feedback and presses Resubmit. Within seco
 
 ### User Story 4 - Final approval reaches everyone who matters (Priority: P1)
 
-A reviewer (or approver) records the final approval decision. Within seconds, the applicant receives a `Tu solicitud fue aprobada — {Folio}` email with a deep link to the next-steps surface. Every admin who has explicitly acted on this application also receives the same email so participating admins close the loop on a workflow they invested in. Reviewers as a group do not receive a final-approval notification (they were the ones who approved it).
+A reviewer (or approver) records the final approval decision. Within seconds, the applicant receives a `Tu solicitud fue aprobada — Solicitud #{Id}` email with a deep link to the next-steps surface. Every admin who has explicitly acted on this application also receives the same email so participating admins close the loop on a workflow they invested in. Reviewers as a group do not receive a final-approval notification (they were the ones who approved it).
 
 **Why this priority**: The terminal positive transition is the second-most-anticipated moment for the applicant (after the initial confirmation). P1.
 
@@ -76,14 +76,14 @@ A reviewer (or approver) records the final approval decision. Within seconds, th
 
 **Acceptance Scenarios**:
 
-1. **Given** an application at the final stage with an approval decision recorded, **When** the worker dispatches, **Then** the applicant receives the `Tu solicitud fue aprobada — {Folio}` email and every participating admin receives the same email.
+1. **Given** an application at the final stage with an approval decision recorded, **When** the worker dispatches, **Then** the applicant receives the `Tu solicitud fue aprobada — Solicitud #{Id}` email and every participating admin receives the same email.
 2. **Given** the same final-approval transition, **When** the `NotificationDelivery` rows are inspected, **Then** zero rows exist for the `reviewer` bucket — only `applicant` and (where present) `admin` rows.
 
 ---
 
 ### User Story 5 - Final rejection reaches everyone who matters (Priority: P1)
 
-A reviewer (or approver) records the final rejection decision. Within seconds, the applicant receives a `Decisión sobre tu solicitud — {Folio}` email with a deep link to the decision-details view. Every participating admin also receives the same email. Reviewers as a group do not receive a final-rejection notification.
+A reviewer (or approver) records the final rejection decision. Within seconds, the applicant receives a `Decisión sobre tu solicitud — Solicitud #{Id}` email with a deep link to the decision-details view. Every participating admin also receives the same email. Reviewers as a group do not receive a final-rejection notification.
 
 **Why this priority**: The terminal negative transition is symmetric with US4. The applicant deserves to be notified with the same speed as approval. P1.
 
@@ -91,7 +91,7 @@ A reviewer (or approver) records the final rejection decision. Within seconds, t
 
 **Acceptance Scenarios**:
 
-1. **Given** an application at the final stage with a rejection decision recorded, **When** the worker dispatches, **Then** the applicant receives the `Decisión sobre tu solicitud — {Folio}` email and every participating admin receives the same email.
+1. **Given** an application at the final stage with a rejection decision recorded, **When** the worker dispatches, **Then** the applicant receives the `Decisión sobre tu solicitud — Solicitud #{Id}` email and every participating admin receives the same email.
 2. **Given** the rejection body, **When** the body content is inspected, **Then** no reviewer-internal commentary is embedded verbatim; the body links to the decision detail page where access control is enforced.
 
 ---
@@ -202,7 +202,7 @@ An admin who has explicitly acted on application A in the past gets demoted to r
 - **FR-023**: Email bodies MUST be rendered by Razor under a single shared layout partial `_EmailLayout.cshtml` that carries the spec-019 sender display, signature block, footer, and CTA button styling. The layout MUST NOT contain any inline `<img>` element (spec 019 NFR-005 compatibility). The footer MUST include a static support line `Para soporte: <a href="mailto:soporte@programa-semilla.cr">soporte@programa-semilla.cr</a>` (plain-text equivalent in the text fallback). No `List-Unsubscribe` header in v1; no automated suppression list.
 - **FR-024**: The system MUST ship eight body variant partials covering the six enum values: one variant on `APPLICATION_SUBMITTED_APPLICANT` (applicant-confirmation), one variant on `APPLICATION_SUBMITTED_REVIEWER` (reviewer-call-to-action), and one variant per event on `RETURNED_TO_APPLICANT`, `RESUBMITTED_BY_APPLICANT`, `APPLICATION_APPROVED`, `APPLICATION_REJECTED` — plus the `RETURNED_TO_APPLICANT` and `APPLICATION_APPROVED` / `APPLICATION_REJECTED` admin-flavored copies for the participating-admin bucket. Each variant MUST render an HTML body AND a plain-text fallback.
 - **FR-025**: All template strings MUST be es-CR Spanish. No English fallback. No i18n key system. Subject templates MUST match the table in §Event Catalog.
-- **FR-026**: Every CTA button MUST link to a deep-link URL composed from `Notifications:BaseUrl` + a role-specific MVC route. Reviewer/admin CTAs MUST point to `/Reviewer/Applications/Details/{id}`. Applicant CTAs MUST point to `/Applications/Details/{id}`. No new MVC routes are introduced. Access control MUST be enforced server-side by the existing authorize attributes on the target controllers.
+- **FR-026**: Every CTA button MUST link to a deep-link URL composed from `Notifications:BaseUrl` + a role-specific MVC route. Reviewer/admin CTAs MUST point to `/Review/{id}` (served by `ReviewController.Review` under `[Authorize(Roles = "Reviewer,Admin")]`). Applicant CTAs MUST point to `/Application/Details/{id}` (served by `ApplicationController.Details` under `[Authorize(Roles = "Applicant")]`). No new MVC routes are introduced. Access control MUST be enforced server-side by the existing authorize attributes on the target controllers.
 - **FR-027**: The spec-019 brand-grep gate (T030) MUST stay green on all new templates. Specifically, no template may contain the strings "Capital Semilla", "Forge", or any English-only copy.
 
 #### Audit + delivery
@@ -229,12 +229,12 @@ An admin who has explicitly acted on application A in the past gets demoted to r
 
 | Event (enum) | Trigger | Subject (es-CR) |
 |---|---|---|
-| `APPLICATION_SUBMITTED_REVIEWER` | `Application.Submit()` | `Nueva solicitud para revisar: {ApplicantName}` |
-| `APPLICATION_SUBMITTED_APPLICANT` | `Application.Submit()` (paired row, same transaction) | `Recibimos tu solicitud — {Folio}` |
-| `RETURNED_TO_APPLICANT` | `Application.SendBack()` | `Acción requerida: actualiza tu solicitud — {Folio}` |
-| `RESUBMITTED_BY_APPLICANT` | `Application.Resubmit()` | `Solicitud reenviada para revisión: {ApplicantName}` |
-| `APPLICATION_APPROVED` | final approval recorded | `Tu solicitud fue aprobada — {Folio}` |
-| `APPLICATION_REJECTED` | final rejection recorded | `Decisión sobre tu solicitud — {Folio}` |
+| `APPLICATION_SUBMITTED_REVIEWER` | `Application.Submit()` — first-time submit (no prior `SendBack` in `VersionHistory`) | `Nueva solicitud para revisar: {ApplicantName}` |
+| `APPLICATION_SUBMITTED_APPLICANT` | `Application.Submit()` — first-time submit (paired row, same transaction) | `Recibimos tu solicitud — Solicitud #{Id}` |
+| `RETURNED_TO_APPLICANT` | `Application.SendBack()` | `Acción requerida: actualiza tu solicitud — Solicitud #{Id}` |
+| `RESUBMITTED_BY_APPLICANT` | `Application.Submit()` — re-submit (at least one prior `SendBack` row in `VersionHistory`) | `Solicitud reenviada para revisión: {ApplicantName}` |
+| `APPLICATION_APPROVED` | `Application.Finalize(force=false)` with a derived `Approved` outcome | `Tu solicitud fue aprobada — Solicitud #{Id}` |
+| `APPLICATION_REJECTED` | `Application.Finalize(...)` with a derived `Rejected` outcome | `Decisión sobre tu solicitud — Solicitud #{Id}` |
 
 ### Recipient Rules
 
@@ -273,7 +273,7 @@ Bucket priority on collision: `applicant > reviewer > admin`. One email per `(Us
 
 ## Assumptions
 
-- Workflow state-transition methods (`Submit`, `SendBack`, `Resubmit`, `Approve`, `Reject`) already exist on the `Application` aggregate or its workflow services and persist their changes via a unit-of-work EF transaction that the outbox can hook into. (Verified at planning time.)
+- Workflow state-transition methods on `Application` (Domain aggregate): `Submit(int minQuotations)`, `SendBack()`, `Finalize(bool force)`. Item-level decisions: `Item.Approve(int supplierId, string?)`, `Item.Reject(string?)`. There is no `Resubmit()` domain method — resubmission is `Application.Submit()` called after a prior `SendBack()` returned the aggregate to `Draft`; the outbox writer distinguishes first-submit vs resubmit by inspecting `VersionHistory` for a prior `SendBack` row. Each transition persists via an Application Service (`ApplicationService`, `ReviewService`) that mutates the aggregate, appends `VersionHistory` via `Application.AddVersionHistory(...)`, then calls `_applicationRepository.SaveChangesAsync()` — a single EF `SaveChangesAsync()` per transition. The outbox row is enqueued through the same `DbContext` before `SaveChangesAsync()` to land in the same transaction. (Verified 2026-05-12.)
 - Each state transition produces a `VersionHistory` row inside the same transaction, providing a stable `VersionHistoryId` to anchor the outbox row's idempotency key. (Verified at planning time against spec 002 + spec 004.)
 - The applicant's user record carries an email field; reviewer and admin user records likewise. ASP.NET Identity is the authoritative source. (Constitution §III standard.)
 - Reviewer-group membership for the current stage of an application is queryable via the spec-016 read path (read-only consumer of `Group` + `UserGroupMembership` + the assigned-group reference on the workflow stage). (Verified at planning time.)
@@ -286,8 +286,8 @@ Bucket priority on collision: `applicant > reviewer > admin`. One email per `(Us
 
 ## Dependencies
 
-- **Spec 002 (review-approval-workflow)** — Read-only consumer of `Submit`, `SendBack`, `Approve`, `Reject` transition points. No spec-002 schema change.
-- **Spec 004 (applicant-response-appeal)** — Read-only consumer of `Resubmit`. Appeal-specific events are out of scope in v1.
+- **Spec 002 (review-approval-workflow)** — Read-only consumer of `Application.Submit()`, `Application.SendBack()`, `Application.Finalize()` transition points and the per-item `Item.Approve` / `Item.Reject` decisions that determine the derived final outcome. No spec-002 schema change.
+- **Spec 004 (applicant-response-appeal)** — Read-only consumer of the resubmission path (`Application.Submit()` invoked after a prior `SendBack()`). Appeal-specific events are out of scope in v1.
 - **Spec 016 (user-groups)** — Read-only consumer of reviewer-group membership for stage-assigned recipient resolution.
 - **Spec 019 (programa-semilla-brand)** — Sender display, signature block, brand-grep gate (T030), placeholder test replacement (FR-032). This spec is the deferred counterpart spec 019 explicitly handed off to.
 - **Constitution §III** — E2E mandate; SMTP-capture sidecar extends `AspireFixture` (FR-031). Net-new fixture surface.
@@ -317,7 +317,8 @@ Bucket priority on collision: `applicant > reviewer > admin`. One email per `(Us
 - **OQ-004 — Sender email per environment.** _Open — ops-pin._ Recommended `no-reply@programa-semilla.cr` for Production; non-Production uses an environment-specific address. Configurable via `Notifications:Sender:Email`; no spec change required.
 - **OQ-005 — `MailKit` license posture.** _Resolved 2026-05-12 (Clarifications)._ MailKit v3 (MIT). See FR-014.
 - **OQ-006 — Idempotency-key composition for SUBMITTED's two-bucket fan-out.** _Resolved 2026-05-12 (Clarifications)._ `APPLICATION_SUBMITTED` is split into `APPLICATION_SUBMITTED_REVIEWER` and `APPLICATION_SUBMITTED_APPLICANT`; one outbox row per bucket per submit. See FR-007, §Event Catalog, §Recipient Rules, §Key Entities.
-- **OQ-007 — Folio source-of-truth.** _Open — planning-pin._ Confirm `Application.Folio` (or equivalent) exists and is populated by the Submit transition; otherwise EC-009's fallback applies.
+- **OQ-007 — Folio source-of-truth.** _Resolved 2026-05-12 (Plan-phase research)._ `Application.Folio` does NOT exist. Numeric `Application.Id` is the human-readable identifier. All subject templates that previously used `{Folio}` now use `Solicitud #{Id}`. EC-009 is superseded: there is no fallback path; `Id` is always populated post-Submit.
 - **OQ-008 — `NotificationOutbox` / `NotificationDelivery` retention.** _Resolved 2026-05-12 (Clarifications)._ 90 days for terminal-success statuses; 1 year for `DeadLetter` / `Failed`. Cleanup job deferred to a future operational task. See §Key Entities.
 - **OQ-009 — Worker scaling story for future multi-replica.** _Open — deferred._ Correctness covered by FR-004 + FR-020 + EC-008. Throughput tuning is out of v1 scope.
-- **OQ-010 — Brand-grep gate render-time vs source-time.** _Open — planning-pin._ Source-`.cshtml` layer is the recommended scope.
+- **OQ-010 — Brand-grep gate render-time vs source-time.** _Resolved 2026-05-12 (Plan-phase research)._ Source-`.cshtml` layer: CI grep over `src/FundingPlatform.Web/Views/Emails/**/*.cshtml` for `Capital Semilla` / `Forge` / English-only strings.
+- **OQ-011 — Participating-admin predicate for role-changed users (EC-002).** _NEW (Plan-phase research R-006), deferred to a future spec._ The v1 predicate filters `VersionHistory.UserId` by `current role = Admin`. A user who acted as admin and was later demoted to reviewer will NOT match the v1 predicate. A future spec MAY add a `VersionHistory.RoleAtAction` snapshot column OR a dedicated `AdminAuditEvent.Action='application.acted'` row to restore full EC-002 fidelity. v1 ships the over-narrow predicate with the known limitation documented here.
