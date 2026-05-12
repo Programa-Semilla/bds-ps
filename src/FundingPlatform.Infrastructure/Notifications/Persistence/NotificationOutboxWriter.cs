@@ -1,6 +1,7 @@
 using FundingPlatform.Application.Notifications;
 using FundingPlatform.Domain.Notifications;
 using FundingPlatform.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Infrastructure.Notifications.Persistence;
 
@@ -37,5 +38,25 @@ public sealed class NotificationOutboxWriter : INotificationOutboxWriter
         _context.NotificationOutbox.Add(row);
         // No SaveChangesAsync — the caller commits.
         return Task.CompletedTask;
+    }
+
+    public Task<bool> HasPriorSendBackAsync(int applicationId, CancellationToken ct)
+    {
+        return _context.VersionHistories
+            .AsNoTracking()
+            .AnyAsync(vh => vh.ApplicationId == applicationId && vh.Action == "SendBack", ct);
+    }
+
+    public async Task<IReadOnlyList<int>> GetApplicantStageGroupIdsAsync(int applicationId, CancellationToken ct)
+    {
+        // Applicant's group memberships drive reviewer-bucket resolution per spec-016 read path.
+        var query =
+            from a in _context.Applications.AsNoTracking()
+            where a.Id == applicationId && a.Applicant != null
+            from m in _context.UserGroupMemberships
+            where m.UserId == a.Applicant!.UserId
+            select m.GroupId;
+
+        return await query.Distinct().ToListAsync(ct);
     }
 }

@@ -64,9 +64,17 @@ public class CompanyNameRequiredTests
         var conversion = Substitute.For<IConversionService>();
         var objectStorage = Substitute.For<IObjectStorage>();
 
+        // Spec 021 — ApplicationService also depends on INotificationOutboxWriter
+        // + IWorkflowTransactionScope. CreateApplication does not enqueue notifications
+        // so mocks suffice; SubmitApplicationAsync (spec 021) needs them wired but is
+        // not the surface exercised by this test.
+        var outboxWriter = Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>();
+        var txScope = Substitute.For<FundingPlatform.Application.Notifications.IWorkflowTransactionScope>();
+
         _service = new ApplicationService(
             appRepo, categoryRepo, supplierRepo, objectStorage, impactRepo,
             sysconfRepo, docRepo, supplierCatalog, conversion,
+            outboxWriter, txScope,
             NullLogger<ApplicationService>.Instance);
     }
 

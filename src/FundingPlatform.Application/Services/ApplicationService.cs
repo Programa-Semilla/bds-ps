@@ -2,10 +2,12 @@ using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
+using FundingPlatform.Application.Notifications;
 using FundingPlatform.Application.Suppliers.Services;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.Notifications;
 using FundingPlatform.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
@@ -36,6 +38,8 @@ public class ApplicationService
     private readonly IDocumentRepository _documentRepository;
     private readonly SupplierCatalogService _supplierCatalogService;
     private readonly IConversionService _conversionService;
+    private readonly INotificationOutboxWriter _outboxWriter;
+    private readonly IWorkflowTransactionScope _txScope;
     private readonly ILogger<ApplicationService> _logger;
 
     public ApplicationService(
@@ -48,6 +52,8 @@ public class ApplicationService
         IDocumentRepository documentRepository,
         SupplierCatalogService supplierCatalogService,
         IConversionService conversionService,
+        INotificationOutboxWriter outboxWriter,
+        IWorkflowTransactionScope txScope,
         ILogger<ApplicationService> logger)
     {
         _applicationRepository = applicationRepository;
@@ -59,6 +65,8 @@ public class ApplicationService
         _documentRepository = documentRepository;
         _supplierCatalogService = supplierCatalogService;
         _conversionService = conversionService;
+        _outboxWriter = outboxWriter;
+        _txScope = txScope;
         _logger = logger;
     }
 
@@ -154,10 +162,60 @@ public class ApplicationService
             }
 
             application.Submit(minQuotations);
-            application.AddVersionHistory(new VersionHistory(userId, "Submitted", "Application submitted for review"));
+            var vhRow = new VersionHistory(userId, "Submitted", "Application submitted for review");
+            application.AddVersionHistory(vhRow);
+
+            // Spec 021 / FR-001 — transactional outbox enqueue. We wrap the workflow
+            // SaveChanges and the outbox-row SaveChanges in one explicit DB transaction
+            // so a failure on either side rolls back both.
+            //
+            // R-003 — Resubmit detection: a prior SendBack row in VersionHistory means
+            // this Submit is a resubmission → fire RESUBMITTED_BY_APPLICANT instead of
+            // the two-row APPLICATION_SUBMITTED_* fan-out (Phase 5 / US3).
+            var isResubmit = await _outboxWriter.HasPriorSendBackAsync(application.Id, CancellationToken.None);
+
+            await using var tx = await _txScope.BeginAsync(CancellationToken.None);
 
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+            // vhRow.Id is now assigned by EF.
+
+            var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
+                application.Id, CancellationToken.None);
+
+            var applicantDisplayName = application.Applicant is not null
+                ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+                : "Solicitante";
+            var applicantUserId = application.Applicant?.UserId ?? userId;
+
+            var payload = new NotificationPayload(
+                ApplicationId: application.Id,
+                ApplicantUserId: applicantUserId,
+                ApplicantDisplayName: applicantDisplayName,
+                StageGroupIds: stageGroupIds,
+                OutcomeCode: null);
+
+            if (isResubmit)
+            {
+                await _outboxWriter.EnqueueAsync(
+                    NotificationEvent.ResubmittedByApplicant,
+                    application.Id, vhRow.Id, payload, CancellationToken.None);
+            }
+            else
+            {
+                // FR-007 — first-time submit fans out into two outbox rows in the same
+                // transaction: one applicant-variant, one reviewer-variant (split keeps
+                // idempotency keys clean per OQ-006).
+                await _outboxWriter.EnqueueAsync(
+                    NotificationEvent.ApplicationSubmittedApplicant,
+                    application.Id, vhRow.Id, payload, CancellationToken.None);
+                await _outboxWriter.EnqueueAsync(
+                    NotificationEvent.ApplicationSubmittedReviewer,
+                    application.Id, vhRow.Id, payload, CancellationToken.None);
+            }
+
+            await _applicationRepository.SaveChangesAsync();
+            await tx.CommitAsync(CancellationToken.None);
 
             return [];
         }

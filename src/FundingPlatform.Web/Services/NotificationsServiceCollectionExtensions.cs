@@ -43,6 +43,7 @@ public static class NotificationsServiceCollectionExtensions
 
         // FR-001 — transactional outbox writer (scoped: shares AppDbContext with caller).
         services.AddScoped<INotificationOutboxWriter, NotificationOutboxWriter>();
+        services.AddScoped<IWorkflowTransactionScope, EfWorkflowTransactionScope>();
 
         // FR-006 — recipient resolver (scoped: reads DbContext at dispatch time).
         services.AddScoped<INotificationRecipientResolver, NotificationRecipientResolver>();

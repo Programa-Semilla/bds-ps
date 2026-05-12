@@ -27,6 +27,11 @@ public sealed record NotificationPayload(
         // C# record property names so operators reading raw rows can map
         // tokens to code without a translation step.
         PropertyNamingPolicy = null,
+        // es-CR data carries accented characters (Pérez, Cárdenas, etc.). The
+        // default Unicode escaping makes raw rows hard to read for operators;
+        // the relaxed encoder writes UTF-8 bytes directly and the dacpac column
+        // (NVARCHAR(MAX)) handles them natively.
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     /// <summary>

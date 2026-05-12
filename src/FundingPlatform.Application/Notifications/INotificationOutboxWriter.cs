@@ -27,4 +27,19 @@ public interface INotificationOutboxWriter
         int versionHistoryId,
         NotificationPayload payload,
         CancellationToken ct);
+
+    /// <summary>
+    /// Spec 021 / FR-007 / R-003 — true when at least one prior <c>VersionHistory</c>
+    /// row with <c>Action="SendBack"</c> exists for this application. Drives the
+    /// first-submit (false) vs resubmit (true) decision in <c>SubmitApplicationAsync</c>.
+    /// </summary>
+    Task<bool> HasPriorSendBackAsync(int applicationId, CancellationToken ct);
+
+    /// <summary>
+    /// Spec 021 / FR-007 — reads the applicant's group memberships. The result
+    /// populates <see cref="NotificationPayload.StageGroupIds"/> so the resolver
+    /// finds reviewers who share at least one group with the applicant
+    /// (matches the spec-016 reviewer-scope predicate).
+    /// </summary>
+    Task<IReadOnlyList<int>> GetApplicantStageGroupIdsAsync(int applicationId, CancellationToken ct);
 }

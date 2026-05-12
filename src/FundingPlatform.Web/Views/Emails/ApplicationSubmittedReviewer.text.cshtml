@@ -1,0 +1,18 @@
+@{
+    ViewData["DisableLayout"] = true;
+}Nueva solicitud para revisar: @Model.Payload.ApplicantDisplayName
+
+Hola @Model.Recipient.DisplayName,
+
+@Model.Payload.ApplicantDisplayName envió una nueva solicitud (#@Model.Payload.ApplicationId) para revisión. Por favor, accede a la cola para evaluarla.
+
+Revisar solicitud:
+@Model.CtaUrl
+
+Saludos cordiales,
+Programa Semilla
+Sistema de Banca para el Desarrollo
+
+—
+Para soporte: soporte@@programa-semilla.cr
+Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
