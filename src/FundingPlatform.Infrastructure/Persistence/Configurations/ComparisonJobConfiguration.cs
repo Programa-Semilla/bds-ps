@@ -16,6 +16,7 @@ public class ComparisonJobConfiguration : IEntityTypeConfiguration<ComparisonJob
         builder.Property(j => j.Id).ValueGeneratedNever();
         builder.Property(j => j.ApplicationItemId).IsRequired();
         builder.Property(j => j.RequestedByUserId).HasMaxLength(450).IsRequired();
+        builder.Property(j => j.ActorRole).HasMaxLength(16).IsRequired();
         builder.Property(j => j.Status).HasMaxLength(16).HasConversion<string>().IsRequired();
         builder.Property(j => j.BypassedRateLimit).IsRequired();
         builder.Property(j => j.BypassedTokenCap).IsRequired();

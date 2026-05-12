@@ -19,6 +19,12 @@ public class ComparisonJob
     public Guid Id { get; private set; }
     public int ApplicationItemId { get; private set; }
     public string RequestedByUserId { get; private set; } = string.Empty;
+    /// <summary>
+    /// Spec 020 / FINDING-4 — actor role captured at enqueue time so the worker
+    /// recreates the same bypass-attribution the sync controller path applies.
+    /// Either "Reviewer" or "Admin"; no other values are accepted.
+    /// </summary>
+    public string ActorRole { get; private set; } = string.Empty;
     public ComparisonJobStatus Status { get; private set; }
     public bool BypassedRateLimit { get; private set; }
     public bool BypassedTokenCap { get; private set; }
@@ -34,6 +40,7 @@ public class ComparisonJob
         Guid id,
         int applicationItemId,
         string requestedByUserId,
+        string actorRole,
         bool bypassedRateLimit,
         bool bypassedTokenCap,
         DateTimeOffset now)
@@ -41,6 +48,7 @@ public class ComparisonJob
         Id = id;
         ApplicationItemId = applicationItemId;
         RequestedByUserId = requestedByUserId;
+        ActorRole = actorRole;
         BypassedRateLimit = bypassedRateLimit;
         BypassedTokenCap = bypassedTokenCap;
         Status = ComparisonJobStatus.Pending;
@@ -49,11 +57,12 @@ public class ComparisonJob
 
     /// <summary>
     /// Static factory — sets initial Pending status + LastStatusChangeAt.
-    /// Rejects empty user id / non-positive item id.
+    /// Rejects empty user id / non-positive item id / unknown actor role.
     /// </summary>
     public static ComparisonJob Enqueue(
         int applicationItemId,
         string requestedByUserId,
+        string actorRole,
         bool bypassedRateLimit,
         bool bypassedTokenCap,
         DateTimeOffset now)
@@ -62,9 +71,13 @@ public class ComparisonJob
             throw new ArgumentException("ApplicationItemId must be positive.", nameof(applicationItemId));
         if (string.IsNullOrWhiteSpace(requestedByUserId))
             throw new ArgumentException("RequestedByUserId is required.", nameof(requestedByUserId));
+        if (!string.Equals(actorRole, "Reviewer", StringComparison.Ordinal)
+            && !string.Equals(actorRole, "Admin", StringComparison.Ordinal))
+            throw new ArgumentException(
+                "ActorRole must be 'Reviewer' or 'Admin' (case-sensitive).", nameof(actorRole));
 
         return new ComparisonJob(
-            Guid.NewGuid(), applicationItemId, requestedByUserId,
+            Guid.NewGuid(), applicationItemId, requestedByUserId, actorRole,
             bypassedRateLimit, bypassedTokenCap, now);
     }
 

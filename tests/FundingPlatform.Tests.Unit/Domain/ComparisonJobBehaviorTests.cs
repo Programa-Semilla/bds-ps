@@ -7,6 +7,7 @@ public class ComparisonJobBehaviorTests
     private static ComparisonJob NewPending() => ComparisonJob.Enqueue(
         applicationItemId: 1,
         requestedByUserId: "user-1",
+        actorRole: "Reviewer",
         bypassedRateLimit: false,
         bypassedTokenCap: false,
         now: DateTimeOffset.UtcNow);
@@ -15,12 +16,31 @@ public class ComparisonJobBehaviorTests
     public void Enqueue_StartsPending_AndStampsLastStatusChangeAt()
     {
         var now = DateTimeOffset.UtcNow;
-        var job = ComparisonJob.Enqueue(5, "u", false, false, now);
+        var job = ComparisonJob.Enqueue(5, "u", "Reviewer", false, false, now);
 
         Assert.That(job.Status, Is.EqualTo(ComparisonJobStatus.Pending));
         Assert.That(job.LastStatusChangeAt, Is.EqualTo(now));
         Assert.That(job.StartedAt, Is.Null);
         Assert.That(job.FinishedAt, Is.Null);
+        Assert.That(job.ActorRole, Is.EqualTo("Reviewer"));
+    }
+
+    [Test]
+    public void Enqueue_RejectsUnknownActorRole()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            ComparisonJob.Enqueue(1, "u", "Applicant", false, false, DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentException>(() =>
+            ComparisonJob.Enqueue(1, "u", "admin", false, false, DateTimeOffset.UtcNow));
+    }
+
+    [Test]
+    public void Enqueue_AcceptsAdminActorRole()
+    {
+        var job = ComparisonJob.Enqueue(1, "u", "Admin", true, true, DateTimeOffset.UtcNow);
+        Assert.That(job.ActorRole, Is.EqualTo("Admin"));
+        Assert.That(job.BypassedRateLimit, Is.True);
+        Assert.That(job.BypassedTokenCap, Is.True);
     }
 
     [Test]

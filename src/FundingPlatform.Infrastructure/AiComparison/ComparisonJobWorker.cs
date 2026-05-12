@@ -72,10 +72,14 @@ public class ComparisonJobWorker : BackgroundService
 
         try
         {
+            // FINDING-4 — the orchestrator filters bypass attribution by ActorRole;
+            // the worker must propagate the role the job was enqueued under so an
+            // admin-enqueued "Generar todo" with --AnularLimites produces audit
+            // rows with bypassedRateLimit:true / actorRole:"Admin".
             var result = await orchestrator.GenerateAsync(new GenerateComparisonCommand(
                 ApplicationItemId: job.ApplicationItemId,
                 ActorUserId: job.RequestedByUserId,
-                ActorRole: "Reviewer",
+                ActorRole: job.ActorRole,
                 BypassRateLimit: job.BypassedRateLimit,
                 BypassTokenCap: job.BypassedTokenCap,
                 ForceRegenerate: true), ct);

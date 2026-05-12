@@ -425,6 +425,7 @@ public class ReviewController : Controller
             var job = ComparisonJob.Enqueue(
                 applicationItemId: item.Id,
                 requestedByUserId: GetUserId(),
+                actorRole: actorRole,
                 bypassedRateLimit: bypassRateLimit,
                 bypassedTokenCap: bypassTokenCap,
                 now: DateTimeOffset.UtcNow);
