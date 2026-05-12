@@ -30,7 +30,7 @@ namespace FundingPlatform.Infrastructure.Notifications.Workers;
 public sealed class EmailDispatchWorker : BackgroundService
 {
     /// <summary>FR-021 backoff schedule — index 0 used after first failure.</summary>
-    internal static readonly TimeSpan[] BackoffSchedule =
+    public static readonly TimeSpan[] BackoffSchedule =
     {
         TimeSpan.FromSeconds(1),
         TimeSpan.FromSeconds(5),
