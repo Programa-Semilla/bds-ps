@@ -93,7 +93,7 @@ Single-solution Clean Architecture monolith. Paths are relative to repo root.
 
 ### Workflow hook (Application Service)
 
-- [ ] T032 [US1] Edit `src/FundingPlatform.Application/.../ApplicationService.cs` (the existing `SubmitApplicationAsync` / equivalent method) to: (a) determine whether this submission is a first-time submit vs. resubmit by querying `VersionHistory` for any prior `Action="SendBack"` row on the same `ApplicationId`; (b) for FIRST-TIME submit only — enqueue TWO outbox rows in one transaction (`APPLICATION_SUBMITTED_REVIEWER` and `APPLICATION_SUBMITTED_APPLICANT`) via the injected `INotificationOutboxWriter`. Place the call BETWEEN `application.AddVersionHistory(...)` and `_applicationRepository.SaveChangesAsync()`. Resubmit detection is handled in US3.
+- [ ] T032 [US1] Edit `src/FundingPlatform.Application/Services/ApplicationService.cs` (the existing `SubmitApplicationAsync` / equivalent method) to: (a) determine whether this submission is a first-time submit vs. resubmit by querying `VersionHistory` for any prior `Action="SendBack"` row on the same `ApplicationId`; (b) for FIRST-TIME submit only — enqueue TWO outbox rows in one transaction (`APPLICATION_SUBMITTED_REVIEWER` and `APPLICATION_SUBMITTED_APPLICANT`) via the injected `INotificationOutboxWriter`. Place the call BETWEEN `application.AddVersionHistory(...)` and `_applicationRepository.SaveChangesAsync()`. Resubmit detection is handled in US3.
 
 ### Templates
 
@@ -111,7 +111,7 @@ Single-solution Clean Architecture monolith. Paths are relative to repo root.
 ### Unit tests
 
 - [ ] T040 [P] [US1] Create `tests/FundingPlatform.Tests.Unit/Notifications/NotificationTemplateBindingsTests.cs` — assert every `NotificationEvent` enum value has a binding row (subject template, html view name, text view name, variant key).
-- [ ] T041 [P] [US1] Create `tests/FundingPlatform.Tests.Unit/Notifications/RazorEmailRendererTests.cs` — render each US1 template against a fixture model; assert no inline `<img>`, sender display string in body, no `Capital Semilla` / `Forge`, es-CR copy.
+- [ ] T041 [P] [US1] Create `tests/FundingPlatform.Tests.Unit/Notifications/RazorEmailRendererTests.cs` — render EVERY template variant (all 6 events × HTML + text) against fixture models; assert no inline `<img>`, sender display string in body, no `Capital Semilla` / `Forge`, es-CR copy, **no PII leakage beyond what the spec allows in each variant per NFR-003** (e.g., reviewer/admin templates carry applicant name + folio-id + stage + CTA only; applicant templates carry the applicant's own folio + status only; no legal IDs, no supplier-quote amounts, no reviewer-internal commentary verbatim).
 
 ### Integration test
 
@@ -131,7 +131,7 @@ Single-solution Clean Architecture monolith. Paths are relative to repo root.
 
 **Independent Test**: `ReturnedToApplicantNotificationsTests` — submit → send back → assert exactly one applicant-variant email + #participatingAdmins emails, zero reviewer-variant.
 
-- [ ] T044 [US2] Edit `src/FundingPlatform.Application/.../ReviewService.cs` (or whatever service owns `Application.SendBack` invocation) — enqueue ONE outbox row with `EventType=RETURNED_TO_APPLICANT` between `AddVersionHistory` and `SaveChangesAsync`.
+- [ ] T044 [US2] Edit `src/FundingPlatform.Application/Services/ReviewService.cs` (or whatever service owns `Application.SendBack` invocation) — enqueue ONE outbox row with `EventType=RETURNED_TO_APPLICANT` between `AddVersionHistory` and `SaveChangesAsync`.
 - [ ] T045 [P] [US2] Create `src/FundingPlatform.Web/Views/Emails/ReturnedToApplicant.cshtml` — subject `Acción requerida: actualiza tu solicitud — Solicitud #{Application.Id}`; CTA to `/Application/Details/{id}`.
 - [ ] T046 [P] [US2] Create `src/FundingPlatform.Web/Views/Emails/ReturnedToApplicant.text.cshtml`.
 - [ ] T047 [US2] Extend `NotificationRecipientResolver.cs` (T030) to support `RETURNED_TO_APPLICANT`: applicant bucket + participating-admin bucket; reviewer bucket empty (FR-008).
@@ -147,7 +147,7 @@ Single-solution Clean Architecture monolith. Paths are relative to repo root.
 
 **Independent Test**: `ResubmittedNotificationsTests` — submit → send back → resubmit → assert exactly #reviewers emails; second worker pass over the same outbox row produces zero additional deliveries.
 
-- [ ] T049 [US3] Extend `src/FundingPlatform.Application/.../ApplicationService.cs` (T032) — when the prior-SendBack query returns a row, enqueue ONE outbox row with `EventType=RESUBMITTED_BY_APPLICANT` instead of the two-row APPLICATION_SUBMITTED_* fan-out.
+- [ ] T049 [US3] Extend `src/FundingPlatform.Application/Services/ApplicationService.cs` (T032) — when the prior-SendBack query returns a row, enqueue ONE outbox row with `EventType=RESUBMITTED_BY_APPLICANT` instead of the two-row APPLICATION_SUBMITTED_* fan-out.
 - [ ] T050 [P] [US3] Create `src/FundingPlatform.Web/Views/Emails/ResubmittedByApplicant.cshtml` — subject `Solicitud reenviada para revisión: {ApplicantName}`; CTA to `/Review/{id}`.
 - [ ] T051 [P] [US3] Create `src/FundingPlatform.Web/Views/Emails/ResubmittedByApplicant.text.cshtml`.
 - [ ] T052 [US3] Extend `NotificationRecipientResolver.cs` to support `RESUBMITTED_BY_APPLICANT`: reviewer bucket + participating-admin bucket; applicant bucket empty (FR-009).
@@ -165,7 +165,7 @@ Single-solution Clean Architecture monolith. Paths are relative to repo root.
 
 **Independent Test**: `ApprovedAndRejectedNotificationsTests.Approve_fires_approval_emails` — walk an application to final approval; assert applicant + admin captures with the approval subject.
 
-- [ ] T056 [US4] Edit `src/FundingPlatform.Application/.../ReviewService.cs` (or whatever service invokes `Application.Finalize`) — after `Finalize`, derive the application's terminal outcome (all items approved → `OutcomeCode="Approved"`; otherwise → `"Rejected"`). Enqueue ONE outbox row with `EventType=APPLICATION_APPROVED` when outcome is Approved, between `AddVersionHistory` and `SaveChangesAsync`. (Rejected branch in US5.)
+- [ ] T056 [US4] Edit `src/FundingPlatform.Application/Services/ReviewService.cs` (or whatever service invokes `Application.Finalize`) — after `Finalize`, derive the application's terminal outcome (all items approved → `OutcomeCode="Approved"`; otherwise → `"Rejected"`). Enqueue ONE outbox row with `EventType=APPLICATION_APPROVED` when outcome is Approved, between `AddVersionHistory` and `SaveChangesAsync`. (Rejected branch in US5.)
 - [ ] T057 [P] [US4] Create `src/FundingPlatform.Web/Views/Emails/ApplicationApproved.cshtml` — subject `Tu solicitud fue aprobada — Solicitud #{Application.Id}`; CTA to `/Application/Details/{id}` (next-steps surface).
 - [ ] T058 [P] [US4] Create `src/FundingPlatform.Web/Views/Emails/ApplicationApproved.text.cshtml`.
 - [ ] T059 [US4] Extend `NotificationRecipientResolver.cs` to support `APPLICATION_APPROVED`: applicant bucket + participating-admin bucket; reviewer bucket empty (FR-010).
@@ -181,7 +181,7 @@ Single-solution Clean Architecture monolith. Paths are relative to repo root.
 
 **Independent Test**: `ApprovedAndRejectedNotificationsTests.Reject_fires_rejection_emails` — same as US4 with rejection variant.
 
-- [ ] T061 [US5] Extend `src/FundingPlatform.Application/.../ReviewService.cs` (T056) — the Rejected branch enqueues an outbox row with `EventType=APPLICATION_REJECTED`.
+- [ ] T061 [US5] Extend `src/FundingPlatform.Application/Services/ReviewService.cs` (T056) — the Rejected branch enqueues an outbox row with `EventType=APPLICATION_REJECTED`.
 - [ ] T062 [P] [US5] Create `src/FundingPlatform.Web/Views/Emails/ApplicationRejected.cshtml` — subject `Decisión sobre tu solicitud — Solicitud #{Application.Id}`; CTA to `/Application/Details/{id}`. Body MUST NOT contain reviewer-internal commentary verbatim (NFR-003).
 - [ ] T063 [P] [US5] Create `src/FundingPlatform.Web/Views/Emails/ApplicationRejected.text.cshtml`.
 - [ ] T064 [US5] Extend `NotificationRecipientResolver.cs` to support `APPLICATION_REJECTED` (FR-011 = FR-010 with rejection variant).
