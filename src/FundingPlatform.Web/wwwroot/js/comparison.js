@@ -25,6 +25,23 @@
         });
     }
 
+    // FINDING-9 — Accept: text/html signals the controller to return the
+    // rendered _ComparisonRegion partial so the JS can do an inline outerHTML
+    // swap instead of a full window.location.reload. JSON errors still come
+    // back as JSON (the controller's failure envelopes are content-negotiated
+    // independently of this preference).
+    function postForHtml(url, body) {
+        var headers = { 'Content-Type': 'application/json', 'Accept': 'text/html, application/json;q=0.9' };
+        var tokenHeader = ctx.antiforgeryHeader || 'X-CSRF-TOKEN';
+        var token = getToken();
+        if (token) headers[tokenHeader] = token;
+        return fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(body || {})
+        });
+    }
+
     function getJson(url) {
         return fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
     }
@@ -60,21 +77,49 @@
 
         setStatus(itemId, 'Generando…');
 
-        postJson('/Review/GenerateComparison/' + itemId, {
+        // FINDING-9 — request HTML so we can inline-swap the partial instead
+        // of forcing a full page reload (which throws away scroll position,
+        // open dropdowns, and rotates the anti-CSRF token unnecessarily).
+        postForHtml('/Review/GenerateComparison/' + itemId, {
             bypassRateLimit: bypass,
             bypassTokenCap: bypass,
             forceRegenerate: !!force
         }).then(function (resp) {
+            var contentType = resp.headers.get('Content-Type') || '';
+            if (resp.ok && contentType.indexOf('text/html') !== -1) {
+                return resp.text().then(function (html) {
+                    region.outerHTML = html;
+                    // Re-bind generate buttons inside the swapped region. The
+                    // outerHTML swap drops the old listeners; bind() is
+                    // idempotent on data-* selectors so calling it again is safe.
+                    bindRegion(itemId);
+                    setStatus(itemId, 'Listo');
+                });
+            }
             return resp.json().then(function (payload) {
                 if (resp.ok) {
-                    setStatus(itemId, 'Comparación lista. Actualizando…');
-                    window.location.reload();
+                    // Fallback path — server didn't return HTML for some reason.
+                    setStatus(itemId, 'Listo');
                 } else {
                     renderError(itemId, payload && payload.code, payload);
                 }
             });
         }).catch(function () {
             setStatus(itemId, 'Generación falló: error de red. Reintentar.');
+        });
+    }
+
+    function bindRegion(itemId) {
+        var region = document.querySelector('[data-testid="comparison-region"][data-item-id="' + itemId + '"]');
+        if (!region) return;
+        region.querySelectorAll('[data-testid="comparison-generate-btn"]').forEach(function (btn) {
+            if (btn.dataset.bound === '1') return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', function () {
+                var id = btn.getAttribute('data-item-id');
+                var action = btn.getAttribute('data-action');
+                generateForItem(id, action === 'regenerate');
+            });
         });
     }
 
@@ -142,6 +187,8 @@
 
     function init() {
         document.querySelectorAll('[data-testid="comparison-generate-btn"]').forEach(function (btn) {
+            if (btn.dataset.bound === '1') return;
+            btn.dataset.bound = '1';
             btn.addEventListener('click', function () {
                 var id = btn.getAttribute('data-item-id');
                 var action = btn.getAttribute('data-action');

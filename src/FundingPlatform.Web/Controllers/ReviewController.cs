@@ -239,7 +239,7 @@ public class ReviewController : Controller
 
             return result switch
             {
-                GenerateComparisonSuccess s => Ok(new ItemComparisonViewModel
+                GenerateComparisonSuccess s => SuccessResponse(new ItemComparisonViewModel
                 {
                     ApplicationItemId = s.ApplicationItemId,
                     HasArtifact = true,
@@ -290,6 +290,25 @@ public class ReviewController : Controller
             lastUpdatedAt = status.LastUpdatedAt,
             failureReason = status.FailureReason,
         });
+    }
+
+    /// <summary>
+    /// Spec 020 / FINDING-9 — when the caller asks for HTML (Accept: text/html or
+    /// X-Requested-With: XMLHttpRequest with text/html in Accept), return the
+    /// rendered <c>_ComparisonRegion</c> partial so the JS can do an inline
+    /// outerHTML swap rather than a full window.location.reload. JSON callers
+    /// (and the default tooling) still get the ItemComparisonViewModel envelope.
+    /// </summary>
+    private IActionResult SuccessResponse(ItemComparisonViewModel vm)
+    {
+        var accept = Request.Headers["Accept"].ToString();
+        var wantsHtml = !string.IsNullOrEmpty(accept)
+            && accept.Contains("text/html", StringComparison.OrdinalIgnoreCase);
+        if (wantsHtml)
+        {
+            return PartialView("_ComparisonRegion", vm);
+        }
+        return Ok(vm);
     }
 
     private IActionResult ToErrorEnvelope(GenerateComparisonFailure f) => f.FailureReason switch
