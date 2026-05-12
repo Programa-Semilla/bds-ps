@@ -5,6 +5,16 @@
 **Status**: Draft
 **Input**: User description: Introduce the first email-notification subsystem in the FundingPlatform. Today, workflow events (`Submit`, `SendBack`, `Resubmit`, `Approve`, `Reject`) produce no out-of-band signal — applicants poll the UI for status, reviewers don't know new work has arrived, and admins who once participated in an application lose all visibility once they navigate away. Spec 019 ("Programa Semilla brand pivot") shipped a placeholder E2E test `tests/FundingPlatform.Tests.E2E/Brand/EmailTemplateSenderTests.cs` with `Assert.Ignore` that explicitly forwarded the email-subsystem contract to a later spec; this is that spec. Recipients are determined by three buckets — assigned-stage reviewers, the applicant, and admins who have *explicitly acted* on the application (no passive-view spillover) — with `applicant > reviewer > admin` bucket priority deciding the single template variant when a user qualifies via multiple routes. Outbox + background-worker architecture (transactional outbox written in the same DB transaction as the workflow state change; hosted `BackgroundService` poller; idempotency via unique index; transient-retry with backoff; permanent-failure dead-letter). Provider abstraction routes outbound mail to a containerized SMTP-capture sidecar (smtp4dev / MailHog) in Local — wired into the Aspire dev orchestration alongside SQL Server — Mailgun HTTP API outside Local, and a `NoOpEmailSender` fallback that fail-fasts on boot in Production when provider config is missing but warns-and-continues in non-Production. A `RecipientAllowlistFilter` decorator wraps the sender in every environment other than Production: non-allowlisted recipients are dropped and recorded as `BlockedByAllowlist`, so an empty allowlist on a staging environment yields zero real users emailed (fail-closed). All templates are es-CR Spanish (constitution + spec 012 hard-pinned culture), Razor-rendered with HTML + text fallback under one shared `_EmailLayout.cshtml` carrying the spec-019 wordmark text-only (no inline `<img>` per spec 019 NFR-005). Schema lives in the `FundingPlatform.Database` dacpac (two new tables: `NotificationOutbox`, `NotificationDelivery`) — zero EF migrations per constitution §IV. The deferred-counterpart placeholder test `EmailTemplateSenderTests.Assert.Ignore` is removed and replaced with real send/capture assertions per event variant, driven through an `AspireFixture` extension that exposes a `MailCaptureClient` against the sidecar. v1 event catalog is intentionally minimal — five workflow events (`APPLICATION_SUBMITTED`, `RETURNED_TO_APPLICANT`, `RESUBMITTED_BY_APPLICANT`, `APPLICATION_APPROVED`, `APPLICATION_REJECTED`); stage-granular and signing-stage events (`STAGE_APPROVED`, `REVIEWER_ASSIGNED`, `AGREEMENT_GENERATED`, `SIGNED_PDF_UPLOADED`, `COMMENT_ADDED`) are deliberately out of scope and tracked as multi-spec open threads from #08 / #11. In-app notifications, SignalR, push, SMS, digests, multilingual templates, user-facing notification-preferences UI, and Mailgun bounce-webhook ingestion are also explicitly out of scope. Spec number 021 per `brainstorm/seeds/email-notifications-seed.md` (020 reserved for parallel work).
 
+## Clarifications
+
+### Session 2026-05-12
+
+- Q: Split `APPLICATION_SUBMITTED` into two distinct enum values (`_REVIEWER` and `_APPLICANT`) so each outbox row carries one template variant and the idempotency unique index dedupes cleanly? → A: Yes, split (resolves OQ-006).
+- Q: SMTP-capture sidecar choice for the Local provider — smtp4dev or MailHog? → A: smtp4dev — .NET-native, lighter container, REST API for `MailCaptureClient` (resolves OQ-002).
+- Q: MailKit license posture — v3 (MIT) or v4 (commercial)? → A: v3 MIT — no commercial-license review required, satisfies CLAUDE.md managed-NuGet rule (resolves OQ-005).
+- Q: Mailgun ToS — include a `List-Unsubscribe`-equivalent footer for transactional mail to verified users? → A: Static `mailto:soporte@programa-semilla.cr` footer line in `_EmailLayout.cshtml`; no automated suppression list, no `List-Unsubscribe` header in v1 (resolves OQ-001).
+- Q: Retention policy for `NotificationOutbox` and `NotificationDelivery` rows? → A: 90 days for `Done` / `BlockedByAllowlist` / `Skipped`; 1 year for `DeadLetter`. A nightly cleanup job is out of scope in v1; rows accumulate until an explicit retention task is scheduled (resolves OQ-008).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Applicant submits and the workflow speaks back (Priority: P1)
@@ -165,7 +175,7 @@ An admin who has explicitly acted on application A in the past gets demoted to r
 
 #### Recipient resolution
 - **FR-006**: An `INotificationRecipientResolver` service MUST return the recipient list for a given outbox row, expressed as `(UserId, Email, DisplayName, Bucket, TemplateVariantKey)`. Buckets are `applicant`, `reviewer`, `admin`.
-- **FR-007**: For `APPLICATION_SUBMITTED`, the resolver MUST return the applicant (applicant-variant) AND every reviewer of the application's current stage group (reviewer-variant) AND every admin whose user-id appears in the application's `VersionHistory` actor column OR in any existing audit entry tied to this `ApplicationId` (reviewer-variant).
+- **FR-007**: On `Application.Submit()` the system MUST write TWO outbox rows in the same transaction: one with `EventType=APPLICATION_SUBMITTED_APPLICANT` and one with `EventType=APPLICATION_SUBMITTED_REVIEWER`. The applicant-event resolver MUST return the applicant (applicant-variant). The reviewer-event resolver MUST return every reviewer of the application's current stage group (reviewer-variant) AND every admin whose user-id appears in the application's `VersionHistory` actor column OR in any existing audit entry tied to this `ApplicationId` (reviewer-variant). Splitting the event keeps each outbox row's idempotency key clean (one template variant per row).
 - **FR-008**: For `RETURNED_TO_APPLICANT`, the resolver MUST return the applicant (applicant-variant) AND every participating admin (applicant-variant). The reviewer bucket MUST be empty.
 - **FR-009**: For `RESUBMITTED_BY_APPLICANT`, the resolver MUST return every reviewer of the current stage group (reviewer-variant) AND every participating admin (reviewer-variant). The applicant bucket MUST be empty.
 - **FR-010**: For `APPLICATION_APPROVED`, the resolver MUST return the applicant (applicant-variant) AND every participating admin (applicant-variant). The reviewer bucket MUST be empty.
@@ -174,7 +184,7 @@ An admin who has explicitly acted on application A in the past gets demoted to r
 - **FR-013**: The participating-admin predicate MUST query existing reads (`Application.VersionHistory` + existing audit). No new audit infrastructure is introduced.
 
 #### Provider abstraction
-- **FR-014**: The system MUST expose an `IEmailSender` interface with three implementations: `MailtrapSmtpEmailSender` (Local SMTP), `MailgunHttpEmailSender` (Mailgun HTTP API), and `NoOpEmailSender` (logs + returns success without sending).
+- **FR-014**: The system MUST expose an `IEmailSender` interface with three implementations: `MailtrapSmtpEmailSender` (Local SMTP, backed by **MailKit v3 — MIT licensed**), `MailgunHttpEmailSender` (Mailgun HTTP API, raw `HttpClient`, no Mailgun-specific NuGet package), and `NoOpEmailSender` (logs + returns success without sending).
 - **FR-015**: The active implementation MUST be selected by `Notifications:Provider` config with sensible per-environment defaults: Local → SMTP-capture sidecar; non-Local → Mailgun; absence of config in non-Production → `NoOpEmailSender` with WARN log.
 - **FR-016**: In Production, AppHost MUST fail-fast on boot if `Notifications:Provider=Mailgun` and any of `Notifications:Mailgun:ApiKey`, `Notifications:Mailgun:Domain`, `Notifications:Sender:Email`, or `Notifications:BaseUrl` is missing. The exception message MUST name the missing key.
 
@@ -189,8 +199,8 @@ An admin who has explicitly acted on application A in the past gets demoted to r
 - **FR-022**: Permanent failures (provider 4xx, hard bounces, template render exceptions, orphaned FKs) MUST transition the outbox row to `Status=DeadLetter` immediately with no retry. The reason MUST be recorded in `LastError`.
 
 #### Templates + content
-- **FR-023**: Email bodies MUST be rendered by Razor under a single shared layout partial `_EmailLayout.cshtml` that carries the spec-019 sender display, signature block, footer, and CTA button styling. The layout MUST NOT contain any inline `<img>` element (spec 019 NFR-005 compatibility).
-- **FR-024**: The system MUST ship eight body variant partials covering the five events: two variants on `APPLICATION_SUBMITTED` (applicant-confirmation, reviewer-call-to-action), one variant per event on the other four. Each variant MUST render an HTML body AND a plain-text fallback.
+- **FR-023**: Email bodies MUST be rendered by Razor under a single shared layout partial `_EmailLayout.cshtml` that carries the spec-019 sender display, signature block, footer, and CTA button styling. The layout MUST NOT contain any inline `<img>` element (spec 019 NFR-005 compatibility). The footer MUST include a static support line `Para soporte: <a href="mailto:soporte@programa-semilla.cr">soporte@programa-semilla.cr</a>` (plain-text equivalent in the text fallback). No `List-Unsubscribe` header in v1; no automated suppression list.
+- **FR-024**: The system MUST ship eight body variant partials covering the six enum values: one variant on `APPLICATION_SUBMITTED_APPLICANT` (applicant-confirmation), one variant on `APPLICATION_SUBMITTED_REVIEWER` (reviewer-call-to-action), and one variant per event on `RETURNED_TO_APPLICANT`, `RESUBMITTED_BY_APPLICANT`, `APPLICATION_APPROVED`, `APPLICATION_REJECTED` — plus the `RETURNED_TO_APPLICANT` and `APPLICATION_APPROVED` / `APPLICATION_REJECTED` admin-flavored copies for the participating-admin bucket. Each variant MUST render an HTML body AND a plain-text fallback.
 - **FR-025**: All template strings MUST be es-CR Spanish. No English fallback. No i18n key system. Subject templates MUST match the table in §Event Catalog.
 - **FR-026**: Every CTA button MUST link to a deep-link URL composed from `Notifications:BaseUrl` + a role-specific MVC route. Reviewer/admin CTAs MUST point to `/Reviewer/Applications/Details/{id}`. Applicant CTAs MUST point to `/Applications/Details/{id}`. No new MVC routes are introduced. Access control MUST be enforced server-side by the existing authorize attributes on the target controllers.
 - **FR-027**: The spec-019 brand-grep gate (T030) MUST stay green on all new templates. Specifically, no template may contain the strings "Capital Semilla", "Forge", or any English-only copy.
@@ -200,7 +210,7 @@ An admin who has explicitly acted on application A in the past gets demoted to r
 - **FR-029**: A recipient with a null or empty email MUST be skipped with `Status=Skipped` and `LastError="MissingEmail"`. Other recipients on the same outbox row MUST still be processed.
 
 #### Aspire dev orchestration + E2E coverage
-- **FR-030**: `AppHost.cs` MUST add a containerized SMTP-capture sidecar (smtp4dev or MailHog — pinned during planning) as an Aspire resource. The Web project MUST consume the sidecar's resolved SMTP endpoint via existing Aspire service-discovery config wiring.
+- **FR-030**: `AppHost.cs` MUST add a containerized **smtp4dev** SMTP-capture sidecar (Docker image `rnwood/smtp4dev`) as an Aspire resource exposing SMTP (port 25) and an HTTP REST API for message capture. The Web project MUST consume the sidecar's resolved SMTP endpoint via existing Aspire service-discovery config wiring. smtp4dev is chosen over MailHog for .NET-native parity and lighter container footprint.
 - **FR-031**: `tests/FundingPlatform.Tests.E2E/Fixtures/AspireFixture.cs` MUST expose a `MailCaptureClient` that the E2E suite can use to drain and assert captured emails from the sidecar's HTTP API.
 - **FR-032**: The placeholder test `tests/FundingPlatform.Tests.E2E/Brand/EmailTemplateSenderTests.cs` (which today calls `Assert.Ignore`) MUST be removed and replaced with real `[Test]` cases per event variant that assert sender display, signature block, no-inline-`<img>`, no "Capital Semilla" / "Forge" leakage, subject template, and the applicant deep-link.
 
@@ -217,10 +227,10 @@ An admin who has explicitly acted on application A in the past gets demoted to r
 
 ### Event Catalog v1
 
-| Event | Trigger | Subject (es-CR) |
+| Event (enum) | Trigger | Subject (es-CR) |
 |---|---|---|
-| `APPLICATION_SUBMITTED` (reviewer/admin) | `Application.Submit()` | `Nueva solicitud para revisar: {ApplicantName}` |
-| `APPLICATION_SUBMITTED` (applicant) | same | `Recibimos tu solicitud — {Folio}` |
+| `APPLICATION_SUBMITTED_REVIEWER` | `Application.Submit()` | `Nueva solicitud para revisar: {ApplicantName}` |
+| `APPLICATION_SUBMITTED_APPLICANT` | `Application.Submit()` (paired row, same transaction) | `Recibimos tu solicitud — {Folio}` |
 | `RETURNED_TO_APPLICANT` | `Application.SendBack()` | `Acción requerida: actualiza tu solicitud — {Folio}` |
 | `RESUBMITTED_BY_APPLICANT` | `Application.Resubmit()` | `Solicitud reenviada para revisión: {ApplicantName}` |
 | `APPLICATION_APPROVED` | final approval recorded | `Tu solicitud fue aprobada — {Folio}` |
@@ -228,9 +238,10 @@ An admin who has explicitly acted on application A in the past gets demoted to r
 
 ### Recipient Rules
 
-| Event | Reviewers of current stage group | Applicant | Admins (participating-action predicate only) |
+| Event (enum) | Reviewers of current stage group | Applicant | Admins (participating-action predicate only) |
 |---|---|---|---|
-| `APPLICATION_SUBMITTED` | yes (review CTA) | yes (confirmation CTA — separate variant) | yes if explicit prior action |
+| `APPLICATION_SUBMITTED_REVIEWER` | yes (review CTA) | no | yes if explicit prior action |
+| `APPLICATION_SUBMITTED_APPLICANT` | no | yes (confirmation CTA) | no |
 | `RETURNED_TO_APPLICANT` | no | yes (update-and-resubmit CTA) | yes if explicit prior action |
 | `RESUBMITTED_BY_APPLICANT` | yes (re-review CTA) | no | yes if explicit prior action |
 | `APPLICATION_APPROVED` | no | yes (next-steps CTA) | yes if explicit prior action |
@@ -240,8 +251,8 @@ Bucket priority on collision: `applicant > reviewer > admin`. One email per `(Us
 
 ### Key Entities
 
-- **NotificationOutbox** — Workflow-event records written transactionally with their triggering state change. Each row is a discrete unit of work for the worker. Fields per FR-002. Retention: pinned during planning (recommended 90 days for `Done`, 1 year for `DeadLetter`).
-- **NotificationDelivery** — One row per `(outbox row, recipient)` pair recording the outcome of a send attempt. Fields per FR-028. Carries the unique index that enforces idempotency. Retention: same policy as `NotificationOutbox`.
+- **NotificationOutbox** — Workflow-event records written transactionally with their triggering state change. Each row is a discrete unit of work for the worker. Fields per FR-002. Retention: 90 days for `Status IN (Done)`; 1 year for `Status=DeadLetter`. A nightly cleanup job is out of scope in v1 — rows accumulate until an explicit retention task is scheduled.
+- **NotificationDelivery** — One row per `(outbox row, recipient)` pair recording the outcome of a send attempt. Fields per FR-028. Carries the unique index that enforces idempotency. Retention: 90 days for `Status IN (Sent, BlockedByAllowlist, Skipped)`; 1 year for `Status IN (Failed, DeadLetter)`. Cleanup deferred to a future operational task.
 - **NotificationEvent (enum)** — `APPLICATION_SUBMITTED_REVIEWER`, `APPLICATION_SUBMITTED_APPLICANT`, `RETURNED_TO_APPLICANT`, `RESUBMITTED_BY_APPLICANT`, `APPLICATION_APPROVED`, `APPLICATION_REJECTED`. The split on `APPLICATION_SUBMITTED` into two distinct enum values keeps idempotency keys clean (one outbox row per recipient bucket) and simplifies the recipient resolver.
 - **NotificationRecipient** — Resolver output value object. `(UserId, Email, DisplayName, Bucket, TemplateVariantKey)`. Not persisted.
 
@@ -267,8 +278,8 @@ Bucket priority on collision: `applicant > reviewer > admin`. One email per `(Us
 - The applicant's user record carries an email field; reviewer and admin user records likewise. ASP.NET Identity is the authoritative source. (Constitution §III standard.)
 - Reviewer-group membership for the current stage of an application is queryable via the spec-016 read path (read-only consumer of `Group` + `UserGroupMembership` + the assigned-group reference on the workflow stage). (Verified at planning time.)
 - The `Application` entity exposes a folio or applicant-name string suitable for subject-line interpolation; the resolver reads it once at outbox write time and stores it in `PayloadJson`. (Confirmed at planning against spec 001 / data-model.)
-- Mailgun's transactional-email ToS allows automated workflow mail to verified users (the platform's applicants and reviewers) without a List-Unsubscribe header. If it does not, an open question forces a static `mailto:soporte@…` footer line. (Open question OQ-001.)
-- `MailKit` v3 (MIT) is acceptable; v4 commercial license posture is verified at planning. Mailgun path uses raw `HttpClient` and introduces no Mailgun-specific NuGet package. (Open question OQ-005.)
+- Mailgun's transactional-email ToS allows automated workflow mail to verified users without a `List-Unsubscribe` header; v1 ships a static `mailto:soporte@programa-semilla.cr` footer line as a ToS-safe default. (OQ-001 — Resolved.)
+- `MailKit` v3 (MIT) is the pinned dependency for the SMTP path. Mailgun path uses raw `HttpClient` and introduces no Mailgun-specific NuGet package. (OQ-005 — Resolved.)
 - Worker is single-instance for v1 (single Web replica). FR-004 + FR-020 are correct under future multi-replica; throughput tuning is deferred. (Open question OQ-009.)
 - The SMTP-capture sidecar (smtp4dev / MailHog) container image is reachable from the dev container registry. (Verified at planning time.)
 - Real Mailtrap (cloud) is an opt-in dev override; the default Local provider is the sidecar. (NFR-007 / OQ-003.)
@@ -281,7 +292,8 @@ Bucket priority on collision: `applicant > reviewer > admin`. One email per `(Us
 - **Spec 019 (programa-semilla-brand)** — Sender display, signature block, brand-grep gate (T030), placeholder test replacement (FR-032). This spec is the deferred counterpart spec 019 explicitly handed off to.
 - **Constitution §III** — E2E mandate; SMTP-capture sidecar extends `AspireFixture` (FR-031). Net-new fixture surface.
 - **Constitution §IV** — Dacpac `.sql` definitions; no EF migrations. (NFR-005, SC-008.)
-- **CLAUDE.md (managed-NuGet rule)** — `MailKit` is a new managed dependency required by `MailtrapSmtpEmailSender`. Approval is embedded in this spec via FR-014. Mailgun path uses raw `HttpClient` (no new dep).
+- **CLAUDE.md (managed-NuGet rule)** — `MailKit` **v3 (MIT)** is a new managed dependency required by `MailtrapSmtpEmailSender`. Approval is embedded in this spec via FR-014. Mailgun path uses raw `HttpClient` (no new dep).
+- **smtp4dev (Docker image `rnwood/smtp4dev`)** — New Aspire container resource added to `AppHost.cs` per FR-030. No NuGet dependency; consumed via its HTTP REST API by `MailCaptureClient`.
 - **`tests/FundingPlatform.Tests.E2E/Fixtures/AspireFixture.cs`** — Touched to host the SMTP-capture sidecar and expose `MailCaptureClient` (FR-031).
 
 ## Out of Scope
@@ -299,13 +311,13 @@ Bucket priority on collision: `applicant > reviewer > admin`. One email per `(Us
 
 ## Open Questions
 
-- **OQ-001 — Mailgun ToS unsubscribe footer.** Does Mailgun require a `List-Unsubscribe` header or visible unsubscribe link for transactional mail to verified users? If yes, the v1 footer carries a static `mailto:soporte@…` line; no automated suppression list. Pin during planning with the Mailgun account owner.
-- **OQ-002 — SMTP-capture sidecar choice: smtp4dev vs MailHog.** Both run as containers and expose an HTTP API. `smtp4dev` is .NET-native and lighter; `MailHog` is broadly used and Go-based. Pin during planning.
-- **OQ-003 — Real Mailtrap as a dev override.** Sidecar is the default per NFR-007; the override path is documented but the default stays the sidecar. Confirm during planning.
-- **OQ-004 — Sender email per environment.** Recommended `no-reply@programa-semilla.cr` for Production; non-Production uses an environment-specific address. Pin with ops.
-- **OQ-005 — `MailKit` license posture.** Confirm at planning whether v3 (MIT) or v4 (commercial) is the right pin. If v4 commercial is rejected, fall back to v3.
-- **OQ-006 — Idempotency-key composition for SUBMITTED's two-bucket fan-out.** Recommended: split `APPLICATION_SUBMITTED` into two distinct enum values (`_REVIEWER` and `_APPLICANT`) so each outbox row carries one template variant and the unique-index dedup is clean. Confirm during planning.
-- **OQ-007 — Folio source-of-truth.** Confirm `Application.Folio` (or equivalent) exists and is populated by the Submit transition; otherwise EC-009's fallback applies.
-- **OQ-008 — `NotificationOutbox` retention.** Recommended 90 days for `Done`, 1 year for `DeadLetter`. Pin during planning.
-- **OQ-009 — Worker scaling story for future multi-replica.** Correctness is covered by FR-004 + FR-020 + EC-008. Throughput tuning is deferred.
-- **OQ-010 — Brand-grep gate render-time vs source-time.** Source-`.cshtml` layer is the recommended scope. Pin during planning.
+- **OQ-001 — Mailgun ToS unsubscribe footer.** _Resolved 2026-05-12 (Clarifications)._ v1 includes a static `mailto:soporte@programa-semilla.cr` footer line in `_EmailLayout.cshtml`; no `List-Unsubscribe` header; no automated suppression list. See FR-023.
+- **OQ-002 — SMTP-capture sidecar choice.** _Resolved 2026-05-12 (Clarifications)._ smtp4dev (Docker image `rnwood/smtp4dev`). See FR-030.
+- **OQ-003 — Real Mailtrap as a dev override.** _Open — planning-pin._ Sidecar is the default per NFR-007. Override path documented but the default stays the sidecar.
+- **OQ-004 — Sender email per environment.** _Open — ops-pin._ Recommended `no-reply@programa-semilla.cr` for Production; non-Production uses an environment-specific address. Configurable via `Notifications:Sender:Email`; no spec change required.
+- **OQ-005 — `MailKit` license posture.** _Resolved 2026-05-12 (Clarifications)._ MailKit v3 (MIT). See FR-014.
+- **OQ-006 — Idempotency-key composition for SUBMITTED's two-bucket fan-out.** _Resolved 2026-05-12 (Clarifications)._ `APPLICATION_SUBMITTED` is split into `APPLICATION_SUBMITTED_REVIEWER` and `APPLICATION_SUBMITTED_APPLICANT`; one outbox row per bucket per submit. See FR-007, §Event Catalog, §Recipient Rules, §Key Entities.
+- **OQ-007 — Folio source-of-truth.** _Open — planning-pin._ Confirm `Application.Folio` (or equivalent) exists and is populated by the Submit transition; otherwise EC-009's fallback applies.
+- **OQ-008 — `NotificationOutbox` / `NotificationDelivery` retention.** _Resolved 2026-05-12 (Clarifications)._ 90 days for terminal-success statuses; 1 year for `DeadLetter` / `Failed`. Cleanup job deferred to a future operational task. See §Key Entities.
+- **OQ-009 — Worker scaling story for future multi-replica.** _Open — deferred._ Correctness covered by FR-004 + FR-020 + EC-008. Throughput tuning is out of v1 scope.
+- **OQ-010 — Brand-grep gate render-time vs source-time.** _Open — planning-pin._ Source-`.cshtml` layer is the recommended scope.
