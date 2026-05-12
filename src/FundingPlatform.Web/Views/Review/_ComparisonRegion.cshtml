@@ -1,0 +1,151 @@
+@using System.Text.Json
+@using FundingPlatform.Application.Abstractions.AiComparison
+@using FundingPlatform.Domain.Entities
+@model FundingPlatform.Web.ViewModels.Review.ItemComparisonViewModel
+
+@{
+    var artifactNode = Model.HasArtifact && !string.IsNullOrEmpty(Model.ArtifactJson)
+        ? JsonDocument.Parse(Model.ArtifactJson).RootElement
+        : (JsonElement?)null;
+
+    string ChangedLabel(ChangedInput input) => input switch
+    {
+        ChangedInput.FileAdded => "archivo añadido",
+        ChangedInput.FileRemoved => "archivo eliminado",
+        ChangedInput.LineEdited => "línea editada",
+        ChangedInput.SupplierAdded => "proveedor añadido",
+        ChangedInput.SupplierRemoved => "proveedor eliminado",
+        ChangedInput.SnapshotChanged => "tipo de cambio actualizado",
+        ChangedInput.SchemaBumped => "esquema actualizado",
+        ChangedInput.PromptVersionBumped => "prompt actualizado",
+        _ => input.ToString(),
+    };
+}
+
+<div class="comparison-region mt-3" data-testid="comparison-region" data-item-id="@Model.ApplicationItemId">
+    @if (!Model.HasMinimumSuppliers)
+    {
+        <div class="comparison-empty text-secondary" data-testid="comparison-min-suppliers">
+            <i class="ti ti-info-circle me-1"></i>
+            <span title="Se necesitan al menos 2 cotizaciones para comparar.">
+                Se necesitan al menos 2 cotizaciones para comparar.
+            </span>
+        </div>
+    }
+    else
+    {
+        @if (Model.HasArtifact && artifactNode is JsonElement art)
+        {
+            if (Model.Freshness == Freshness.Stale)
+            {
+                <div class="alert alert-warning py-1 mb-2" role="status" data-testid="comparison-stale-badge">
+                    <i class="ti ti-alert-triangle me-1"></i>
+                    <strong>Datos desactualizados</strong>
+                    @if (Model.ChangedInputs.Count > 0)
+                    {
+                        <span>: @string.Join(", ", Model.ChangedInputs.Select(ChangedLabel))</span>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-secondary small mb-2" data-testid="comparison-fresh-meta">
+                    <i class="ti ti-check me-1"></i>
+                    Comparación actualizada @(Model.LastUpdatedAt?.ToString("dd/MM/yyyy HH:mm")).
+                </div>
+            }
+
+            @foreach (var item in art.GetProperty("items").EnumerateArray())
+            {
+                var header = item.GetProperty("header").GetString() ?? string.Empty;
+                var suppliers = item.GetProperty("suppliers").EnumerateArray().ToArray();
+                var attributeRows = item.GetProperty("attributeRows").EnumerateArray().ToArray();
+                var narrativeSections = item.GetProperty("narrativeSections").EnumerateArray().ToArray();
+
+                <h5 class="mt-2">@header</h5>
+                <div class="table-responsive">
+                    <table class="fl-table comparison-table" data-density="reviewer" data-testid="comparison-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Atributo</th>
+                                @foreach (var s in suppliers)
+                                {
+                                    var name = s.GetProperty("supplierName").GetString() ?? string.Empty;
+                                    var status = s.TryGetProperty("verificationStatus", out var vs)
+                                        ? vs.GetString() : null;
+                                    <th scope="col">
+                                        @name
+                                        @if (status is "PendingReview")
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1">Pendiente verificación</span>
+                                        }
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in attributeRows)
+                            {
+                                var label = row.GetProperty("label").GetString() ?? string.Empty;
+                                var cellsByIdx = row.GetProperty("cells").EnumerateArray()
+                                    .ToDictionary(c => c.GetProperty("supplierIdx").GetInt32(), c => c);
+                                <tr>
+                                    <th scope="row">@label</th>
+                                    @for (var i = 0; i < suppliers.Length; i++)
+                                    {
+                                        if (cellsByIdx.TryGetValue(i, out var cell))
+                                        {
+                                            var value = cell.TryGetProperty("value", out var v) ? v.GetString() : null;
+                                            <td>@value</td>
+                                        }
+                                        else
+                                        {
+                                            <td class="text-secondary">—</td>
+                                        }
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (narrativeSections.Length > 0)
+                {
+                    <div class="comparison-narratives mt-2">
+                        @foreach (var section in narrativeSections)
+                        {
+                            var title = section.GetProperty("title").GetString() ?? string.Empty;
+                            var body = section.GetProperty("body").GetString() ?? string.Empty;
+                            <div class="comparison-narrative mb-2">
+                                <strong>@title</strong>
+                                <p class="mb-0">@body</p>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        }
+
+        <div class="comparison-actions mt-2">
+            <button type="button"
+                    class="btn btn-sm btn-primary comparison-generate-btn"
+                    data-testid="comparison-generate-btn"
+                    data-item-id="@Model.ApplicationItemId"
+                    data-action="@(Model.HasArtifact ? "regenerate" : "generate")">
+                @(Model.HasArtifact ? "Regenerar" : "Generar comparación")
+            </button>
+            @if (Model.IsAdmin)
+            {
+                <label class="form-check form-check-inline ms-2 comparison-bypass-toggle"
+                       data-testid="comparison-bypass-toggle"
+                       data-item-id="@Model.ApplicationItemId">
+                    <input type="checkbox" class="form-check-input" />
+                    <span class="form-check-label">Anular límites</span>
+                </label>
+            }
+            <span class="comparison-status text-secondary small ms-2"
+                  data-testid="comparison-status-pill"
+                  data-item-id="@Model.ApplicationItemId"></span>
+        </div>
+    }
+</div>

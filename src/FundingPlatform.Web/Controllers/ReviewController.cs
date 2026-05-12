@@ -1,4 +1,7 @@
 using System.Security.Claims;
+using FundingPlatform.Application.Abstractions.AiComparison;
+using FundingPlatform.Application.AiComparison;
+using FundingPlatform.Domain.Entities;
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Reviewer;
 using FundingPlatform.Application.Routing;
@@ -7,6 +10,7 @@ using FundingPlatform.Application.SignedUploads.Queries;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.ViewModels;
+using FundingPlatform.Web.ViewModels.Review;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +26,8 @@ public class ReviewController : Controller
     private readonly IUserFacingErrorTranslator _errorTranslator;
     private readonly IReviewerScopeProvider _scopeProvider;
     private readonly IApplicationRepository _applicationRepository;
+    private readonly IComparisonOrchestrator _comparisonOrchestrator;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
     public ReviewController(
         ReviewService reviewService,
@@ -29,7 +35,9 @@ public class ReviewController : Controller
         IReviewerQueueProjection queueProjection,
         IUserFacingErrorTranslator errorTranslator,
         IReviewerScopeProvider scopeProvider,
-        IApplicationRepository applicationRepository)
+        IApplicationRepository applicationRepository,
+        IComparisonOrchestrator comparisonOrchestrator,
+        Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _reviewService = reviewService;
         _signedUploadService = signedUploadService;
@@ -37,6 +45,8 @@ public class ReviewController : Controller
         _errorTranslator = errorTranslator;
         _scopeProvider = scopeProvider;
         _applicationRepository = applicationRepository;
+        _comparisonOrchestrator = comparisonOrchestrator;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -165,7 +175,142 @@ public class ReviewController : Controller
         }
 
         var viewModel = MapToViewModel(dto);
+        viewModel.IsAdmin = User.IsInRole("Admin");
+        viewModel.PollIntervalSeconds = int.TryParse(_configuration["AiComparison:PollIntervalSeconds"], out var ps) ? ps : 3;
+
+        // Spec 020 / US2 — hydrate per-item comparison region with the cached
+        // artifact + freshness signal. Items with < 2 quotations get a
+        // placeholder VM so the view can render the explanatory tooltip.
+        foreach (var item in viewModel.Items)
+        {
+            var cached = await _comparisonOrchestrator.GetCachedComparisonAsync(item.ItemId, ct);
+            item.Comparison = new ItemComparisonViewModel
+            {
+                ApplicationItemId = item.ItemId,
+                HasArtifact = cached is not null,
+                ArtifactJson = cached?.ArtifactJson,
+                LastUpdatedAt = cached?.GeneratedAt,
+                Freshness = cached?.Freshness ?? Freshness.None,
+                ChangedInputs = cached?.ChangedInputs ?? Array.Empty<ChangedInput>(),
+                HasMinimumSuppliers = item.Quotations.Count >= 2,
+                IsAdmin = viewModel.IsAdmin,
+            };
+        }
+
         return View(viewModel);
+    }
+
+    /// <summary>Spec 020 / FR-A1 — sync per-item generation endpoint.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("Review/GenerateComparison/{applicationItemId:int}")]
+    public async Task<IActionResult> GenerateComparison(int applicationItemId, [FromBody] GenerateComparisonRequest? body, CancellationToken ct)
+    {
+        body ??= new GenerateComparisonRequest();
+
+        // Resolve the parent application + group-scope guard.
+        var parentApplicationId = await _reviewService.GetApplicationIdForItemAsync(applicationItemId, ct);
+        if (parentApplicationId is null) return NotFound();
+
+        var scope = await GetScopeAsync(ct);
+        if (!scope.IsAdmin)
+        {
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(parentApplicationId.Value, scope.GroupIds, ct);
+            if (!allowed) return Forbid();
+        }
+
+        var actorRole = User.IsInRole("Admin") ? "Admin" : "Reviewer";
+        var bypassRateLimit = body.BypassRateLimit && actorRole == "Admin";
+        var bypassTokenCap = body.BypassTokenCap && actorRole == "Admin";
+
+        var hardTimeout = int.TryParse(_configuration["AiComparison:SyncHardTimeoutSeconds"], out var hts) ? hts : 90;
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(hardTimeout));
+
+        try
+        {
+            var result = await _comparisonOrchestrator.GenerateAsync(new GenerateComparisonCommand(
+                ApplicationItemId: applicationItemId,
+                ActorUserId: GetUserId(),
+                ActorRole: actorRole,
+                BypassRateLimit: bypassRateLimit,
+                BypassTokenCap: bypassTokenCap,
+                ForceRegenerate: body.ForceRegenerate), cts.Token);
+
+            return result switch
+            {
+                GenerateComparisonSuccess s => Ok(new ItemComparisonViewModel
+                {
+                    ApplicationItemId = s.ApplicationItemId,
+                    HasArtifact = true,
+                    ArtifactJson = s.ArtifactJson,
+                    LastUpdatedAt = s.GeneratedAt,
+                    Freshness = s.Freshness,
+                    ChangedInputs = s.ChangedInputs,
+                    HasMinimumSuppliers = true,
+                    IsAdmin = actorRole == "Admin",
+                }),
+                GenerateComparisonFailure f => ToErrorEnvelope(f),
+                _ => StatusCode(500, new { code = "unknown" }),
+            };
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return StatusCode(504, new { code = "timeout" });
+        }
+        catch (ConcurrentGenerationException)
+        {
+            return Conflict(new { code = "concurrent_generation" });
+        }
+    }
+
+    /// <summary>Spec 020 / FR-F2 — per-item poll endpoint.</summary>
+    [HttpGet]
+    [Route("Review/ItemStatus/{applicationItemId:int}")]
+    public async Task<IActionResult> ItemStatus(int applicationItemId, CancellationToken ct)
+    {
+        var parentApplicationId = await _reviewService.GetApplicationIdForItemAsync(applicationItemId, ct);
+        if (parentApplicationId is null) return NotFound();
+
+        var scope = await GetScopeAsync(ct);
+        if (!scope.IsAdmin)
+        {
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(parentApplicationId.Value, scope.GroupIds, ct);
+            if (!allowed) return Forbid();
+        }
+
+        Response.Headers.CacheControl = "no-store";
+        var status = await _comparisonOrchestrator.GetStatusAsync(applicationItemId, ct);
+        return Ok(new
+        {
+            applicationItemId = status.ApplicationItemId,
+            state = status.State.ToString(),
+            freshness = status.Freshness.ToString(),
+            changedInputs = status.ChangedInputs.Select(c => c.ToString()).ToArray(),
+            lastUpdatedAt = status.LastUpdatedAt,
+            failureReason = status.FailureReason,
+        });
+    }
+
+    private IActionResult ToErrorEnvelope(GenerateComparisonFailure f) => f.FailureReason switch
+    {
+        "single_supplier" => BadRequest(new { code = "single_supplier" }),
+        "unsupported_format" => BadRequest(new { code = "unsupported_format", offendingInput = f.OffendingInput }),
+        "pii_redaction_failed" => BadRequest(new { code = "pii_redaction_failed", offendingInput = f.OffendingInput }),
+        "rate_limit_exceeded" => UnprocessableEntity(new { code = "rate_limit_exceeded", remaining = 0, windowResetsAt = f.WindowResetsAt }),
+        "token_cap_exceeded" => UnprocessableEntity(new { code = "token_cap_exceeded", estimatedTokens = f.EstimatedTokens, cap = f.Cap, offendingInput = f.OffendingInput }),
+        "application_closed" => Conflict(new { code = "application_closed" }),
+        "schema_invalid" => StatusCode(500, new { code = "schema_invalid", validatorPath = f.OffendingInput }),
+        "provider_transient" => StatusCode(502, new { code = "provider_transient" }),
+        var r when r != null && r.StartsWith("provider_hard") => StatusCode(502, new { code = "provider_hard", providerCode = f.ProviderCode }),
+        _ => StatusCode(500, new { code = f.FailureReason ?? "unknown" }),
+    };
+
+    public class GenerateComparisonRequest
+    {
+        public bool BypassRateLimit { get; set; }
+        public bool BypassTokenCap { get; set; }
+        public bool ForceRegenerate { get; set; }
     }
 
     [HttpPost]

@@ -92,8 +92,14 @@ public static class DependencyInjection
         services.AddScoped<IComparisonArtifactRepository, ComparisonArtifactRepository>();
         services.AddScoped<IComparisonJobRepository, ComparisonJobRepository>();
 
-        // Phase 3+ wiring (orchestrator + handler + guards + worker) is added
-        // by AddAiComparisonOrchestration once those classes land.
+        // Orchestrator + handler + guards.
+        services.AddScoped<Application.AiComparison.ISupplierAssembler, Infrastructure.AiComparison.SupplierAssembler>();
+        services.AddScoped<Application.AiComparison.IRateLimitCounter, Infrastructure.AiComparison.AdminAuditRateLimitCounter>();
+        services.AddScoped<Application.AiComparison.RateLimitGuard>();
+        services.AddScoped<Application.AiComparison.TokenCapGuard>();
+        services.AddScoped<Application.AiComparison.AdminAuditEventComparisonFactory>();
+        services.AddScoped<IComparisonOrchestrator, Application.AiComparison.ComparisonOrchestrator>();
+        services.AddScoped<Application.AiComparison.Commands.GenerateComparisonCommandHandler>();
 
         var provider = configuration["AiComparison:Provider"] ?? "Stub";
         if (string.Equals(provider, "Anthropic", StringComparison.OrdinalIgnoreCase))

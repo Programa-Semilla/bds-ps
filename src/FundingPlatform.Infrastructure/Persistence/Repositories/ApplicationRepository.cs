@@ -18,6 +18,15 @@ public class ApplicationRepository : IApplicationRepository
         return await _context.Applications.FindAsync(id);
     }
 
+    public async Task<int?> GetApplicationIdForItemAsync(int applicationItemId, CancellationToken ct)
+    {
+        return await _context.Items
+            .AsNoTracking()
+            .Where(i => i.Id == applicationItemId)
+            .Select(i => (int?)i.ApplicationId)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<AppEntity?> GetByIdWithDetailsAsync(int id)
     {
         return await _context.Applications

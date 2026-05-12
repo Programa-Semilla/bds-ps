@@ -19,6 +19,10 @@ public interface IApplicationRepository
 {
     Task<Application?> GetByIdAsync(int id);
     Task<Application?> GetByIdWithDetailsAsync(int id);
+
+    /// <summary>Spec 020 — resolves the parent ApplicationId for a given Item id. Returns null when unknown.</summary>
+    Task<int?> GetApplicationIdForItemAsync(int applicationItemId, CancellationToken ct);
+
     Task<Application?> GetByIdWithResponseAndAppealsAsync(int id);
     Task<List<Application>> GetByApplicantIdAsync(int applicantId);
     Task<List<Application>> GetForApplicantDashboardAsync(int applicantId);

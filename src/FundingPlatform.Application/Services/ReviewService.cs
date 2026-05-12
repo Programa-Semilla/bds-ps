@@ -22,6 +22,20 @@ public class ReviewService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Spec 020 — resolves the parent ApplicationId for a given ApplicationItemId
+    /// so the comparison endpoints can run the group-scope guard against the
+    /// application (FR-A1). Returns null when the item id is unknown.
+    /// </summary>
+    public async Task<int?> GetApplicationIdForItemAsync(int applicationItemId, CancellationToken ct)
+    {
+        // Walk via the existing GetByIdWithDetails path — the application
+        // repository already projects Items so the join is local memory.
+        // Cheap O(applications) scan for MVP; can be optimized to a single
+        // EF projection later.
+        return await _applicationRepository.GetApplicationIdForItemAsync(applicationItemId, ct);
+    }
+
     public async Task<(List<ReviewQueueItemDto> Items, int TotalCount)> GetReviewQueueAsync(int page)
     {
         var (applications, totalCount) = await _applicationRepository.GetByStatePagedAsync(
