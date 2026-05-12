@@ -1,4 +1,5 @@
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Infrastructure.Notifications.Persistence;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,6 +39,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Group> Groups => Set<Group>();
     public DbSet<UserGroupMembership> UserGroupMemberships => Set<UserGroupMembership>();
     public DbSet<AdminAuditEvent> AdminAuditEvents => Set<AdminAuditEvent>();
+
+    // Spec 021 — transactional email-notification outbox + per-recipient delivery audit.
+    public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

@@ -41,6 +41,11 @@ builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<IFundingAgreementHtmlRenderer, RazorFundingAgreementHtmlRenderer>();
 
+// Spec 021 / T027 — register the email-notification subsystem (outbox writer,
+// recipient resolver, Razor renderer, provider sender, optional allowlist
+// decorator outside Production, and the hosted EmailDispatchWorker).
+builder.Services.AddNotifications(builder.Configuration, builder.Environment);
+
 // Admin Reports configuration (FR-007: fail fast when DefaultCurrency is missing).
 builder.Services.Configure<AdminReportsOptions>(
     builder.Configuration.GetSection(AdminReportsOptions.SectionName));
