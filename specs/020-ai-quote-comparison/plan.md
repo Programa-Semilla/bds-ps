@@ -130,6 +130,8 @@ src/
 │   │   ├── ComparisonOrchestrator.cs        # NEW — extract → normalize → compare
 │   │   ├── ComparisonNormalizer.cs          # NEW — pure server-side normalize
 │   │   ├── InputHasher.cs                   # NEW — canonical-json SHA-256
+│   │   ├── PromptCatalog.cs                 # NEW — versioned prompt strings + schema refs (provider-neutral)
+│   │   ├── SchemaValidator.cs               # NEW — JsonSchema.Net wrapper
 │   │   ├── RateLimitGuard.cs                # NEW — 24h rolling per-app
 │   │   ├── TokenCapGuard.cs                 # NEW — pre-flight estimate
 │   │   └── Commands/
@@ -142,8 +144,7 @@ src/
 ├── FundingPlatform.Infrastructure/
 │   ├── AiComparison/
 │   │   ├── Anthropic/
-│   │   │   ├── AnthropicAiClient.cs         # NEW — IAiClient impl via Anthropic.SDK
-│   │   │   └── AnthropicPromptCatalog.cs    # NEW — versioned prompt strings + schema refs
+│   │   │   └── AnthropicAiClient.cs         # NEW — IAiClient impl via Anthropic.SDK
 │   │   ├── Redaction/
 │   │   │   ├── PiiRedactor.cs               # NEW — IPiiRedactor impl, deterministic + unit-tested
 │   │   │   └── Patterns/                    # cédula / phone / email regexes

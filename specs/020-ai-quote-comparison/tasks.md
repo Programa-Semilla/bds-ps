@@ -247,8 +247,10 @@ description: "Task list for spec 020 AI-Powered Quote Comparison for Reviewers"
 - [ ] T089 [P] Accessibility pass: confirm comparison table header scoping (`<th scope>`), color is not the sole indicator of "stale" or "cheapest" badges (add iconography or text), citation markers keyboard-focusable, **Mostrar más** toggle on long narratives meets NFR-A2.
 - [ ] T090 [P] Add an operational runbook note `docs/runbooks/ai-comparison.md` covering: bumping `AiComparison:SchemaVersion` / `PromptVersion`, Anthropic outage behavior, reaper window, audit-row dashboard query exemplars (lift from `contracts/audit-event-payload.md`).
 - [ ] T091 [P] Update `CLAUDE.md` configuration-knobs table to include the new `AiComparison:*` keys (mirror plan.md table).
-- [ ] T092 Run `quickstart.md` end-to-end manually (or as part of the E2E sweep) to validate every step before marking the feature delivered.
-- [ ] T093 Run the **full** E2E suite (`dotnet test tests/FundingPlatform.Tests.E2E`) and verify a green run; this is the constitution Principle III delivery bar and the CLAUDE.md memory rule.
+- [ ] T092 [P] Add a perf-budget integration assertion `tests/FundingPlatform.Tests.Integration/ComparisonPerfBudgetTests.cs` covering NFR-P2 (cached fresh artifact page-load adds ≤100 ms over the same review page with no cached artifact — Stopwatch around the orchestrator's `GetCachedComparisonAsync` path) and NFR-P3 (`InputHasher.Compute(InputDescriptor)` ≤50 ms for a 5-supplier / 20-blob / 30-line descriptor). Budgets enforced as test assertions; tests skip with a clear message if running under a coverage profiler that would invalidate timings.
+- [ ] T093 [P] Add an integration assertion `tests/FundingPlatform.Tests.Integration/ComparisonGenerateAllPerfBudgetTests.cs` covering NFR-P4 / SC-008: 10 stale items processed via the worker at default concurrency complete within `(10 / 2) * 60 s = 5 min` of wall-clock under the stub `IAiClient` (the AI call latency is mocked to ~10 ms per call, so the budget asserts the worker scheduling/persistence overhead does not blow the spec ceiling; comment in the test names the real-provider extrapolation).
+- [ ] T094 Run `quickstart.md` end-to-end manually (or as part of the E2E sweep) to validate every step before marking the feature delivered.
+- [ ] T095 Run the **full** E2E suite (`dotnet test tests/FundingPlatform.Tests.E2E`) and verify a green run; this is the constitution Principle III delivery bar and the CLAUDE.md memory rule.
 
 ---
 

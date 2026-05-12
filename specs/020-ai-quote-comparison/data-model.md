@@ -87,7 +87,7 @@ Hashed by `InputHasher.Compute(InputDescriptor) → string` (canonical JSON: sor
 ### `AdminAuditEvent` (existing — spec 016) — reused
 
 No schema changes. Comparison events use:
-- `Action = "AiComparisonGenerated"` (success) | `"AiComparisonFailed"` (failure) | `"AiComparisonBypassed"` (informational, emitted alongside the success/failure event when any bypass flag is set).
+- `Action = "AiComparisonGenerated"` (success) | `"AiComparisonFailed"` (failure). Bypass state lives on the same row via `bypassedRateLimit` / `bypassedTokenCap` flags in `PayloadJson` — no separate `AiComparisonBypassed` action. This keeps roll-ups single-row-per-attempt and matches the action constants enumerated in `contracts/audit-event-payload.md`.
 - `TargetType = "ApplicationItem"`, `TargetId = applicationItemId.ToString()`.
 - `PayloadJson` schema documented under `contracts/audit-event-payload.md`. Fields: `applicationId`, `supplierIds[]`, `inputHash`, `promptVersion`, `schemaVersion`, `aiModel`, `tokenCostInput`, `tokenCostOutput`, `latencyMs`, `success`, `failureReason?`, `bypassedRateLimit`, `bypassedTokenCap`, `actorRole`.
 
