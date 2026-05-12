@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -181,7 +182,12 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         var extractModel = _configuration["AiComparison:Anthropic:ExtractModel"] ?? "claude-sonnet-4-6";
         var compareModel = _configuration["AiComparison:Anthropic:CompareModel"] ?? "claude-opus-4-7";
         var extractConcurrency = int.TryParse(_configuration["AiComparison:ExtractConcurrency"], out var ec) ? ec : 4;
-        var totalRedactionCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        // Spec 020 / NFR-R1 — extraction fans out over N suppliers in parallel
+        // (Task.Run + SemaphoreSlim above). Each worker accumulates redaction
+        // counts into this shared bag, so it MUST be thread-safe. A plain
+        // Dictionary<,> corrupts under concurrent mutation (observed: null-key
+        // insert + "non-concurrent collection" exceptions when N>=2 suppliers).
+        var totalRedactionCounts = new ConcurrentDictionary<string, int>(StringComparer.Ordinal);
 
         var extractResults = new ExtractResult[assembly.Suppliers.Count];
         var extractSchema = _catalog.ExtractSchema;
@@ -324,7 +330,11 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
             LatencyMs: latency,
             BypassedRateLimit: command.BypassRateLimit && string.Equals(command.ActorRole, "Admin", StringComparison.OrdinalIgnoreCase),
             BypassedTokenCap: command.BypassTokenCap && string.Equals(command.ActorRole, "Admin", StringComparison.OrdinalIgnoreCase),
-            RedactedFieldCounts: totalRedactionCounts));
+            // Materialize the concurrent bag into a plain Dictionary so the
+            // audit-payload JSON serializer sees a stable snapshot (and so the
+            // payload record's IReadOnlyDictionary contract is satisfied with a
+            // collection that won't mutate further).
+            RedactedFieldCounts: new Dictionary<string, int>(totalRedactionCounts, StringComparer.Ordinal)));
         await _auditWriter.WriteAsync(success, cancellationToken);
 
         return new GenerateComparisonSuccess(
@@ -431,7 +441,7 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         int supplierIdx,
         ItemAssembly itemAssembly,
         SupplierAssembly supplier,
-        Dictionary<string, int> totalRedactionCounts,
+        ConcurrentDictionary<string, int> totalRedactionCounts,
         CancellationToken cancellationToken)
     {
         // FINDING-6 — surface the PII fields the live domain actually carries.
@@ -627,11 +637,16 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         return list;
     }
 
-    private static void AccumulateCounts(Dictionary<string, int> total, IReadOnlyList<RedactedSpan> spans)
+    private static void AccumulateCounts(ConcurrentDictionary<string, int> total, IReadOnlyList<RedactedSpan> spans)
     {
         foreach (var span in spans)
         {
-            total[span.FieldOrPatternName] = total.GetValueOrDefault(span.FieldOrPatternName, 0) + span.Count;
+            // Spec 020 / NFR-R1 — atomic per-key accumulation; called concurrently
+            // from the parallel supplier-extract fan-out (line ~196).
+            total.AddOrUpdate(
+                span.FieldOrPatternName,
+                addValueFactory: _ => span.Count,
+                updateValueFactory: (_, existing) => existing + span.Count);
         }
     }
 
