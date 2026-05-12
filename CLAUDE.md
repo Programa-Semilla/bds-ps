@@ -51,6 +51,17 @@ brainstorm/                        Working scratchpad for in-flight design explo
 | `Storage:Categories:{name}:UrlExpirySeconds` | `300` (5 min, max 900) | SAS URL TTL when `ServingMode=TimeLimitedUrl`. Hard cap is 15 min (FR-019). |
 | `Storage:Categories:{name}:RetentionPolicy` | `none` | Future-seam string. `signed-funding-agreements` is the legal-hold candidate (FR-023). |
 | `Storage:TestFallback:AllowFilesystem` | `false` | When `true`, the E2E `AspireFixture` may swap to `LocalFilesystem` if Azurite cannot start (FR-008). Logs a warning. |
+| `Notifications:Provider` | `Mailtrap` (Local) / `Mailgun` (non-Local) | Spec 021 — selects the `IEmailSender` impl. Absence of provider config in non-Production → `NoOpEmailSender` with WARN log (FR-015). |
+| `Notifications:BaseUrl` | per env | Absolute base URL used to compose CTA deep links in email bodies (FR-026). |
+| `Notifications:NonProdAllowlist` | `["@programa-semilla.test"]` (dev) | Spec 021 / FR-017 — recipients whose email or `@domain` is not in the list are dropped and recorded as `BlockedByAllowlist`. Empty list is fail-closed. Bypassed in Production (FR-019). |
+| `Notifications:Mailgun:ApiKey` / `Domain` / `BaseUrl` | `` / `` / `https://api.mailgun.net/v3` | Mailgun HTTP API config (FR-014). AppHost fails fast in Production when any of ApiKey/Domain/Sender:Email/BaseUrl is missing (FR-016). |
+| `Notifications:Mailtrap:Host` / `Port` / `Username` / `Password` | from Aspire smtp4dev binding | SMTP path config; in Local resolved automatically from the Aspire smtp4dev sidecar endpoint. |
+| `Notifications:Worker:PollIntervalSeconds` / `MaxAttempts` / `BatchSize` | `5` / `3` / `25` | `EmailDispatchWorker` poll cadence + retry budget + per-poll claim batch size (FR-003, FR-021). |
+| `Notifications:Sender:Name` / `Email` | `Programa Semilla / Sistema de Banca para el Desarrollo` / `no-reply@programa-semilla.cr` | RFC-5322 From: display + address used by every variant (FR-014, spec 019 sender display). |
+
+### Spec 021 sidecar
+
+The Aspire AppHost registers `rnwood/smtp4dev` as a container resource named `smtp4dev` with two endpoints (`smtp` TCP 25, `http` 80). The Web project consumes both via `WithReference` so `MailtrapSmtpEmailSender` resolves the dynamic SMTP host:port; the E2E `MailCaptureClient` consumes the HTTP REST API.
 
 ## Testing
 

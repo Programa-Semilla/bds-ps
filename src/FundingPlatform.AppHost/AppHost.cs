@@ -122,10 +122,23 @@ var adminDefaultPassword = ephemeralStorage
     ? "Sentinel123!"
     : builder.Configuration["Admin:DefaultPassword"];
 
+// Spec 021 / T005 / FR-030 / NFR-007 — smtp4dev SMTP-capture sidecar. Container
+// listens on port 25 (SMTP) and port 80 (HTTP REST API used by MailCaptureClient).
+// We register two named endpoints (smtp, http) and have the Web project wait for
+// them so MailtrapSmtpEmailSender + the E2E MailCaptureClient resolve the right
+// dynamic host ports. Sidecar failure must NOT block dev workflow per NFR-007 —
+// the Web project's NoOpEmailSender fallback is the safety net.
+var smtp4dev = builder.AddContainer("smtp4dev", "rnwood/smtp4dev", "3.6.1")
+    .WithEndpoint(targetPort: 25, name: "smtp", scheme: "tcp")
+    .WithHttpEndpoint(targetPort: 80, name: "http");
+
 var webApp = builder.AddProject<Projects.FundingPlatform_Web>("webapp")
     .WithExternalHttpEndpoints()
     .WithReference(sqlServer)
     .WaitFor(sqlServer)
+    .WithReference(smtp4dev.GetEndpoint("smtp"))
+    .WithReference(smtp4dev.GetEndpoint("http"))
+    .WaitFor(smtp4dev)
     .WithEnvironment("Syncfusion__LicenseKey", syncfusionLicense)
     .WithEnvironment("FundingAgreement__LocaleCode", localeCode)
     .WithEnvironment("FundingAgreement__CurrencyIsoCode", currencyIsoCode)
