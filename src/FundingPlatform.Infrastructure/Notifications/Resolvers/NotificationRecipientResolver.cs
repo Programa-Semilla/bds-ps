@@ -78,20 +78,31 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
             var stageGroupIds = context.Payload.StageGroupIds;
             if (stageGroupIds.Count > 0)
             {
-                // FR-007 / §Recipient Rules — the applicant MUST NOT receive the
-                // reviewer-variant email on their own application. Per spec 016,
-                // applicants and reviewers share UserGroupMemberships (that's how
-                // ApplicationRepository.ApplicantSharesAnyGroupAsync works), so a
-                // bare "members of the stage group" query would fan the reviewer
-                // variant out to the applicant too. FR-012 intra-row dedup does
-                // not help because the applicant only appears in the reviewer
-                // bucket on the _REVIEWER outbox row (the _APPLICANT row is a
-                // separate dispatch). Exclude by UserId.
+                // FR-007 / §Recipient Rules — the reviewer bucket is for users
+                // who hold the "Reviewer" ASP.NET Identity role AND are members
+                // of the application's current stage group. Per spec 016, both
+                // applicants and reviewers share UserGroupMemberships (that's
+                // how ApplicationRepository.ApplicantSharesAnyGroupAsync works),
+                // so a bare "members of the stage group" query would fan the
+                // reviewer variant out to:
+                //   (a) the submitting applicant (they're in their own group),
+                //   (b) every OTHER applicant in the same group — a cross-user
+                //       data leak about who submitted what.
+                // Filter by Reviewer-role join, mirroring the ParticipatingAdmin
+                // predicate pattern. Defense-in-depth: also exclude the
+                // submitting applicant by UserId so a dual-role user
+                // (Applicant + Reviewer) doesn't review their own application.
+                // Spec 016 invariant: "The Admin role MUST never carry
+                // memberships" — so admins do not need a separate exclusion
+                // filter here.
                 var applicantUserId = context.Payload.ApplicantUserId;
                 var reviewerRows = await (
                     from m in _context.UserGroupMemberships
                     where stageGroupIds.Contains(m.GroupId) && m.UserId != applicantUserId
                     join u in _context.Users on m.UserId equals u.Id
+                    join ur in _context.UserRoles on u.Id equals ur.UserId
+                    join r in _context.Roles on ur.RoleId equals r.Id
+                    where r.NormalizedName == "REVIEWER"
                     orderby u.Id
                     select new { u.Id, u.Email, u.UserName, u.FirstName, u.LastName })
                     .Distinct()
