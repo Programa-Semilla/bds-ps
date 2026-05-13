@@ -9,7 +9,7 @@ namespace FundingPlatform.Tests.E2E.Tests.Admin;
 public class SentinelImmutabilityTests : AuthenticatedTestBase
 {
     private const string AdminPassword = "Test123!";
-    private const string SentinelEmail = "admin@FundingPlatform.com";
+    private const string SentinelEmail = "admin@programa-semilla.test";
     private const string SentinelConfiguredPassword = "Sentinel123!";
 
     private async Task<string> SignInAsAdminAsync()

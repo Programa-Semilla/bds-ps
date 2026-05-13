@@ -8,7 +8,7 @@ namespace FundingPlatform.Tests.E2E.Tests.AdminReports;
 [Category("AdminReports")]
 public class AdminReportsApplicationsTests : AuthenticatedTestBase
 {
-    private const string AdminEmail = "admin@FundingPlatform.com";
+    private const string AdminEmail = "admin@programa-semilla.test";
     private const string AdminPassword = "Sentinel123!";
 
     [Test]

@@ -29,7 +29,7 @@ The Web project consumes the smtp4dev `smtp` endpoint via Aspire service-discove
 ## Verify a captured email end-to-end
 
 1. Start AppHost.
-2. Sign in as `admin@FundingPlatform.com` / configured admin password. Create an applicant account if one does not exist. Submit an application from the applicant UI.
+2. Sign in as `admin@programa-semilla.test` / configured admin password (`Sentinel123!` in ephemeral mode). Create an applicant account if one does not exist, OR use the demo seed `applicant@programa-semilla.test` / `Demo123!`. Submit an application from the applicant UI.
 3. Open the smtp4dev UI at the resolved HTTP endpoint (printed in AppHost startup log). You should see exactly:
    - One applicant-variant email subject `Recibimos tu solicitud — Solicitud #N`.
    - One reviewer-variant email per reviewer in the intake stage's assigned group, subject `Nueva solicitud para revisar: <Applicant Name>`.
