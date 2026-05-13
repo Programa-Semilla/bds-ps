@@ -111,10 +111,11 @@ public class ApplicationSubmittedNotificationsTests : AuthenticatedTestBase
             filter: m => m.Subject.Contains("Solicitud #" + appId) || m.Subject.Contains("Nueva solicitud"));
 
         // Applicant message: confirmation subject + deep link to /Application/Details/{id}.
-        // NOTE: AssignAllGroupsAsync (called by RegisterUserAsync) places the applicant
-        // in every seeded group; the resolver therefore fans the reviewer-variant out
-        // to the applicant as well. Filter by SUBJECT + recipient so the assertion
-        // doesn't pick the reviewer-variant copy first.
+        // The resolver explicitly excludes the applicant from the reviewer bucket
+        // (NotificationRecipientResolver — FR-007 / §Recipient Rules), so the
+        // applicant only ever appears on the APPLICATION_SUBMITTED_APPLICANT row.
+        // Filter by recipient + subject anyway to keep the assertion deterministic
+        // when other reviewers from prior tests are present in the shared fixture.
         var applicantMsg = allMessages.FirstOrDefault(m =>
             m.ToAddresses.Any(t => t.Contains(applicantEmail, StringComparison.OrdinalIgnoreCase)) &&
             m.Subject.Contains("Recibimos tu solicitud"));
