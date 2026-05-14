@@ -78,6 +78,16 @@ public static class DependencyInjection
         services.AddSingleton<IApplicationQueryFilter, ApplicationQueryFilter>();
         services.AddScoped<IAdminAuditEventWriter, AdminAuditEventWriter>();
 
+        // Spec 021 / US1 — Process + Plantilla admin services (T077 / T078 / T079).
+        // ProcessService implements both the command and query interfaces; one
+        // registration per interface so consumers can take the narrower seam.
+        services.AddScoped<Services.ProcessService>();
+        services.AddScoped<Application.Processes.IProcessService>(
+            sp => sp.GetRequiredService<Services.ProcessService>());
+        services.AddScoped<Application.Processes.Queries.IProcessQueryService>(
+            sp => sp.GetRequiredService<Services.ProcessService>());
+        services.AddScoped<Application.Plantillas.IPlantillaService, Services.PlantillaService>();
+
         return services;
     }
 }

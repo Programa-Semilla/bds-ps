@@ -1,0 +1,105 @@
+@*
+    Spec 021 / US1 / T083 — Plantilla create form (Name, MinimumQuotationsPerItem,
+    ImpactTemplate multi-select, RequiredFieldFlags multi-check).
+*@
+@using FundingPlatform.Web.Models
+@model FundingPlatform.Web.ViewModels.Admin.AdminPlantillaCreateViewModel
+@{
+    ViewData["Title"] = "Crear plantilla";
+    // RequiredFieldFlags is a bit-mask. Until a domain enum lands, we expose a
+    // small fixed set the admin can toggle; the bit values correspond to a
+    // future `RequiredFieldKind` enum (FR-003).
+    var requiredFieldKinds = new (long Bit, string Label)[]
+    {
+        (1, "Nombre del responsable"),
+        (2, "Teléfono"),
+        (4, "Dirección"),
+        (8, "Detalle de impacto"),
+    };
+}
+
+<div data-testid="admin-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: "Crear plantilla",
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem("Plantillas", Url.Action("Index", "AdminPlantillas")),
+                new BreadcrumbItem("Crear"),
+            }))
+
+    <form method="post" asp-action="Create" data-testid="admin-plantilla-create-form">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3" data-testid="admin-plantilla-validation-summary"></div>
+
+        <div class="row">
+            <div class="col-md-8 mb-3">
+                <label class="form-label" asp-for="Name">Nombre</label>
+                <input asp-for="Name" class="form-control" data-testid="admin-plantilla-name-input" autofocus />
+                <span asp-validation-for="Name" class="text-danger" data-testid="admin-plantilla-name-error"></span>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" asp-for="MinimumQuotationsPerItem">Mín. cotizaciones por ítem</label>
+                <input asp-for="MinimumQuotationsPerItem" type="number" min="1" max="10" class="form-control"
+                       data-testid="admin-plantilla-min-quotations-input" />
+                <span asp-validation-for="MinimumQuotationsPerItem" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Plantillas de impacto disponibles</label>
+            <p class="form-hint">El solicitante elegirá UNA de estas plantillas al crear la solicitud.</p>
+            @if (Model.AvailableImpactTemplates.Count == 0)
+            {
+                <div class="alert alert-warning" data-testid="admin-plantilla-no-impact-templates">
+                    No hay plantillas de impacto activas. Cree alguna desde <a href="/Admin/ImpactTemplates">Plantillas de impacto</a>.
+                </div>
+            }
+            else
+            {
+                <div class="row" data-testid="admin-plantilla-impact-templates">
+                    @foreach (var opt in Model.AvailableImpactTemplates)
+                    {
+                        var isChecked = Model.ImpactTemplateIds.Contains(opt.Id);
+                        <div class="col-md-6">
+                            <label class="form-check">
+                                <input type="checkbox" name="ImpactTemplateIds" value="@opt.Id"
+                                       class="form-check-input"
+                                       data-testid="admin-plantilla-impact-template-@opt.Id"
+                                       checked="@isChecked" />
+                                <span class="form-check-label">@opt.Name</span>
+                            </label>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Campos requeridos</label>
+            <div class="row" data-testid="admin-plantilla-required-flags">
+                @foreach (var kind in requiredFieldKinds)
+                {
+                    var isChecked = (Model.RequiredFieldFlags & kind.Bit) == kind.Bit;
+                    <div class="col-md-6">
+                        <label class="form-check">
+                            <input type="checkbox" name="RequiredFieldFlags" value="@kind.Bit"
+                                   class="form-check-input"
+                                   data-testid="admin-plantilla-required-@kind.Bit"
+                                   checked="@isChecked" />
+                            <span class="form-check-label">@kind.Label</span>
+                        </label>
+                    </div>
+                }
+            </div>
+            <small class="form-hint">Los valores marcados se combinan como una bandera bit-a-bit.</small>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-2">
+            <a class="btn btn-secondary" href="@Url.Action("Index", "AdminPlantillas")">Cancelar</a>
+            <button type="submit" class="btn btn-primary" data-testid="admin-plantilla-create-submit">
+                Guardar
+            </button>
+        </div>
+    </form>
+</div>

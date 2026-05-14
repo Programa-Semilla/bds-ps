@@ -19,6 +19,10 @@
 
     var adminEntries = new List<SidebarEntry>
     {
+        // Spec 021 / US1 / T084 — Procesos sits at the top of the admin section
+        // since every other surface conceptually scopes by Process now.
+        new("processes", "Procesos", "/Admin/Processes", "ti ti-calendar-event", new[] { "Admin" }),
+        new("plantillas", "Plantillas", "/Admin/Plantillas", "ti ti-template", new[] { "Admin" }),
         new("users", "Usuarios", "/Admin/Users", "ti ti-users", new[] { "Admin" }),
         new("groups", "Grupos", "/Admin/Groups", "ti ti-users-group", new[] { "Admin" }),
         new("suppliers", "Proveedores", "/Admin/Suppliers", "ti ti-building-store", new[] { "Admin" }),

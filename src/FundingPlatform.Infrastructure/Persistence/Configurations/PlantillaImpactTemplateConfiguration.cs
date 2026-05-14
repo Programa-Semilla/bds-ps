@@ -37,8 +37,15 @@ public class PlantillaImpactTemplateConfiguration : IEntityTypeConfiguration<Pla
                         .HasDefaultValueSql("SYSUTCDATETIME()");
                 });
 
+        // The many-to-many is registered as a *skip*-navigation on the
+        // parent type (Plantilla → ImpactTemplate via the join entity), so
+        // FindNavigation returns null. FindSkipNavigation is the right hook,
+        // and we set field-access there because `Plantilla.ImpactTemplates`
+        // is a get-only property backed by the private `_impactTemplates`
+        // list. (Pre-021 mistake — fix lands here as part of T074 because
+        // the new EF round-trip surfaces it.)
         builder.Metadata
-            .FindNavigation(nameof(Plantilla.ImpactTemplates))!
+            .FindSkipNavigation(nameof(Plantilla.ImpactTemplates))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }

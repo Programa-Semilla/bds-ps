@@ -3,11 +3,13 @@ using FundingPlatform.Application.Admin.Users;
 using FundingPlatform.Application.Admin.Users.DTOs;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Exceptions;
+using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.Resources;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Web.Controllers.Admin;
 
@@ -18,15 +20,41 @@ public class AdminUsersController : Controller
     private readonly IUserAdministrationService _service;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IGroupService _groups;
+    private readonly AppDbContext _db;
 
     public AdminUsersController(
         IUserAdministrationService service,
         UserManager<ApplicationUser> userManager,
-        IGroupService groups)
+        IGroupService groups,
+        AppDbContext db)
     {
         _service = service;
         _userManager = userManager;
         _groups = groups;
+        _db = db;
+    }
+
+    /// <summary>Spec 021 / FR-034 / T082 — loads the Process → Groups catalog
+    /// the cascading filter widget on the Index view consumes.</summary>
+    private async Task<IReadOnlyList<AdminUsersProcessFilterOption>> LoadProcessFilterCatalogAsync(CancellationToken ct)
+    {
+        // Single round-trip: pull every Group with its ProcessId and Process.Name,
+        // then group in memory. The catalog is small (a handful of Processes ×
+        // ~3-10 Groups each) so no pagination needed.
+        var rows = await (
+            from g in _db.Groups.AsNoTracking()
+            join p in _db.Processes.AsNoTracking() on g.ProcessId equals p.Id
+            orderby p.Name, g.Name
+            select new { ProcessId = p.Id, ProcessName = p.Name, GroupId = g.Id, GroupName = g.Name })
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(r => new { r.ProcessId, r.ProcessName })
+            .Select(grp => new AdminUsersProcessFilterOption(
+                grp.Key.ProcessId,
+                grp.Key.ProcessName,
+                grp.Select(r => new AdminUsersGroupFilterOption(r.GroupId, r.GroupName)).ToList()))
+            .ToList();
     }
 
     private async Task<IReadOnlyList<AdminUserGroupOption>> LoadGroupOptionsAsync(CancellationToken ct)
@@ -40,6 +68,8 @@ public class AdminUsersController : Controller
         string? roleFilter,
         string? statusFilter,
         string? search,
+        int? processFilter,
+        int? groupFilter,
         int page = 1,
         int pageSize = 20,
         CancellationToken ct = default)
@@ -48,24 +78,47 @@ public class AdminUsersController : Controller
         var result = await _service.ListUsersAsync(
             new ListUsersRequest(roleFilter, statusFilter, search, page, pageSize), ct);
 
+        var rows = result.Items.Select(i => new AdminUserSummaryRowViewModel
+        {
+            Id = i.Id,
+            FullName = i.FullName,
+            Email = i.Email,
+            Role = i.Role,
+            Status = i.Status,
+            CreatedAt = i.CreatedAt,
+            IsSelf = string.Equals(i.Id, actorId, StringComparison.Ordinal),
+        }).ToList();
+
+        // Spec 021 / FR-034 — apply the Process → Group cascade filter on top of
+        // the existing search/role/status filters. Performed in-memory against
+        // the materialized row set to keep the existing ListUsersAsync surface
+        // untouched (US1 scope); a future P2/P3 pass can push this into the
+        // service-layer query for paging fidelity. We resolve the user-id set
+        // for the chosen filter and intersect with the displayed rows.
+        if (processFilter is { } pid || groupFilter is { } gid)
+        {
+            var memberQuery =
+                from m in _db.UserGroupMemberships.AsNoTracking()
+                join g in _db.Groups.AsNoTracking() on m.GroupId equals g.Id
+                where (!groupFilter.HasValue || m.GroupId == groupFilter.Value)
+                   && (!processFilter.HasValue || g.ProcessId == processFilter.Value)
+                select m.UserId;
+            var allowedUserIds = await memberQuery.ToHashSetAsync(ct);
+            rows = rows.Where(r => allowedUserIds.Contains(r.Id)).ToList();
+        }
+
         var vm = new AdminUsersListViewModel
         {
-            Rows = result.Items.Select(i => new AdminUserSummaryRowViewModel
-            {
-                Id = i.Id,
-                FullName = i.FullName,
-                Email = i.Email,
-                Role = i.Role,
-                Status = i.Status,
-                CreatedAt = i.CreatedAt,
-                IsSelf = string.Equals(i.Id, actorId, StringComparison.Ordinal),
-            }).ToList(),
+            Rows = rows,
             TotalCount = result.TotalCount,
             Page = result.Page,
             PageSize = result.PageSize,
             RoleFilter = roleFilter,
             StatusFilter = statusFilter,
             Search = search,
+            Processes = await LoadProcessFilterCatalogAsync(ct),
+            ProcessFilter = processFilter,
+            GroupFilter = groupFilter,
         };
         return View(vm);
     }
