@@ -6,8 +6,12 @@
     <div class="empty-icon">
         <i class="ti ti-coin icon-empty-state"></i>
     </div>
-    <p class="empty-title">Plataforma de solicitudes de financiamiento</p>
-    <p class="empty-subtitle text-secondary">Envíe y administre sus solicitudes de financiamiento.</p>
+    @* Spec 021 / FR-029 — replaced "financiamiento" with "acompañamiento" on the
+       public-facing fallback landing. The dedicated FR-031 public landing is
+       authored in US7; this minimal fallback remains for unauthenticated /authenticated
+       role fall-through. *@
+    <p class="empty-title">Plataforma de solicitudes de acompañamiento</p>
+    <p class="empty-subtitle text-secondary">Envíe y administre sus solicitudes de acompañamiento.</p>
     <div class="empty-action">
         @if (User.Identity?.IsAuthenticated != true)
         {

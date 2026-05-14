@@ -6,6 +6,7 @@ using FundingPlatform.Infrastructure;
 using FundingPlatform.Infrastructure.DocumentGeneration;
 using FundingPlatform.Infrastructure.Identity;
 using FundingPlatform.Infrastructure.Persistence;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.Identity;
 using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.Middleware;
@@ -78,6 +79,11 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
 
 builder.Services.AddControllersWithViews(options =>
 {
+    // Spec 021 / T052 / R-13 — global filter mapping domain "window-closed"
+    // exceptions to HTTP 422 with es-CR ProblemDetails. Registered before the
+    // model-binding accessors so the filter pipeline is wired exactly once.
+    options.Filters.Add<DomainExceptionFilter>();
+
     // Spec 012: Spanish ModelBinding messages (FR-012).
     var p = options.ModelBindingMessageProvider;
     p.SetValueIsInvalidAccessor(v => $"El valor '{v}' no es válido.");

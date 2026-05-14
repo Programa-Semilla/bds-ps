@@ -1,0 +1,51 @@
+@model FundingPlatform.Web.ViewModels.StageCountdownBannerViewModel
+@*
+    _StageCountdownBanner.cshtml — Spec 021 / T055 / FR-024.
+
+    Renders the stage-window countdown on three surfaces:
+      - applicant draft editor (top of /Applications/{publicCode}/Edit)
+      - reviewer queue rows
+      - signing inbox rows
+
+    States:
+      - open + > 24h        : alert-warning, "Cierra en {d}d {h}h"
+      - open + < 24h        : alert-danger,  "Cierra en {h}h {m}m"
+      - closed              : alert-danger,  "Vencido — la etapa cerró el {fecha}"
+
+    All time math comes pre-computed from the ViewModel so the partial stays
+    pure-render. Mutation endpoints still receive `StageWindowClosedException` →
+    HTTP 422 (R-13) — this banner is a UX courtesy, not a security gate.
+*@
+@{
+    string FormatRemaining(TimeSpan remaining)
+    {
+        if (remaining <= TimeSpan.Zero) return "0h";
+        var days = (int)remaining.TotalDays;
+        var hours = remaining.Hours;
+        var minutes = remaining.Minutes;
+        if (days >= 1) return $"{days}d {hours}h";
+        if (hours >= 1) return $"{hours}h {minutes}m";
+        return $"{minutes}m";
+    }
+
+    var stageLabel = Model.StageKind.ToString();
+    var alertClass = Model.Closed || Model.IsDanger ? "alert alert-danger" : "alert alert-warning";
+    var icon = Model.Closed || Model.IsDanger ? "ti ti-alert-triangle" : "ti ti-clock";
+}
+<div class="@alertClass mb-3"
+     role="status"
+     data-testid="stage-countdown-banner"
+     data-stage-kind="@stageLabel"
+     data-stage-closed="@(Model.Closed ? "true" : "false")">
+    <i class="@icon me-2" aria-hidden="true"></i>
+    @if (Model.Closed)
+    {
+        <span class="fl-stage-countdown-text">
+            Vencido &mdash; la etapa cerró el @Model.ClosesAt.ToString("dd/MM/yyyy")
+        </span>
+    }
+    else
+    {
+        <span class="fl-stage-countdown-text">Cierra en @FormatRemaining(Model.Remaining)</span>
+    }
+</div>

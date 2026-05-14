@@ -117,4 +117,65 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <!-- Spec 021 / T066 — localization baseline keys. -->
+  <data name="Application.Disclaimer.Fx" xml:space="preserve">
+    <value>El monto en colones puede variar según el tipo de cambio vigente en la fecha de compra.</value>
+    <comment>FR-022 — FX disclaimer below CRC-converted USD totals on Edit / Review / Funding Agreement PDF.</comment>
+  </data>
+  <data name="Public.Hero.Cta" xml:space="preserve">
+    <value>¿Listo para acelerar tu negocio?</value>
+    <comment>FR-029 — public landing hero headline.</comment>
+  </data>
+  <data name="Public.Hero.Button" xml:space="preserve">
+    <value>Iniciar acompañamiento</value>
+    <comment>FR-029 — public landing hero CTA button label.</comment>
+  </data>
+  <data name="Account.ForgotPassword.Title" xml:space="preserve">
+    <value>¿Olvidó su contraseña?</value>
+    <comment>FR-028 — forgot-password page title.</comment>
+  </data>
+  <data name="Account.ResetPassword.InvalidLink" xml:space="preserve">
+    <value>Enlace inválido o expirado. Solicite uno nuevo.</value>
+    <comment>FR-028 — single-use reset token validation failure copy.</comment>
+  </data>
+  <data name="Account.Profile.AdministradoBadge" xml:space="preserve">
+    <value>administrado</value>
+    <comment>FR-025 — Read-only badge on Email / Role / Group / CodigoPersonal in /Profile.</comment>
+  </data>
+  <data name="Application.Review.ConfirmButton" xml:space="preserve">
+    <value>Confirmar y enviar</value>
+    <comment>FR-017 — final submit button on the /review page.</comment>
+  </data>
+  <data name="Application.Submit.MissingFieldsHeader" xml:space="preserve">
+    <value>Faltan los siguientes campos:</value>
+    <comment>FR-017 — header of the 422 missing-required-fields list.</comment>
+  </data>
+  <data name="Banner.StageExpiry.RemainingFmt" xml:space="preserve">
+    <value>Cierra en {0}</value>
+    <comment>FR-024 — stage countdown banner open-state template.</comment>
+  </data>
+  <data name="Banner.StageExpiry.Closed" xml:space="preserve">
+    <value>Vencido — la etapa cerró el {0}</value>
+    <comment>FR-024 — stage countdown banner closed-state template.</comment>
+  </data>
+  <data name="Greeting.Pattern" xml:space="preserve">
+    <value>Hola, {0}</value>
+    <comment>FR-030 — replaces "Bienvenido/a" across all applicant-facing surfaces.</comment>
+  </data>
+  <data name="Supplier.Search.Placeholder" xml:space="preserve">
+    <value>Busque por nombre o cédula jurídica</value>
+    <comment>FR-009 — supplier autocomplete input placeholder.</comment>
+  </data>
+  <data name="Profile.UpdateSuccess" xml:space="preserve">
+    <value>Perfil actualizado.</value>
+    <comment>FR-025 — toast after Profile/Update.</comment>
+  </data>
+  <data name="Profile.ChangePasswordSuccess" xml:space="preserve">
+    <value>Contraseña actualizada.</value>
+    <comment>FR-025 — toast after Profile/ChangePassword.</comment>
+  </data>
+  <data name="PublicLanding.PlaceholderProximamente" xml:space="preserve">
+    <value>Próximamente</value>
+    <comment>FR-031 — placeholder copy for un-uploaded Reglamento / Ejemplo slots.</comment>
+  </data>
 </root>

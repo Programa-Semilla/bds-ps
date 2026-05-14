@@ -1,6 +1,10 @@
 @using FundingPlatform.Domain.Enums
 @model FundingPlatform.Web.ViewModels.SigningStagePanelViewModel
 
+@* TODO(021): FR-029 line 6 — "Convenio de financiamiento" is the legal name
+   of the FundingAgreement document (legal-term exemption); kept as-is. Re-keying
+   through resx and any potential rename ("Convenio de acompañamiento", etc.)
+   is in scope for the FundingAgreement-bound view sweep in story phase. *@
 <div class="card mb-4" id="funding-agreement-panel" data-application-id="@Model.ApplicationId">
     <div class="card-header">
         <strong>Convenio de financiamiento</strong>

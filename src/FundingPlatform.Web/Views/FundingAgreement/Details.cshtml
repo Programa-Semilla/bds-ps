@@ -1,6 +1,10 @@
 @using FundingPlatform.Web.Localization
 @model FundingPlatform.Web.ViewModels.FundingAgreementDetailsViewModel
 
+@* TODO(021): FR-029 lines 5, 13, 17 — "Convenio de financiamiento" is the
+   legal name of the FundingAgreement (legal-term exemption); kept as-is.
+   Re-keying through resx and any rename is in scope for the FundingAgreement
+   view sweep in story phase. *@
 @{
     ViewData["Title"] = $"Convenio de financiamiento — Solicitud N.º {Model.Panel.ApplicationId}";
     var preview = Model.Preview;

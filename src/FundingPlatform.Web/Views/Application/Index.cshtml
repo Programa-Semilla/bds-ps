@@ -19,7 +19,8 @@
     @await Html.PartialAsync("Components/_EmptyState",
         new EmptyStateViewModel(
             Headline: "Aún no tiene solicitudes",
-            Body: "Cree su primera solicitud de financiamiento para empezar.",
+            @* Spec 021 / FR-029 — replaced "financiamiento" with "acompañamiento". *@
+            Body: "Cree su primera solicitud de acompañamiento para empezar.",
             Icon: "ti ti-files",
             PrimaryAction: new ActionItem("Crear su primera solicitud", ActionClass.Primary,
                 Url: Url.Action("Create"),

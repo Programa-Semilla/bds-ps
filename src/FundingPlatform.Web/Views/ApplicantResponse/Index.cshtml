@@ -34,6 +34,10 @@
     var isReadOnly = Model.IsSubmitted || Model.State == ApplicationState.AppealOpen;
 }
 
+@* TODO(021): FR-029 — "convenio de financiamiento" on applicant-facing banners.
+   The string here refers to the legal Funding Agreement document (legal-term
+   exemption in spec FR-029). Re-keying this through resx + the legal copy is
+   in scope for the FundingAgreement-bound view sweep (story phase US3+). *@
 @if (Model.State == ApplicationState.AgreementExecuted)
 {
     <div class="alert alert-success" data-testid="signing-banner-executed">
@@ -151,6 +155,8 @@ else if (Model.State == ApplicationState.ResponseFinalized && Model.HasFundingAg
 }
 
 <div class="mt-3" id="funding-agreement-panel-container">
+    @* TODO(021): FR-029 line 159 — async-loading copy uses "convenio de financiamiento";
+       FundingAgreement-bound, re-keying lands in US3+. *@
     <div data-async-panel-url="@Url.RouteUrl(new { controller = "FundingAgreement", action = "Panel", applicationId = Model.ApplicationId })">
         Cargando panel del convenio de financiamiento...
     </div>

@@ -7,6 +7,9 @@
 
 @await Html.PartialAsync("_ReviewTabs")
 
+@* TODO(021): FR-029 lines 13, 21 — "convenio de financiamiento" is the
+   legal FundingAgreement name (legal-term exemption); kept as-is. Re-keying
+   in scope for FundingAgreement-bound sweep in story phase. *@
 @await Html.PartialAsync("Components/_PageHeader",
     new PageHeaderViewModel(
         Title: "Generar convenio",
