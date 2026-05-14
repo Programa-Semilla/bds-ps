@@ -32,6 +32,7 @@ public sealed class AdminDashboardProjection : IAdminDashboardProjection
     private readonly IUserStoreReader _users;
     private readonly IAdminAuditEventReader _auditReader;
     private readonly IAdminAuditEventCopyProvider _copy;
+    private readonly IAdminDashboardCountersReader _counters;
     private readonly ILogger<AdminDashboardProjection> _logger;
 
     public AdminDashboardProjection(
@@ -41,6 +42,7 @@ public sealed class AdminDashboardProjection : IAdminDashboardProjection
         IUserStoreReader users,
         IAdminAuditEventReader auditReader,
         IAdminAuditEventCopyProvider copy,
+        IAdminDashboardCountersReader counters,
         ILogger<AdminDashboardProjection> logger)
     {
         _suppliers = suppliers;
@@ -49,6 +51,7 @@ public sealed class AdminDashboardProjection : IAdminDashboardProjection
         _users = users;
         _auditReader = auditReader;
         _copy = copy;
+        _counters = counters;
         _logger = logger;
     }
 
@@ -59,6 +62,12 @@ public sealed class AdminDashboardProjection : IAdminDashboardProjection
         var aging = await SafeAsync("AgingApplications", GetAgingApplicationCountAsync, ct);
         var activeUsers = await SafeAsync("ActiveUsers", _users.GetActiveUserCountAsync, ct);
 
+        // Spec 021 / US6 / T135 / FR-032 / SC-010 — narrative KPI tiles
+        // (Personas activas + Fondos entregados). Same R-2 degrade-to-zero
+        // posture as the four action KPIs above.
+        var personasActivas = await SafeAsync("PersonasActivas", _counters.CountPersonasActivasAsync, ct);
+        var fondosEntregados = await SafeDecimalAsync("FondosEntregados", _counters.SumFondosEntregadosAsync, ct);
+
         var kpis = new AdminDashboardKpis(
             PendingSuppliers: pendingSuppliers,
             PendingSuppliersUrl: "/Admin/Suppliers?status=PendingReview",
@@ -67,7 +76,9 @@ public sealed class AdminDashboardProjection : IAdminDashboardProjection
             AgingApplications: aging,
             AgingApplicationsUrl: "/Admin/Reports/Aging",
             ActiveUsers: activeUsers,
-            ActiveUsersUrl: "/Admin/Users?status=Active");
+            ActiveUsersUrl: "/Admin/Users?status=Active",
+            PersonasActivas: personasActivas,
+            FondosEntregados: fondosEntregados);
 
         var sections = BuildSections();
         var events = await BuildRecentEventsAsync(ct);
@@ -228,6 +239,26 @@ public sealed class AdminDashboardProjection : IAdminDashboardProjection
                 "AdminDashboardKpiProjectionFailed Kpi={Kpi} Reason={Reason}",
                 kpi, ex.Message);
             return 0;
+        }
+    }
+
+    /// <summary>
+    /// Spec 021 / US6 — decimal variant of <see cref="SafeAsync(string, Func{CancellationToken, Task{int}}, CancellationToken)"/>.
+    /// Same R-2 degrade-to-zero posture, zero is <c>0m</c>.
+    /// </summary>
+    private async Task<decimal> SafeDecimalAsync(
+        string kpi, Func<CancellationToken, Task<decimal>> work, CancellationToken ct)
+    {
+        try
+        {
+            return await work(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "AdminDashboardKpiProjectionFailed Kpi={Kpi} Reason={Reason}",
+                kpi, ex.Message);
+            return 0m;
         }
     }
 }

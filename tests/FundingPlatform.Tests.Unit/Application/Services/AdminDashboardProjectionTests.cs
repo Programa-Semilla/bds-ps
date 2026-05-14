@@ -198,6 +198,60 @@ public class AdminDashboardProjectionTests
     }
 
     [Test]
+    public async Task GetAsync_PersonasActivas_AndFondosEntregados_AreSurfaced()
+    {
+        // Spec 021 / US6 / T135 / FR-032 / SC-010 — the two narrative KPI
+        // counters supplied by IAdminDashboardCountersReader must surface on
+        // AdminDashboardDto.Kpis without disturbing the four action KPIs.
+        var counters = Substitute.For<IAdminDashboardCountersReader>();
+        counters.CountPersonasActivasAsync(Arg.Any<CancellationToken>()).Returns(13);
+        counters.SumFondosEntregadosAsync(Arg.Any<CancellationToken>()).Returns(5_000_000m);
+
+        var projection = BuildProjection(
+            NoPendingSuppliers(), NoAging(), NoLegacy(), ZeroActiveUsers(), NoEvents(), counters);
+        var dto = await projection.GetAsync(CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(dto.Kpis.PersonasActivas, Is.EqualTo(13));
+            Assert.That(dto.Kpis.FondosEntregados, Is.EqualTo(5_000_000m));
+        });
+    }
+
+    [Test]
+    public async Task GetAsync_PersonasActivasFailure_DegradesToZero()
+    {
+        // Spec 021 / US6 / R-2 — same degrade-to-zero posture for the new tiles.
+        var counters = Substitute.For<IAdminDashboardCountersReader>();
+        counters.CountPersonasActivasAsync(Arg.Any<CancellationToken>())
+            .Returns<int>(_ => throw new InvalidOperationException("synthetic"));
+        counters.SumFondosEntregadosAsync(Arg.Any<CancellationToken>()).Returns(7m);
+
+        var projection = BuildProjection(
+            NoPendingSuppliers(), NoAging(), NoLegacy(), ZeroActiveUsers(), NoEvents(), counters);
+        var dto = await projection.GetAsync(CancellationToken.None);
+
+        Assert.That(dto.Kpis.PersonasActivas, Is.EqualTo(0));
+        Assert.That(dto.Kpis.FondosEntregados, Is.EqualTo(7m));
+    }
+
+    [Test]
+    public async Task GetAsync_FondosEntregadosFailure_DegradesToZeroDecimal()
+    {
+        var counters = Substitute.For<IAdminDashboardCountersReader>();
+        counters.CountPersonasActivasAsync(Arg.Any<CancellationToken>()).Returns(2);
+        counters.SumFondosEntregadosAsync(Arg.Any<CancellationToken>())
+            .Returns<decimal>(_ => throw new InvalidOperationException("synthetic"));
+
+        var projection = BuildProjection(
+            NoPendingSuppliers(), NoAging(), NoLegacy(), ZeroActiveUsers(), NoEvents(), counters);
+        var dto = await projection.GetAsync(CancellationToken.None);
+
+        Assert.That(dto.Kpis.FondosEntregados, Is.EqualTo(0m));
+        Assert.That(dto.Kpis.PersonasActivas, Is.EqualTo(2));
+    }
+
+    [Test]
     public void BuildSections_ContainsExpectedSlugs()
     {
         var sections = AdminDashboardProjection.BuildSections();
@@ -219,7 +273,8 @@ public class AdminDashboardProjectionTests
         IAdminReportsService reports,
         IQuotationLegacyRepository legacy,
         IUserStoreReader users,
-        IAdminAuditEventReader audit)
+        IAdminAuditEventReader audit,
+        IAdminDashboardCountersReader? counters = null)
     {
         return new AdminDashboardProjection(
             suppliers,
@@ -228,7 +283,19 @@ public class AdminDashboardProjectionTests
             users,
             audit,
             new AdminAuditEventCopyProvider(),
+            counters ?? ZeroCounters(),
             NullLogger<AdminDashboardProjection>.Instance);
+    }
+
+    // Spec 021 / US6 / T135 — default narrative-KPI reader for existing test
+    // scenarios that pre-date FR-032. Returns zero for both counters; tests
+    // exercising the new tiles inject a configured substitute.
+    private static IAdminDashboardCountersReader ZeroCounters()
+    {
+        var c = Substitute.For<IAdminDashboardCountersReader>();
+        c.CountPersonasActivasAsync(Arg.Any<CancellationToken>()).Returns(0);
+        c.SumFondosEntregadosAsync(Arg.Any<CancellationToken>()).Returns(0m);
+        return c;
     }
 
     private static ISupplierRepository NoPendingSuppliers()

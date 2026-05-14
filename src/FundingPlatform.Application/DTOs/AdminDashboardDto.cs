@@ -14,6 +14,17 @@ public sealed record AdminDashboardDto(
 /// Spec 017 / FR-002 — four action KPIs surfaced on the admin dashboard.
 /// Each carries a precomputed deep-link URL so the view layer does not build paths.
 /// Per R2, every count degrades to <c>0</c> on sub-projection failure.
+///
+/// <para>
+/// Spec 021 / US6 / FR-032 / SC-010 (R-12) — augmented with two narrative KPI tiles:
+/// <see cref="PersonasActivas"/> (distinct applicants with at least one
+/// non-soft-deleted Application in the last 12 months) and
+/// <see cref="FondosEntregados"/> (sum of executed FundingAgreement
+/// disbursement amounts, derived from the selected supplier quotation's
+/// converted-CRC amount). These two tiles render alongside the four action
+/// KPIs without replacing them. The pending-quotation tile that used to live
+/// here (in earlier drafts) has moved to the reviewer dashboard per FR-033.
+/// </para>
 /// </summary>
 public sealed record AdminDashboardKpis(
     int PendingSuppliers,
@@ -23,7 +34,9 @@ public sealed record AdminDashboardKpis(
     int AgingApplications,
     string AgingApplicationsUrl,
     int ActiveUsers,
-    string ActiveUsersUrl);
+    string ActiveUsersUrl,
+    int PersonasActivas,
+    decimal FondosEntregados);
 
 /// <summary>
 /// Spec 017 / FR-004 — fixed-template grouping of capability cards.

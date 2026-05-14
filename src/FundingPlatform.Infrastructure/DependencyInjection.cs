@@ -74,6 +74,16 @@ public static class DependencyInjection
         services.AddScoped<Application.Services.IAdminAuditEventReader, Persistence.AdminAuditEventReader>();
         services.AddScoped<Application.Services.IUserStoreReader, Identity.UserStoreReader>();
 
+        // Spec 021 / US6 / T135 / FR-032 — narrative KPI counters reader
+        // (Personas activas + Fondos entregados). Consumed by AdminDashboardProjection.
+        services.AddScoped<Application.Services.IAdminDashboardCountersReader,
+            Persistence.AdminDashboardCountersReader>();
+
+        // Spec 021 / US6 / T136 / FR-033 — reviewer dashboard projection
+        // (pending-quotation tile moved from admin per R-12).
+        services.AddScoped<Application.ReviewerDashboard.IReviewerDashboardProjection,
+            Persistence.ReviewerDashboardProjection>();
+
         // Spec 021 — public-code generator, password-reset token store, soft-delete
         // query filter, terse audit writer for the new event-kind discriminators.
         services.AddScoped<IPublicCodeGenerator, PublicCodeGenerator>();
