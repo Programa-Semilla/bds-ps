@@ -257,6 +257,17 @@ public class ReviewService
 
     private static ReviewApplicationDto MapToReviewDto(AppEntity application)
     {
+        // Spec 021 / FR-005 — Impact relocated to Application. The per-Item
+        // Impact projection on ReviewItemDto is now the same per-Application
+        // projection on every item until the DTO contract is refactored.
+        var applicationImpactTemplateName = application.ImpactTemplate?.Name;
+        var applicationImpactParameters = application.ImpactParameterValues
+            .Select(pv => new ImpactParameterDisplayDto(
+                pv.ImpactTemplateParameter?.Name ?? string.Empty,
+                pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
+                pv.Value ?? string.Empty))
+            .ToList();
+
         var reviewItems = application.Items.Select(item =>
         {
             var quotations = item.Quotations.ToList();
@@ -310,11 +321,8 @@ public class ReviewService
                 item.SelectedSupplierId,
                 item.IsNotTechnicallyEquivalent,
                 quotationDtos,
-                item.Impact?.ImpactTemplate?.Name,
-                item.Impact?.ParameterValues.Select(pv => new ImpactParameterDisplayDto(
-                    pv.ImpactTemplateParameter?.Name ?? string.Empty,
-                    pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
-                    pv.Value ?? string.Empty)).ToList() ?? [],
+                applicationImpactTemplateName,
+                applicationImpactParameters,
                 LineCode: item.LineCode);
         }).ToList();
 

@@ -34,6 +34,11 @@ public static class DependencyInjection
         services.AddScoped<IAdminDashboardProjection, AdminDashboardProjection>();
         services.AddSingleton<IAdminAuditEventCopyProvider, AdminAuditEventCopyProvider>();
 
+        // Spec 021 — Application abstractions; implementations bound in
+        // FundingPlatform.Infrastructure.DependencyInjection.
+        // (IPasswordResetTokenStore, IApplicationQueryFilter,
+        // IStageExpiryEvaluator, IAdminAuditEventWriter — see Infrastructure DI.)
+
         if (configuration is not null)
         {
             services.Configure<SignedUploadOptions>(

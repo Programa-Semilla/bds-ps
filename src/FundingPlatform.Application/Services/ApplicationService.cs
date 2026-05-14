@@ -464,7 +464,14 @@ public class ApplicationService
             .Select(kvp => new ImpactParameterValue(kvp.Key, kvp.Value))
             .ToList();
 
-        item.SetImpact(template, parameterValues);
+        // Spec 021 / FR-005 — Impact relocated from Item to Application. The
+        // per-Item SetImpact entry point is gone; we now write through the
+        // Application aggregate which validates the ImpactTemplate against the
+        // ProcessPlantilla snapshot before stamping. The `item` lookup above
+        // remains so the command signature stays backward-compatible; later
+        // phases will drop the unused itemId from SetItemImpactCommand.
+        _ = item;
+        application.SetImpact(template, parameterValues);
 
         await _applicationRepository.UpdateAsync(application);
         await _applicationRepository.SaveChangesAsync();
@@ -472,6 +479,27 @@ public class ApplicationService
 
     private static ApplicationDto MapToDto(AppEntity application)
     {
+        // Spec 021 / FR-005 — Impact relocated from Item to Application. The
+        // per-Item ImpactDto on ItemDto is now sourced from the Application's
+        // per-Application impact; every item carries the same projection so
+        // existing read paths keep compiling until the DTO contract is
+        // refactored in a later spec-021 phase. Id = 0 (the legacy Impact PK
+        // is gone — value-object projection has no row identity).
+        var applicationImpactDto = application.ImpactTemplate is not null
+            ? new ImpactDto(
+                0,
+                application.ImpactTemplate.Id,
+                application.ImpactTemplate.Name ?? string.Empty,
+                application.ImpactParameterValues.Select(pv => new ImpactParameterValueDto(
+                    pv.Id,
+                    pv.ImpactTemplateParameterId,
+                    pv.ImpactTemplateParameter?.Name ?? string.Empty,
+                    pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
+                    pv.ImpactTemplateParameter?.DataType.ToString() ?? string.Empty,
+                    pv.ImpactTemplateParameter?.IsRequired ?? false,
+                    pv.Value)).ToList())
+            : null;
+
         var items = application.Items.Select(item => new ItemDto(
             item.Id,
             item.ProductName,
@@ -493,20 +521,7 @@ public class ApplicationService
                 SnapshotRateType: q.Snapshot?.RateType.ToString(),
                 SnapshotEffectiveAtUtc: q.Snapshot?.EffectiveAtUtc,
                 LegacyNeedsReview: q.LegacyNeedsReview)).ToList(),
-            item.Impact is not null
-                ? new ImpactDto(
-                    item.Impact.Id,
-                    item.Impact.ImpactTemplateId,
-                    item.Impact.ImpactTemplate?.Name ?? string.Empty,
-                    item.Impact.ParameterValues.Select(pv => new ImpactParameterValueDto(
-                        pv.Id,
-                        pv.ImpactTemplateParameterId,
-                        pv.ImpactTemplateParameter?.Name ?? string.Empty,
-                        pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
-                        pv.ImpactTemplateParameter?.DataType.ToString() ?? string.Empty,
-                        pv.ImpactTemplateParameter?.IsRequired ?? false,
-                        pv.Value)).ToList())
-                : null,
+            applicationImpactDto,
             item.ReviewComment,
             item.SelectedSupplierId)).ToList();
 

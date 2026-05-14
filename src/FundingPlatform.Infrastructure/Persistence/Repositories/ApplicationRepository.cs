@@ -32,13 +32,12 @@ public class ApplicationRepository : IApplicationRepository
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)
                     .ThenInclude(q => q.Document)
-            .Include(a => a.Items)
-                .ThenInclude(i => i.Impact)
-                    .ThenInclude(imp => imp!.ImpactTemplate)
-            .Include(a => a.Items)
-                .ThenInclude(i => i.Impact)
-                    .ThenInclude(imp => imp!.ParameterValues)
-                        .ThenInclude(pv => pv.ImpactTemplateParameter)
+            // Spec 021 / FR-005 — Impact relocated from Item to Application. The
+            // ImpactTemplate + ImpactParameterValues navigations live on the
+            // Application aggregate (configured in ApplicationConfiguration).
+            .Include(a => a.ImpactTemplate)
+            .Include(a => a.ImpactParameterValues)
+                .ThenInclude(pv => pv.ImpactTemplateParameter)
             .Include(a => a.Applicant)
             .Include(a => a.ApplicantResponses)
                 .ThenInclude(r => r.ItemResponses)

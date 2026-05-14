@@ -25,6 +25,12 @@ public class GroupConfiguration : IEntityTypeConfiguration<Group>
             .HasDefaultValueSql("SYSUTCDATETIME()");
         builder.HasIndex(g => g.Name).IsUnique().HasDatabaseName("UX_Groups_Name");
 
+        // Spec 021 / FR-001 — every Group lives under a Process. The Process-end
+        // of the relationship is configured in ProcessConfiguration; the FK
+        // declaration here is implicit through that one-to-many.
+        builder.Property(g => g.ProcessId).IsRequired();
+        builder.HasIndex(g => g.ProcessId).HasDatabaseName("IX_Groups_ProcessId");
+
         builder.Metadata
             .FindNavigation(nameof(Group.Memberships))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);

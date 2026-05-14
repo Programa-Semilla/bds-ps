@@ -1,3 +1,4 @@
+using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Admin.Reports;
 using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Admin.Users;
@@ -9,9 +10,11 @@ using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.Audit;
 using FundingPlatform.Infrastructure.DocumentGeneration;
 using FundingPlatform.Infrastructure.Identity;
+using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Infrastructure.Persistence.Reports;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
 using FundingPlatform.Infrastructure.Persistence.Services;
+using FundingPlatform.Infrastructure.PublicCodes;
 using FundingPlatform.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,6 +70,13 @@ public static class DependencyInjection
         // Spec 017 — admin dashboard reader + activity feed source + user-store reader.
         services.AddScoped<Application.Services.IAdminAuditEventReader, Persistence.AdminAuditEventReader>();
         services.AddScoped<Application.Services.IUserStoreReader, Identity.UserStoreReader>();
+
+        // Spec 021 — public-code generator, password-reset token store, soft-delete
+        // query filter, terse audit writer for the new event-kind discriminators.
+        services.AddScoped<IPublicCodeGenerator, PublicCodeGenerator>();
+        services.AddScoped<IPasswordResetTokenStore, PasswordResetTokenStore>();
+        services.AddSingleton<IApplicationQueryFilter, ApplicationQueryFilter>();
+        services.AddScoped<IAdminAuditEventWriter, AdminAuditEventWriter>();
 
         return services;
     }
