@@ -19,6 +19,9 @@ CREATE TABLE [dbo].[AspNetUsers]
     [LastName]             NVARCHAR(100)  NULL,
     [IsSystemSentinel]     BIT            NOT NULL CONSTRAINT [DF_AspNetUsers_IsSystemSentinel] DEFAULT (0),
     [MustChangePassword]   BIT            NOT NULL CONSTRAINT [DF_AspNetUsers_MustChangePassword] DEFAULT (0),
+    -- Spec 021 / FR-031 — admin-set personal code; read-only on the applicant
+    -- profile surface (rendered with the "administrado" badge).
+    [CodigoPersonal]       NVARCHAR(40)   NULL,
 
     CONSTRAINT [PK_AspNetUsers] PRIMARY KEY CLUSTERED ([Id])
 );

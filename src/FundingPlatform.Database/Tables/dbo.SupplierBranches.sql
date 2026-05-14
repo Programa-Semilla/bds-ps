@@ -4,10 +4,21 @@ CREATE TABLE [dbo].[SupplierBranches]
     [SupplierId]             INT             NOT NULL,
     [BranchName]             NVARCHAR(200)   NOT NULL,
     [ContactName]            NVARCHAR(200)   NULL,
+    -- Spec 021 / FR-014 — applicant-facing contact-person on the branch
+    -- (distinct from the supplier-side ContactName legacy free-text).
+    [ContactPersonName]      NVARCHAR(120)   NULL,
     [Email]                  NVARCHAR(256)   NULL,
     [Phone]                  NVARCHAR(20)    NULL,
     [AddressLine]            NVARCHAR(500)   NULL,
+    -- Legacy free-text province (kept for backwards compatibility with rows
+    -- created before the structured ProvinceId/CantonId pair landed in spec 021).
     [Province]               NVARCHAR(100)   NULL,
+    -- Spec 021 / data-model.md — structured Province/Cantón pair drives the
+    -- cascade-select on the applicant supplier-branch inline form. The
+    -- cantón-belongs-to-province invariant is enforced by the domain
+    -- (SupplierBranch.SetLocation) and the persistence guard.
+    [ProvinceId]             INT             NULL,
+    [CantonId]               INT             NULL,
     [ShippingDetails]        NVARCHAR(500)   NULL,
     [WarrantyInfo]           NVARCHAR(500)   NULL,
     [IsDefault]              BIT             NOT NULL CONSTRAINT [DF_SupplierBranches_IsDefault] DEFAULT (0),
@@ -17,7 +28,9 @@ CREATE TABLE [dbo].[SupplierBranches]
 
     CONSTRAINT [PK_SupplierBranches] PRIMARY KEY CLUSTERED ([Id]),
     CONSTRAINT [FK_SupplierBranches_Suppliers] FOREIGN KEY ([SupplierId]) REFERENCES [dbo].[Suppliers] ([Id]) ON DELETE CASCADE,
-    CONSTRAINT [FK_SupplierBranches_Applicants] FOREIGN KEY ([CreatedByApplicantId]) REFERENCES [dbo].[Applicants] ([Id]) ON DELETE NO ACTION
+    CONSTRAINT [FK_SupplierBranches_Applicants] FOREIGN KEY ([CreatedByApplicantId]) REFERENCES [dbo].[Applicants] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_SupplierBranches_Provinces] FOREIGN KEY ([ProvinceId]) REFERENCES [dbo].[Provinces] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_SupplierBranches_Cantons]   FOREIGN KEY ([CantonId])   REFERENCES [dbo].[Cantons] ([Id])   ON DELETE NO ACTION
 );
 GO
 
