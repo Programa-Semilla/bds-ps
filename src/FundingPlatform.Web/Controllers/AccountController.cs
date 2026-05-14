@@ -1,3 +1,5 @@
+using FundingPlatform.Application.Abstractions;
+using FundingPlatform.Application.Identity;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.ViewModels;
@@ -14,17 +16,32 @@ public class AccountController : Controller
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly AppDbContext _dbContext;
     private readonly IWebHostEnvironment _environment;
+    private readonly IIssuePasswordResetTokenHandler _issuePasswordResetTokenHandler;
+    private readonly IConsumePasswordResetTokenHandler _consumePasswordResetTokenHandler;
+    private readonly IUpdateProfileHandler _updateProfileHandler;
+    private readonly IEmailSender _emailSender;
+    private readonly Infrastructure.Email.ForgotPasswordEmailFactory _forgotPasswordEmailFactory;
 
     public AccountController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         AppDbContext dbContext,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        IIssuePasswordResetTokenHandler issuePasswordResetTokenHandler,
+        IConsumePasswordResetTokenHandler consumePasswordResetTokenHandler,
+        IUpdateProfileHandler updateProfileHandler,
+        IEmailSender emailSender,
+        Infrastructure.Email.ForgotPasswordEmailFactory forgotPasswordEmailFactory)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _dbContext = dbContext;
         _environment = environment;
+        _issuePasswordResetTokenHandler = issuePasswordResetTokenHandler;
+        _consumePasswordResetTokenHandler = consumePasswordResetTokenHandler;
+        _updateProfileHandler = updateProfileHandler;
+        _emailSender = emailSender;
+        _forgotPasswordEmailFactory = forgotPasswordEmailFactory;
     }
 
     [HttpGet]
@@ -166,6 +183,297 @@ public class AccountController : Controller
     {
         await _signInManager.SignOutAsync();
         return RedirectToAction("Index", "Home");
+    }
+
+    // -----------------------------------------------------------------------
+    // Spec 021 / US5 / T127 / FR-028 — Forgot-password flow.
+    // The POST always returns the same neutral view regardless of whether the
+    // email is on file (no enumeration). When the email is known, an email is
+    // dispatched out-of-band; when unknown, no email is sent. Both branches
+    // render the same view, set the same TempData success banner, and return
+    // 200 — the response is indistinguishable to the client.
+    // -----------------------------------------------------------------------
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ForgotPassword()
+    {
+        return View(new ForgotPasswordViewModel());
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var result = await _issuePasswordResetTokenHandler.HandleAsync(
+            new IssuePasswordResetTokenCommand(model.Email), ct);
+
+        if (result.UserFound && !string.IsNullOrEmpty(result.RawToken) && !string.IsNullOrEmpty(result.UserId))
+        {
+            // Compose absolute reset link. Token is opaque base-64 from
+            // DataProtectorTokenProvider — URL-encode it so '+', '/', '=' survive.
+            var resetLink = Url.Action(
+                action: nameof(ResetPassword),
+                controller: "Account",
+                values: new { userId = result.UserId, token = result.RawToken },
+                protocol: Request.Scheme,
+                host: Request.Host.Value);
+
+            if (!string.IsNullOrEmpty(resetLink))
+            {
+                var expiresAt = DateTimeOffset.UtcNow.Add(PasswordResetToken.DefaultLifetime);
+                var envelope = _forgotPasswordEmailFactory.Build(
+                    toAddress: result.Email!,
+                    applicantFirstName: result.FirstName,
+                    resetLink: resetLink,
+                    expiresAt: expiresAt);
+                try
+                {
+                    await _emailSender.SendAsync(envelope, ct);
+                }
+                catch (Exception ex)
+                {
+                    // Swallow transport errors here — the neutral response is
+                    // required by FR-028 (no enumeration). The error is logged
+                    // by the sender; we MUST NOT surface it to the client.
+                    HttpContext.RequestServices
+                        .GetRequiredService<ILogger<AccountController>>()
+                        .LogWarning(ex, "Failed to send password-reset email; rendering neutral response anyway.");
+                }
+            }
+        }
+
+        // Neutral response for BOTH branches.
+        TempData["SuccessMessage"] =
+            "Si la dirección está registrada, le enviaremos instrucciones para restablecer su contraseña.";
+        return View(new ForgotPasswordViewModel { Email = model.Email });
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword(string? userId, string? token)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(token))
+        {
+            ViewData["InvalidLink"] = true;
+            return View(new ResetPasswordViewModel());
+        }
+
+        // Soft existence check — the heavy verification happens on POST. We
+        // only need the user to exist; if they don't, render the invalid-link
+        // view so the form isn't presented.
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            ViewData["InvalidLink"] = true;
+            return View(new ResetPasswordViewModel());
+        }
+
+        return View(new ResetPasswordViewModel
+        {
+            UserId = userId,
+            Token = token,
+        });
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var result = await _consumePasswordResetTokenHandler.HandleAsync(
+            new ConsumePasswordResetTokenCommand(model.UserId, model.Token, model.NewPassword), ct);
+        if (!result.Success)
+        {
+            foreach (var msg in result.ErrorMessages)
+            {
+                ModelState.AddModelError(string.Empty, msg);
+            }
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = "Contraseña actualizada. Inicie sesión con su nueva contraseña.";
+        return RedirectToAction(nameof(Login));
+    }
+
+    // -----------------------------------------------------------------------
+    // Spec 021 / US5 / T127 / FR-018 — Self-service profile.
+    // FirstName / LastName / Phone / Address are editable. Email / Role /
+    // Group / CodigoPersonal render as read-only "administrado" fields and
+    // are rebuilt server-side on every request, so smuggled form fields
+    // cannot reach UpdateProfileCommand.
+    // -----------------------------------------------------------------------
+
+    [Authorize]
+    [HttpGet]
+    [Route("Profile")]
+    public async Task<IActionResult> Profile()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        var vm = await BuildProfileViewModelAsync(user);
+        return View(vm);
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("Profile/Update")]
+    public async Task<IActionResult> ProfileUpdate(ProfileViewModel model, CancellationToken ct)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        // Re-validate just the four self-editable fields; do not rely on the
+        // view-model's read-only properties (they are admin-managed).
+        ModelState.Remove(nameof(ProfileViewModel.Email));
+        ModelState.Remove(nameof(ProfileViewModel.Role));
+        ModelState.Remove(nameof(ProfileViewModel.Group));
+        ModelState.Remove(nameof(ProfileViewModel.CodigoPersonal));
+        ModelState.Remove($"{nameof(ProfileViewModel.ChangePassword)}.{nameof(ChangePasswordViewModel.OldPassword)}");
+        ModelState.Remove($"{nameof(ProfileViewModel.ChangePassword)}.{nameof(ChangePasswordViewModel.NewPassword)}");
+        ModelState.Remove($"{nameof(ProfileViewModel.ChangePassword)}.{nameof(ChangePasswordViewModel.ConfirmPassword)}");
+
+        if (!ModelState.IsValid)
+        {
+            var rebuilt = await BuildProfileViewModelAsync(user);
+            rebuilt.FirstName = model.FirstName;
+            rebuilt.LastName = model.LastName;
+            rebuilt.Phone = model.Phone;
+            rebuilt.Address = model.Address;
+            return View("Profile", rebuilt);
+        }
+
+        var result = await _updateProfileHandler.HandleAsync(
+            new UpdateProfileCommand(user.Id, model.FirstName, model.LastName, model.Phone, model.Address), ct);
+        if (!result.Success)
+        {
+            foreach (var msg in result.ErrorMessages)
+            {
+                ModelState.AddModelError(string.Empty, msg);
+            }
+            var rebuilt = await BuildProfileViewModelAsync(user);
+            rebuilt.FirstName = model.FirstName;
+            rebuilt.LastName = model.LastName;
+            rebuilt.Phone = model.Phone;
+            rebuilt.Address = model.Address;
+            return View("Profile", rebuilt);
+        }
+
+        TempData["SuccessMessage"] = "Perfil actualizado.";
+        return RedirectToAction(nameof(Profile));
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("Profile/ChangePassword")]
+    public async Task<IActionResult> ProfileChangePassword(ProfileViewModel model, CancellationToken ct)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        // Validate just the password section; profile-edit fields stay put.
+        ModelState.Remove(nameof(ProfileViewModel.FirstName));
+        ModelState.Remove(nameof(ProfileViewModel.LastName));
+        ModelState.Remove(nameof(ProfileViewModel.Phone));
+        ModelState.Remove(nameof(ProfileViewModel.Address));
+        ModelState.Remove(nameof(ProfileViewModel.Email));
+        ModelState.Remove(nameof(ProfileViewModel.Role));
+        ModelState.Remove(nameof(ProfileViewModel.Group));
+        ModelState.Remove(nameof(ProfileViewModel.CodigoPersonal));
+
+        if (!ModelState.IsValid)
+        {
+            var rebuilt = await BuildProfileViewModelAsync(user);
+            rebuilt.ChangePassword = model.ChangePassword;
+            return View("Profile", rebuilt);
+        }
+
+        var result = await _userManager.ChangePasswordAsync(
+            user, model.ChangePassword.OldPassword, model.ChangePassword.NewPassword);
+        if (!result.Succeeded)
+        {
+            foreach (var err in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, err.Description);
+            }
+            var rebuilt = await BuildProfileViewModelAsync(user);
+            rebuilt.ChangePassword = model.ChangePassword;
+            return View("Profile", rebuilt);
+        }
+
+        user.MustChangePassword = false;
+        await _userManager.UpdateAsync(user);
+        await _userManager.UpdateSecurityStampAsync(user);
+
+        // Force re-login per spec (security-stamp refresh invalidates the
+        // cookie anyway; doing the sign-out makes the redirect target obvious).
+        await _signInManager.SignOutAsync();
+        TempData["SuccessMessage"] = "Contraseña actualizada. Inicie sesión con su nueva contraseña.";
+        return RedirectToAction(nameof(Login));
+    }
+
+    private async Task<ProfileViewModel> BuildProfileViewModelAsync(ApplicationUser user)
+    {
+        var roles = await _userManager.GetRolesAsync(user);
+        // Highest-rank role first — Admin > Reviewer > SupplierAdmin > Applicant.
+        string DisplayRole(string r) => r switch
+        {
+            "Admin" => "Administrador",
+            "Reviewer" => "Revisor",
+            "SupplierAdmin" => "Administrador de proveedores",
+            "Applicant" => "Solicitante",
+            _ => r,
+        };
+        var rolePriority = new[] { "Admin", "Reviewer", "SupplierAdmin", "Applicant" };
+        var roleLabel = rolePriority.FirstOrDefault(roles.Contains);
+
+        // Pull groups via the same query that AdminUsersController uses.
+        var groups = await _dbContext.UserGroupMemberships
+            .AsNoTracking()
+            .Where(m => m.UserId == user.Id)
+            .Join(_dbContext.Groups.AsNoTracking(), m => m.GroupId, g => g.Id, (m, g) => g.Name)
+            .OrderBy(n => n)
+            .ToListAsync();
+        var groupLabel = groups.Count == 0 ? "—" : string.Join(", ", groups);
+
+        // Address is stored as a user-claim (see UpdateProfileHandler).
+        var claims = await _userManager.GetClaimsAsync(user);
+        var address = claims.FirstOrDefault(c => c.Type == "profile.address")?.Value;
+
+        return new ProfileViewModel
+        {
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Phone = user.PhoneNumber,
+            Address = address,
+            Email = user.Email ?? "",
+            Role = roleLabel is null ? "—" : DisplayRole(roleLabel),
+            Group = groupLabel,
+            CodigoPersonal = user.CodigoPersonal,
+        };
     }
 
     [HttpPost]
@@ -408,6 +716,51 @@ BEGIN
 END;");
 
         return Ok("Admin fixture re-seeded.");
+    }
+
+    /// <summary>
+    /// Spec 021 / T124 / US5 — dev-only helper for the forgot-password E2E
+    /// test. Returns the latest *unconsumed* password-reset link for the user
+    /// matching <paramref name="email"/>. Returns 404 outside development.
+    /// The link is composed exactly the way the controller's email path
+    /// composes it, so the E2E test can follow it like a real user would.
+    /// </summary>
+    [HttpGet]
+    [Route("Account/LatestPasswordResetLink")]
+    public async Task<IActionResult> LatestPasswordResetLink(string email)
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return BadRequest("email is required.");
+        }
+
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var rawToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        await _dbContext.Set<PasswordResetToken>().AddAsync(
+            PasswordResetToken.Issue(
+                user.Id,
+                System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(rawToken)),
+                DateTimeOffset.UtcNow,
+                PasswordResetToken.DefaultLifetime));
+        await _dbContext.SaveChangesAsync();
+
+        var link = Url.Action(
+            action: nameof(ResetPassword),
+            controller: "Account",
+            values: new { userId = user.Id, token = rawToken },
+            protocol: Request.Scheme,
+            host: Request.Host.Value);
+
+        return Ok(link);
     }
 
     /// <summary>

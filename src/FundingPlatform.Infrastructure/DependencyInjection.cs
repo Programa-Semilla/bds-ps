@@ -78,6 +78,11 @@ public static class DependencyInjection
         // query filter, terse audit writer for the new event-kind discriminators.
         services.AddScoped<IPublicCodeGenerator, PublicCodeGenerator>();
         services.AddScoped<IPasswordResetTokenStore, PasswordResetTokenStore>();
+
+        // Spec 021 / US5 / T126 — Identity-flow handlers (forgot/reset password, profile update).
+        services.AddScoped<Application.Identity.IIssuePasswordResetTokenHandler, Identity.IssuePasswordResetTokenHandler>();
+        services.AddScoped<Application.Identity.IConsumePasswordResetTokenHandler, Identity.ConsumePasswordResetTokenHandler>();
+        services.AddScoped<Application.Identity.IUpdateProfileHandler, Identity.UpdateProfileHandler>();
         services.AddSingleton<IApplicationQueryFilter, ApplicationQueryFilter>();
         services.AddScoped<IAdminAuditEventWriter, AdminAuditEventWriter>();
         // Spec 021 — production stage-expiry clock (R-11). Integration tests
@@ -106,6 +111,9 @@ public static class DependencyInjection
 
         // Spec 021 / T118 — template loader for the three stage-reminder emails.
         services.AddSingleton<StageReminderEmailFactory>();
+
+        // Spec 021 / T129 — template loader for the password-reset email.
+        services.AddSingleton<ForgotPasswordEmailFactory>();
 
         // Spec 021 / T117 — hourly stage-expiry reminder hosted service.
         services.AddHostedService<StageExpiryReminderService>();

@@ -20,13 +20,28 @@
 
     <div class="mb-3" data-testid="form-section" data-field="Password">
         <label asp-for="Password" class="form-label fl-type-meta"></label>
-        <input asp-for="Password" type="password" class="fl-input" autocomplete="new-password" />
+        <div class="input-group">
+            <input asp-for="Password" type="password" class="fl-input form-control"
+                   id="register-password"
+                   autocomplete="new-password"
+                   data-strength-legend="#register-strength-legend" />
+            @await Html.PartialAsync("_PasswordEyeToggle",
+                new ViewDataDictionary(ViewData) { { "EyeTarget", "#register-password" } })
+        </div>
         <span asp-validation-for="Password" class="invalid-feedback d-block"></span>
+        @await Html.PartialAsync("_PasswordStrengthLegend",
+            new ViewDataDictionary(ViewData) { { "LegendId", "register-strength-legend" } })
     </div>
 
     <div class="mb-3" data-testid="form-section" data-field="ConfirmPassword">
         <label asp-for="ConfirmPassword" class="form-label fl-type-meta"></label>
-        <input asp-for="ConfirmPassword" type="password" class="fl-input" autocomplete="new-password" />
+        <div class="input-group">
+            <input asp-for="ConfirmPassword" type="password" class="fl-input form-control"
+                   id="register-confirm-password"
+                   autocomplete="new-password" />
+            @await Html.PartialAsync("_PasswordEyeToggle",
+                new ViewDataDictionary(ViewData) { { "EyeTarget", "#register-confirm-password" } })
+        </div>
         <span asp-validation-for="ConfirmPassword" class="invalid-feedback d-block"></span>
     </div>
 
@@ -61,3 +76,8 @@
 <div class="text-center fl-text-secondary mt-4">
     ¿Ya tienes cuenta? <a asp-action="Login" asp-controller="Account" class="fl-text-brand">Inicia sesión</a>
 </div>
+
+@section Scripts {
+    <script type="module" src="~/js/password-eye-toggle.js" asp-append-version="true" defer></script>
+    <script type="module" src="~/js/password-strength-legend.js" asp-append-version="true" defer></script>
+}

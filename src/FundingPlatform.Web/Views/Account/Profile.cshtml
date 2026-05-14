@@ -1,0 +1,185 @@
+@model FundingPlatform.Web.ViewModels.ProfileViewModel
+@{
+    ViewData["Title"] = "Mi perfil";
+    // Spec 021 / US5 / T128 / FR-018 — self-service profile surface.
+    // FirstName / LastName / Phone / Address are editable. Email / Role /
+    // Group / CodigoPersonal render as read-only with an "administrado" badge.
+}
+
+@await Html.PartialAsync("Components/_PageHeader",
+    new PageHeaderViewModel(
+        Title: "Mi perfil",
+        Subtitle: "Actualice sus datos personales o cambie su contraseña."))
+
+<div class="row mt-3 g-3">
+    <div class="col-lg-7">
+        <div class="card" data-testid="profile-edit-card">
+            <div class="card-header">
+                <h3 class="card-title">Datos personales</h3>
+            </div>
+            <form asp-action="ProfileUpdate" asp-controller="Account" method="post"
+                  data-testid="profile-edit-form">
+                @Html.AntiForgeryToken()
+                <div class="card-body">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="mb-3" data-testid="form-section" data-field="FirstName">
+                                <label asp-for="FirstName" class="form-label"></label>
+                                <input asp-for="FirstName" class="form-control"
+                                       data-testid="profile-firstname"
+                                       autocomplete="given-name" />
+                                <span asp-validation-for="FirstName" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3" data-testid="form-section" data-field="LastName">
+                                <label asp-for="LastName" class="form-label"></label>
+                                <input asp-for="LastName" class="form-control"
+                                       data-testid="profile-lastname"
+                                       autocomplete="family-name" />
+                                <span asp-validation-for="LastName" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" data-testid="form-section" data-field="Phone">
+                        <label asp-for="Phone" class="form-label"></label>
+                        <input asp-for="Phone" class="form-control"
+                               data-testid="profile-phone"
+                               autocomplete="tel" />
+                        <span asp-validation-for="Phone" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3" data-testid="form-section" data-field="Address">
+                        <label asp-for="Address" class="form-label"></label>
+                        <input asp-for="Address" class="form-control"
+                               data-testid="profile-address"
+                               autocomplete="street-address" />
+                        <span asp-validation-for="Address" class="text-danger"></span>
+                    </div>
+
+                    @* FR-018 — Email / Role / Group / CodigoPersonal are read-only,
+                       always rebuilt server-side, badged "administrado". *@
+                    <div class="mb-3" data-testid="form-section" data-field="Email">
+                        <label class="form-label">
+                            Correo electrónico
+                            <span class="badge bg-secondary ms-1" data-testid="administrado-badge">administrado</span>
+                        </label>
+                        <input class="form-control" value="@Model.Email"
+                               data-testid="profile-email"
+                               disabled readonly />
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="mb-3" data-testid="form-section" data-field="Role">
+                                <label class="form-label">
+                                    Rol
+                                    <span class="badge bg-secondary ms-1" data-testid="administrado-badge">administrado</span>
+                                </label>
+                                <input class="form-control" value="@Model.Role"
+                                       data-testid="profile-role"
+                                       disabled readonly />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3" data-testid="form-section" data-field="Group">
+                                <label class="form-label">
+                                    Grupo
+                                    <span class="badge bg-secondary ms-1" data-testid="administrado-badge">administrado</span>
+                                </label>
+                                <input class="form-control" value="@Model.Group"
+                                       data-testid="profile-group"
+                                       disabled readonly />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3" data-testid="form-section" data-field="CodigoPersonal">
+                        <label class="form-label">
+                            Código personal
+                            <span class="badge bg-secondary ms-1" data-testid="administrado-badge">administrado</span>
+                        </label>
+                        <input class="form-control" value="@(Model.CodigoPersonal ?? "—")"
+                               data-testid="profile-codigopersonal"
+                               disabled readonly />
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary"
+                            data-testid="profile-save">
+                        Guardar cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card" data-testid="profile-password-card">
+            <div class="card-header">
+                <h3 class="card-title">Cambiar contraseña</h3>
+            </div>
+            <form asp-action="ProfileChangePassword" asp-controller="Account" method="post"
+                  data-testid="profile-change-password-form">
+                @Html.AntiForgeryToken()
+                <div class="card-body">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="ChangePassword.OldPassword" class="form-label"></label>
+                        <div class="input-group">
+                            <input asp-for="ChangePassword.OldPassword" type="password" class="form-control"
+                                   id="profile-old-password"
+                                   autocomplete="current-password"
+                                   data-testid="profile-oldpassword" />
+                            @await Html.PartialAsync("_PasswordEyeToggle",
+                                new ViewDataDictionary(ViewData) { { "EyeTarget", "#profile-old-password" } })
+                        </div>
+                        <span asp-validation-for="ChangePassword.OldPassword" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ChangePassword.NewPassword" class="form-label"></label>
+                        <div class="input-group">
+                            <input asp-for="ChangePassword.NewPassword" type="password" class="form-control"
+                                   id="profile-new-password"
+                                   autocomplete="new-password"
+                                   data-testid="profile-newpassword"
+                                   data-strength-legend="#profile-strength-legend" />
+                            @await Html.PartialAsync("_PasswordEyeToggle",
+                                new ViewDataDictionary(ViewData) { { "EyeTarget", "#profile-new-password" } })
+                        </div>
+                        <span asp-validation-for="ChangePassword.NewPassword" class="text-danger"></span>
+                        @await Html.PartialAsync("_PasswordStrengthLegend",
+                            new ViewDataDictionary(ViewData) { { "LegendId", "profile-strength-legend" } })
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ChangePassword.ConfirmPassword" class="form-label"></label>
+                        <div class="input-group">
+                            <input asp-for="ChangePassword.ConfirmPassword" type="password" class="form-control"
+                                   id="profile-confirm-password"
+                                   autocomplete="new-password"
+                                   data-testid="profile-confirmpassword" />
+                            @await Html.PartialAsync("_PasswordEyeToggle",
+                                new ViewDataDictionary(ViewData) { { "EyeTarget", "#profile-confirm-password" } })
+                        </div>
+                        <span asp-validation-for="ChangePassword.ConfirmPassword" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary"
+                            data-testid="profile-change-password-submit">
+                        Cambiar contraseña
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/js/password-eye-toggle.js" asp-append-version="true" defer></script>
+    <script type="module" src="~/js/password-strength-legend.js" asp-append-version="true" defer></script>
+}

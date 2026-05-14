@@ -65,6 +65,14 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     .AddErrorDescriber<EsCrIdentityErrorDescriber>()
     .AddDefaultTokenProviders();
 
+// Spec 021 / US5 / T130 / FR-028 — password-reset token TTL = 60 minutes.
+// Identity's DataProtectorTokenProvider stamps token issuance with the
+// configured TokenLifespan; combined with the local PasswordResetTokens
+// single-use marker (R-3 / IPasswordResetTokenStore) this gives the
+// "60-min, single-use" semantic required by the spec.
+builder.Services.Configure<Microsoft.AspNetCore.Identity.DataProtectionTokenProviderOptions>(o =>
+    o.TokenLifespan = TimeSpan.FromMinutes(60));
+
 // Spec 012: pin the request culture to es-CR with format overrides (research Decision 1).
 // Single-locale; no negotiation; built-in providers cleared so Accept-Language cannot
 // shift the culture per-request.
