@@ -21,6 +21,8 @@
         PrimaryAction: new ActionItem(Copy.EmptyCtaLabel(), ActionClass.Primary, "/Application/Create"));
 
     <div class="container py-5" data-testid="applicant-empty">
+        @* Spec 021 / FR-030 — greeting must render on every active-user welcome surface, including the empty-state branch. *@
+        <h1 class="fl-welcome-headline" data-testid="welcome-headline">@Copy.WelcomeHeadline(Model.FirstName)</h1>
         @await Html.PartialAsync("Components/_EmptyState", emptyVm)
         <section class="fl-strip mt-5" data-testid="trust-strip" aria-label="Qué esperar">
             <article class="fl-strip-card">
