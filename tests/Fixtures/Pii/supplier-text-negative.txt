@@ -1,0 +1,8 @@
+Proveedor: ACME Industrial Supplies
+Sucursal: Heredia centro
+
+Catálogo de productos: bombas centrífugas, tuberías PVC, válvulas de paso.
+Garantía: dos años contra defectos de fábrica.
+
+El plazo de entrega es de cinco días hábiles a partir de la confirmación del
+pedido. Los precios incluyen IVA del 13% conforme a la normativa vigente.

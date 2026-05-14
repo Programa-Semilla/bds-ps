@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "v1",
+  "supplierIdx": 0,
+  "fields": {
+    "product": { "value": "Bomba centrífuga 1HP", "sourceRefs": [] },
+    "brand": { "value": "Pedrollo", "sourceRefs": [] },
+    "material": { "value": "Acero inoxidable", "sourceRefs": [] },
+    "warranty": { "value": "12 meses", "sourceRefs": [] },
+    "quantity": { "value": "1", "sourceRefs": [] },
+    "unitPrice": { "value": "120000", "sourceRefs": [] },
+    "totalAmount": { "value": "120000", "sourceRefs": [] },
+    "currencyCode": "CRC",
+    "validity": { "value": "30 días", "sourceRefs": [] },
+    "issueDate": { "value": "2026-05-01", "sourceRefs": [] },
+    "origin": { "value": "Italia", "sourceRefs": [] },
+    "notes": { "value": "Incluye transporte hasta Heredia.", "sourceRefs": [] }
+  }
+}

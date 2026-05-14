@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://capital-semilla.local/schemas/ExtractedSupplierOffering.v1.json",
+  "title": "ExtractedSupplierOffering",
+  "description": "Per-supplier extract output (one extract AI call per supplier on an item). The compare AI call consumes an array of these.",
+  "type": "object",
+  "required": ["schemaVersion", "supplierIdx", "fields"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "v1" },
+    "supplierIdx": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Index into the per-call supplier array. The orchestrator binds it before/after the call."
+    },
+    "fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "product", "brand", "totalAmount", "currencyCode"
+      ],
+      "properties": {
+        "product":          { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "brand":            { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "material":         { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "design":           { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "compatibility":    { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "warranty":         { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "quantity":         { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "unitPrice":        { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "subtotalAmount":   { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "taxesAmount":      { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "totalAmount":      { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "currencyCode":     {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "validity":         { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "issueDate":        { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "freight":          { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "origin":           { "$ref": "#/$defs/ValueWithSourceRefs" },
+        "notes":            { "$ref": "#/$defs/ValueWithSourceRefs" }
+      }
+    }
+  },
+  "$defs": {
+    "ValueWithSourceRefs": {
+      "type": "object",
+      "required": ["value"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": ["string", "null"] },
+        "sourceRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["blobId"],
+            "additionalProperties": false,
+            "properties": {
+              "blobId": { "type": "string", "format": "uuid" },
+              "page":   { "type": ["integer", "null"], "minimum": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

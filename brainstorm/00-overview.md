@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-09
+Last updated: 2026-05-11
 
 ## Sessions
 
@@ -23,6 +23,7 @@ Last updated: 2026-05-09
 | 15 | 2026-05-08 | admin-ux-facelift | spec-created | 017 |
 | 16 | 2026-05-08 | pdf-template-lift | spec-created | 018 |
 | 17 | 2026-05-09 | programa-semilla-brand | spec-created | 019 |
+| 18 | 2026-05-11 | ai-quote-comparison | spec-created | 020 |
 
 ## Open Threads
 
@@ -144,6 +145,21 @@ Last updated: 2026-05-09
 - FR-014: pin display + heading weight floors (e.g., ≥ 700 / ≥ 600) during planning so spec is fully testable without depending on SC-015 sign-off (from #17)
 - FR-021: pin yellow-badge dark-text contrast ratio (e.g., ≥ 4.5:1 against fill) during planning (from #17)
 - Reviewer-surface sponsor-strip chrome density vs visual real-estate — confirm with reviewer feedback if available (from #17)
+- Image-only PDF strategy — refuse with clear "envíe un PDF con capa de texto" message vs OCR-then-redact pre-pass (from #18)
+- Final AI model picks — Sonnet 4.6 extract + Opus 4.7 compare default; reconsider after token-cost estimate against sample application (from #18)
+- Spreadsheet (.xlsx/.csv) ingestion in MVP — currently deferred; confirm whether basic text conversion belongs in MVP (from #18)
+- Polling vs SignalR for "Generar todo" — polling chosen for MVP; reconfirm at plan time once Aspire+SignalR overhead is measured (from #18)
+- Citation marker style — numeric superscripts mimicking source image; final visual + interaction (hover preview vs click-through) deferred to design pass during plan (from #18)
+- DB-vs-file discrepancy reconciliation — default is "comparator gets both + flags it"; alternatives are silent DB-wins or file-wins (from #18)
+- "Forzar regeneración total" UX placement — two-step (toggle Override → click Generate all) chosen; single-click composite admin action rejected as too easy to mis-fire (from #18)
+- Token-cost dashboard scope — out of MVP; FR-H3 promises audit shape supports it; confirm aggregation dimensions at plan time (from #18)
+- SC-012 measurement protocol — define how the 70% task-time reduction is measured (sample selection, who runs it, baseline definition) during plan (from #18)
+- Domain behaviour methods on `ComparisonArtifact` and `ComparisonJob` (`IsStaleAgainst(InputDescriptor)`, `Reap()`, `RecordSuccess(...)`, `RecordFailure(...)`) to satisfy Constitution Principle II — flagged in REVIEW-SPEC.md (from #18)
+- History table for compliance — does the team need an append-only audit trail of every AI output beyond the latest cached artefact, or is "latest only" acceptable forever? (from #18)
+- Redaction list completeness — should the deny-list expand to banking info, CCSS account numbers, fiscal IDs of third parties before MVP ships, or stay at the 5 fields and revisit? (from #18)
+- Multi-provider AI posture — any near-term need for OpenAI / Azure / Gemini (data residency, cost, customer requirement) that would push multi-provider into MVP? (from #18)
+- Polling-path covering index — pin during planning whether composite indexes on `(ApplicationItemId)` and `(ApplicationId, Status)` are sufficient for `dbo.ComparisonArtifacts` / `dbo.ComparisonJobs`, or whether a covering index on the polling read path is also needed (from #18)
+- Anthropic.SDK NuGet version pin and transitive supply-chain notes — new managed dependency; this spec is the approval vehicle per CLAUDE.md; reconfirm at plan time (from #18)
 
 ## Closed Threads
 

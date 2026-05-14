@@ -84,9 +84,12 @@ brainstorm/                        Working scratchpad for in-flight design explo
 - C# 13 / .NET 10.0 (015-multi-currency-quotes — Currencies, ExchangeRates, snapshot-locked Quotation conversion)
 - C# 13 / .NET 10.0 (016-user-groups — Group / UserGroupMembership / AdminAuditEvent; reviewer-side group-overlap predicate composed at the EF query level on every listing surface; detail-page authorization mirrors the same predicate)
 - C# 13 / .NET 10.0 (017-admin-ux-facelift — `IAdminDashboardProjection` + `IAdminAuditEventReader` + `IAdminAuditEventCopyProvider`; new `_AdminDashboard` + `_CapabilityCard` partials; `_KpiTile` + `_ReportSubTabs` re-templated; route-attribute renames on three admin controllers; **schema unchanged**)
+- C# 13 / .NET 10.0 (020-ai-quote-comparison — `IComparisonOrchestrator` + `IAiClient` (Anthropic) + `IPiiRedactor`; new `ComparisonArtifact` + `ComparisonJob` aggregate roots; hosted `BackgroundService` worker; reviewer-screen comparison region; reused `AdminAuditEvent` payload shape)
 - Azure Blob Storage in production / Azurite (Docker container) in dev+test / local filesystem fallback. SQL Server unchanged. (014-azure-blob-storage)
+- `Anthropic.SDK` NuGet (new managed dep, approved via spec 020 A-10)
 
 ## Recent Changes
+- 020-ai-quote-comparison: AI-powered per-item supplier-quotation comparison persisted as hash-keyed `ComparisonArtifact`, three-stage `extract → normalize → compare` pipeline behind `IComparisonOrchestrator`, single Anthropic provider behind `IAiClient`, PII redaction at the boundary, per-app rate limit + per-run token cap with admin bypass, hosted-service worker + 3 s polling for "Generar todo", numeric-superscript citations linking back to supplier blobs via existing storage signed URLs, es-CR output, reused `AdminAuditEvent` (FR-H1, SC-001..012)
 - 017-admin-ux-facelift: `/Admin` becomes a capability-complete dashboard (4 action KPIs + 9 grouped capability cards + optional activity feed); 10-surface admin sweep at spec 011 quality bar; sidebar admin grouping; route normalization (AdminCurrencies/AdminExchangeRates/AdminLegacyQuotations); Reports tab UX refresh; schema unchanged (FR-027 / SC-016)
 - 016-user-groups: Group-scoped reviewer access — `Group` + `UserGroupMembership` + `AdminAuditEvent`, admin Groups CRUD, multi-select group selector on the user form, EF-level group-overlap predicate on queue / signing inbox / detail-page auth, FR-014 reviewer queue search input
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
@@ -95,5 +98,5 @@ brainstorm/                        Working scratchpad for in-flight design explo
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/019-programa-semilla-brand/plan.md`
+`specs/020-ai-quote-comparison/plan.md`
 <!-- SPECKIT END -->

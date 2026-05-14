@@ -39,6 +39,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<UserGroupMembership> UserGroupMemberships => Set<UserGroupMembership>();
     public DbSet<AdminAuditEvent> AdminAuditEvents => Set<AdminAuditEvent>();
 
+    // Spec 020 — AI quote comparison cache + job queue.
+    public DbSet<ComparisonArtifact> ComparisonArtifacts => Set<ComparisonArtifact>();
+    public DbSet<ComparisonJob> ComparisonJobs => Set<ComparisonJob>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
