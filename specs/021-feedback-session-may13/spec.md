@@ -178,7 +178,7 @@ An admin deletes Application *A7K2-9XF*. The Application immediately disappears 
 
 **Identifier & display**
 
-- **FR-008**: System MUST generate an opaque `Application.PublicCode` matching regex `^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$` (base32, excluding ambiguous characters 0/O/1/I/L) and surface it everywhere the Application identity appears (applicant dashboard, reviewer queue, signing inbox, Funding Agreement PDF, every notification email). The internal numeric `Id` MUST remain the primary key.
+- **FR-008**: System MUST generate an opaque `Application.PublicCode` matching regex `^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$` (32-char alphabet, excluding ambiguous characters 0/O/1/I) and surface it everywhere the Application identity appears (applicant dashboard, reviewer queue, signing inbox, Funding Agreement PDF, every notification email). The internal numeric `Id` MUST remain the primary key.
 
 **Supplier management**
 
@@ -226,7 +226,7 @@ An admin deletes Application *A7K2-9XF*. The Application immediately disappears 
 
 **Admin dashboard**
 
-- **FR-032**: Admin dashboard MUST render *Personas activas* (count of active applicants) and *Fondos entregados* (sum of executed `FundingAgreement.AmountDisbursed`) KPI tiles. Existing action KPIs MUST be preserved.
+- **FR-032**: Admin dashboard MUST render *Personas activas* (count of distinct applicants with at least one non-soft-deleted Application in the last 12 months) and *Fondos entregados* (sum of `Quotation.ConvertedCrcAmount` over approved Items on Applications whose FundingAgreement has been executed) KPI tiles. Existing action KPIs MUST be preserved.
 - **FR-033**: Pending-quotation tile MUST move from the admin dashboard to the reviewer dashboard with the same data source.
 - **FR-034**: Admin user list group selector MUST be a two-level cascading filter *Process → Group* whose options follow FR-001.
 
