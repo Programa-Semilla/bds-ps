@@ -9,7 +9,12 @@ public record ApplicationDto(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     DateTime? SubmittedAt,
-    List<ItemDto> Items);
+    List<ItemDto> Items,
+    // Spec 021 / FR-008 — opaque PublicCode surfaced on every applicant
+    // identity rendering. Nullable for legacy rows seeded before the
+    // schema cutover; new rows always carry it.
+    string? PublicCode = null,
+    string? CompanyName = null);
 
 public record ApplicationSummaryDto(
     int Id,
@@ -17,4 +22,8 @@ public record ApplicationSummaryDto(
     int ItemCount,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    DateTime? SubmittedAt);
+    DateTime? SubmittedAt,
+    // Spec 021 / FR-008 — surfaced on the applicant dashboard in place of
+    // the legacy numeric Id (`Solicitud N.º N`). Nullable while we transition.
+    string? PublicCode = null,
+    string? CompanyName = null);

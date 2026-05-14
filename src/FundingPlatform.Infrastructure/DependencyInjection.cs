@@ -77,6 +77,17 @@ public static class DependencyInjection
         services.AddScoped<IPasswordResetTokenStore, PasswordResetTokenStore>();
         services.AddSingleton<IApplicationQueryFilter, ApplicationQueryFilter>();
         services.AddScoped<IAdminAuditEventWriter, AdminAuditEventWriter>();
+        // Spec 021 — production stage-expiry clock (R-11). Integration tests
+        // replace this binding with a fake clock that advances deterministically.
+        services.AddSingleton<IStageExpiryClock, Clocks.SystemStageExpiryClock>();
+
+        // Spec 021 / US2 — applicant draft handlers (autosave, submit, review
+        // projection, supplier search + inline create-branch).
+        services.AddScoped<Application.Applications.IAutosaveFieldHandler, Services.AutosaveFieldHandler>();
+        services.AddScoped<Application.Applications.ISubmitApplicationHandler, Services.SubmitApplicationHandler>();
+        services.AddScoped<Application.Applications.Queries.IGetApplicationReviewProjection, Services.GetApplicationReviewProjection>();
+        services.AddScoped<Application.Suppliers.ISearchSuppliersHandler, Services.SearchSuppliersHandler>();
+        services.AddScoped<Application.Suppliers.ICreateSupplierBranchHandler, Services.CreateSupplierBranchHandler>();
 
         // Spec 021 / US1 — Process + Plantilla admin services (T077 / T078 / T079).
         // ProcessService implements both the command and query interfaces; one

@@ -2,13 +2,16 @@
 @model FundingPlatform.Web.ViewModels.AppealThreadViewModel
 
 @{
-    ViewData["Title"] = $"Apelación — Solicitud N.º {Model.ApplicationId}";
+    // Spec 021 / FR-008 — drop "Solicitud N.º {id}" pattern; PublicCode will
+    // surface here once the ViewModel carries it (US2 patches dashboards +
+    // edit/review; appeal surface lands in a follow-up).
+    ViewData["Title"] = $"Apelación — Solicitud {Model.ApplicationId}";
 }
 
 <div class="appeal-header">
     @await Html.PartialAsync("Components/_PageHeader",
         new PageHeaderViewModel(
-            Title: $"Apelación — Solicitud N.º {Model.ApplicationId}",
+            Title: $"Apelación — Solicitud {Model.ApplicationId}",
             Breadcrumbs: new[]
             {
                 new BreadcrumbItem("Mis solicitudes", Url.Action("Index", "Application")),

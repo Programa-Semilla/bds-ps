@@ -6,7 +6,7 @@
    Re-keying through resx and any rename is in scope for the FundingAgreement
    view sweep in story phase. *@
 @{
-    ViewData["Title"] = $"Convenio de financiamiento — Solicitud N.º {Model.Panel.ApplicationId}";
+    ViewData["Title"] = $"Convenio de financiamiento — Solicitud {Model.Panel.ApplicationId}";
     var preview = Model.Preview;
     var culture = EsCrCultureFactory.Build();
     string Money(decimal value) => $"₡{value.ToString("N2", culture)}";
@@ -14,7 +14,7 @@
 
 @await Html.PartialAsync("Components/_PageHeader",
     new PageHeaderViewModel(
-        Title: $"Solicitud N.º {Model.Panel.ApplicationId} — Convenio de financiamiento",
+        Title: $"Solicitud {Model.Panel.ApplicationId} — Convenio de financiamiento",
         Breadcrumbs: new[]
         {
             new BreadcrumbItem("Inicio", Url.Action("Index", "Home")),

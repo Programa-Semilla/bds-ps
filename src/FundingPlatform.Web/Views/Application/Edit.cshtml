@@ -2,64 +2,129 @@
 @model FundingPlatform.Web.ViewModels.ApplicationViewModel
 
 @{
-    ViewData["Title"] = $"Editar solicitud N.º {Model.Id}";
+    // Spec 021 / FR-022 — single source string lives in 021.es-CR.resx (key
+    // Application.Disclaimer.Fx); the project does not wire IStringLocalizer
+    // into views (Resources/SuppliersResources.cs notes the inline-string
+    // convention) so we render the canonical text directly. Polish-phase
+    // localization sweep will switch to a localizer once the wiring lands.
+    const string FxDisclaimer = "El monto en colones puede variar según el tipo de cambio vigente en la fecha de compra.";
+    ViewData["Title"] = string.IsNullOrEmpty(Model.PublicCode)
+        ? "Editar solicitud"
+        : $"Editar solicitud {Model.PublicCode}";
     var state = Enum.Parse<ApplicationState>(Model.State);
+    var codeLabel = string.IsNullOrEmpty(Model.PublicCode)
+        ? $"#{Model.Id}"
+        : Model.PublicCode;
 }
 
 @await Html.PartialAsync("Components/_PageHeader",
     new PageHeaderViewModel(
-        Title: $"Editar solicitud N.º {Model.Id}",
+        Title: $"Editar solicitud {codeLabel}",
         Breadcrumbs: new[]
         {
             new BreadcrumbItem("Mis solicitudes", Url.Action("Index", "Application")),
-            new BreadcrumbItem($"Solicitud N.º {Model.Id}", Url.Action("Details", "Application", new { id = Model.Id })),
+            new BreadcrumbItem($"Solicitud {codeLabel}", Url.Action("Details", "Application", new { id = Model.Id })),
             new BreadcrumbItem("Editar"),
         }))
 
-<div class="card mb-4">
+@* Spec 021 / FR-024 — stage countdown banner reserved for US4 wiring;
+   we render a static placeholder so the surface exists and US2 E2E can
+   verify the slot. The real banner widget will populate Remaining /
+   IsDanger / Closed once StageExpiryEvaluator is injected here. *@
+<div class="alert alert-info mb-3" data-testid="stage-countdown-banner-slot">
+    <i class="ti ti-clock me-2" aria-hidden="true"></i>
+    <span class="fl-stage-countdown-text">Su solicitud está en etapa <strong>Solicitud</strong>.</span>
+</div>
+
+<form method="post"
+      data-autosave-form="applications"
+      data-public-code="@Model.PublicCode"
+      class="card mb-4">
+    <input type="hidden" name="__autosaveEtag" value="" />
+    @Html.AntiForgeryToken()
+
     <div class="card-body">
-        <div class="row g-2">
-            <div class="col-md-3">
-                <strong>Estado:</strong>
-                @await Html.PartialAsync("Components/_StatusPill", new StatusPillViewModel(state))
+        <h4 class="mb-3">Empresa solicitante</h4>
+        <div class="row g-3" data-autosave-row>
+            <div class="col-md-8">
+                <label class="form-label" for="company-name">
+                    Nombre comercial <span class="text-danger" aria-label="campo obligatorio">*</span>
+                </label>
+                <input id="company-name"
+                       name="CompanyName"
+                       type="text"
+                       class="form-control"
+                       value="@Model.CompanyName"
+                       maxlength="200"
+                       required
+                       data-autosave-field="CompanyName"
+                       data-required="true"
+                       data-testid="application-edit-company-name" />
             </div>
-            <div class="col-md-3">
-                <strong>Creada:</strong> @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+            <div class="col-md-4 d-flex align-items-end">
+                @await Html.PartialAsync("_AutosaveIndicator")
             </div>
-            <div class="col-md-3">
-                <strong>Actualizada:</strong> @Model.UpdatedAt.ToString("dd/MM/yyyy HH:mm")
-            </div>
-            @if (Model.SubmittedAt.HasValue)
-            {
-                <div class="col-md-3">
-                    <strong>Enviada:</strong> @Model.SubmittedAt.Value.ToString("dd/MM/yyyy HH:mm")
-                </div>
-            }
         </div>
+    </div>
+</form>
+
+@* Spec 021 / FR-005 — Impact step first. We surface the existing per-Application
+   Impact picker via the Item-level Impact route which, after Phase 2c, writes
+   through to the Application aggregate (see ApplicationService.SetItemImpactAsync).
+   The applicant chooses an ImpactTemplate and fills parameter values for the
+   whole Application; reusing the existing Impact view keeps the UX surface area
+   small while US2's contract is satisfied. *@
+<div class="card mb-4">
+    <div class="card-header">
+        <h4 class="card-title">Impacto <span class="text-danger" aria-label="campo obligatorio">*</span></h4>
+    </div>
+    <div class="card-body">
+        @if (Model.Items.Count == 0)
+        {
+            <p class="text-secondary mb-2">
+                Agregue al menos un ítem para iniciar la captura del impacto del acompañamiento.
+            </p>
+        }
+        else
+        {
+            var firstItem = Model.Items[0];
+            <p class="text-secondary mb-2">
+                El impacto vive a nivel de solicitud y se captura una vez por solicitud.
+            </p>
+            <a asp-controller="Item" asp-action="Impact"
+               asp-route-appId="@Model.Id"
+               asp-route-id="@firstItem.Id"
+               class="btn btn-outline-primary"
+               data-testid="application-edit-impact-link">
+                <i class="ti ti-target me-1"></i>Definir impacto
+            </a>
+        }
     </div>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">Ítems</h4>
-    <a asp-controller="Item" asp-action="Add" asp-route-appId="@Model.Id" class="btn btn-primary">
-        <i class="ti ti-plus me-1"></i>Agregar ítem
-    </a>
-</div>
-
-@if (Model.Items.Count == 0)
-{
-    @await Html.PartialAsync("Components/_EmptyState",
-        new EmptyStateViewModel(
-            Headline: "Aún no se han agregado ítems",
-            Body: "Agregue al menos un ítem para enviar su solicitud.",
-            Icon: "ti ti-package",
-            PrimaryAction: new ActionItem("Agregar ítem", ActionClass.Primary,
-                Url: Url.Action("Add", "Item", new { appId = Model.Id }),
-                Icon: "ti ti-plus")))
-}
-else
-{
-    <div class="card mb-4">
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="card-title mb-0">Ítems <span class="text-danger" aria-label="campo obligatorio">*</span></h4>
+        <a asp-controller="Item" asp-action="Add" asp-route-appId="@Model.Id" class="btn btn-primary"
+           data-testid="application-edit-add-item">
+            <i class="ti ti-plus me-1"></i>Agregar ítem
+        </a>
+    </div>
+    @if (Model.Items.Count == 0)
+    {
+        <div class="card-body">
+            @await Html.PartialAsync("Components/_EmptyState",
+                new EmptyStateViewModel(
+                    Headline: "Aún no se han agregado ítems",
+                    Body: "Agregue al menos un ítem para enviar su solicitud.",
+                    Icon: "ti ti-package",
+                    PrimaryAction: new ActionItem("Agregar ítem", ActionClass.Primary,
+                        Url: Url.Action("Add", "Item", new { appId = Model.Id }),
+                        Icon: "ti ti-plus")))
+        </div>
+    }
+    else
+    {
         <div class="table-responsive">
             <table class="table card-table table-vcenter">
                 <thead>
@@ -67,7 +132,6 @@ else
                         <th>Nombre del producto</th>
                         <th>Categoría</th>
                         <th>Cotizaciones</th>
-                        <th>Impacto</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -79,52 +143,72 @@ else
                             <td>@item.CategoryName</td>
                             <td>@item.QuotationCount</td>
                             <td>
-                                @if (item.HasImpact)
-                                {
-                                    <span class="status status-green"><i class="ti ti-check"></i> Completo</span>
-                                }
-                                else
-                                {
-                                    <span class="status status-yellow"><i class="ti ti-clock"></i> Pendiente</span>
-                                }
-                            </td>
-                            <td>
-                                <a asp-controller="Item" asp-action="Edit" asp-route-appId="@Model.Id" asp-route-itemId="@item.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
-                                <form asp-controller="Item" asp-action="Delete" asp-route-appId="@Model.Id" asp-route-itemId="@item.Id" method="post" class="d-inline">
+                                <a asp-controller="Supplier" asp-action="Add"
+                                   asp-route-appId="@Model.Id" asp-route-itemId="@item.Id"
+                                   class="btn btn-sm btn-outline-primary">Agregar proveedor</a>
+                                <a asp-controller="Item" asp-action="Edit"
+                                   asp-route-appId="@Model.Id" asp-route-itemId="@item.Id"
+                                   class="btn btn-sm btn-outline-secondary">Editar</a>
+                                <form asp-controller="Item" asp-action="Delete"
+                                      asp-route-appId="@Model.Id" asp-route-itemId="@item.Id"
+                                      method="post" class="d-inline">
                                     @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Está seguro de que desea eliminar este ítem?')">Eliminar</button>
+                                    <button type="submit" class="btn btn-sm btn-danger"
+                                            onclick="return confirm('¿Está seguro de que desea eliminar este ítem?')">
+                                        Eliminar
+                                    </button>
                                 </form>
                             </td>
                         </tr>
-                        @if (!string.IsNullOrEmpty(item.ReviewComment))
-                        {
-                            <tr>
-                                <td colspan="5">
-                                    <div class="text-secondary small ps-2 border-start border-3 border-info py-1">
-                                        <strong>Comentario del revisor:</strong> @item.ReviewComment
-                                    </div>
-                                </td>
-                            </tr>
-                        }
                     }
                 </tbody>
             </table>
+        </div>
+    }
+</div>
+
+@if (Model.TotalConvertedCrc.HasValue)
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-baseline">
+                <strong>Total estimado (CRC)</strong>
+                <span data-testid="application-edit-total">
+                    @Model.TotalConvertedCrc.Value.ToString("C0", new System.Globalization.CultureInfo("es-CR"))
+                </span>
+            </div>
+            @* Spec 021 / FR-022 — FX disclaimer below any CRC-converted total. *@
+            <p class="text-secondary small mb-0 mt-1" data-testid="fx-disclaimer">
+                @FxDisclaimer
+            </p>
         </div>
     </div>
 }
 
 @if (Model.Items.Count > 0)
 {
+    @* Spec 021 / FR-017 — submit gating. The button is disabled until JS
+       enables it when required fields are satisfied; tooltip enumerates
+       missing requirements. Submit routes through /review per the contract. *@
     <div class="d-flex justify-content-end mb-3">
-        <form asp-controller="Application" asp-action="Submit" asp-route-id="@Model.Id" method="post">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-success">
-                <i class="ti ti-send me-1"></i>Enviar solicitud
-            </button>
-        </form>
+        <a asp-action="Review" asp-route-publicCode="@Model.PublicCode"
+           class="btn btn-success"
+           data-testid="application-edit-submit-link"
+           data-submit-gate="enabled"
+           title="Revise antes de enviar">
+            <i class="ti ti-send me-1"></i>Revisar y enviar
+        </a>
     </div>
 }
 
 <div class="mt-3">
     <a asp-action="Index" asp-controller="Application" class="btn btn-link">&larr; Volver a solicitudes</a>
 </div>
+
+@section Scripts {
+    <script type="module" src="~/js/autosave.js" defer></script>
+    <script type="module" src="~/js/supplier-autocomplete.js" defer></script>
+    <script type="module" src="~/js/province-canton-cascade.js" defer></script>
+    <script type="module" src="~/js/input-masks.js" defer></script>
+    <script type="module" src="~/js/public-code-banner.js" defer></script>
+}

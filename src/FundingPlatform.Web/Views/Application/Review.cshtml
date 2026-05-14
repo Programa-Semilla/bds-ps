@@ -1,0 +1,202 @@
+@using FundingPlatform.Domain.Enums
+@model FundingPlatform.Application.Applications.Queries.ApplicationReviewViewModel
+
+@{
+    // Spec 021 / T096 / FR-017 — read-only review surface before final submit.
+    // FX disclaimer text mirrors the resx key Application.Disclaimer.Fx; the
+    // project does not wire IStringLocalizer into views yet (see Edit.cshtml).
+    const string FxDisclaimer = "El monto en colones puede variar según el tipo de cambio vigente en la fecha de compra.";
+    const string ConfirmButtonText = "Confirmar y enviar";
+    var publicCode = Model.PublicCode;
+    ViewData["Title"] = $"Revisión — {publicCode}";
+    var cultureCrc = new System.Globalization.CultureInfo("es-CR");
+}
+
+@await Html.PartialAsync("Components/_PageHeader",
+    new PageHeaderViewModel(
+        Title: $"Revisión — {publicCode}",
+        Subtitle: "Revise los detalles antes de enviar su solicitud.",
+        Breadcrumbs: new[]
+        {
+            new BreadcrumbItem("Mis solicitudes", Url.Action("Index", "Application")),
+            new BreadcrumbItem($"Solicitud {publicCode}", Url.Action("Details", "Application", new { id = Model.Id })),
+            new BreadcrumbItem("Revisión"),
+        }))
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-md-6">
+                <strong>Código:</strong>
+                <code class="fl-public-code" data-testid="review-public-code">@publicCode</code>
+            </div>
+            <div class="col-md-6">
+                <strong>Empresa:</strong> @Model.CompanyName
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Spec 021 / FR-005 — Impact summary always rendered first (the FR-017
+   guard requires Impact to be set; otherwise CanSubmit is false). *@
+<div class="card mb-4" data-testid="review-impact-card">
+    <div class="card-header">
+        <h4 class="card-title">Impacto</h4>
+    </div>
+    <div class="card-body">
+        @if (Model.Impact is null)
+        {
+            <p class="text-danger mb-0">
+                <i class="ti ti-alert-triangle me-1"></i>
+                Aún no ha definido el impacto. Vuelva a la edición para completarlo.
+            </p>
+        }
+        else
+        {
+            <p class="mb-2"><strong>Plantilla:</strong> @Model.Impact.TemplateName</p>
+            @if (Model.Impact.Parameters.Count == 0)
+            {
+                <p class="text-secondary mb-0">Sin parámetros adicionales.</p>
+            }
+            else
+            {
+                <dl class="row mb-0">
+                    @foreach (var p in Model.Impact.Parameters)
+                    {
+                        <dt class="col-sm-4">@p.Label</dt>
+                        <dd class="col-sm-8">@p.Value</dd>
+                    }
+                </dl>
+            }
+        }
+    </div>
+</div>
+
+<div class="card mb-4" data-testid="review-items-card">
+    <div class="card-header">
+        <h4 class="card-title">Ítems y cotizaciones</h4>
+    </div>
+    @if (Model.Items.Count == 0)
+    {
+        <div class="card-body">
+            <p class="text-danger mb-0">
+                <i class="ti ti-alert-triangle me-1"></i>
+                Debe agregar al menos un ítem antes de enviar.
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table card-table table-vcenter">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Cotizaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr data-testid="review-item-row">
+                            <td>@item.ProductName</td>
+                            <td>@item.CategoryName</td>
+                            <td>
+                                <span class="badge bg-secondary">@item.Quotations.Count</span>
+                                @if (item.Quotations.Count > 0)
+                                {
+                                    <ul class="list-unstyled mb-0 mt-2 small">
+                                        @foreach (var q in item.Quotations)
+                                        {
+                                            <li>
+                                                <span class="text-muted">@q.SupplierName:</span>
+                                                @q.Price.ToString("N2") @q.Currency
+                                                @if (q.ConvertedCrcAmount.HasValue
+                                                    && !string.Equals(q.Currency, "CRC", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <span class="text-muted">
+                                                        (≈ @q.ConvertedCrcAmount.Value.ToString("C0", cultureCrc))
+                                                    </span>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (Model.TotalCrc.HasValue)
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-baseline">
+                <strong>Total estimado (CRC)</strong>
+                <span data-testid="review-total-crc">
+                    @Model.TotalCrc.Value.ToString("C0", cultureCrc)
+                </span>
+            </div>
+            @if (Model.HasNonCrcQuotation)
+            {
+                @* Spec 021 / FR-022 — FX disclaimer below any CRC-converted total. *@
+                <p class="text-secondary small mb-0 mt-1" data-testid="fx-disclaimer">
+                    @FxDisclaimer
+                </p>
+            }
+        </div>
+    </div>
+}
+
+@if (Model.State == ApplicationState.Draft)
+{
+    <div class="d-flex justify-content-end gap-2 mb-3">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-secondary">
+            <i class="ti ti-arrow-left me-1"></i>Volver a editar
+        </a>
+        <form asp-action="SubmitByPublicCode" asp-route-publicCode="@publicCode" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit"
+                    class="btn btn-success"
+                    @(Model.CanSubmit ? "" : "disabled")
+                    data-testid="review-confirm-submit"
+                    title="@(Model.CanSubmit ? "Enviar definitivamente" : "Complete los campos faltantes antes de enviar")">
+                <i class="ti ti-send me-1"></i>@ConfirmButtonText
+            </button>
+        </form>
+    </div>
+
+    @if (!Model.CanSubmit)
+    {
+        <div class="alert alert-warning" role="alert" data-testid="review-cannot-submit">
+            <strong>Faltan los siguientes campos:</strong>
+            <ul class="mb-0 mt-1">
+                @if (Model.Impact is null)
+                {
+                    <li>Impacto del acompañamiento</li>
+                }
+                @if (Model.Items.Count == 0)
+                {
+                    <li>Al menos un ítem</li>
+                }
+                @foreach (var item in Model.Items.Where(i => i.Quotations.Count < Model.MinimumQuotationsPerItem))
+                {
+                    <li>Ítem "@item.ProductName" necesita al menos @Model.MinimumQuotationsPerItem cotizaciones</li>
+                }
+            </ul>
+        </div>
+    }
+}
+
+<div class="mt-3">
+    <a asp-action="Index" asp-controller="Application" class="btn btn-link">&larr; Volver a solicitudes</a>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/js/public-code-banner.js" defer></script>
+}

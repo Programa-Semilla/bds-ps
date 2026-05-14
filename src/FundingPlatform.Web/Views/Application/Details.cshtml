@@ -3,7 +3,12 @@
 @model FundingPlatform.Web.ViewModels.ApplicationViewModel
 
 @{
-    ViewData["Title"] = $"Solicitud N.º {Model.Id}";
+    // Spec 021 / FR-008 — surface PublicCode as Application identity; fall back
+    // to the numeric id only when PublicCode has not been stamped yet.
+    var idLabel = string.IsNullOrEmpty(Model.PublicCode)
+        ? Model.Id.ToString()
+        : Model.PublicCode;
+    ViewData["Title"] = $"Solicitud {idLabel}";
     var state = Enum.Parse<ApplicationState>(Model.State);
     var headerActions = new List<ActionItem>();
     if (Model.State == nameof(ApplicationState.Draft))
@@ -26,7 +31,7 @@
 
 @await Html.PartialAsync("Components/_PageHeader",
     new PageHeaderViewModel(
-        Title: $"Solicitud N.º {Model.Id}",
+        Title: $"Solicitud {idLabel}",
         PrimaryActions: headerActions))
 
 @if (TempData["ValidationErrors"] is string validationErrorsJson)

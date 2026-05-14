@@ -3,6 +3,9 @@ namespace FundingPlatform.Web.ViewModels;
 public class ApplicationViewModel
 {
     public int Id { get; set; }
+    /// <summary>Spec 021 / FR-008 — opaque PublicCode (e.g. <c>A7K2-9XF3</c>).</summary>
+    public string? PublicCode { get; set; }
+    public string? CompanyName { get; set; }
     public string State { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

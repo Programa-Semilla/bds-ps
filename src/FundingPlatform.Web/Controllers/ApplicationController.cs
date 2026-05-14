@@ -1,6 +1,10 @@
 using System.Security.Claims;
+using FundingPlatform.Application.Applications;
 using FundingPlatform.Application.Applications.Commands;
+using FundingPlatform.Application.Applications.Queries;
 using FundingPlatform.Application.Services;
+using FundingPlatform.Application.Suppliers;
+using FundingPlatform.Domain.Exceptions;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.ViewModels;
@@ -16,15 +20,30 @@ public class ApplicationController : Controller
     private readonly ApplicationService _applicationService;
     private readonly AppDbContext _dbContext;
     private readonly IUserFacingErrorTranslator _errorTranslator;
+    private readonly IAutosaveFieldHandler _autosaveHandler;
+    private readonly ISubmitApplicationHandler _submitHandler;
+    private readonly IGetApplicationReviewProjection _reviewProjection;
+    private readonly ISearchSuppliersHandler _supplierSearchHandler;
+    private readonly ICreateSupplierBranchHandler _createBranchHandler;
 
     public ApplicationController(
         ApplicationService applicationService,
         AppDbContext dbContext,
-        IUserFacingErrorTranslator errorTranslator)
+        IUserFacingErrorTranslator errorTranslator,
+        IAutosaveFieldHandler autosaveHandler,
+        ISubmitApplicationHandler submitHandler,
+        IGetApplicationReviewProjection reviewProjection,
+        ISearchSuppliersHandler supplierSearchHandler,
+        ICreateSupplierBranchHandler createBranchHandler)
     {
         _applicationService = applicationService;
         _dbContext = dbContext;
         _errorTranslator = errorTranslator;
+        _autosaveHandler = autosaveHandler;
+        _submitHandler = submitHandler;
+        _reviewProjection = reviewProjection;
+        _supplierSearchHandler = supplierSearchHandler;
+        _createBranchHandler = createBranchHandler;
     }
 
     [HttpGet]
@@ -33,11 +52,21 @@ public class ApplicationController : Controller
         var applicantId = await GetCurrentApplicantIdAsync();
         var applications = await _applicationService.GetApplicationsForApplicantAsync(applicantId);
 
+        // Spec 021 / FR-030 — "Hola, {Nombre}" greeting; pulled from the
+        // applicant's first name (free text on the Applicant aggregate).
+        var greetingName = await _dbContext.Applicants
+            .Where(a => a.Id == applicantId)
+            .Select(a => a.FirstName)
+            .FirstOrDefaultAsync();
+
         var viewModel = new ApplicationListViewModel
         {
+            GreetingName = greetingName,
             Applications = applications.Select(a => new ApplicationListItemViewModel
             {
                 Id = a.Id,
+                PublicCode = a.PublicCode,
+                CompanyName = a.CompanyName,
                 State = a.State.ToString(),
                 ItemCount = a.ItemCount,
                 CreatedAt = a.CreatedAt,
@@ -71,10 +100,6 @@ public class ApplicationController : Controller
 
         if (result.Error is not null)
         {
-            // Defence-in-depth: the data-annotation Required/StringLength on the
-            // view-model has already short-circuited blank/over-length input. The
-            // entity-level fallback fires only on race conditions or programmatic
-            // bypass — surface the Spanish translation against the offending field.
             ModelState.AddModelError(nameof(CreateApplicationViewModel.CompanyName),
                 _errorTranslator.Translate(result.Error));
             return View(model);
@@ -114,6 +139,25 @@ public class ApplicationController : Controller
         return View(viewModel);
     }
 
+    /// <summary>
+    /// Spec 021 / T094 / FR-017 — read-only <c>/review</c> page that renders
+    /// the summary before final submit. PublicCode-bound URL per the contract
+    /// in <c>applicant-routes.md</c>; the legacy numeric route is preserved
+    /// via the <c>/Applications/{publicCode}/Review</c> alias below.
+    /// </summary>
+    [HttpGet]
+    [Route("Applications/{publicCode}/Review")]
+    public async Task<IActionResult> Review(string publicCode)
+    {
+        var applicantId = await GetCurrentApplicantIdAsync();
+        var review = await _reviewProjection.ExecuteAsync(publicCode, applicantId);
+        if (review is null)
+        {
+            return NotFound();
+        }
+        return View(review);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("Application/{id}/Submit")]
@@ -127,18 +171,150 @@ public class ApplicationController : Controller
             return NotFound();
         }
 
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var command = new SubmitApplicationCommand(id);
-        var errors = await _applicationService.SubmitApplicationAsync(command, userId);
-
-        if (errors.Count > 0)
+        try
         {
+            // Spec 021 / T091 — route through the stage-aware submit handler so
+            // FR-006 / FR-017 guards fire (and StageWindowClosedException is
+            // mapped to 422 by the global DomainExceptionFilter).
+            await _submitHandler.SubmitAsync(new SubmitApplicationCommand(id));
+            TempData["SuccessMessage"] = "Solicitud enviada con éxito.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            var message = ex.Message;
+            const string prefix = "Cannot submit application: ";
+            var errors = message.StartsWith(prefix)
+                ? message[prefix.Length..].Split("; ").ToList()
+                : new List<string> { message };
             TempData["ValidationErrors"] = System.Text.Json.JsonSerializer.Serialize(errors);
             return RedirectToAction(nameof(Details), new { id });
         }
+    }
 
-        TempData["SuccessMessage"] = "Solicitud enviada con éxito.";
-        return RedirectToAction(nameof(Details), new { id });
+    /// <summary>
+    /// Spec 021 / T094 / FR-017 — PublicCode-bound submit alias used by the
+    /// <c>/review</c> "Confirmar y enviar" form. Resolves the Application via
+    /// PublicCode and dispatches to <see cref="Submit(int)"/>.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("Applications/{publicCode}/Submit")]
+    public async Task<IActionResult> SubmitByPublicCode(string publicCode)
+    {
+        var applicantId = await GetCurrentApplicantIdAsync();
+        var canonical = publicCode.Trim().ToUpperInvariant();
+        var application = await _dbContext.Applications
+            .FirstOrDefaultAsync(a => EF.Property<string>(a, "PublicCode") == canonical);
+        if (application is null || application.ApplicantId != applicantId)
+        {
+            return NotFound();
+        }
+        return await Submit(application.Id);
+    }
+
+    /// <summary>
+    /// Spec 021 / T094 / R-5 / FR-016 — per-field autosave endpoint.
+    /// Wraps <see cref="AutosaveFieldHandler"/>. Returns 200 with the new
+    /// ETag + savedAt on success, 409 on ETag mismatch, 422 on stage-window
+    /// closed (via the global filter), 400 on unknown fieldKey.
+    /// </summary>
+    [HttpPost]
+    [Route("api/applications/{publicCode}/autosave")]
+    public async Task<IActionResult> Autosave(string publicCode, [FromBody] AutosaveRequest body)
+    {
+        if (body is null)
+        {
+            return BadRequest();
+        }
+        var applicantId = await GetCurrentApplicantIdAsync();
+        try
+        {
+            var result = await _autosaveHandler.HandleAsync(
+                new AutosaveFieldCommand(publicCode, body.FieldKey ?? string.Empty, body.Value, body.Etag),
+                applicantId);
+            return Ok(new { etag = result.Etag, savedAt = result.SavedAt });
+        }
+        catch (AutosaveConflictException)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "ETag desactualizado",
+                Detail = "La solicitud cambió desde que abrió el editor. Recargue la página.",
+                Status = StatusCodes.Status409Conflict,
+            });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Campo no soportado",
+                Detail = ex.Message,
+                Status = StatusCodes.Status400BadRequest,
+            });
+        }
+    }
+
+    /// <summary>
+    /// Spec 021 / T094 / FR-009 — applicant-side supplier autocomplete.
+    /// </summary>
+    [HttpGet]
+    [Route("api/applications/suppliers/search")]
+    public async Task<IActionResult> SearchSuppliers([FromQuery] string q)
+    {
+        var applicantId = await GetCurrentApplicantIdAsync();
+        var results = await _supplierSearchHandler.HandleAsync(
+            new SearchSuppliersQuery(q ?? string.Empty, applicantId));
+        return Ok(results.Select(r => new
+        {
+            id = r.Id,
+            name = r.Name,
+            cedulaJuridica = r.CedulaJuridica,
+        }));
+    }
+
+    /// <summary>
+    /// Spec 021 / T094 / FR-012 / FR-014 — applicant-side inline branch
+    /// registration (supplier search no-match path).
+    /// </summary>
+    [HttpPost]
+    [Route("api/applications/suppliers/create-branch")]
+    public async Task<IActionResult> CreateSupplierBranch([FromBody] CreateBranchRequest body)
+    {
+        if (body is null)
+        {
+            return BadRequest();
+        }
+        var applicantId = await GetCurrentApplicantIdAsync();
+        try
+        {
+            var result = await _createBranchHandler.HandleAsync(new CreateSupplierBranchCommand(
+                SupplierId: body.SupplierId,
+                LegalId: body.LegalId,
+                SupplierName: body.SupplierName,
+                BranchName: body.BranchName ?? "Sucursal principal",
+                ContactPersonName: body.ContactPersonName,
+                Email: body.Email,
+                Phone: body.Phone,
+                AddressLine: body.AddressLine,
+                ProvinceId: body.ProvinceId,
+                CantonId: body.CantonId,
+                CurrentApplicantId: applicantId));
+            return Ok(new { supplierId = result.SupplierId, branchId = result.BranchId });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Datos inválidos",
+                Detail = ex.Message,
+                Status = StatusCodes.Status400BadRequest,
+            });
+        }
     }
 
     private async Task<int> GetCurrentApplicantIdAsync()
@@ -155,6 +331,8 @@ public class ApplicationController : Controller
         var vm = new ApplicationViewModel
         {
             Id = dto.Id,
+            PublicCode = dto.PublicCode,
+            CompanyName = dto.CompanyName,
             State = dto.State.ToString(),
             CreatedAt = dto.CreatedAt,
             UpdatedAt = dto.UpdatedAt,
@@ -183,10 +361,6 @@ public class ApplicationController : Controller
             }).ToList()
         };
 
-        // Spec 015 / T413 — application-summary total computed in CRC across all
-        // Items by picking the selected-supplier quotation per Item, excluding
-        // legacy-flagged rows. Items without a selected supplier are skipped (their
-        // total is undetermined until a reviewer decides).
         decimal? total = null;
         var hasLegacy = false;
         foreach (var item in vm.Items)
@@ -210,12 +384,6 @@ public class ApplicationController : Controller
         return vm;
     }
 
-    /// <summary>
-    /// Resolves the underlying supplier id for a quotation summary view-model row.
-    /// The summary view-model intentionally does not carry SupplierId (the original
-    /// design only needed display fields); when computing the application total
-    /// we look it up from the source DTO once.
-    /// </summary>
     private static int? GetSupplierIdForQuotation(
         FundingPlatform.Application.DTOs.ApplicationDto dto,
         int itemId,
@@ -224,5 +392,28 @@ public class ApplicationController : Controller
         var item = dto.Items.FirstOrDefault(i => i.Id == itemId);
         var q = item?.Quotations.FirstOrDefault(qq => qq.Id == quotationId);
         return q?.SupplierId;
+    }
+
+    /// <summary>Autosave POST body. Spec 021 / R-5.</summary>
+    public sealed class AutosaveRequest
+    {
+        public string? FieldKey { get; set; }
+        public string? Value { get; set; }
+        public string? Etag { get; set; }
+    }
+
+    /// <summary>Create-branch POST body. Spec 021 / FR-012 / FR-014.</summary>
+    public sealed class CreateBranchRequest
+    {
+        public int? SupplierId { get; set; }
+        public string? LegalId { get; set; }
+        public string? SupplierName { get; set; }
+        public string? BranchName { get; set; }
+        public string? ContactPersonName { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? AddressLine { get; set; }
+        public int ProvinceId { get; set; }
+        public int CantonId { get; set; }
     }
 }

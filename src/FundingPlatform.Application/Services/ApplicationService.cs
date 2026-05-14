@@ -36,6 +36,7 @@ public class ApplicationService
     private readonly IDocumentRepository _documentRepository;
     private readonly SupplierCatalogService _supplierCatalogService;
     private readonly IConversionService _conversionService;
+    private readonly IPublicCodeGenerator? _publicCodeGenerator;
     private readonly ILogger<ApplicationService> _logger;
 
     public ApplicationService(
@@ -48,7 +49,8 @@ public class ApplicationService
         IDocumentRepository documentRepository,
         SupplierCatalogService supplierCatalogService,
         IConversionService conversionService,
-        ILogger<ApplicationService> logger)
+        ILogger<ApplicationService> logger,
+        IPublicCodeGenerator? publicCodeGenerator = null)
     {
         _applicationRepository = applicationRepository;
         _categoryRepository = categoryRepository;
@@ -59,6 +61,7 @@ public class ApplicationService
         _documentRepository = documentRepository;
         _supplierCatalogService = supplierCatalogService;
         _conversionService = conversionService;
+        _publicCodeGenerator = publicCodeGenerator;
         _logger = logger;
     }
 
@@ -91,6 +94,18 @@ public class ApplicationService
                 _ => UserFacingErrorCode.CompanyNameRequired,
             };
             return new CreateApplicationResult(0, UserFacingError.From(code, ex.Message));
+        }
+
+        // Spec 021 / FR-008 — stamp the opaque PublicCode before the first
+        // SaveChanges. The column is NOT NULL at the DB level. The generator
+        // is optional in the constructor for back-compat with legacy tests
+        // that construct ApplicationService without an Infrastructure
+        // PublicCodeGenerator; when missing, the existing tests rely on
+        // EF InMemory which does not enforce the constraint.
+        if (_publicCodeGenerator is not null && application.PublicCode is null)
+        {
+            var code = await _publicCodeGenerator.GenerateAsync();
+            application.AssignPublicCode(code);
         }
 
         if (userId is not null)
@@ -199,7 +214,9 @@ public class ApplicationService
             a.Items.Count,
             a.CreatedAt,
             a.UpdatedAt,
-            a.SubmittedAt)).ToList();
+            a.SubmittedAt,
+            a.PublicCode?.Value,
+            a.CompanyName)).ToList();
     }
 
     public async Task AddItemAsync(AddItemCommand cmd)
@@ -532,6 +549,8 @@ public class ApplicationService
             application.CreatedAt,
             application.UpdatedAt,
             application.SubmittedAt,
-            items);
+            items,
+            application.PublicCode?.Value,
+            application.CompanyName);
     }
 }

@@ -2,17 +2,17 @@
 @model FundingPlatform.Web.ViewModels.ApplicantResponseViewModel
 
 @{
-    ViewData["Title"] = $"Solicitud N.º {Model.ApplicationId} — Respuesta del solicitante";
+    ViewData["Title"] = $"Solicitud {Model.ApplicationId} — Respuesta del solicitante";
 }
 
 <div class="applicant-response-header">
     @await Html.PartialAsync("Components/_PageHeader",
         new PageHeaderViewModel(
-            Title: $"Solicitud N.º {Model.ApplicationId} — Respuesta del solicitante",
+            Title: $"Solicitud {Model.ApplicationId} — Respuesta del solicitante",
             Breadcrumbs: new[]
             {
                 new BreadcrumbItem("Mis solicitudes", Url.Action("Index", "Application")),
-                new BreadcrumbItem($"Solicitud N.º {Model.ApplicationId}", Url.Action("Details", "Application", new { id = Model.ApplicationId })),
+                new BreadcrumbItem($"Solicitud {Model.ApplicationId}", Url.Action("Details", "Application", new { id = Model.ApplicationId })),
                 new BreadcrumbItem("Respuesta"),
             }))
 </div>
