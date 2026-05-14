@@ -14,6 +14,8 @@ dotnet run --project src/FundingPlatform.AppHost
 
 Aspire dashboard opens; SQL container starts; dacpac auto-deploys; new tables (`Processes`, `Plantillas`, `ProcessPlantillas`, `Provinces`, `Cantons`, `PasswordResetTokens`) and post-deployment seeds (7 provinces, ~82 cantones, *"Migración inicial"* Process, `SupplierAdmin` AspNetRole) apply on first start.
 
+Sentinel admin credentials: `admin@FundingPlatform.com` / (`Admin:DefaultPassword` in dev; `Sentinel123!` under `EphemeralStorage=true` — set by the E2E `AspireFixture`).
+
 ## Smoke test (manual)
 
 ### As anonymous
@@ -25,7 +27,7 @@ Aspire dashboard opens; SQL container starts; dacpac auto-deploys; new tables (`
 
 ### As Admin (`admin@FundingPlatform.com`)
 
-1. Sign in. Greeting reads *"Hola, Admin"*.
+1. Sign in. Greeting reads *"Hola, {FirstName}"* (falls back to the email local-part when the sentinel account has no first name set).
 2. `/Admin` shows the 4 action KPIs plus *Personas activas* + *Fondos entregados*. No *Cotizaciones pendientes* tile.
 3. `/Admin/Processes` — empty (only *"Migración inicial"* seeded). Create *Crocus 2025*.
 4. `/Admin/Plantillas` — create *PlantillaMVP-v1*, attach ≥ 1 ImpactTemplate.
@@ -48,7 +50,7 @@ Aspire dashboard opens; SQL container starts; dacpac auto-deploys; new tables (`
 5. Submit button is disabled until ≥ 1 Item, Impact set, every required field filled — tooltip enumerates failures by name.
 6. Click submit → `/review` page renders Items / Suppliers / Totals (CRC with FX disclaimer) / Impact + *"Confirmar y enviar"*.
 7. After confirm → success banner shows PublicCode (e.g. *A7K2-9XF*).
-8. Soft-delete the Application via admin → return to dashboard: counter decrements; no *"borrador listo"* row remains (FR-021).
+8. Soft-delete the Application via admin (`POST /Admin/Applications/{id}/SoftDelete`, single call site for `Application.SoftDelete()`) → return to dashboard: counter decrements; no *"borrador listo"* row remains (FR-021). Reviewer queue / signing inbox / detail-page authorization all honour the `IApplicationQueryFilter.ExcludeDeleted` predicate (US8).
 
 ### Stage expiry
 
@@ -60,7 +62,7 @@ Aspire dashboard opens; SQL container starts; dacpac auto-deploys; new tables (`
 ### Forgot password
 
 1. Sign out. `/Account/ForgotPassword` → submit known email.
-2. Aspire log shows token email dispatched.
+2. Aspire log shows token email dispatched via `SmtpEmailSender` (US4 — `System.Net.Mail.SmtpClient` binding; no MailKit, dev binding logs the SMTP envelope when no host is configured).
 3. Open the reset link; strength legend ticks live; submit.
 4. Re-open the same link → *"Enlace inválido o expirado. Solicite uno nuevo."*
 
@@ -96,9 +98,9 @@ The E2E suite is the delivery gate (NFR-004). All 8 user-story tests must be gre
 
 - **New views**: public landing (`/`), `/Admin/Processes/*`, `/Admin/Plantillas/*`, `/Account/ForgotPassword`, `/Account/ResetPassword`, `/Profile`, `/Applications/{publicCode}/Review`, sidebar SupplierAdmin variant.
 - **Restyled views**: admin dashboard (FR-032), reviewer dashboard (FR-033 receives pending-quotation tile), admin user list (FR-034 cascading filter), supplier list (FR-009/11 sort + autocomplete), Application draft (FR-005/16/17 Impact-first + autosave + submit gating).
-- **PDF**: Funding Agreement template — *"Solicitud N.º N"* → *"Solicitud {{PublicCode}}"* (OQ-4 swap).
-- **Email**: forgot-password + three stage-expiry reminders (existing SMTP).
-- **Background**: `StageExpiryReminderService` hosted in Web (hourly).
+- **PDF**: Funding Agreement template — *"Solicitud N.º N"* → *"Solicitud {{PublicCode}}"* (OQ-4 swap; rendered on the cover via `FundingAgreementDocumentViewModel.PublicCode`). The legal term *"financiamiento"* remains in body copy per the FR-029 carve-out.
+- **Email**: forgot-password + three stage-expiry reminders (`SmtpEmailSender` over `System.Net.Mail.SmtpClient`; the obsolete warning is suppressed at the call site because adding MailKit would breach the no-new-managed-deps rule).
+- **Background**: `StageExpiryReminderService` hosted in Web (hourly tick; cadence T-72h / T-24h / Expiry per OQ-6).
 
 ---
 

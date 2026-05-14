@@ -842,6 +842,10 @@ public class FundingAgreementController : Controller
         {
             CompanyName = application.CompanyName,
             ApplicantRepresentativeName = representativeName,
+            // Spec 021 / FR-008 / OQ-4 — render the opaque PublicCode on the
+            // PDF cover (template field swap). Falls back to empty if the
+            // Application has not been stamped yet (defensive only).
+            PublicCode = application.PublicCode?.Value ?? string.Empty,
             GeneratedAtUtc = generatedAt,
             GenerationDateLong = generationDateLong,
             CommissionMembers = commissionMembers,

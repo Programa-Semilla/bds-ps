@@ -84,4 +84,40 @@ Hourly cadence, in-process `IHostedService`, `RemindersSentMask` bitfield to enf
 - Stage-expiry override on a `ProcessPlantilla` is one direction; reverting it sets the column to NULL ([data-model.md Process](data-model.md#process)). Audit-event payload for `ProcessStageWindowOverridden` carries `days: int | null` ([contracts/audit-events.md](contracts/audit-events.md)). Is that null-as-"revert-to-default" understood by the admin audit reader (spec 016 `IAdminAuditEventCopyProvider`)?
 
 ---
+
+## Invariants under test
+
+These invariants are guarded by the test suite and must hold on the
+`021-feedback-session-may13` branch at delivery. The Stamp stage runs the
+`ForbiddenStringsCrawler` in E2E context; this section documents the
+contract.
+
+- **Zero `Solicitud N.º \d+` matches** on every applicant-facing surface
+  (anonymous landing, applicant dashboard, draft form, `/review`, signing
+  flow). Pattern is regex-matched against `page.content()` by the
+  `ForbiddenStringsCrawler` page object (spec FR-008 / SC-005 / OQ-4).
+  Carve-out: the Funding Agreement PDF cover legitimately reads
+  *"Solicitud {PublicCode}"* — opaque code, no numeric Id — and is not
+  treated as a violation.
+- **Zero `financiamiento` matches** (case-insensitive) on every
+  applicant-facing surface (FR-029 / OQ-5). Carve-outs: the Funding
+  Agreement PDF (legal entity name), the HTML counterpart under
+  `/FundingAgreement/*`, the signing ceremony under
+  `/FundingAgreement/Sign/*`, and the reviewer-only
+  `/Review/GenerateAgreement` surface. The crawler exempts those URL
+  prefixes.
+- **Zero `Bienvenido(?:/?a)?\b` matches** (case-insensitive) on every
+  applicant-facing surface (FR-030). No carve-outs — pivot is total.
+- **Zero `Solicitud Nº \d+` / `Solicitud No\. \d+` matches** — alternate
+  Spanish typographies for the abbreviation are also forbidden
+  (see `US2_ApplicantE2E.cs`).
+- **`PublicCode` regex `^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$`** holds for
+  every generated code (`PublicCodeTests`). Collision retry budget = 3
+  attempts; the 4th throws and is logged/alerted but never user-surfaced.
+- **Soft-deleted Applications never appear** on the reviewer queue,
+  signing inbox, detail page, applicant dashboard, or KPI counters
+  (US8 — `IApplicationQueryFilter.ExcludeDeleted`,
+  `DashboardQueriesHonorSoftDeleteTests`).
+
+---
 *Full context in linked [spec](spec.md) and [plan](plan.md).*
