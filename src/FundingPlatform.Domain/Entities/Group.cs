@@ -19,24 +19,62 @@ public class Group
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
+    /// <summary>
+    /// Spec 021 / FR-001 — every Group belongs to exactly one <see cref="Process"/>.
+    /// The "Migración inicial" Process is seeded by PostDeployment so legacy rows
+    /// are not orphaned during the cutover.
+    /// </summary>
+    public int ProcessId { get; private set; }
+    public Process? Process { get; private set; }
+
     public IReadOnlyCollection<UserGroupMembership> Memberships => _memberships.AsReadOnly();
 
     private Group() { }
 
-    private Group(string name)
+    private Group(string name, int processId)
     {
         Name = name;
+        ProcessId = processId;
         var now = DateTimeOffset.UtcNow;
         CreatedAt = now;
         UpdatedAt = now;
     }
 
     /// <summary>FR-001 — group name MUST be non-empty (after trim) and ≤ 100 chars.
-    /// Uniqueness is enforced by the unique index on <c>dbo.Groups.Name</c>.</summary>
+    /// Uniqueness is enforced by the unique index on <c>dbo.Groups.Name</c>.
+    /// Pre-021 overload: groups created here are detached from any Process and
+    /// must have <see cref="ProcessId"/> assigned by the Application layer
+    /// (which knows the active "Migración inicial" Process).</summary>
     public static Group Create(string name)
     {
         var trimmed = ValidateName(name);
-        return new Group(trimmed);
+        return new Group(trimmed, processId: 0);
+    }
+
+    /// <summary>Spec 021 FR-001 — every Group is attached to a Process at creation.</summary>
+    public static Group Create(string name, int processId)
+    {
+        if (processId <= 0)
+        {
+            throw new ArgumentException("ProcessId must be a positive integer.", nameof(processId));
+        }
+        var trimmed = ValidateName(name);
+        return new Group(trimmed, processId);
+    }
+
+    /// <summary>Spec 021 FR-001 — admin reparents a Group to a different Process.</summary>
+    public void MoveToProcess(int newProcessId)
+    {
+        if (newProcessId <= 0)
+        {
+            throw new ArgumentException("ProcessId must be a positive integer.", nameof(newProcessId));
+        }
+        if (newProcessId == ProcessId)
+        {
+            return;
+        }
+        ProcessId = newProcessId;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     /// <summary>FR-006 — rename preserves the row identity (and therefore every

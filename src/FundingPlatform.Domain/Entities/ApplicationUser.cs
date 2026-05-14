@@ -10,6 +10,14 @@ public class ApplicationUser : IdentityUser
     public bool MustChangePassword { get; set; }
 
     /// <summary>
+    /// Spec 021 / FR-018 / FR-019 — admin-set free-text code (e.g. employee /
+    /// affiliate identifier). Read-only to the user on <c>/profile</c>; visible
+    /// on the admin user form and on admin reports. Nullable, ≤ 40 chars (column
+    /// is <c>NVARCHAR(40)</c> per the dacpac alter in T017).
+    /// </summary>
+    public string? CodigoPersonal { get; set; }
+
+    /// <summary>
     /// Spec 016 — group memberships. Admins MUST never carry rows here
     /// (FR-009); enforcement is at the Web/Service boundary, not the column.
     /// </summary>
