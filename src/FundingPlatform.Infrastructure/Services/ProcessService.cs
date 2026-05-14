@@ -22,11 +22,16 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
 {
     private readonly AppDbContext _db;
     private readonly IAdminAuditEventWriter _audit;
+    // Spec 021 / FR-021 / T152 — the "blocking active applications" listing
+    // is an admin surface; soft-deleted Applications must not block a Process
+    // close (FR-021 / SC-011).
+    private readonly IApplicationQueryFilter _queryFilter;
 
-    public ProcessService(AppDbContext db, IAdminAuditEventWriter audit)
+    public ProcessService(AppDbContext db, IAdminAuditEventWriter audit, IApplicationQueryFilter queryFilter)
     {
         _db = db;
         _audit = audit;
+        _queryFilter = queryFilter;
     }
 
     // -------------------- Commands -----------------------------------------
@@ -160,8 +165,12 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
         // → Group.ProcessId, mirroring the spec-016 reviewer-scope predicate
         // shape (kept at the EF query level so SQL Server filters this in one
         // EXISTS join).
+        // Spec 021 / FR-021 / T152 — filter the Applications source through
+        // ExcludeDeleted so a soft-deleted-but-otherwise-active Application
+        // never blocks a Process close.
+        var apps = _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking());
         var codes = await (
-            from a in _db.Applications.AsNoTracking()
+            from a in apps
             join applicant in _db.Applicants.AsNoTracking() on a.ApplicantId equals applicant.Id
             where activeStates.Contains(a.State)
             where _db.UserGroupMemberships.AsNoTracking().Any(m =>

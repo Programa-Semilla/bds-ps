@@ -20,11 +20,15 @@ public sealed class PlantillaService : IPlantillaService
 {
     private readonly AppDbContext _db;
     private readonly IAdminAuditEventWriter _audit;
+    // Spec 021 / FR-021 / T152 — the active-applications count used to block
+    // a Plantilla archive must exclude soft-deleted rows.
+    private readonly IApplicationQueryFilter _queryFilter;
 
-    public PlantillaService(AppDbContext db, IAdminAuditEventWriter audit)
+    public PlantillaService(AppDbContext db, IAdminAuditEventWriter audit, IApplicationQueryFilter queryFilter)
     {
         _db = db;
         _audit = audit;
+        _queryFilter = queryFilter;
     }
 
     public async Task<IReadOnlyList<PlantillaListRow>> ListAsync(CancellationToken ct)
@@ -225,8 +229,11 @@ public sealed class PlantillaService : IPlantillaService
             ApplicationState.AppealOpen,
         };
 
+        // Spec 021 / FR-021 / T152 — exclude soft-deleted Applications from the
+        // "blocking active applications" count surfaced on the archive flow.
+        var apps = _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking());
         return await (
-            from a in _db.Applications.AsNoTracking()
+            from a in apps
             join applicant in _db.Applicants.AsNoTracking() on a.ApplicantId equals applicant.Id
             where activeStates.Contains(a.State)
             where _db.UserGroupMemberships.AsNoTracking().Any(m =>

@@ -785,4 +785,33 @@ END;");
             $"UPDATE dbo.Applications SET StageEnteredAt = {newInstant} WHERE Id = {applicationId};");
         return Ok($"Backdated Application {applicationId} StageEnteredAt by {daysAgo} day(s); rows={rows}.");
     }
+
+    /// <summary>
+    /// Spec 021 / T151 / T154 / US8 / FR-021 — dev-only helper for the
+    /// soft-delete E2E regression. Loads the Application, invokes the domain
+    /// <see cref="Domain.Entities.Application.SoftDelete"/> method, and saves.
+    /// Mirrors what the admin <c>POST /Admin/Applications/{id}/SoftDelete</c>
+    /// route does so the E2E can drive it without antiforgery / admin-cookie
+    /// plumbing. Production environments return 404.
+    /// </summary>
+    [HttpGet]
+    [Route("Account/SoftDeleteApplication")]
+    public async Task<IActionResult> SoftDeleteApplication(int applicationId)
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+
+        var entity = await _dbContext.Applications
+            .FirstOrDefaultAsync(a => a.Id == applicationId);
+        if (entity is null)
+        {
+            return NotFound($"Application {applicationId} not found.");
+        }
+
+        entity.SoftDelete();
+        await _dbContext.SaveChangesAsync();
+        return Ok($"Soft-deleted Application {applicationId}; DeletedAt={entity.DeletedAt:o}.");
+    }
 }

@@ -103,11 +103,16 @@ public sealed class StageExpiryReminderService : BackgroundService
         var now = clock.UtcNow;
         var sent = 0;
 
+        // Spec 021 / FR-021 / T152 / R-10 — route through IApplicationQueryFilter
+        // so the soft-delete predicate stays centralised (no inline
+        // `a.DeletedAt == null` here — the structural test pins this).
         // Pull every active (non-soft-deleted, non-terminal) Application + its
         // Applicant. Terminal states (AgreementExecuted) have no live window.
-        var candidates = await db.Applications
+        var queryFilter = scope.ServiceProvider.GetRequiredService<IApplicationQueryFilter>();
+        var candidates = await queryFilter
+            .ExcludeDeleted(db.Applications)
             .Include(a => a.Applicant)
-            .Where(a => a.DeletedAt == null && a.State != ApplicationState.AgreementExecuted)
+            .Where(a => a.State != ApplicationState.AgreementExecuted)
             .ToListAsync(ct).ConfigureAwait(false);
 
         foreach (var app in candidates)

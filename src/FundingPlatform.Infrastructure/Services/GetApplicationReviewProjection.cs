@@ -1,5 +1,6 @@
 // Spec 021 — see specs/021-feedback-session-may13/tasks.md T092.
 
+using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Applications.Queries;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -15,10 +16,15 @@ namespace FundingPlatform.Infrastructure.Services;
 public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjection
 {
     private readonly AppDbContext _db;
+    // Spec 021 / FR-021 / T152 — applicant /review page is a dashboard surface;
+    // a soft-deleted Application must surface as "not found", not as an
+    // editable review page.
+    private readonly IApplicationQueryFilter _queryFilter;
 
-    public GetApplicationReviewProjection(AppDbContext db)
+    public GetApplicationReviewProjection(AppDbContext db, IApplicationQueryFilter queryFilter)
     {
         _db = db;
+        _queryFilter = queryFilter;
     }
 
     public async Task<ApplicationReviewViewModel?> ExecuteAsync(
@@ -30,7 +36,9 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
         }
         var canonical = publicCode.Trim().ToUpperInvariant();
 
-        var application = await _db.Applications
+        // Spec 021 / FR-021 / T152 — exclude soft-deleted Applications so the
+        // /review page returns NotFound for a deleted draft.
+        var application = await _queryFilter.ExcludeDeleted(_db.Applications)
             .Include(a => a.Items)
                 .ThenInclude(i => i.Category)
             .Include(a => a.Items)
