@@ -43,7 +43,8 @@ public interface IStageExpiryEvaluator
     /// (per-Process override fallthrough to SystemConfiguration default) to
     /// <c>StageEnteredAt</c>.
     /// </summary>
-    (StageKind CurrentStage, DateTimeOffset EnteredAt, DateTimeOffset ClosesAt) EvaluateFor(AppEntity application);
+    Task<(StageKind CurrentStage, DateTimeOffset EnteredAt, DateTimeOffset ClosesAt)> EvaluateForAsync(
+        AppEntity application, CancellationToken ct = default);
 
     /// <summary>
     /// Classifies <paramref name="now"/> against <paramref name="closesAt"/>

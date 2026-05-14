@@ -1,10 +1,12 @@
 using System.Security.Claims;
+using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Applications;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.Applications.Queries;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Application.Suppliers;
 using FundingPlatform.Domain.Exceptions;
+using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.ViewModels;
@@ -25,6 +27,8 @@ public class ApplicationController : Controller
     private readonly IGetApplicationReviewProjection _reviewProjection;
     private readonly ISearchSuppliersHandler _supplierSearchHandler;
     private readonly ICreateSupplierBranchHandler _createBranchHandler;
+    private readonly IStageExpiryEvaluator _stageExpiry;
+    private readonly IStageExpiryClock _stageExpiryClock;
 
     public ApplicationController(
         ApplicationService applicationService,
@@ -34,7 +38,9 @@ public class ApplicationController : Controller
         ISubmitApplicationHandler submitHandler,
         IGetApplicationReviewProjection reviewProjection,
         ISearchSuppliersHandler supplierSearchHandler,
-        ICreateSupplierBranchHandler createBranchHandler)
+        ICreateSupplierBranchHandler createBranchHandler,
+        IStageExpiryEvaluator stageExpiry,
+        IStageExpiryClock stageExpiryClock)
     {
         _applicationService = applicationService;
         _dbContext = dbContext;
@@ -44,6 +50,8 @@ public class ApplicationController : Controller
         _reviewProjection = reviewProjection;
         _supplierSearchHandler = supplierSearchHandler;
         _createBranchHandler = createBranchHandler;
+        _stageExpiry = stageExpiry;
+        _stageExpiryClock = stageExpiryClock;
     }
 
     [HttpGet]
@@ -135,6 +143,11 @@ public class ApplicationController : Controller
             return NotFound();
         }
 
+        // Spec 021 / T119 / FR-024 — populate ViewData with the stage countdown
+        // banner ViewModel so the partial in Edit.cshtml can render the live
+        // window (or the "Vencido" red state when closed).
+        await PopulateStageBannerAsync(id);
+
         var viewModel = MapToViewModel(application);
         return View(viewModel);
     }
@@ -155,6 +168,10 @@ public class ApplicationController : Controller
         {
             return NotFound();
         }
+        // Spec 021 / T119 / FR-024 — surface the stage countdown banner on the
+        // /review surface so the applicant sees the live remaining-time before
+        // pressing "Confirmar y enviar".
+        await PopulateStageBannerAsync(review.Id);
         return View(review);
     }
 
@@ -324,6 +341,38 @@ public class ApplicationController : Controller
             .FirstOrDefaultAsync(a => a.UserId == userId);
 
         return applicant?.Id ?? throw new InvalidOperationException("Applicant not found for current user.");
+    }
+
+    /// <summary>
+    /// Spec 021 / T119 / FR-024 — composes the
+    /// <see cref="StageCountdownBannerViewModel"/> for the supplied Application
+    /// and stashes it in <c>ViewData["StageBanner"]</c> so Edit / Review views
+    /// can render the <c>_StageCountdownBanner</c> partial.
+    ///
+    /// Terminal-state Applications (AgreementExecuted) have no live window and
+    /// receive a null banner (the partial is skipped on the view side).
+    /// </summary>
+    private async Task PopulateStageBannerAsync(int applicationId)
+    {
+        var entity = await _dbContext.Applications
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == applicationId);
+        if (entity is null)
+        {
+            ViewData["StageBanner"] = null;
+            return;
+        }
+
+        var (stage, enteredAt, closesAt) = await _stageExpiry.EvaluateForAsync(entity);
+        var now = _stageExpiryClock.UtcNow;
+        ViewData["StageBanner"] = new StageCountdownBannerViewModel
+        {
+            StageKind = stage,
+            EnteredAt = enteredAt,
+            ClosesAt = closesAt,
+            Now = now,
+            Closed = now >= closesAt,
+        };
     }
 
     private static ApplicationViewModel MapToViewModel(FundingPlatform.Application.DTOs.ApplicationDto dto)

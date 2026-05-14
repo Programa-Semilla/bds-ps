@@ -8,13 +8,16 @@ using FundingPlatform.Application.Options;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.Audit;
+using FundingPlatform.Infrastructure.BackgroundServices;
 using FundingPlatform.Infrastructure.DocumentGeneration;
+using FundingPlatform.Infrastructure.Email;
 using FundingPlatform.Infrastructure.Identity;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Infrastructure.Persistence.Reports;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
 using FundingPlatform.Infrastructure.Persistence.Services;
 using FundingPlatform.Infrastructure.PublicCodes;
+using FundingPlatform.Infrastructure.StageExpiry;
 using FundingPlatform.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -80,6 +83,32 @@ public static class DependencyInjection
         // Spec 021 — production stage-expiry clock (R-11). Integration tests
         // replace this binding with a fake clock that advances deterministically.
         services.AddSingleton<IStageExpiryClock, Clocks.SystemStageExpiryClock>();
+
+        // Spec 021 / T115 — stage-expiry evaluator (per-Process override →
+        // SystemConfiguration default → safety fallback) used by both the
+        // hosted reminder service and the per-page banner ViewModel.
+        services.AddScoped<IStageExpiryEvaluator, StageExpiryEvaluator>();
+
+        // Spec 021 / FR-025 — email transport. SMTP is the production binding;
+        // when Smtp:Host is empty (dev / E2E) we fall back to the logger so the
+        // platform boots without a real relay. NFR-005: System.Net.Mail.SmtpClient
+        // is the only built-in SMTP client; no MailKit / new managed dep.
+        services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        var smtpHost = configuration[$"{SmtpOptions.SectionName}:Host"];
+        if (string.IsNullOrWhiteSpace(smtpHost))
+        {
+            services.AddSingleton<IEmailSender, LoggingEmailSender>();
+        }
+        else
+        {
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        }
+
+        // Spec 021 / T118 — template loader for the three stage-reminder emails.
+        services.AddSingleton<StageReminderEmailFactory>();
+
+        // Spec 021 / T117 — hourly stage-expiry reminder hosted service.
+        services.AddHostedService<StageExpiryReminderService>();
 
         // Spec 021 / US2 — applicant draft handlers (autosave, submit, review
         // projection, supplier search + inline create-branch).

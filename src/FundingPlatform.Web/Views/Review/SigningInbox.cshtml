@@ -1,4 +1,5 @@
 @using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.ViewModels
 @model IReadOnlyList<FundingPlatform.Web.ViewModels.SigningInboxRowViewModel>
 
 @{
@@ -8,6 +9,9 @@
     var pageSize = (int)(ViewData["SigningInbox.PageSize"] ?? 25);
     var totalCount = (int)(ViewData["SigningInbox.TotalCount"] ?? 0);
     var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+    // Spec 021 / T119 / FR-024 — per-row stage banner lookup.
+    var stageBanners = ViewData["StageBanners"] as Dictionary<int, StageCountdownBannerViewModel>
+        ?? new Dictionary<int, StageCountdownBannerViewModel>();
 }
 
 @await Html.PartialAsync("_ReviewTabs")
@@ -44,8 +48,36 @@ else
                 <tbody>
                     @foreach (var row in Model)
                     {
+                        StageCountdownBannerViewModel? stageBanner = null;
+                        if (stageBanners.TryGetValue(row.ApplicationId, out var entry))
+                        {
+                            stageBanner = entry;
+                        }
                         <tr data-testid="signing-inbox-row" data-application-id="@row.ApplicationId">
-                            <td>N.º @row.ApplicationId</td>
+                            <td>
+                                N.º @row.ApplicationId
+                                @if (stageBanner is not null)
+                                {
+                                    var remaining = stageBanner.Remaining;
+                                    var stageClass = stageBanner.Closed || stageBanner.IsDanger ? "badge bg-danger-lt" : "badge bg-warning-lt";
+                                    <div class="mt-1" data-testid="stage-countdown-badge" data-stage-closed="@(stageBanner.Closed ? "true" : "false")">
+                                        <span class="@stageClass" data-testid="stage-countdown-text">
+                                            @if (stageBanner.Closed)
+                                            {
+                                                <text>Vencido (@stageBanner.ClosesAt.ToString("dd/MM/yyyy"))</text>
+                                            }
+                                            else if (remaining < TimeSpan.FromHours(24))
+                                            {
+                                                <text>Cierra en @remaining.Hours h @remaining.Minutes m</text>
+                                            }
+                                            else
+                                            {
+                                                <text>Cierra en @((int)remaining.TotalDays) d @remaining.Hours h</text>
+                                            }
+                                        </span>
+                                    </div>
+                                }
+                            </td>
                             <td>@row.ApplicantDisplayName</td>
                             <td>@row.UploadedAtUtc.ToString("dd/MM/yyyy HH:mm") UTC</td>
                             <td>

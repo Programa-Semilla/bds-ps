@@ -23,6 +23,15 @@
             new BreadcrumbItem("Revisión"),
         }))
 
+@* Spec 021 / T119 / FR-024 — stage countdown banner on /review surface. *@
+@{
+    var stageBanner = ViewData["StageBanner"] as FundingPlatform.Web.ViewModels.StageCountdownBannerViewModel;
+}
+@if (stageBanner is not null)
+{
+    @await Html.PartialAsync("_StageCountdownBanner", stageBanner)
+}
+
 <div class="card mb-4">
     <div class="card-body">
         <div class="row g-2">

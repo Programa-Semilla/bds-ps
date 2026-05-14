@@ -409,4 +409,27 @@ END;");
 
         return Ok("Admin fixture re-seeded.");
     }
+
+    /// <summary>
+    /// Spec 021 / T114 / US4 — dev-only helper for the stage-expiry E2E test.
+    /// Backdates <c>Applications.StageEnteredAt</c> by the supplied
+    /// <paramref name="daysAgo"/> so the test can drive an Application into the
+    /// "Vencido" bucket without waiting for real time to pass. Idempotent;
+    /// production environments return 404.
+    /// </summary>
+    [HttpGet]
+    [Route("Account/BackdateStageEntered")]
+    public async Task<IActionResult> BackdateStageEntered(int applicationId, int daysAgo)
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+        if (daysAgo <= 0) return BadRequest("daysAgo must be positive.");
+
+        var newInstant = DateTimeOffset.UtcNow.AddDays(-daysAgo);
+        var rows = await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE dbo.Applications SET StageEnteredAt = {newInstant} WHERE Id = {applicationId};");
+        return Ok($"Backdated Application {applicationId} StageEnteredAt by {daysAgo} day(s); rows={rows}.");
+    }
 }
