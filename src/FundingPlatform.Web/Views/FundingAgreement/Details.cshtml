@@ -1,10 +1,12 @@
 @using FundingPlatform.Web.Localization
 @model FundingPlatform.Web.ViewModels.FundingAgreementDetailsViewModel
 
-@* TODO(021): FR-029 lines 5, 13, 17 — "Convenio de financiamiento" is the
-   legal name of the FundingAgreement (legal-term exemption); kept as-is.
-   Re-keying through resx and any rename is in scope for the FundingAgreement
-   view sweep in story phase. *@
+@* Spec 021 / US7 / T149 / FR-029 — "Convenio de financiamiento" is the legal
+   entity name of the Funding Agreement document. FR-029 carves out the
+   Funding Agreement PDF for the legal term; this Details surface is the HTML
+   counterpart of that PDF and lives under /FundingAgreement/* — the
+   ForbiddenStringsCrawler exempts that URL prefix in US7, so the legal name
+   is preserved here intentionally. *@
 @{
     ViewData["Title"] = $"Convenio de financiamiento — Solicitud {Model.Panel.ApplicationId}";
     var preview = Model.Preview;

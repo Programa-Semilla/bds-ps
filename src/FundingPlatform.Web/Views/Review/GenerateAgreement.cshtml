@@ -7,9 +7,11 @@
 
 @await Html.PartialAsync("_ReviewTabs")
 
-@* TODO(021): FR-029 lines 13, 21 — "convenio de financiamiento" is the
-   legal FundingAgreement name (legal-term exemption); kept as-is. Re-keying
-   in scope for FundingAgreement-bound sweep in story phase. *@
+@* Spec 021 / US7 / T149 / FR-029 — "convenio de financiamiento" wording is
+   preserved on this reviewer-only surface (/Review/GenerateAgreement). The
+   FR-029 sweep targets applicant-facing surfaces only; the ForbiddenStringsCrawler
+   does not visit reviewer queues. The phrase is the legal entity name of the
+   Funding Agreement being generated. *@
 @await Html.PartialAsync("Components/_PageHeader",
     new PageHeaderViewModel(
         Title: "Generar convenio",

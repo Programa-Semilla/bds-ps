@@ -81,12 +81,22 @@ public sealed class StorageCategoriesOptions
         MaxSizeBytes = StorageOptions.DefaultMaxSizeBytes20Mib,
     };
 
+    // Spec 021 / US7 / FR-031 — Reglamento + Ejemplo de cotización slot files.
+    // 10 MiB cap matches the CLAUDE.md table for public-landing-files; SAS URL
+    // expiry kept at 5 min default per the same table.
+    public StorageCategoryOptions PublicLandingFile { get; set; } = new()
+    {
+        MaxSizeBytes = 10L * 1024 * 1024,
+        UrlExpirySeconds = 300,
+    };
+
     public StorageCategoryOptions For(FileCategory category) => category switch
     {
         FileCategory.SignedFundingAgreement => SignedFundingAgreement,
         FileCategory.SupplierCatalogImport => SupplierCatalogImport,
         FileCategory.ApplicationAttachment => ApplicationAttachment,
         FileCategory.GeneratedArtifact => GeneratedArtifact,
+        FileCategory.PublicLandingFile => PublicLandingFile,
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
     };
 }

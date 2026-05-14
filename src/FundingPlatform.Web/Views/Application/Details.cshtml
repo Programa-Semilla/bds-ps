@@ -241,10 +241,11 @@ else
 }
 
 <div class="mt-3" id="funding-agreement-panel-container">
-    @* TODO(021): FR-029 line 240 — async-loading copy uses "convenio de financiamiento";
-       FundingAgreement-bound, re-keying lands in US3+. *@
+    @* Spec 021 / US7 / T149 / FR-029 — loading placeholder scrubbed of
+       "financiamiento". The application details page is in scope for the
+       applicant-facing sweep; the legal entity name remains on /FundingAgreement/*. *@
     <div data-async-panel-url="@Url.RouteUrl(new { controller = "FundingAgreement", action = "Panel", applicationId = Model.Id })">
-        Cargando panel del convenio de financiamiento...
+        Cargando panel del convenio...
     </div>
 </div>
 

@@ -38,8 +38,13 @@ public interface IApplicantCopyProvider
 
 public sealed class ApplicantCopyProvider : IApplicantCopyProvider
 {
+    // Spec 021 / US7 / T149 / FR-030 — "Hola, {Nombre}" replaces the legacy
+    // "Bienvenido de vuelta, ..." welcome. Mirrors the resx key
+    // `Greeting.Pattern` ("Hola, {0}") used elsewhere on applicant-facing
+    // surfaces; kept as an inline literal because the project doesn't wire
+    // IStringLocalizer into Application services.
     public string WelcomeHeadline(string firstName)
-        => $"Bienvenido de vuelta, {firstName} — esto es lo que tenemos hoy.";
+        => $"Hola, {firstName}";
 
     public string WelcomeSubhead()
         => "Hemos llevado el registro de todo desde su última visita.";
@@ -50,19 +55,27 @@ public sealed class ApplicantCopyProvider : IApplicantCopyProvider
     public string AwaitingActionSentBack(string projectName)
         => $"Necesitamos algunos detalles más sobre {projectName} antes de decidir.";
 
+    // Spec 021 / US7 / T149 / FR-029 — "convenio de financiamiento" is the
+    // legal Funding Agreement document name (legal-term carve-out), but this
+    // string is rendered on the *applicant-facing* awaiting-action banner where
+    // FR-029 mandates removal. The banner is informational, not a label of the
+    // legal entity itself, so we drop the term in favour of generic acompañamiento copy.
     public string AwaitingActionAgreement(string projectName)
-        => $"Su convenio de financiamiento para {projectName} está listo para firmar.";
+        => $"Su convenio para {projectName} está listo para firmar.";
 
     public string ActionSignAgreement()      => "Firmar convenio";
     public string ActionAddMissingDetails()  => "Agregar los detalles faltantes";
     public string ActionContinueApplication() => "Continuar con la solicitud";
     public string ActionOpenApplication()    => "Abrir solicitud";
 
-    public string EmptyHeroHeadline() => "¿Listo para solicitar financiamiento?";
+    // Spec 021 / US7 / T149 / FR-029 — "financiamiento" replaced with
+    // "acompañamiento" on applicant-facing copy.
+    public string EmptyHeroHeadline() => "¿Listo para solicitar acompañamiento?";
     public string EmptyHeroSubhead() => "Cuéntenos sobre su proyecto — le acompañamos en el resto del camino.";
     public string EmptyCtaLabel() => "Iniciar una nueva solicitud";
 
-    public string ResourcesHowFundingWorks() => "Cómo funciona el financiamiento";
+    // Spec 021 / US7 / T149 / FR-029 — same sweep.
+    public string ResourcesHowFundingWorks() => "Cómo funciona el acompañamiento";
     public string ResourcesSubmissionTips()  => "Consejos para enviar su solicitud";
     public string ResourcesGetHelp()         => "Obtener ayuda";
 

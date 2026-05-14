@@ -1,0 +1,150 @@
+@*
+    Spec 021 / US7 / T146 / FR-031 — admin upload surface for the public landing
+    slot files (Reglamento + Ejemplo de cotización). The actual storage round-trips
+    are owned by AdminPublicLandingFilesController; this view only renders the
+    upload forms + current status indicator + "Eliminar" action per slot.
+
+    Voice: formal usted (es-CR), aligned with spec 012.
+*@
+@using FundingPlatform.Web.Models
+@model FundingPlatform.Web.ViewModels.Admin.AdminPublicLandingIndexViewModel
+@{
+    ViewData["Title"] = "Página pública";
+
+    bool reglamentoConfigured = !string.IsNullOrWhiteSpace(Model.ReglamentoStorageKey);
+    bool ejemploConfigured = !string.IsNullOrWhiteSpace(Model.EjemploStorageKey);
+}
+
+<div data-testid="admin-public-landing-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: "Página pública",
+            Subtitle: "Administre los archivos visibles en la página de inicio anónima: Reglamento y Ejemplo de cotización."))
+
+    @if (TempData["SuccessMessage"] is string flash && !string.IsNullOrEmpty(flash))
+    {
+        <div class="alert alert-success" data-testid="admin-public-landing-flash">@flash</div>
+    }
+    @if (TempData["ErrorMessage"] is string err && !string.IsNullOrEmpty(err))
+    {
+        <div class="alert alert-danger" data-testid="admin-public-landing-error">@err</div>
+    }
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-6">
+            <article class="card h-100" data-testid="admin-public-landing-slot-reglamento">
+                <div class="card-body">
+                    <h3 class="card-title fl-font-display">Reglamento</h3>
+                    <p class="fl-text-secondary fl-type-body">
+                        Documento PDF que se publica como descarga en la página de inicio.
+                    </p>
+
+                    @if (reglamentoConfigured)
+                    {
+                        <p class="mb-2" data-testid="admin-public-landing-reglamento-current">
+                            <span class="badge bg-success">Publicado</span>
+                            <code class="ms-2 small text-muted">@Model.ReglamentoStorageKey</code>
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="mb-2" data-testid="admin-public-landing-reglamento-empty">
+                            <span class="badge bg-secondary">Sin publicar</span>
+                        </p>
+                    }
+
+                    <form method="post"
+                          enctype="multipart/form-data"
+                          asp-controller="AdminPublicLandingFiles"
+                          asp-action="UploadReglamento"
+                          class="mb-2">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-2">
+                            <label class="form-label">Archivo PDF</label>
+                            <input type="file" name="file" accept="application/pdf" required
+                                   data-testid="admin-public-landing-reglamento-file"
+                                   class="form-control" />
+                        </div>
+                        <button type="submit" class="btn btn-primary"
+                                data-testid="admin-public-landing-reglamento-upload">
+                            <i class="ti ti-upload me-1"></i>Publicar
+                        </button>
+                    </form>
+
+                    @if (reglamentoConfigured)
+                    {
+                        <form method="post"
+                              asp-controller="AdminPublicLandingFiles"
+                              asp-action="Clear"
+                              asp-route-slot="reglamento"
+                              onsubmit="return confirm('¿Eliminar el Reglamento publicado?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    data-testid="admin-public-landing-reglamento-clear">
+                                <i class="ti ti-trash me-1"></i>Eliminar
+                            </button>
+                        </form>
+                    }
+                </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <article class="card h-100" data-testid="admin-public-landing-slot-ejemplo">
+                <div class="card-body">
+                    <h3 class="card-title fl-font-display">Ejemplo de cotización</h3>
+                    <p class="fl-text-secondary fl-type-body">
+                        Documento PDF de referencia para los solicitantes nuevos.
+                    </p>
+
+                    @if (ejemploConfigured)
+                    {
+                        <p class="mb-2" data-testid="admin-public-landing-ejemplo-current">
+                            <span class="badge bg-success">Publicado</span>
+                            <code class="ms-2 small text-muted">@Model.EjemploStorageKey</code>
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="mb-2" data-testid="admin-public-landing-ejemplo-empty">
+                            <span class="badge bg-secondary">Sin publicar</span>
+                        </p>
+                    }
+
+                    <form method="post"
+                          enctype="multipart/form-data"
+                          asp-controller="AdminPublicLandingFiles"
+                          asp-action="UploadEjemplo"
+                          class="mb-2">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-2">
+                            <label class="form-label">Archivo PDF</label>
+                            <input type="file" name="file" accept="application/pdf" required
+                                   data-testid="admin-public-landing-ejemplo-file"
+                                   class="form-control" />
+                        </div>
+                        <button type="submit" class="btn btn-primary"
+                                data-testid="admin-public-landing-ejemplo-upload">
+                            <i class="ti ti-upload me-1"></i>Publicar
+                        </button>
+                    </form>
+
+                    @if (ejemploConfigured)
+                    {
+                        <form method="post"
+                              asp-controller="AdminPublicLandingFiles"
+                              asp-action="Clear"
+                              asp-route-slot="ejemplo"
+                              onsubmit="return confirm('¿Eliminar el Ejemplo de cotización publicado?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    data-testid="admin-public-landing-ejemplo-clear">
+                                <i class="ti ti-trash me-1"></i>Eliminar
+                            </button>
+                        </form>
+                    }
+                </div>
+            </article>
+        </div>
+    </div>
+</div>
