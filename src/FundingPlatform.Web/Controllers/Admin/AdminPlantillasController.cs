@@ -4,6 +4,7 @@
 using FundingPlatform.Application.Plantillas;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Infrastructure.Persistence;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -18,6 +19,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// Plantillas section. Mirrors <c>AdminGroupsController</c> for style.
 /// </summary>
 [Authorize(Roles = "Admin")]
+[SupplierAdminDenied]
 [Route("Admin/Plantillas")]
 public class AdminPlantillasController : Controller
 {

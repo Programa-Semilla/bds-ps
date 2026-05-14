@@ -223,7 +223,10 @@ public class AccountController : Controller
             return NotFound();
         }
 
-        string[] allowedRoles = ["Admin", "Reviewer"];
+        // Spec 021 / US3 / T103 — E2E provisioning supports the new
+        // SupplierAdmin role so US3 can drive a real "role assigned" path
+        // through the admin UI it would normally use in prod.
+        string[] allowedRoles = ["Admin", "Reviewer", "SupplierAdmin"];
         if (!allowedRoles.Contains(role))
         {
             return BadRequest("Invalid role.");

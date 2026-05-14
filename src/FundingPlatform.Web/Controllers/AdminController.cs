@@ -1,5 +1,6 @@
 using FundingPlatform.Application.Admin.Commands;
 using FundingPlatform.Application.Services;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FundingPlatform.Web.Controllers;
 
 [Authorize(Roles = "Admin")]
+[SupplierAdminDenied]
 public class AdminController : Controller
 {
     private readonly AdminService _adminService;

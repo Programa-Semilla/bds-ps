@@ -6,6 +6,7 @@ using FundingPlatform.Application.Processes;
 using FundingPlatform.Application.Processes.Queries;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -20,6 +21,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// per-route attributes, TempData flash + ModelState validation).
 /// </summary>
 [Authorize(Roles = "Admin")]
+[SupplierAdminDenied]
 [Route("Admin/Processes")]
 public class AdminProcessesController : Controller
 {

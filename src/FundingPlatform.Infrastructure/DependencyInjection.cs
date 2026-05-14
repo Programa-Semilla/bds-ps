@@ -89,6 +89,12 @@ public static class DependencyInjection
         services.AddScoped<Application.Suppliers.ISearchSuppliersHandler, Services.SearchSuppliersHandler>();
         services.AddScoped<Application.Suppliers.ICreateSupplierBranchHandler, Services.CreateSupplierBranchHandler>();
 
+        // Spec 021 / US3 / T110 — admin-side supplier autocomplete (Admin OR
+        // SupplierAdmin). Wired to GET /api/suppliers/search via
+        // SuppliersApiController (T109).
+        services.AddScoped<Application.Suppliers.Queries.ISearchSuppliersForAdminHandler,
+            Services.SearchSuppliersForAdminHandler>();
+
         // Spec 021 / US1 — Process + Plantilla admin services (T077 / T078 / T079).
         // ProcessService implements both the command and query interfaces; one
         // registration per interface so consumers can take the narrower seam.

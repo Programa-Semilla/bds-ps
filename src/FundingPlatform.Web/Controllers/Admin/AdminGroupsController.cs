@@ -1,5 +1,6 @@
 using FundingPlatform.Application.Admin.Groups;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.Resources;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
@@ -15,6 +16,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// login / 401), so no extra code path is needed for that case.
 /// </summary>
 [Authorize(Roles = "Admin")]
+[SupplierAdminDenied]
 [Route("Admin/Groups")]
 public class AdminGroupsController : Controller
 {

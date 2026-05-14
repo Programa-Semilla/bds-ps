@@ -4,6 +4,7 @@ using FundingPlatform.Application.Admin.Users.DTOs;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Exceptions;
 using FundingPlatform.Infrastructure.Persistence;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.Resources;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
@@ -14,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FundingPlatform.Web.Controllers.Admin;
 
 [Authorize(Roles = "Admin")]
+[SupplierAdminDenied]
 [Route("Admin/Users")]
 public class AdminUsersController : Controller
 {

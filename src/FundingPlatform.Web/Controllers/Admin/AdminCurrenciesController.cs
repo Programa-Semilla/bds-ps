@@ -1,6 +1,7 @@
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.ValueObjects;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -20,6 +21,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// "Admin" here keeps role-claim handling consistent with the rest of the app.
 /// </summary>
 [Authorize(Roles = "Admin")]
+[SupplierAdminDenied]
 [Route("Admin/Currencies")]
 public class AdminCurrenciesController : Controller
 {

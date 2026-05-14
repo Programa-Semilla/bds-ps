@@ -26,28 +26,57 @@
             Title: AdminSuppliersResources.Page_Title,
             Subtitle: "Verifique, edite o rechace proveedores propuestos por los postulantes."))
 
+    @* Spec 021 / US3 / T108 / FR-009 / FR-011 — supplier-admin filters: single
+       search across Name + CédulaJurídica with autocomplete and a Process
+       filter. The legacy spec-013 separate Name/CédulaJurídica inputs +
+       status + incomplete filters are preserved for the platform-Admin path
+       but hidden when the caller holds only the SupplierAdmin role. *@
+    @{
+        var supplierAdminOnly = (User?.IsInRole("SupplierAdmin") == true) && (User?.IsInRole("Admin") != true);
+    }
     <form method="get" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-suppliers-filter-form">
-        <select name="status" class="form-select admin-suppliers-filter-control" data-testid="admin-suppliers-status-filter">
-            <option value="">@AdminSuppliersResources.FilterStatus_All</option>
-            @foreach (var s in new[] {
-                SupplierVerificationStatus.PendingReview,
-                SupplierVerificationStatus.Verified,
-                SupplierVerificationStatus.Rejected,
-                SupplierVerificationStatus.Draft })
+        <div class="position-relative admin-suppliers-filter-control" style="min-width:260px;">
+            <input type="search" name="search" value="@Model.SearchTerm"
+                   placeholder="Buscar por nombre o cédula jurídica"
+                   class="form-control"
+                   data-testid="admin-suppliers-search-input"
+                   data-supplier-autocomplete
+                   data-supplier-id-target="#admin-suppliers-supplier-id"
+                   autocomplete="off" />
+            <input type="hidden" id="admin-suppliers-supplier-id" name="supplierId" value="" />
+        </div>
+        <select name="processId" class="form-select admin-suppliers-filter-control"
+                data-testid="admin-suppliers-process-filter">
+            <option value="">Todos los procesos</option>
+            @foreach (var p in Model.ProcessOptions)
             {
-                <option value="@((int)s)" selected="@(Model.StatusFilter == s)">@StatusLabel(s)</option>
+                <option value="@p.Id" selected="@(Model.ProcessIdFilter == p.Id)">@p.Name</option>
             }
         </select>
-        <input type="search" name="legalId" value="@Model.LegalIdFilter" placeholder="Buscar por cédula"
-               class="form-control admin-suppliers-filter-control" data-testid="admin-suppliers-legalid-filter" />
-        <input type="search" name="name" value="@Model.NameFilter" placeholder="Buscar por nombre"
-               class="form-control admin-suppliers-filter-control" data-testid="admin-suppliers-name-filter" />
-        <div class="form-check form-check-inline align-self-center">
-            <input class="form-check-input" type="checkbox" name="hasIncompleteCompliance" value="true"
-                   id="ha-inc-comp" @(Model.HasIncompleteCompliance ? "checked" : "")
-                   data-testid="admin-suppliers-incomplete-filter" />
-            <label class="form-check-label" for="ha-inc-comp">Cumplimiento incompleto</label>
-        </div>
+        @if (!supplierAdminOnly)
+        {
+            <select name="status" class="form-select admin-suppliers-filter-control" data-testid="admin-suppliers-status-filter">
+                <option value="">@AdminSuppliersResources.FilterStatus_All</option>
+                @foreach (var s in new[] {
+                    SupplierVerificationStatus.PendingReview,
+                    SupplierVerificationStatus.Verified,
+                    SupplierVerificationStatus.Rejected,
+                    SupplierVerificationStatus.Draft })
+                {
+                    <option value="@((int)s)" selected="@(Model.StatusFilter == s)">@StatusLabel(s)</option>
+                }
+            </select>
+            <input type="search" name="legalId" value="@Model.LegalIdFilter" placeholder="Buscar por cédula"
+                   class="form-control admin-suppliers-filter-control" data-testid="admin-suppliers-legalid-filter" />
+            <input type="search" name="name" value="@Model.NameFilter" placeholder="Buscar por nombre"
+                   class="form-control admin-suppliers-filter-control" data-testid="admin-suppliers-name-filter" />
+            <div class="form-check form-check-inline align-self-center">
+                <input class="form-check-input" type="checkbox" name="hasIncompleteCompliance" value="true"
+                       id="ha-inc-comp" @(Model.HasIncompleteCompliance ? "checked" : "")
+                       data-testid="admin-suppliers-incomplete-filter" />
+                <label class="form-check-label" for="ha-inc-comp">Cumplimiento incompleto</label>
+            </div>
+        }
         <button type="submit" class="btn btn-secondary">Aplicar</button>
     </form>
 
@@ -90,6 +119,7 @@
                             <th>Estado</th>
                             <th>Sucursales</th>
                             <th>Cumplimiento</th>
+                            <th data-testid="admin-suppliers-col-last-used">Último uso</th>
                             <th>Última actualización</th>
                             <th class="text-end">Acciones</th>
                         </tr>
@@ -112,6 +142,16 @@
                                     else
                                     {
                                         <span class="badge bg-green-lt"><i class="ti ti-check"></i> Completo</span>
+                                    }
+                                </td>
+                                <td data-testid="admin-supplier-last-used">
+                                    @if (row.LastUsedAt is DateTime lastUsed)
+                                    {
+                                        @lastUsed.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">—</span>
                                     }
                                 </td>
                                 <td>@row.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
@@ -155,3 +195,10 @@
         }
     }
 </div>
+
+@section Scripts {
+    @* Spec 021 / US3 / T108 — autocomplete on Name + CédulaJurídica via
+       /api/suppliers/search (SuppliersApiController, T109). The shared
+       vendored module handles debounce, render, and selection. *@
+    <script src="~/js/supplier-autocomplete.js" asp-append-version="true" defer></script>
+}

@@ -3,6 +3,7 @@ using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.ValueObjects;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
@@ -20,6 +21,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// Note on role naming: codebase uses "Admin" (see other admin controllers).
 /// </summary>
 [Authorize(Roles = "Admin")]
+[SupplierAdminDenied]
 [Route("Admin/ExchangeRates")]
 public class AdminExchangeRatesController : Controller
 {

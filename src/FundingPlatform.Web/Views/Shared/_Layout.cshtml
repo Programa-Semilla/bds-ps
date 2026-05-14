@@ -6,6 +6,16 @@
     // Spec 017 / US4 — sidebar entries split into top-level + admin section.
     // The admin section header reuses the legacy slug for back-compat (`admin`)
     // AND publishes the new section testid (`admin-section` per FR-016).
+    //
+    // Spec 021 / US3 / T111 / FR-007 — SupplierAdmin-only callers see a
+    // narrowed sidebar containing just the *Empresas proveedoras* entry (no
+    // top-level entries, no admin section header, no other admin children).
+    // The role-only check explicitly excludes users who ALSO hold Admin so
+    // dual-role platform admins keep the full sidebar.
+    var isSupplierAdminOnly = User?.Identity?.IsAuthenticated == true
+        && User.IsInRole("SupplierAdmin")
+        && !User.IsInRole("Admin");
+
     var topLevelEntries = new List<SidebarEntry>
     {
         new("home", "Inicio", Url.Action("Index", "Home") ?? "/", "ti ti-home", Array.Empty<string>()),
@@ -30,6 +40,15 @@
         new("currencies", "Monedas", "/Admin/Currencies", "ti ti-coin", new[] { "Admin" }),
         new("exchange-rates", "Tipos de Cambio", "/Admin/ExchangeRates", "ti ti-arrows-exchange", new[] { "Admin" }),
         new("legacy-quotations", "Cotizaciones Pendientes", "/Admin/LegacyQuotations", "ti ti-history", new[] { "Admin" }),
+    };
+
+    // Spec 021 / US3 / T111 — for the SupplierAdmin-only path we render a
+    // single nav entry (*Empresas proveedoras*) at the top level and no admin
+    // section at all. The variant uses its own testid so E2E tests can assert
+    // the narrowed sidebar deterministically.
+    var supplierAdminEntries = new List<SidebarEntry>
+    {
+        new("supplier-admin-suppliers", "Empresas proveedoras", "/Admin/Suppliers", "ti ti-building-store", new[] { "SupplierAdmin", "Admin" }),
     };
 
     bool IsEntryVisible(SidebarEntry entry)
@@ -83,39 +102,58 @@
                     <h1 class="navbar-brand navbar-brand-autodark">
                         @await Html.PartialAsync("_BrandSidebarHeader")
                     </h1>
-                    <div class="collapse navbar-collapse" id="sidebar-menu">
+                    <div class="collapse navbar-collapse" id="sidebar-menu" data-supplier-admin-only="@(isSupplierAdminOnly ? "true" : "false")">
                         <ul class="navbar-nav pt-lg-3">
-                            @foreach (var entry in topLevelEntries.Where(IsEntryVisible))
+                            @if (isSupplierAdminOnly)
                             {
-                                var active = IsActive(entry.Url) ? " active" : string.Empty;
-                                <li class="nav-item@active">
-                                    <a class="nav-link" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
-                                        <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
-                                        <span class="nav-link-title">@entry.Label</span>
-                                    </a>
-                                </li>
-                            }
-                            @if (IsEntryVisible(adminSectionHeader))
-                            {
-                                var sectionActive = IsActive(adminSectionHeader.Url) ? " active" : string.Empty;
-                                <li class="nav-item nav-item-section-header@sectionActive">
-                                    <a class="nav-link fl-sidebar-section-header"
-                                       href="@adminSectionHeader.Url"
-                                       data-testid="sidebar-entry-@adminSectionHeader.Slug"
-                                       data-section-testid="admin-section">
-                                        <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@adminSectionHeader.Icon"></i></span>
-                                        <span class="nav-link-title fl-font-display">@adminSectionHeader.Label</span>
-                                    </a>
-                                </li>
-                                @foreach (var entry in adminEntries.Where(IsEntryVisible))
+                                @* Spec 021 / US3 / T111 / FR-007 — SupplierAdmin sidebar variant.
+                                   Only the *Empresas proveedoras* entry is rendered; no admin
+                                   section header, no Inicio, no Mis solicitudes. *@
+                                foreach (var entry in supplierAdminEntries)
                                 {
                                     var active = IsActive(entry.Url) ? " active" : string.Empty;
-                                    <li class="nav-item nav-item-admin-child@active">
-                                        <a class="nav-link ps-4" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
+                                    <li class="nav-item@active" data-testid="sidebar-supplier-admin-variant">
+                                        <a class="nav-link" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
                                             <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
                                             <span class="nav-link-title">@entry.Label</span>
                                         </a>
                                     </li>
+                                }
+                            }
+                            else
+                            {
+                                foreach (var entry in topLevelEntries.Where(IsEntryVisible))
+                                {
+                                    var active = IsActive(entry.Url) ? " active" : string.Empty;
+                                    <li class="nav-item@active">
+                                        <a class="nav-link" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
+                                            <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
+                                            <span class="nav-link-title">@entry.Label</span>
+                                        </a>
+                                    </li>
+                                }
+                                if (IsEntryVisible(adminSectionHeader))
+                                {
+                                    var sectionActive = IsActive(adminSectionHeader.Url) ? " active" : string.Empty;
+                                    <li class="nav-item nav-item-section-header@sectionActive">
+                                        <a class="nav-link fl-sidebar-section-header"
+                                           href="@adminSectionHeader.Url"
+                                           data-testid="sidebar-entry-@adminSectionHeader.Slug"
+                                           data-section-testid="admin-section">
+                                            <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@adminSectionHeader.Icon"></i></span>
+                                            <span class="nav-link-title fl-font-display">@adminSectionHeader.Label</span>
+                                        </a>
+                                    </li>
+                                    foreach (var entry in adminEntries.Where(IsEntryVisible))
+                                    {
+                                        var active = IsActive(entry.Url) ? " active" : string.Empty;
+                                        <li class="nav-item nav-item-admin-child@active">
+                                            <a class="nav-link ps-4" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
+                                                <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
+                                                <span class="nav-link-title">@entry.Label</span>
+                                            </a>
+                                        </li>
+                                    }
                                 }
                             }
                         </ul>

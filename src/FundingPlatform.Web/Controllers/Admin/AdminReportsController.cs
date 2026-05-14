@@ -5,6 +5,7 @@ using FundingPlatform.Application.Admin.Reports;
 using FundingPlatform.Application.Admin.Reports.DTOs;
 using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Exceptions;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels.Admin.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FundingPlatform.Web.Controllers.Admin;
 
 [Authorize(Roles = "Admin")]
+[SupplierAdminDenied]
 [Route("Admin/Reports")]
 public class AdminReportsController : Controller
 {
