@@ -510,9 +510,14 @@ code, pre, .mono, [data-mono] {
   z-index: var(--z-toast);
 }
 
-/* Auth layout (FR-004 — Login/Register hero + sponsor strip in footer) */
+/* Auth layout (FR-004 — Login/Register hero + sponsor strip in footer)
+   Spec 021 stamp fix: removed `min-height: 100vh` to let the auth content
+   drive shell height. With body=d-flex.flex-column, a 100vh shell pushed
+   the sibling _SponsorStrip footer just past the viewport; once Playwright
+   (or a real user) scrolled the submit button into view, the strip slid
+   up and intercepted pointer events on the form's submit button. Letting
+   content drive height keeps the strip strictly below the form. */
 .fl-auth-shell {
-  min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   background: var(--color-bg-page);

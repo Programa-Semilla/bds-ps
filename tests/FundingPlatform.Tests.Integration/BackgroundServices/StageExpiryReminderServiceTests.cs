@@ -61,6 +61,11 @@ public class StageExpiryReminderServiceTests
                 Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning)));
         services.AddSingleton<IStageExpiryClock>(_clock);
         services.AddScoped<IStageExpiryEvaluator, StageExpiryEvaluator>();
+        // Spec 021 stamp fix: match production DI (Infrastructure/DependencyInjection.cs:96).
+        // StageExpiryReminderService routes its application sweep through IApplicationQueryFilter
+        // (see StageExpiryReminderService.cs:111). Without this registration the hosted service
+        // throws when resolving the scoped dependency.
+        services.AddSingleton<IApplicationQueryFilter, ApplicationQueryFilter>();
         services.AddSingleton<IEmailSender>(_capture);
         services.AddSingleton<StageReminderEmailFactory>();
 
