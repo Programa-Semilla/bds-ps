@@ -132,7 +132,7 @@ var aiPromptVersion = builder.Configuration["AiComparison:PromptVersion"] ?? "20
 var aiSchemaVersion = builder.Configuration["AiComparison:SchemaVersion"] ?? "v1";
 
 // E2E fixture runs with EphemeralStorage=true and a fresh DB per fixture run, so
-// the sentinel admin (admin@FundingPlatform.com) is seeded on every startup. In
+// the sentinel admin (admin@programa-semilla.test) is seeded on every startup. In
 // ephemeral mode we force the deterministic test password regardless of other
 // config layers — otherwise an appsettings.Development.json entry (added by
 // spec 010) wins via `??` and the test fixture can't predict the password.
@@ -140,6 +140,37 @@ var aiSchemaVersion = builder.Configuration["AiComparison:SchemaVersion"] ?? "v1
 var adminDefaultPassword = ephemeralStorage
     ? "Sentinel123!"
     : builder.Configuration["Admin:DefaultPassword"];
+
+// Spec 021 / FR-016 — fail-fast in publish mode when Mailgun config is missing.
+// In Azure deployment the only acceptable provider is Mailgun; the smtp4dev
+// sidecar is a dev-only convenience and is NOT provisioned. AppHost validates
+// the required keys here so a misconfigured deploy surfaces at boot rather
+// than silently routing transactional mail into a non-existent sidecar.
+if (builder.ExecutionContext.IsPublishMode)
+{
+    var provider = builder.Configuration["Notifications:Provider"] ?? "Mailgun";
+    if (string.Equals(provider, "Mailgun", StringComparison.OrdinalIgnoreCase))
+    {
+        var missing = new[]
+        {
+            ("Notifications:Mailgun:ApiKey", builder.Configuration["Notifications:Mailgun:ApiKey"]),
+            ("Notifications:Mailgun:Domain", builder.Configuration["Notifications:Mailgun:Domain"]),
+            ("Notifications:Sender:Email",   builder.Configuration["Notifications:Sender:Email"]),
+            ("Notifications:BaseUrl",        builder.Configuration["Notifications:BaseUrl"]),
+        }
+        .Where(p => string.IsNullOrWhiteSpace(p.Item2))
+        .Select(p => p.Item1)
+        .ToArray();
+
+        if (missing.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "Spec 021 FR-016 — Notifications:Provider=Mailgun in publish mode requires "
+                + $"the following config keys to be set: {string.Join(", ", missing)}. "
+                + "Set them via azd env / Key Vault before re-publishing.");
+        }
+    }
+}
 
 var webApp = builder.AddProject<Projects.FundingPlatform_Web>("webapp")
     .WithExternalHttpEndpoints()
@@ -171,6 +202,39 @@ if (!string.IsNullOrEmpty(aiApiKey))
 if (!string.IsNullOrEmpty(aiBaseUrl))
 {
     webApp.WithEnvironment("AiComparison__Anthropic__BaseUrl", aiBaseUrl);
+}
+
+// Spec 021 / T005 / FR-030 / NFR-007 — smtp4dev SMTP-capture sidecar is a
+// LOCAL-DEV + E2E-ONLY resource. Gated behind !IsPublishMode so `azd publish`
+// does NOT provision a smtp4dev Container App in Azure. Production routes mail
+// through MailgunHttpEmailSender (raw HttpClient), validated above per FR-016.
+// Sidecar failure in run mode must NOT block dev workflow per NFR-007 — the
+// Web project's NoOpEmailSender fallback is the safety net.
+if (!builder.ExecutionContext.IsPublishMode)
+{
+    var smtp4dev = builder.AddContainer("smtp4dev", "rnwood/smtp4dev", "3.6.1")
+        .WithEndpoint(targetPort: 25, name: "smtp", scheme: "tcp")
+        .WithHttpEndpoint(targetPort: 80, name: "http");
+
+    var smtpEndpoint = smtp4dev.GetEndpoint("smtp");
+
+    webApp
+        .WithReference(smtpEndpoint)
+        .WithReference(smtp4dev.GetEndpoint("http"))
+        .WaitFor(smtp4dev)
+        // Spec 021 / T086 fix — Aspire's WithReference on the smtp endpoint emits
+        // a service-discovery env var whose exact key shape varies across Aspire
+        // versions / contexts (host process vs. testing builder). Resolving via
+        // that env var inside MailtrapSmtpEmailSender produced "connection
+        // refused" against localhost:25 in the E2E run because the env var was
+        // absent and the host-fallback fired against an unmapped port. Bind the
+        // resolved dynamic host:port directly into the platform's own
+        // Notifications:Mailtrap:Host/Port config keys so the existing config
+        // fallback path resolves to the right endpoint deterministically.
+        .WithEnvironment("Notifications__Mailtrap__Host",
+            ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Host)}"))
+        .WithEnvironment("Notifications__Mailtrap__Port",
+            ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Port)}"));
 }
 
 if (!string.IsNullOrEmpty(adminDefaultPassword))

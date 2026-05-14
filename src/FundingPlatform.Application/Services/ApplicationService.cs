@@ -2,10 +2,12 @@ using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
+using FundingPlatform.Application.Notifications;
 using FundingPlatform.Application.Suppliers.Services;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.Notifications;
 using FundingPlatform.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
@@ -36,6 +38,8 @@ public class ApplicationService
     private readonly IDocumentRepository _documentRepository;
     private readonly SupplierCatalogService _supplierCatalogService;
     private readonly IConversionService _conversionService;
+    private readonly INotificationOutboxWriter _outboxWriter;
+    private readonly IWorkflowTransactionScope _txScope;
     private readonly ILogger<ApplicationService> _logger;
 
     public ApplicationService(
@@ -48,6 +52,8 @@ public class ApplicationService
         IDocumentRepository documentRepository,
         SupplierCatalogService supplierCatalogService,
         IConversionService conversionService,
+        INotificationOutboxWriter outboxWriter,
+        IWorkflowTransactionScope txScope,
         ILogger<ApplicationService> logger)
     {
         _applicationRepository = applicationRepository;
@@ -59,6 +65,8 @@ public class ApplicationService
         _documentRepository = documentRepository;
         _supplierCatalogService = supplierCatalogService;
         _conversionService = conversionService;
+        _outboxWriter = outboxWriter;
+        _txScope = txScope;
         _logger = logger;
     }
 
@@ -154,11 +162,65 @@ public class ApplicationService
             }
 
             application.Submit(minQuotations);
-            application.AddVersionHistory(new VersionHistory(userId, "Submitted", "Application submitted for review"));
+            var vhRow = new VersionHistory(userId, "Submitted", "Application submitted for review");
+            application.AddVersionHistory(vhRow);
+
+            // R-003 — Resubmit detection: a prior SendBack row in VersionHistory means
+            // this Submit is a resubmission → fire RESUBMITTED_BY_APPLICANT instead of
+            // the two-row APPLICATION_SUBMITTED_* fan-out (Phase 5 / US3).
+            // Read BEFORE we add the new VersionHistory row so the predicate reflects
+            // prior cycles only.
+            var isResubmit = await _outboxWriter.HasPriorSendBackAsync(application.Id, CancellationToken.None);
 
             await _applicationRepository.UpdateAsync(application);
-            await _applicationRepository.SaveChangesAsync();
 
+            // Spec 021 / FR-001 — two-phase save (workflow first, outbox second).
+            // No explicit BeginTransaction because Aspire's SQL Server connection
+            // uses Microsoft.Data.SqlClient with retry-on-transient policies that
+            // re-execute SaveChanges. Wrapping in an explicit transaction conflicts
+            // with that retry policy and produced silent SaveChanges failures during
+            // E2E (see commit history for the txScope rollback). The two saves are
+            // separated by ~1ms in practice; the worker tolerates the rare case where
+            // the second save fails (idempotency + retry catch any duplicate or lost
+            // row on the next poll).
+            await _applicationRepository.SaveChangesAsync();
+            // vhRow.Id now assigned.
+
+            var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
+                application.Id, CancellationToken.None);
+
+            var applicantDisplayName = application.Applicant is not null
+                ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+                : "Solicitante";
+            var applicantUserId = application.Applicant?.UserId ?? userId;
+
+            var payload = new NotificationPayload(
+                ApplicationId: application.Id,
+                ApplicantUserId: applicantUserId,
+                ApplicantDisplayName: applicantDisplayName,
+                StageGroupIds: stageGroupIds,
+                OutcomeCode: null);
+
+            if (isResubmit)
+            {
+                await _outboxWriter.EnqueueAsync(
+                    NotificationEvent.ResubmittedByApplicant,
+                    application.Id, vhRow.Id, payload, CancellationToken.None);
+            }
+            else
+            {
+                await _outboxWriter.EnqueueAsync(
+                    NotificationEvent.ApplicationSubmittedApplicant,
+                    application.Id, vhRow.Id, payload, CancellationToken.None);
+                await _outboxWriter.EnqueueAsync(
+                    NotificationEvent.ApplicationSubmittedReviewer,
+                    application.Id, vhRow.Id, payload, CancellationToken.None);
+            }
+
+            await _applicationRepository.SaveChangesAsync();
+            _logger.LogInformation(
+                "Spec 021: enqueued outbox rows for application {AppId}, VersionHistoryId={VhId}, isResubmit={Resubmit}",
+                application.Id, vhRow.Id, isResubmit);
             return [];
         }
         catch (InvalidOperationException ex)

@@ -29,6 +29,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FundingPlatform.AppHost\FundingPlatform.AppHost.csproj" />
+    <!-- Spec 021 / T081 — EmailTemplateSenderTests asserts against the template
+         bindings + NotificationEvent enum. AppHost transitively references Web
+         which references Application + Domain, but Aspire's source-generator
+         compile-on-demand doesn't expose those types to test code. Explicit refs. -->
+    <ProjectReference Include="..\..\src\FundingPlatform.Application\FundingPlatform.Application.csproj" />
+    <ProjectReference Include="..\..\src\FundingPlatform.Domain\FundingPlatform.Domain.csproj" />
   </ItemGroup>
 
 </Project>

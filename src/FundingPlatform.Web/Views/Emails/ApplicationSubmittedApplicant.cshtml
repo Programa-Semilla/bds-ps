@@ -1,0 +1,16 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Recibimos tu solicitud</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    Confirmamos la recepción de tu solicitud <strong>#@Model.Payload.ApplicationId</strong> en el
+    Sistema de Banca para el Desarrollo. Nuestro equipo la revisará y te notificaremos cuando
+    haya novedades.
+</p>
+<p>Puedes consultar el estado de tu solicitud en cualquier momento desde tu panel:</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ver mi solicitud</a>
+</p>
+<p>Si el botón no funciona, copia y pega este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

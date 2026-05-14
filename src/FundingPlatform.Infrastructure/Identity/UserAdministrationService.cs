@@ -142,7 +142,7 @@ public class UserAdministrationService : IUserAdministrationService
             }
         }
 
-        if (string.Equals(request.Email, "admin@FundingPlatform.com", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(request.Email, IdentityConfiguration.SentinelEmail, StringComparison.OrdinalIgnoreCase))
         {
             return Result<UserDetailDto>.Failure(
                 new DomainError("EMAIL_IN_USE", nameof(CreateUserRequest.Email),

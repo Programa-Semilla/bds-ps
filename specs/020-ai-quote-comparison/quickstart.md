@@ -36,11 +36,11 @@ Aspire boots SQL Server + Azurite (existing) + Web. The `AddSqlProject` step aut
 
 The existing dev seeder creates a sample application. To exercise the comparison flow specifically:
 
-1. Sign in as the sentinel admin (`admin@FundingPlatform.com`).
+1. Sign in as the sentinel admin (`admin@programa-semilla.test`).
 2. Go to **Admin → Suppliers** and create two `Verified` suppliers (or use seeded ones).
 3. Create an application (or use seeded one). On one of its items, add **two** supplier quotations (different suppliers), each with at least one PDF attachment.
 4. Submit the application so it lands in the reviewer queue.
-5. Sign out, sign in as a reviewer (`reviewer@FundingPlatform.com` if seeded, otherwise create one via Admin).
+5. Sign out, sign in as a reviewer (`reviewer@programa-semilla.test` if seeded, otherwise create one via Admin).
 
 ## Verify US1 — generate per-item comparison
 

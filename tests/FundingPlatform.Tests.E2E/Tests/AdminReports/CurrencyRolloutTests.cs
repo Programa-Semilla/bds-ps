@@ -128,7 +128,7 @@ public class CurrencyRolloutTests : AuthenticatedTestBase
         // does not seed. Use the sentinel admin from the dev seed.
         // CreateApplicationAndSubmitResponseAsync ends with the applicant logged out,
         // so we go straight to the login form — no extra logout click.
-        const string adminEmail = "admin@FundingPlatform.com";
+        const string adminEmail = "admin@programa-semilla.test";
         const string adminPassword = "Sentinel123!";
         await LoginAsync(Page, adminEmail, adminPassword);
 

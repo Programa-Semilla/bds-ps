@@ -153,8 +153,15 @@ public class UserFacingErrorTranslationTests
 
         var appRepo = new FundingPlatform.Infrastructure.Persistence.Repositories
             .ApplicationRepository(ctx);
+        // Spec 021 — ReviewService now also depends on INotificationOutboxWriter
+        // + IWorkflowTransactionScope. ReviewItemAsync (the surface under test) does
+        // not enqueue notifications; substitute lightweight no-ops.
+        var outboxWriter = NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>();
+        var txScope = NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.IWorkflowTransactionScope>();
         var service = new ReviewService(
             appRepo,
+            outboxWriter,
+            txScope,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ReviewService>.Instance);
 
         var error = await service.ReviewItemAsync(

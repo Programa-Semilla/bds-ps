@@ -7,7 +7,7 @@ namespace FundingPlatform.Tests.E2E.Tests.Admin;
 public class SentinelExclusionTests : AuthenticatedTestBase
 {
     private const string AdminPassword = "Test123!";
-    private const string SentinelEmail = "admin@FundingPlatform.com";
+    private const string SentinelEmail = "admin@programa-semilla.test";
 
     private async Task SignInAsAdminAsync()
     {

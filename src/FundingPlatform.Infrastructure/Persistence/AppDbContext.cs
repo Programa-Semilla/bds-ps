@@ -1,4 +1,5 @@
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Infrastructure.Notifications.Persistence;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,6 +43,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     // Spec 020 — AI quote comparison cache + job queue.
     public DbSet<ComparisonArtifact> ComparisonArtifacts => Set<ComparisonArtifact>();
     public DbSet<ComparisonJob> ComparisonJobs => Set<ComparisonJob>();
+
+    // Spec 021 — transactional email-notification outbox + per-recipient delivery audit.
+    public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

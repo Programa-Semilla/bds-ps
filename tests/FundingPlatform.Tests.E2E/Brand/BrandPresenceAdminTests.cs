@@ -30,7 +30,7 @@ public class BrandPresenceAdminTests : AuthenticatedTestBase
     {
         // Authenticate as admin (sentinel under ephemeral storage).
         await Page.GotoAsync($"{BaseUrl}/Account/Login");
-        await Page.Locator("[name=Email]").FillAsync("admin@FundingPlatform.com");
+        await Page.Locator("[name=Email]").FillAsync("admin@programa-semilla.test");
         await Page.Locator("[name=Password]").FillAsync("Sentinel123!");
         await Page.Locator("main button[type=submit]").ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex("/$|/Admin"));
