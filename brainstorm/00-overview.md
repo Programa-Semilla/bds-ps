@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-09
+Last updated: 2026-05-13
 
 ## Sessions
 
@@ -23,6 +23,7 @@ Last updated: 2026-05-09
 | 15 | 2026-05-08 | admin-ux-facelift | spec-created | 017 |
 | 16 | 2026-05-08 | pdf-template-lift | spec-created | 018 |
 | 17 | 2026-05-09 | programa-semilla-brand | spec-created | 019 |
+| 18 | 2026-05-13 | feedback-session-may13 | spec-created | 021 |
 
 ## Open Threads
 
@@ -144,6 +145,19 @@ Last updated: 2026-05-09
 - FR-014: pin display + heading weight floors (e.g., ≥ 700 / ≥ 600) during planning so spec is fully testable without depending on SC-015 sign-off (from #17)
 - FR-021: pin yellow-badge dark-text contrast ratio (e.g., ≥ 4.5:1 against fill) during planning (from #17)
 - Reviewer-surface sponsor-strip chrome density vs visual real-estate — confirm with reviewer feedback if available (from #17)
+- Plantilla cardinality per Process — one-to-one (default) vs many-to-one; pin in `/speckit-plan` (from #18, OQ-1)
+- Process closure freeze semantics on `FundingAgreement` (default = freeze) (from #18, OQ-2)
+- Stage-expiry override granularity — per-Process only (default) vs also per-Plantilla (from #18, OQ-3)
+- PublicCode rendering on legacy Funding Agreement PDF template (spec 018) — template field swap vs footnote (from #18, OQ-4)
+- Reglamento + ejemplo file content ownership and authoring source — admin team vs Programa Semilla operations (from #18, OQ-5)
+- Email-reminder cadence (T-72h / T-24h / expiry) — fixed (default) vs admin-configurable (from #18, OQ-6)
+- SupplierAdmin scope — full CRUD on suppliers (default) vs validate-only-existing (from #18, OQ-7)
+- Hint copy authorship for FR-020's initial set — designer / copywriter delivery pending (from #18, OQ-8)
+- Process audit-event coverage extends `AdminAuditEvent` (spec 016 pattern) — pin in plan (from #18, OQ-9)
+- Provincia *"Otro/Extranjero"* handling — block in UI (default) vs catalog row; revisit if foreign suppliers surface (from #18, OQ-10)
+- Admin-override path for expired stage-windows — whether the HTTP 422 hard-block should be overridable from the admin panel (from #18)
+- BCCR exchange-rate auto-fetch + Tropic AI quotation extraction — research-only in 021; needs future brainstorm / spec to productize (from #18)
+- Single-spec scope vs. architectural / UX split — stakeholder picked single-shot; reviewer brief flags this for stakeholder pushback (from #18)
 
 ## Closed Threads
 
