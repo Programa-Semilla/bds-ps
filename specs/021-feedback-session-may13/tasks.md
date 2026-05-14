@@ -56,7 +56,7 @@ Single-solution layered structure (Clean Architecture). Paths:
 - [ ] T010 [P] Create `dbo.Cantons.sql` (FK to `Provinces.Id`).
 - [ ] T011 [P] Create `dbo.PasswordResetTokens.sql` per data-model.md.
 - [ ] T012 Alter `dbo.Groups.sql`: add `ProcessId INT NOT NULL FK → Processes.Id`.
-- [ ] T013 Alter `dbo.Applications.sql`: add `PublicCode CHAR(9) NOT NULL UNIQUE` (CHECK regex), `ImpactTemplateId INT NULL FK → ImpactTemplates.Id`, `RemindersSentMask TINYINT NOT NULL DEFAULT 0`, `StageEnteredAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME()`. Verify/add `DeletedAt DATETIME2(0) NULL` if missing.
+- [ ] T013 Alter `dbo.Applications.sql`: add `PublicCode CHAR(9) NOT NULL UNIQUE` (CHECK regex), `ImpactTemplateId INT NULL FK → ImpactTemplates.Id`, `RemindersSentMask TINYINT NOT NULL DEFAULT 0`, `StageEnteredAt DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME()`, `DeletedAt DATETIME2(0) NULL` (soft-delete column — confirmed absent in current schema).
 - [ ] T014 Alter `dbo.Items.sql`: drop `ImpactId` column outright (NFR-001 — no production data).
 - [ ] T015 Alter `dbo.ImpactParameterValues.sql`: re-target FK from `ImpactId` to `ApplicationId`; drop legacy `dbo.Impacts.sql` after.
 - [ ] T016 [P] Alter `dbo.SupplierBranches.sql`: add `ContactPersonName NVARCHAR(120) NULL`, `ProvinceId INT NULL FK → Provinces.Id`, `CantonId INT NULL FK → Cantons.Id`.
@@ -346,7 +346,7 @@ Single-solution layered structure (Clean Architecture). Paths:
 
 - [ ] T152 [US8] Audit every projection / read-path under `src/FundingPlatform.Application/` and `src/FundingPlatform.Web/Controllers/` for `_db.Applications.AsQueryable()` calls. Route each through `IApplicationQueryFilter.ExcludeDeleted` (helper from T044, T050).
 - [ ] T153 [US8] Specifically patch: applicant `Index` projection, admin dashboard projection, reviewer queue projection, signing inbox projection, *"Solicitudes activas"* counter, *"borrador listo para enviar"* prompt source.
-- [ ] T154 [US8] Confirm `Application` soft-delete column (`DeletedAt`) exists; if absent, add via schema delta in T013 and back-fill plan (no-op, no production data).
+- [ ] T154 [US8] Verify `Application.DeletedAt` (added in T013) is mutated by the existing admin soft-delete path; if the current code mutates state via a different field, add or rename a domain method `Application.SoftDelete()` and update call sites.
 
 **Checkpoint**: User Story 8 fully functional; SC-011 regression green; structural test passes.
 
