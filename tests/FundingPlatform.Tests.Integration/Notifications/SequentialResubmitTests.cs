@@ -36,6 +36,7 @@ public class SequentialResubmitTests
         await ctx.SaveChangesAsync();
 
         var app = new Domain.Entities.Application(applicant.Id, "TestCo");
+        app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         ctx.Applications.Add(app);
         await ctx.SaveChangesAsync();
 

@@ -182,6 +182,7 @@ public class ComparisonOrchestratorRegressionTests
         await _ctx.SaveChangesAsync();
 
         var app = new AppEntity(applicant.Id, "Test Company");
+        app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         var item = new Item("Bomba centrífuga", category.Id, "1HP, acero");
         app.AddItem(item);
         _ctx.Applications.Add(app);

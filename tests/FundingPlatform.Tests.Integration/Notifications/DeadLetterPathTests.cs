@@ -73,6 +73,7 @@ public class DeadLetterPathTests
         await db.SaveChangesAsync();
 
         var app = new Domain.Entities.Application(applicant.Id, "C");
+        app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         var vh = new Domain.Entities.VersionHistory(user.Id, "Submitted", null);
         app.AddVersionHistory(vh);
         db.Applications.Add(app);

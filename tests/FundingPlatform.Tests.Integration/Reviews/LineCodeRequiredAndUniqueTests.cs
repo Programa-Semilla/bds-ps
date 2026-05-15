@@ -77,6 +77,7 @@ public class LineCodeRequiredAndUniqueTests
         await _ctx.SaveChangesAsync();
 
         var app = new AppEntity(applicant.Id, "Test Company");
+        app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         var item1 = new Item("Laptop", category.Id, "specs");
         var item2 = new Item("Antena", category.Id, "specs");
         app.AddItem(item1);

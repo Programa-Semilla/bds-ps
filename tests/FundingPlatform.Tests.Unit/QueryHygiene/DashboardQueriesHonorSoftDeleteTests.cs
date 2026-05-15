@@ -110,6 +110,18 @@ public class DashboardQueriesHonorSoftDeleteTests
             // production environments 404 the routes (Spec 021 / T154).
             ["src/FundingPlatform.Web/Controllers/AccountController.cs"] =
                 "T152/T154 — dev-only single-row admin helpers.",
+
+            // NotificationOutboxWriter (spec 021-email-notifications) —
+            // workflow-event helper: resolves the applicant's group
+            // memberships at Submit/SendBack/Approve/Reject time so the
+            // recipient resolver can fan out reviewer-bucket emails. Not a
+            // dashboard surface; the Application aggregate is by-Id, single
+            // row. Soft-delete races are tolerated by design — workflow
+            // events committed before delete already reflect the historical
+            // truth, and the outbox worker is idempotent. (Spec 021-email
+            // FR-001 / 021-feedback-session-may13 R-10 cross-ref.)
+            ["src/FundingPlatform.Infrastructure/Notifications/Persistence/NotificationOutboxWriter.cs"] =
+                "Spec 021-email-notifications — workflow-event read, not dashboard surface.",
         };
 
     /// <summary>

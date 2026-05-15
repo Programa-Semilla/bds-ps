@@ -92,6 +92,7 @@ public class ReviewerBucketExcludesApplicantTests
         await ctx.SaveChangesAsync();
 
         var app = new Domain.Entities.Application(applicant.Id, "ACME");
+        app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         ctx.Applications.Add(app);
         await ctx.SaveChangesAsync();
 
@@ -203,6 +204,7 @@ public class ReviewerBucketExcludesApplicantTests
         await ctx.SaveChangesAsync();
 
         var app = new Domain.Entities.Application(applicant.Id, "ACME");
+        app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         ctx.Applications.Add(app);
         await ctx.SaveChangesAsync();
 

@@ -59,6 +59,7 @@ public class ReviewerQueueScopeTests
             }
             await ctx.SaveChangesAsync();
             var app = new AppEntity(applicantId: ap.Id, companyName: "Test Company");
+            app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);
             ctx.Applications.Add(app);
             await ctx.SaveChangesAsync();

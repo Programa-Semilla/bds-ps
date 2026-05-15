@@ -55,6 +55,7 @@ public class DedupBucketPriorityTests
         await ctx.SaveChangesAsync();
 
         var app = new Domain.Entities.Application(applicant.Id, "Dual-Co");
+        app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         // Add a VersionHistory row authored by the same user — qualifies them
         // for the participating-admin bucket simultaneously.
         app.AddVersionHistory(new Domain.Entities.VersionHistory(dualUser.Id, "ReviewItem", null));

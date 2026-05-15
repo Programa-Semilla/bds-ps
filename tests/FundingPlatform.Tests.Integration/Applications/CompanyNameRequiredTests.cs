@@ -71,11 +71,19 @@ public class CompanyNameRequiredTests
         var outboxWriter = Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>();
         var txScope = Substitute.For<FundingPlatform.Application.Notifications.IWorkflowTransactionScope>();
 
+        // Spec 021-feedback-session-may13 / FR-008 — Application.PublicCode is
+        // EF-required. Stub the generator so CreateApplicationAsync stamps a
+        // unique code before the first SaveChanges.
+        var publicCodeGen = Substitute.For<FundingPlatform.Domain.Interfaces.IPublicCodeGenerator>();
+        publicCodeGen.GenerateAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next()));
+
         _service = new ApplicationService(
             appRepo, categoryRepo, supplierRepo, objectStorage, impactRepo,
             sysconfRepo, docRepo, supplierCatalog, conversion,
             outboxWriter, txScope,
-            NullLogger<ApplicationService>.Instance);
+            NullLogger<ApplicationService>.Instance,
+            publicCodeGen);
     }
 
     [TearDown]
