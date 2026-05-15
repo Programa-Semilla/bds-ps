@@ -2,9 +2,11 @@
 
 using FundingPlatform.Application.Applications;
 using FundingPlatform.Application.Applications.Commands;
+using FundingPlatform.Application.Notifications;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.Notifications;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,11 +25,16 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
 {
     private readonly AppDbContext _db;
     private readonly IStageExpiryClock _clock;
+    private readonly INotificationOutboxWriter _outbox;
 
-    public SubmitApplicationHandler(AppDbContext db, IStageExpiryClock clock)
+    public SubmitApplicationHandler(
+        AppDbContext db,
+        IStageExpiryClock clock,
+        INotificationOutboxWriter outbox)
     {
         _db = db;
         _clock = clock;
+        _outbox = outbox;
     }
 
     public async Task SubmitAsync(SubmitApplicationCommand cmd, CancellationToken ct = default)
@@ -71,11 +78,59 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
             }
         }
 
+        // Spec 021-email-notifications / FR-007 / R-003 — resubmit detection
+        // must read BEFORE the new "Submitted" VersionHistory row is added so
+        // the predicate reflects prior cycles only.
+        var isResubmit = await _outbox.HasPriorSendBackAsync(application.Id, ct);
+
         application.Submit(
             minQuotations,
             StageKind.Solicitud,
             stageClosesAt,
             _clock.UtcNow);
+
+        // Spec 013 — workflow audit: a "Submitted" VersionHistory row marks the
+        // Draft→Submitted transition. Pre-spec-021 ApplicationService.Submit
+        // added this; the spec-021 stage-aware handler must keep it (the
+        // reviewer queue + the notification idempotency key both depend on it).
+        var actorUserId = application.Applicant?.UserId ?? string.Empty;
+        var vhRow = new VersionHistory(actorUserId, "Submitted", "Application submitted for review");
+        application.AddVersionHistory(vhRow);
+
+        // Phase 1 — persist the workflow state change + VersionHistory row.
+        await _db.SaveChangesAsync(ct);
+
+        // Spec 021-email-notifications / FR-001 — enqueue the outbox rows in a
+        // second save (workflow first, outbox second). Worktree's spec-021
+        // submit handler replaced ApplicationService.SubmitApplicationAsync;
+        // the outbox enqueue main added there must be carried on this path or
+        // no APPLICATION_SUBMITTED_* / RESUBMITTED_BY_APPLICANT mail fires.
+        var stageGroupIds = await _outbox.GetApplicantStageGroupIdsAsync(application.Id, ct);
+        var applicantDisplayName = application.Applicant is not null
+            ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+            : "Solicitante";
+        var payload = new NotificationPayload(
+            ApplicationId: application.Id,
+            ApplicantUserId: actorUserId,
+            ApplicantDisplayName: applicantDisplayName,
+            StageGroupIds: stageGroupIds,
+            OutcomeCode: null);
+
+        if (isResubmit)
+        {
+            await _outbox.EnqueueAsync(
+                NotificationEvent.ResubmittedByApplicant,
+                application.Id, vhRow.Id, payload, ct);
+        }
+        else
+        {
+            await _outbox.EnqueueAsync(
+                NotificationEvent.ApplicationSubmittedApplicant,
+                application.Id, vhRow.Id, payload, ct);
+            await _outbox.EnqueueAsync(
+                NotificationEvent.ApplicationSubmittedReviewer,
+                application.Id, vhRow.Id, payload, ct);
+        }
 
         await _db.SaveChangesAsync(ct);
     }
