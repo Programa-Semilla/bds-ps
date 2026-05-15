@@ -2,7 +2,7 @@ CREATE TABLE [dbo].[PlantillaImpactTemplates]
 (
     [PlantillaId]       INT             NOT NULL,
     [ImpactTemplateId]  INT             NOT NULL,
-    [CreatedAt]         DATETIME2(0)    NOT NULL CONSTRAINT [DF_PlantillaImpactTemplates_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+    [CreatedAt]         DATETIMEOFFSET(0)    NOT NULL CONSTRAINT [DF_PlantillaImpactTemplates_CreatedAt] DEFAULT (SYSUTCDATETIME()),
 
     CONSTRAINT [PK_PlantillaImpactTemplates] PRIMARY KEY CLUSTERED ([PlantillaId], [ImpactTemplateId]),
     CONSTRAINT [FK_PlantillaImpactTemplates_Plantillas]

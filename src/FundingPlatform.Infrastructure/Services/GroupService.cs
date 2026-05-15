@@ -48,7 +48,27 @@ public sealed class GroupService : IGroupService
         // Domain entity does the trim + length validation. Uniqueness is the
         // unique index on dbo.Groups.Name; we surface DbUpdateException as
         // DuplicateGroupNameException for the controller.
-        var entity = Group.Create(name);
+        //
+        // Spec 021-feedback-session-may13 / FR-001 — every Group is attached to
+        // a Process (FK_Groups_Processes). The spec-016 admin Groups form was
+        // not extended with a Process picker; new ad-hoc groups land under the
+        // bootstrap "Migración inicial" Process (the same row the post-deploy
+        // seed reconciles legacy groups to). A dedicated Process selector is
+        // tracked as spec-021 follow-up work.
+        var bootstrapProcessId = await _db.Processes
+            .Where(p => p.Name == "Migración inicial")
+            .Select(p => p.Id)
+            .FirstOrDefaultAsync(ct);
+        if (bootstrapProcessId == 0)
+        {
+            bootstrapProcessId = await _db.Processes
+                .OrderBy(p => p.Id)
+                .Select(p => p.Id)
+                .FirstOrDefaultAsync(ct);
+        }
+        var entity = bootstrapProcessId == 0
+            ? Group.Create(name)
+            : Group.Create(name, bootstrapProcessId);
 
         // Pre-check for a friendlier round-trip: if a duplicate is already in
         // the catalog, no need to issue the INSERT at all. The unique index is

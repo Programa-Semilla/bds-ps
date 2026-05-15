@@ -6,8 +6,8 @@ CREATE TABLE [dbo].[Processes]
     [SolicitudWindowDays]    INT            NULL,
     [RevisionWindowDays]     INT            NULL,
     [FacturacionWindowDays]  INT            NULL,
-    [CreatedAt]              DATETIME2(0)   NOT NULL CONSTRAINT [DF_Processes_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-    [ClosedAt]               DATETIME2(0)   NULL,
+    [CreatedAt]              DATETIMEOFFSET(0)   NOT NULL CONSTRAINT [DF_Processes_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+    [ClosedAt]               DATETIMEOFFSET(0)   NULL,
     [RowVersion]             ROWVERSION     NOT NULL,
 
     CONSTRAINT [PK_Processes] PRIMARY KEY CLUSTERED ([Id])

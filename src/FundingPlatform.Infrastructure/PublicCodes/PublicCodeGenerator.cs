@@ -54,13 +54,16 @@ public sealed class PublicCodeGenerator : IPublicCodeGenerator
         {
             var candidate = NextCandidate();
 
-            // Project to the string column directly via EF.Property so the LINQ
-            // translation does not depend on the PublicCode value-object converter
-            // (configured in ApplicationConfiguration via HasConversion).
-            var candidateValue = candidate.Value;
+            // EF Core 10 — the ValueConverter on Application.PublicCode runs
+            // Sanitize on parameters in both directions, so comparing the
+            // mapped property against a string parameter via EF.Property<string>
+            // throws InvalidCastException ('System.String' → 'PublicCode') at
+            // parameter binding. Use the typed value-object directly; the
+            // record's value-equality semantics let EF translate the comparison
+            // to `WHERE [PublicCode] = @p` after the converter rewrites @p.
             var collision = await _db.Applications
                 .AsNoTracking()
-                .AnyAsync(a => EF.Property<string>(a, "PublicCode") == candidateValue, ct)
+                .AnyAsync(a => a.PublicCode == candidate, ct)
                 .ConfigureAwait(false);
 
             if (!collision)

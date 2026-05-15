@@ -3,9 +3,9 @@ CREATE TABLE [dbo].[PasswordResetTokens]
     [Id]          BIGINT          IDENTITY(1,1) NOT NULL,
     [UserId]      NVARCHAR(450)   NOT NULL,
     [TokenHash]   VARBINARY(64)   NOT NULL,
-    [IssuedAt]    DATETIME2(0)    NOT NULL CONSTRAINT [DF_PasswordResetTokens_IssuedAt] DEFAULT (SYSUTCDATETIME()),
-    [ExpiresAt]   DATETIME2(0)    NOT NULL,
-    [ConsumedAt]  DATETIME2(0)    NULL,
+    [IssuedAt]    DATETIMEOFFSET(0)    NOT NULL CONSTRAINT [DF_PasswordResetTokens_IssuedAt] DEFAULT (SYSUTCDATETIME()),
+    [ExpiresAt]   DATETIMEOFFSET(0)    NOT NULL,
+    [ConsumedAt]  DATETIMEOFFSET(0)    NULL,
 
     CONSTRAINT [PK_PasswordResetTokens] PRIMARY KEY CLUSTERED ([Id]),
     -- Spec 021 / FR-028 — raw token never persisted; TokenHash is the SHA-256

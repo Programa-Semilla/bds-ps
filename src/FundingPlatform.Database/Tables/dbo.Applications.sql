@@ -21,10 +21,10 @@ CREATE TABLE [dbo].[Applications]
     -- Spec 021 / data-model.md — reset whenever the application crosses a stage
     -- boundary (Borrador → Submitted, Submitted → InReview, …). Used by the
     -- stage-expiry evaluator and the countdown banner.
-    [StageEnteredAt]    DATETIME2(0)   NOT NULL CONSTRAINT [DF_Applications_StageEnteredAt] DEFAULT (SYSUTCDATETIME()),
+    [StageEnteredAt]    DATETIMEOFFSET(0)   NOT NULL CONSTRAINT [DF_Applications_StageEnteredAt] DEFAULT (SYSUTCDATETIME()),
     -- Spec 021 / FR-021 — soft-delete column. Dashboards filter via
     -- IApplicationQueryFilter.ExcludeDeleted; the column is NULL for live rows.
-    [DeletedAt]         DATETIME2(0)   NULL,
+    [DeletedAt]         DATETIMEOFFSET(0)   NULL,
     [CreatedAt]         DATETIME2      NOT NULL CONSTRAINT [DF_Applications_CreatedAt] DEFAULT (GETUTCDATE()),
     [UpdatedAt]         DATETIME2      NOT NULL,
     [SubmittedAt]       DATETIME2      NULL,

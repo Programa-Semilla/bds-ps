@@ -652,12 +652,24 @@ public class AccountController : Controller
         await _dbContext.Database.ExecuteSqlRawAsync(
             "UPDATE dbo.Quotations SET LegacyNeedsReview = 0 WHERE LegacyNeedsReview = 1;");
         // UserGroupMemberships → Groups: ON DELETE CASCADE wipes memberships.
+        // Spec 021-feedback-session-may13 — Groups carry a NOT NULL FK to
+        // Processes. Deleting Groups does not touch Processes (child→parent),
+        // so the existing DELETE is safe. We leave the "Migración inicial"
+        // Process and any Plantillas in place; SeedAdminFixture re-attaches
+        // the demo groups to it on the next teardown call.
         await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.Groups;");
-        // ImpactTemplates referenced by Impacts (NO ACTION) and ImpactParameterValues
-        // via ImpactTemplateParameters (NO ACTION); CASCADE only covers the
-        // template-to-parameter direction.
+        // Spec 021-feedback-session-may13 — dbo.Impacts table dropped (FR-005;
+        // Impact relocated from Item to Application as a value object). The
+        // dependent ImpactParameterValues now reference Applications, not
+        // Impacts, and survive the template reset.
         await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.ImpactParameterValues;");
-        await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.Impacts;");
+        // Spec 021-feedback-session-may13 — new NO-ACTION FKs into
+        // ImpactTemplates: Applications.ImpactTemplateId (nullable) and
+        // PlantillaImpactTemplates.ImpactTemplateId. Null the Applications ref
+        // and wipe the join rows before deleting templates.
+        await _dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.Applications SET ImpactTemplateId = NULL WHERE ImpactTemplateId IS NOT NULL;");
+        await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.PlantillaImpactTemplates;");
         await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.ImpactTemplates;");
 
         return Ok("Admin fixture reset.");
@@ -680,12 +692,24 @@ public class AccountController : Controller
             return NotFound();
         }
 
+        // Spec 021-feedback-session-may13 / data-model — Groups.ProcessId is
+        // NOT NULL with a real FK to dbo.Processes. The 02_SeedMigracionInicial
+        // post-deploy script provides the bootstrap row; resolve it here and
+        // attach the demo groups to it so the insert satisfies the FK.
         await _dbContext.Database.ExecuteSqlRawAsync(@"
+DECLARE @ProcessId INT = (
+    SELECT [Id] FROM [dbo].[Processes] WHERE [Name] = N'Migración inicial'
+);
+IF @ProcessId IS NULL
+BEGIN
+    INSERT INTO [dbo].[Processes] ([Name], [Status]) VALUES (N'Migración inicial', 0);
+    SET @ProcessId = SCOPE_IDENTITY();
+END;
 MERGE INTO dbo.Groups AS tgt
 USING (VALUES (N'Norte'), (N'Sur'), (N'Centro')) AS src ([Name])
 ON tgt.[Name] = src.[Name]
-WHEN NOT MATCHED THEN INSERT ([Name], [CreatedAt], [UpdatedAt])
-    VALUES (src.[Name], SYSUTCDATETIME(), SYSUTCDATETIME());");
+WHEN NOT MATCHED THEN INSERT ([Name], [ProcessId], [CreatedAt], [UpdatedAt])
+    VALUES (src.[Name], @ProcessId, SYSUTCDATETIME(), SYSUTCDATETIME());");
 
         await _dbContext.Database.ExecuteSqlRawAsync(@"
 IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Increase Production Capacity')

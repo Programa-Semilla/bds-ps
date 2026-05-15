@@ -5,7 +5,7 @@ CREATE TABLE [dbo].[Plantillas]
     [MinimumQuotationsPerItem]   INT            NOT NULL CONSTRAINT [DF_Plantillas_MinimumQuotationsPerItem] DEFAULT (3),
     [RequiredFieldFlags]         BIGINT         NOT NULL CONSTRAINT [DF_Plantillas_RequiredFieldFlags] DEFAULT (0),
     [IsArchived]                 BIT            NOT NULL CONSTRAINT [DF_Plantillas_IsArchived] DEFAULT (0),
-    [CreatedAt]                  DATETIME2(0)   NOT NULL CONSTRAINT [DF_Plantillas_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+    [CreatedAt]                  DATETIMEOFFSET(0)   NOT NULL CONSTRAINT [DF_Plantillas_CreatedAt] DEFAULT (SYSUTCDATETIME()),
     [RowVersion]                 ROWVERSION     NOT NULL,
 
     CONSTRAINT [PK_Plantillas] PRIMARY KEY CLUSTERED ([Id])

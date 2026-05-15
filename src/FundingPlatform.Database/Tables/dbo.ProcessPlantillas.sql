@@ -6,7 +6,7 @@ CREATE TABLE [dbo].[ProcessPlantillas]
     [MinimumQuotationsPerItem]   INT             NOT NULL,
     [RequiredFieldFlags]         BIGINT          NOT NULL,
     [ImpactTemplateIdsCsv]       NVARCHAR(2000)  NOT NULL,
-    [AssignedAt]                 DATETIME2(0)    NOT NULL CONSTRAINT [DF_ProcessPlantillas_AssignedAt] DEFAULT (SYSUTCDATETIME()),
+    [AssignedAt]                 DATETIMEOFFSET(0)    NOT NULL CONSTRAINT [DF_ProcessPlantillas_AssignedAt] DEFAULT (SYSUTCDATETIME()),
 
     CONSTRAINT [PK_ProcessPlantillas] PRIMARY KEY CLUSTERED ([Id]),
     -- Spec 021 / OQ-1 — exactly one Plantilla snapshot per Process.
