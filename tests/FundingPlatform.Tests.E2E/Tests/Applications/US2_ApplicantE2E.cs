@@ -56,7 +56,11 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
         // 5. Go to the Edit surface (US2 draft editor).
         await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
         var draft = new ApplicationDraftPage(Page);
-        await Expect(draft.AutosaveIndicator).ToBeVisibleAsync();
+        // The autosave indicator is rendered idle (data-autosave-state="idle")
+        // on first load — by design every state span carries `d-none`, so the
+        // wrapper has zero size and is not "visible" until a field blurs.
+        // Assert it is present in the DOM scaffold, not visually rendered.
+        await Expect(draft.AutosaveIndicator).ToBeAttachedAsync();
         await Expect(draft.AddItemButton).ToBeVisibleAsync();
 
         // 6. The applicant dashboard now lists the new Application by its

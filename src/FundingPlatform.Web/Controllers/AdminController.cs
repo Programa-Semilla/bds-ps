@@ -167,7 +167,7 @@ public class AdminController : Controller
         }
 
         var command = new UpdateSystemConfigurationCommand(
-            model.Configurations.Select(c => new ConfigurationUpdate(c.Id, c.Value)).ToList());
+            model.Configurations.Select(c => new ConfigurationUpdate(c.Id, c.Value ?? string.Empty)).ToList());
 
         await _adminService.UpdateSystemConfigurationAsync(command);
 
