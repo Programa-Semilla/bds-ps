@@ -14,7 +14,11 @@ public class SystemConfigurationEntryViewModel
     [Display(Name = "Clave")]
     public string Key { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "El valor es obligatorio.")]
+    // Value is intentionally not [Required]: spec-021 seeds
+    // Public.Landing.*.StorageKey rows with an empty-string sentinel until
+    // the admin upload flow rewrites them. A [Required] attribute failed
+    // server-side ModelState validation for the whole Configuration form
+    // whenever such a row was present.
     [Display(Name = "Valor")]
     public string Value { get; set; } = string.Empty;
 

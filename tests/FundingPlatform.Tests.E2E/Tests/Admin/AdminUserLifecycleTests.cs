@@ -148,7 +148,11 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/Account/ChangePassword"));
         await changePage.SubmitAsync(TempUserPassword, "NewPass1!", "NewPass1!");
 
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/$|/Home|/Application"));
+        // ChangePassword redirects to Home/Index; spec-021 US6 routes a Reviewer
+        // on from there to /Reviewer/Dashboard. The created user holds the
+        // Reviewer role, so the post-change landing is the reviewer dashboard.
+        await Expect(Page).ToHaveURLAsync(
+            new System.Text.RegularExpressions.Regex("/$|/Home|/Application|/Reviewer"));
     }
 
     [Test]

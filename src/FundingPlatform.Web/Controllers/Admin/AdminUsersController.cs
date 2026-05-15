@@ -40,22 +40,29 @@ public class AdminUsersController : Controller
     /// the cascading filter widget on the Index view consumes.</summary>
     private async Task<IReadOnlyList<AdminUsersProcessFilterOption>> LoadProcessFilterCatalogAsync(CancellationToken ct)
     {
-        // Single round-trip: pull every Group with its ProcessId and Process.Name,
-        // then group in memory. The catalog is small (a handful of Processes ×
-        // ~3-10 Groups each) so no pagination needed.
-        var rows = await (
-            from g in _db.Groups.AsNoTracking()
-            join p in _db.Processes.AsNoTracking() on g.ProcessId equals p.Id
-            orderby p.Name, g.Name
-            select new { ProcessId = p.Id, ProcessName = p.Name, GroupId = g.Id, GroupName = g.Name })
+        // Two small round-trips: every Process, and every Group. The catalog is
+        // small (a handful of Processes × ~3-10 Groups each) so no pagination.
+        // FR-034 — the filter MUST list every Process, including ones with zero
+        // groups (a freshly-created Process has none until groups are attached).
+        // An inner join on Groups would hide those, so we left-join in memory.
+        var processes = await _db.Processes.AsNoTracking()
+            .OrderBy(p => p.Name)
+            .Select(p => new { p.Id, p.Name })
             .ToListAsync(ct);
 
-        return rows
-            .GroupBy(r => new { r.ProcessId, r.ProcessName })
-            .Select(grp => new AdminUsersProcessFilterOption(
-                grp.Key.ProcessId,
-                grp.Key.ProcessName,
-                grp.Select(r => new AdminUsersGroupFilterOption(r.GroupId, r.GroupName)).ToList()))
+        var groups = await _db.Groups.AsNoTracking()
+            .OrderBy(g => g.Name)
+            .Select(g => new { g.ProcessId, g.Id, g.Name })
+            .ToListAsync(ct);
+
+        return processes
+            .Select(p => new AdminUsersProcessFilterOption(
+                p.Id,
+                p.Name,
+                groups
+                    .Where(g => g.ProcessId == p.Id)
+                    .Select(g => new AdminUsersGroupFilterOption(g.Id, g.Name))
+                    .ToList()))
             .ToList();
     }
 

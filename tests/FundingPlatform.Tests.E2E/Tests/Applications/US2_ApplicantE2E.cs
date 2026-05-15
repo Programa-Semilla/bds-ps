@@ -33,8 +33,11 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
         await LoginAsync(Page, applicantEmail, password);
 
         // 2. Land on /Applications (applicant dashboard). Greeting renders.
+        // Target the page-title element directly: the spec-019 brand wordmark
+        // is an <h1> in the layout masthead, so a generic "h1,h2,h3 first"
+        // selector resolves to the brand, not the greeting.
         await Page.GotoAsync($"{BaseUrl}/Application");
-        await Expect(Page.Locator("h1, h2, h3").First).ToContainTextAsync("Hola");
+        await Expect(Page.Locator("[data-testid=page-title]")).ToContainTextAsync("Hola");
 
         // 3. Click "Iniciar acompañamiento" CTA — leads to /Application/Create.
         var ctaButton = Page.Locator("a:has-text('Iniciar acompañamiento')").First;

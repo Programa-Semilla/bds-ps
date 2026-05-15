@@ -166,7 +166,11 @@
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="page-title mb-0 fs-3" data-testid="page-title">@ViewData["Title"]</div>
+                @* data-testid is "topbar-title" — the canonical page-title testid
+                   belongs to the _PageHeader h2 (the semantic page heading). Two
+                   elements sharing data-testid="page-title" tripped Playwright
+                   strict-mode in the E2E suite. *@
+                <div class="page-title mb-0 fs-3" data-testid="topbar-title">@ViewData["Title"]</div>
                 <div class="navbar-nav flex-row order-md-last">
                     @if (User?.Identity?.IsAuthenticated == true)
                     {

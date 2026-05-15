@@ -57,7 +57,10 @@ public class SubmitGuardTests
         _applicantId = applicant.Id;
 
         _clock = new FakeStageExpiryClock(DateTimeOffset.UtcNow);
-        _handler = new SubmitApplicationHandler(_ctx, _clock);
+        _handler = new SubmitApplicationHandler(
+            _ctx,
+            _clock,
+            new FundingPlatform.Infrastructure.Notifications.Persistence.NotificationOutboxWriter(_ctx));
     }
 
     [TearDown]
