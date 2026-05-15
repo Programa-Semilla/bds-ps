@@ -45,6 +45,32 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
         var minQuotations = await ResolveMinimumQuotationsAsync(application, ct);
         var stageClosesAt = await ResolveStageClosesAtAsync(application, ct);
 
+        // Spec 013 / FR-024 — every owned Draft supplier referenced by a
+        // quotation flips to PendingReview atomically with the submission.
+        // This carried over from ApplicationService.SubmitApplicationAsync
+        // (the pre-spec-021 submit path); the spec-021 stage-aware handler
+        // must preserve it or admin supplier verification has nothing to act
+        // on after an applicant submits.
+        var referencedSupplierIds = application.Items
+            .SelectMany(i => i.Quotations)
+            .Select(q => q.SupplierId)
+            .Distinct()
+            .ToList();
+        if (referencedSupplierIds.Count > 0)
+        {
+            var suppliers = await _db.Suppliers
+                .Where(s => referencedSupplierIds.Contains(s.Id))
+                .ToListAsync(ct);
+            foreach (var supplier in suppliers)
+            {
+                if (supplier.VerificationStatus == SupplierVerificationStatus.Draft
+                    && supplier.CreatedByApplicantId == application.ApplicantId)
+                {
+                    supplier.SubmitForReview();
+                }
+            }
+        }
+
         application.Submit(
             minQuotations,
             StageKind.Solicitud,
