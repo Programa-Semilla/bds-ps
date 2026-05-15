@@ -63,6 +63,9 @@ public static class DependencyInjection
         services.AddScoped<IExchangeRateService, ExchangeRateService>();
         services.AddScoped<ILegacyQuotationRateAttachService, LegacyQuotationRateAttachService>();
 
+        // Spec 020 — explicit commit boundary for orchestrator audit paths.
+        services.AddScoped<IUnitOfWork, Persistence.UnitOfWork>();
+
         // Spec 016 — admin audit writer + group catalog service + reviewer scope.
         services.AddScoped<IAdminAuditWriter, AdminAuditWriter>();
         services.AddScoped<Application.Admin.Groups.IGroupService, Services.GroupService>();

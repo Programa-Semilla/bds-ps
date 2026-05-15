@@ -2,9 +2,11 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FundingPlatform.Application.Abstractions.AiComparison;
 using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Audit;
+using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -52,6 +54,7 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
     private readonly TokenCapGuard _tokenCapGuard;
     private readonly AdminAuditEventComparisonFactory _auditFactory;
     private readonly IAdminAuditWriter _auditWriter;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IObjectStorage _objectStorage;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ComparisonOrchestrator> _logger;
@@ -74,6 +77,7 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         TokenCapGuard tokenCapGuard,
         AdminAuditEventComparisonFactory auditFactory,
         IAdminAuditWriter auditWriter,
+        IUnitOfWork unitOfWork,
         IObjectStorage objectStorage,
         IConfiguration configuration,
         ILogger<ComparisonOrchestrator> logger)
@@ -89,6 +93,7 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         _tokenCapGuard = tokenCapGuard;
         _auditFactory = auditFactory;
         _auditWriter = auditWriter;
+        _unitOfWork = unitOfWork;
         _objectStorage = objectStorage;
         _configuration = configuration;
         _logger = logger;
@@ -214,8 +219,14 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
                             Blocks: blocks);
 
                         var result = await _aiClient.ExtractAsync(extractRequest, cancellationToken);
-                        _validator.ValidateExtract(result.Json);
-                        extractResults[idx] = result;
+                        // Spec 020 — the platform's supplier currency is authoritative
+                        // (used downstream by NormalizeStage). The AI occasionally omits
+                        // `fields.currencyCode` despite the prompt's default-to-CRC rule;
+                        // backfill from the assembly so the schema invariant always
+                        // holds and downstream consumers see a stable shape.
+                        var patchedJson = EnsureExtractCurrencyCode(result.Json, supplier.CurrencyCode);
+                        _validator.ValidateExtract(patchedJson);
+                        extractResults[idx] = result with { Json = patchedJson };
                     }
                     finally
                     {
@@ -336,6 +347,7 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
             // collection that won't mutate further).
             RedactedFieldCounts: new Dictionary<string, int>(totalRedactionCounts, StringComparer.Ordinal)));
         await _auditWriter.WriteAsync(success, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new GenerateComparisonSuccess(
             command.ApplicationItemId, compareResult.Json, DateTimeOffset.UtcNow,
@@ -610,6 +622,37 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
         return ComparisonNormalizer.BuildNormalizedSuppliersJson(normalized);
     }
 
+    /// <summary>
+    /// Spec 020 — guarantees <c>fields.currencyCode</c> is present in the extract
+    /// JSON before schema validation. The Anthropic model intermittently omits
+    /// the field despite the prompt's default-to-CRC rule; downstream consumers
+    /// don't read it (the platform's <see cref="SupplierAssembly.CurrencyCode"/>
+    /// is authoritative) so injecting it is lossless. Returns the original string
+    /// unchanged when parsing fails or the field is already set, so the existing
+    /// validator path still surfaces real schema violations.
+    /// </summary>
+    private static string EnsureExtractCurrencyCode(string json, string supplierCurrencyCode)
+    {
+        JsonNode? root;
+        try { root = JsonNode.Parse(json); }
+        catch (JsonException) { return json; }
+
+        if (root is not JsonObject obj) return json;
+        if (obj["fields"] is not JsonObject fields) return json;
+        if (fields["currencyCode"] is JsonValue existing
+            && existing.TryGetValue<string>(out var code)
+            && !string.IsNullOrWhiteSpace(code))
+        {
+            return json;
+        }
+
+        var fallback = string.IsNullOrWhiteSpace(supplierCurrencyCode)
+            ? "CRC"
+            : supplierCurrencyCode.Trim().ToUpperInvariant();
+        fields["currencyCode"] = fallback;
+        return obj.ToJsonString();
+    }
+
     private static JsonElement? SafeParse(string json)
     {
         try
@@ -697,6 +740,10 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
             RedactedFieldCounts: new Dictionary<string, int>(),
             FailureReason: failureReason));
         await _auditWriter.WriteAsync(failure, cancellationToken);
+        // Failure paths have no follow-up repository SaveChanges (sync controller
+        // returns straight to the client; worker only saves after this method),
+        // so commit the audit row explicitly here.
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private Task EmitFailureAuditSafelyAsync(

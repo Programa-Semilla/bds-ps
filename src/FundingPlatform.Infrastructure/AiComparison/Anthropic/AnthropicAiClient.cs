@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Anthropic.SDK;
+using Anthropic.SDK.Common;
 using Anthropic.SDK.Messaging;
 using FundingPlatform.Application.Abstractions.AiComparison;
 using Microsoft.Extensions.Logging;
@@ -33,11 +35,20 @@ public class AnthropicAiClient : IAiClient
         }
     }
 
+    // Tool names exposed to the model. ToolChoice = Tool with one of these names
+    // forces the model to emit a single tool_use block whose `input` is bound to
+    // our JSON schema — the AI cannot improvise an off-schema response.
+    internal const string ExtractToolName = "extract_supplier_offering";
+    internal const string CompareToolName = "record_comparison_artifact";
+
     public async Task<ExtractResult> ExtractAsync(ExtractRequest request, CancellationToken cancellationToken)
     {
         var (json, tokenIn, tokenOut, latencyMs) = await SendAsync(
             request.Model, request.PromptText, request.SchemaJson,
-            BuildUserContent(request.Blocks), cancellationToken);
+            BuildUserContent(request.Blocks),
+            ExtractToolName,
+            "Devuelve la cotización extraída del proveedor como objeto JSON estructurado, conforme al esquema.",
+            cancellationToken);
         return new ExtractResult(json, tokenIn, tokenOut, latencyMs);
     }
 
@@ -46,6 +57,8 @@ public class AnthropicAiClient : IAiClient
         var (json, tokenIn, tokenOut, latencyMs) = await SendAsync(
             request.Model, request.PromptText, request.SchemaJson,
             new List<ContentBase> { new TextContent { Text = request.NormalizedSuppliersJson } },
+            CompareToolName,
+            "Devuelve la comparación de cotizaciones como objeto JSON estructurado, conforme al esquema.",
             cancellationToken);
         return new CompareResult(json, tokenIn, tokenOut, latencyMs);
     }
@@ -77,11 +90,20 @@ public class AnthropicAiClient : IAiClient
 
     private async Task<(string json, int tokenIn, int tokenOut, int latencyMs)> SendAsync(
         string model, string systemPrompt, string schemaJson,
-        List<ContentBase> userContent, CancellationToken cancellationToken)
+        List<ContentBase> userContent, string toolName, string toolDescription,
+        CancellationToken cancellationToken)
     {
         using var client = string.IsNullOrEmpty(_options.BaseUrl)
             ? new AnthropicClient(new APIAuthentication(_options.ApiKey))
             : new AnthropicClient(new APIAuthentication(_options.ApiKey));
+
+        // Bind our JSON Schema to a tool's `input_schema` and force ToolChoice
+        // so the model must emit a single tool_use block whose `input` matches
+        // the schema. This is the structured-output contract — without it the
+        // model improvises free-form JSON and misses required fields.
+        var schemaNode = BuildToolInputSchema(schemaJson);
+        var tool = new global::Anthropic.SDK.Common.Tool(
+            new global::Anthropic.SDK.Common.Function(toolName, toolDescription, schemaNode));
 
         var parameters = new MessageParameters
         {
@@ -91,6 +113,12 @@ public class AnthropicAiClient : IAiClient
             Messages = new List<Message>
             {
                 new Message { Role = RoleType.User, Content = userContent },
+            },
+            Tools = new List<global::Anthropic.SDK.Common.Tool> { tool },
+            ToolChoice = new ToolChoice
+            {
+                Type = ToolChoiceType.Tool,
+                Name = toolName,
             },
         };
 
@@ -127,21 +155,48 @@ public class AnthropicAiClient : IAiClient
         }
         sw.Stop();
 
-        var text = response.Content?
-            .OfType<TextContent>()
-            .Select(t => t.Text)
-            .FirstOrDefault();
+        var toolUse = response.Content?
+            .OfType<ToolUseContent>()
+            .FirstOrDefault(c => string.Equals(c.Name, toolName, StringComparison.Ordinal));
 
-        if (string.IsNullOrWhiteSpace(text))
-            throw new AiProviderHardException("empty_response", "Anthropic returned no text content.");
+        if (toolUse?.Input is null)
+        {
+            // Fallback: some failure modes (refusal, max_tokens before tool call)
+            // produce text instead of a tool_use block. Surface as hard so the
+            // orchestrator records a precise reason.
+            var stopReason = response.StopReason ?? "unknown";
+            throw new AiProviderHardException(
+                $"no_tool_call:{stopReason}",
+                $"Anthropic did not emit the forced '{toolName}' tool call (stop_reason={stopReason}).");
+        }
 
-        // Trim Markdown code-fence wrappers the model occasionally adds.
-        text = StripCodeFences(text);
+        var text = toolUse.Input.ToJsonString();
 
         var usage = response.Usage;
         var tokenIn = (int)(usage?.InputTokens ?? 0);
         var tokenOut = (int)(usage?.OutputTokens ?? 0);
         return (text, tokenIn, tokenOut, (int)sw.ElapsedMilliseconds);
+    }
+
+    /// <summary>
+    /// Anthropic's <c>input_schema</c> field accepts a JSON Schema subset. Strip
+    /// the meta keys that aren't recognized by the API (<c>$schema</c>,
+    /// <c>$id</c>, <c>title</c>, <c>description</c> at root) before passing —
+    /// keeps the payload lean and avoids "unexpected field" warnings on stricter
+    /// validators. The <c>$defs</c> / <c>$ref</c> structure is preserved.
+    /// </summary>
+    private static JsonNode BuildToolInputSchema(string schemaJson)
+    {
+        var node = JsonNode.Parse(schemaJson)
+            ?? throw new InvalidOperationException("Schema JSON parsed to null.");
+        if (node is JsonObject root)
+        {
+            root.Remove("$schema");
+            root.Remove("$id");
+            root.Remove("title");
+            root.Remove("description");
+        }
+        return node;
     }
 
     /// <summary>
@@ -194,19 +249,6 @@ public class AnthropicAiClient : IAiClient
         return null;
     }
 
-    private static string StripCodeFences(string text)
-    {
-        var trimmed = text.Trim();
-        if (trimmed.StartsWith("```"))
-        {
-            var firstNewline = trimmed.IndexOf('\n');
-            if (firstNewline > 0)
-                trimmed = trimmed[(firstNewline + 1)..];
-            if (trimmed.EndsWith("```"))
-                trimmed = trimmed[..^3];
-        }
-        return trimmed.Trim();
-    }
 }
 
 /// <summary>Bound from <c>AiComparison:Anthropic:*</c>.</summary>

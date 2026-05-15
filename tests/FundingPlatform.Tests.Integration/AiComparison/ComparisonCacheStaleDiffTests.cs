@@ -60,6 +60,7 @@ public class ComparisonCacheStaleDiffTests
         var artifactRepo = new ComparisonArtifactRepository(_ctx);
         var jobRepo = new ComparisonJobRepository(_ctx);
         var auditWriter = new AdminAuditWriter(_ctx);
+        var unitOfWork = new FundingPlatform.Infrastructure.Persistence.UnitOfWork(_ctx);
         var rateLimitCounter = new AdminAuditRateLimitCounter(_ctx);
         var rateLimitGuard = new RateLimitGuard(rateLimitCounter, _config, NullLogger<RateLimitGuard>.Instance);
         var tokenCapGuard = new TokenCapGuard(_config, NullLogger<TokenCapGuard>.Instance);
@@ -68,7 +69,7 @@ public class ComparisonCacheStaleDiffTests
         _orchestrator = new ComparisonOrchestrator(
             assembler, redactor, stub, catalog, validator,
             artifactRepo, jobRepo, rateLimitGuard, tokenCapGuard,
-            auditFactory, auditWriter,
+            auditFactory, auditWriter, unitOfWork,
             new InMemoryObjectStorage(),
             _config, NullLogger<ComparisonOrchestrator>.Instance);
     }

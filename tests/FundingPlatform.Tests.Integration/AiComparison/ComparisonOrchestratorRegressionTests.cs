@@ -1,7 +1,5 @@
 using FundingPlatform.Application.Abstractions.AiComparison;
-using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.AiComparison;
-using FundingPlatform.Application.Audit;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Infrastructure.AiComparison;
@@ -17,20 +15,27 @@ using AppEntity = FundingPlatform.Domain.Entities.Application;
 
 namespace FundingPlatform.Tests.Integration.AiComparison;
 
+/// <summary>
+/// Spec 020 regression coverage:
+///   1) Extract responses missing <c>fields.currencyCode</c> are backfilled
+///      from the platform's authoritative supplier currency before validation
+///      (the Anthropic model intermittently omits the field).
+///   2) Failure-path audit rows are persisted to the DB without the caller
+///      having to invoke <c>SaveChangesAsync</c> — the orchestrator now owns
+///      its own commit boundary via <c>IUnitOfWork</c>.
+/// </summary>
 [TestFixture]
-public class ComparisonOrchestratorIntegrationTests
+public class ComparisonOrchestratorRegressionTests
 {
     private AppDbContext _ctx = null!;
-    private ComparisonOrchestrator _orchestrator = null!;
-    private IConfiguration _config = null!;
-    private StubAiClient _stub = null!;
+    private string _tempExtractFixture = null!;
 
     [SetUp]
     public void Setup()
     {
         StubAiClient.ResetCallCounters();
 
-        var dbName = $"orch-{Guid.NewGuid():N}";
+        var dbName = $"orch-reg-{Guid.NewGuid():N}";
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(dbName)
             .ConfigureWarnings(w => w.Ignore(
@@ -38,45 +43,110 @@ public class ComparisonOrchestratorIntegrationTests
             .Options;
         _ctx = new AppDbContext(options);
 
+        _tempExtractFixture = Path.Combine(Path.GetTempPath(), $"extract-no-currency-{Guid.NewGuid():N}.json");
+        File.WriteAllText(_tempExtractFixture, """
+            {
+              "schemaVersion": "v1",
+              "supplierIdx": 0,
+              "fields": {
+                "product": { "value": "Bomba centrífuga", "sourceRefs": [] },
+                "brand": { "value": "Pedrollo", "sourceRefs": [] },
+                "totalAmount": { "value": "120000", "sourceRefs": [] }
+              }
+            }
+            """);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _ctx.Dispose();
+        if (File.Exists(_tempExtractFixture)) File.Delete(_tempExtractFixture);
+    }
+
+    [Test]
+    public async Task GenerateAsync_ExtractMissingCurrencyCode_BackfilledFromSupplier_AndSucceeds()
+    {
+        var orchestrator = BuildOrchestrator(rateLimitCap: 100, extractFixture: _tempExtractFixture);
+        var itemId = await SeedItemWithTwoSuppliersAsync();
+
+        var result = await orchestrator.GenerateAsync(new GenerateComparisonCommand(
+            ApplicationItemId: itemId,
+            ActorUserId: "reviewer-1",
+            ActorRole: "Reviewer",
+            BypassRateLimit: false,
+            BypassTokenCap: false), CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<GenerateComparisonSuccess>(),
+            "Schema-required currencyCode should be backfilled from the supplier assembly so the schema invariant holds.");
+
+        var artifact = await _ctx.ComparisonArtifacts.FirstOrDefaultAsync(a => a.ApplicationItemId == itemId);
+        Assert.That(artifact, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task GenerateAsync_RateLimitExceeded_PersistsFailureAuditWithoutCallerSaveChanges()
+    {
+        var orchestrator = BuildOrchestrator(rateLimitCap: 0, extractFixture: null);
+        var itemId = await SeedItemWithTwoSuppliersAsync();
+
+        var result = await orchestrator.GenerateAsync(new GenerateComparisonCommand(
+            ApplicationItemId: itemId,
+            ActorUserId: "reviewer-1",
+            ActorRole: "Reviewer",
+            BypassRateLimit: false,
+            BypassTokenCap: false), CancellationToken.None);
+
+        Assert.That(result, Is.InstanceOf<GenerateComparisonFailure>());
+        Assert.That(((GenerateComparisonFailure)result).FailureReason, Is.EqualTo("rate_limit_exceeded"));
+
+        // The orchestrator must commit its own audit-row writes — the caller
+        // (sync controller or worker post-orchestrator) does not save here.
+        var auditCount = await _ctx.AdminAuditEvents
+            .CountAsync(e => e.TargetId == itemId.ToString());
+        Assert.That(auditCount, Is.GreaterThanOrEqualTo(1),
+            "Failure audit must persist without the test fixture calling SaveChangesAsync.");
+    }
+
+    private ComparisonOrchestrator BuildOrchestrator(int rateLimitCap, string? extractFixture)
+    {
         var fixturesRoot = ResolveFixturesRoot();
-        _config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["AiComparison:Provider"] = "Stub",
             ["AiComparison:PromptVersion"] = "2026-05-11",
             ["AiComparison:SchemaVersion"] = "v1",
             ["AiComparison:Anthropic:ExtractModel"] = "claude-sonnet-4-6",
             ["AiComparison:Anthropic:CompareModel"] = "claude-opus-4-7",
-            ["AiComparison:StubFixtures:Extract"] = Path.Combine(fixturesRoot, "canned-extract.json"),
+            ["AiComparison:StubFixtures:Extract"] =
+                extractFixture ?? Path.Combine(fixturesRoot, "canned-extract.json"),
             ["AiComparison:StubFixtures:Compare"] = Path.Combine(fixturesRoot, "canned-compare.json"),
-            ["AiComparison:RateLimitPerApp24h"] = "100",
+            ["AiComparison:RateLimitPerApp24h"] = rateLimitCap.ToString(),
             ["AiComparison:TokenCapPerRunInput"] = "200000",
             ["AiComparison:ExtractConcurrency"] = "2",
         }).Build();
 
-        var catalog = new PromptCatalog(_config);
+        var catalog = new PromptCatalog(config);
         var validator = new SchemaValidator(catalog);
         var redactor = new PiiRedactor();
-        _stub = new StubAiClient(_config);
+        var stub = new StubAiClient(config);
         var assembler = new SupplierAssembler(_ctx);
         var artifactRepo = new ComparisonArtifactRepository(_ctx);
         var jobRepo = new ComparisonJobRepository(_ctx);
         var auditWriter = new AdminAuditWriter(_ctx);
-        var unitOfWork = new FundingPlatform.Infrastructure.Persistence.UnitOfWork(_ctx);
+        var unitOfWork = new UnitOfWork(_ctx);
         var rateLimitCounter = new AdminAuditRateLimitCounter(_ctx);
-        var rateLimitGuard = new RateLimitGuard(rateLimitCounter, _config, NullLogger<RateLimitGuard>.Instance);
-        var tokenCapGuard = new TokenCapGuard(_config, NullLogger<TokenCapGuard>.Instance);
+        var rateLimitGuard = new RateLimitGuard(rateLimitCounter, config, NullLogger<RateLimitGuard>.Instance);
+        var tokenCapGuard = new TokenCapGuard(config, NullLogger<TokenCapGuard>.Instance);
         var auditFactory = new AdminAuditEventComparisonFactory();
 
-        _orchestrator = new ComparisonOrchestrator(
-            assembler, redactor, _stub, catalog, validator,
+        return new ComparisonOrchestrator(
+            assembler, redactor, stub, catalog, validator,
             artifactRepo, jobRepo, rateLimitGuard, tokenCapGuard,
             auditFactory, auditWriter, unitOfWork,
             new InMemoryObjectStorage(),
-            _config, NullLogger<ComparisonOrchestrator>.Instance);
+            config, NullLogger<ComparisonOrchestrator>.Instance);
     }
-
-    [TearDown]
-    public void TearDown() => _ctx.Dispose();
 
     private async Task<int> SeedItemWithTwoSuppliersAsync()
     {
@@ -129,58 +199,6 @@ public class ComparisonOrchestratorIntegrationTests
         await _ctx.SaveChangesAsync();
 
         return item.Id;
-    }
-
-    [Test]
-    public async Task GenerateAsync_HappyPath_PersistsArtifact_AndEmitsAudit()
-    {
-        var itemId = await SeedItemWithTwoSuppliersAsync();
-
-        var result = await _orchestrator.GenerateAsync(new GenerateComparisonCommand(
-            ApplicationItemId: itemId,
-            ActorUserId: "reviewer-1",
-            ActorRole: "Reviewer",
-            BypassRateLimit: false,
-            BypassTokenCap: false), CancellationToken.None);
-        await _ctx.SaveChangesAsync();
-
-        Assert.That(result, Is.InstanceOf<GenerateComparisonSuccess>());
-
-        var artifact = await _ctx.ComparisonArtifacts.FirstOrDefaultAsync(a => a.ApplicationItemId == itemId);
-        Assert.That(artifact, Is.Not.Null);
-        Assert.That(artifact!.InputHash, Has.Length.EqualTo(64));
-        Assert.That(artifact.SchemaVersion, Is.EqualTo("v1"));
-        Assert.That(artifact.PromptVersion, Is.EqualTo("2026-05-11"));
-
-        var audit = await _ctx.AdminAuditEvents.FirstOrDefaultAsync(e => e.Action == "AiComparisonGenerated");
-        Assert.That(audit, Is.Not.Null);
-        Assert.That(audit!.TargetId, Is.EqualTo(itemId.ToString()));
-    }
-
-    [Test]
-    public async Task GenerateAsync_CachedFresh_ShortCircuits_NoAdditionalAiCalls()
-    {
-        var itemId = await SeedItemWithTwoSuppliersAsync();
-
-        await _orchestrator.GenerateAsync(new GenerateComparisonCommand(
-            itemId, "reviewer-1", "Reviewer", false, false), CancellationToken.None);
-        await _ctx.SaveChangesAsync();
-        var firstCalls = StubAiClient.CompareCallCount;
-
-        await _orchestrator.GenerateAsync(new GenerateComparisonCommand(
-            itemId, "reviewer-1", "Reviewer", false, false), CancellationToken.None);
-        await _ctx.SaveChangesAsync();
-
-        Assert.That(StubAiClient.CompareCallCount, Is.EqualTo(firstCalls),
-            "Cached path should not trigger additional compare AI calls.");
-    }
-
-    [Test]
-    public async Task GetCachedComparisonAsync_NoArtifact_ReturnsNull()
-    {
-        var itemId = await SeedItemWithTwoSuppliersAsync();
-        var cached = await _orchestrator.GetCachedComparisonAsync(itemId, CancellationToken.None);
-        Assert.That(cached, Is.Null);
     }
 
     private static string ResolveFixturesRoot()
