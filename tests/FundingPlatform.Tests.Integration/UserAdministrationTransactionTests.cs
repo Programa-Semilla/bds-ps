@@ -65,6 +65,20 @@ public class UserAdministrationTransactionTests
                     {
                         prop.SetDefaultValueSql("CURRENT_TIMESTAMP");
                     }
+                    // Spec 021 — explicit nvarchar(max)/varchar(max) column types
+                    // configured on NotificationOutbox + NotificationDelivery are
+                    // SqlServer-specific. SQLite has TEXT regardless of size and
+                    // does not accept "(max)" as a parameterised type modifier.
+                    // Clear the explicit column type so EF emits a SQLite-friendly
+                    // default ("TEXT" for string).
+                    var columnType = prop.GetColumnType();
+                    if (!string.IsNullOrEmpty(columnType)
+                        && (columnType.Contains("(max)", StringComparison.OrdinalIgnoreCase)
+                            || columnType.StartsWith("datetime2", StringComparison.OrdinalIgnoreCase)
+                            || columnType.StartsWith("varchar", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        prop.SetColumnType(null);
+                    }
                 }
             }
         }

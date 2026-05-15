@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Nueva solicitud para revisar</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    <strong>@Model.Payload.ApplicantDisplayName</strong> envió una nueva solicitud
+    <strong>(#@Model.Payload.ApplicationId)</strong> para revisión. Por favor, accede a la cola
+    para evaluarla.
+</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Revisar solicitud</a>
+</p>
+<p>Si el botón no funciona, copia y pega este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

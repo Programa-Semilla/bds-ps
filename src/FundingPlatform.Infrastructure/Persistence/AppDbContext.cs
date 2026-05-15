@@ -1,4 +1,5 @@
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Infrastructure.Notifications.Persistence;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,8 +43,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<UserGroupMembership> UserGroupMemberships => Set<UserGroupMembership>();
     public DbSet<AdminAuditEvent> AdminAuditEvents => Set<AdminAuditEvent>();
 
-    // Spec 021 — Process / Plantilla aggregates, Province/Cantón catalog,
-    // PasswordResetToken single-use marker.
+    // Spec 020 — AI quote comparison cache + job queue.
+    public DbSet<ComparisonArtifact> ComparisonArtifacts => Set<ComparisonArtifact>();
+    public DbSet<ComparisonJob> ComparisonJobs => Set<ComparisonJob>();
+
+    // Spec 021-email-notifications — transactional outbox + per-recipient delivery audit.
+    public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+
+    // Spec 021-feedback-session-may13 — Process / Plantilla aggregates,
+    // Province/Cantón catalog, PasswordResetToken single-use marker.
     public DbSet<Process> Processes => Set<Process>();
     public DbSet<Plantilla> Plantillas => Set<Plantilla>();
     public DbSet<ProcessPlantilla> ProcessPlantillas => Set<ProcessPlantilla>();

@@ -135,6 +135,12 @@ public class QuotationCreateCrcTests
             new ApplicationRepository(ctx),
             NullLogger<SupplierCatalogService>.Instance);
 
+        // Spec 021 — ApplicationService also depends on INotificationOutboxWriter
+        // + IWorkflowTransactionScope. AddQuotationToExistingBranchAsync does not
+        // touch them; substitute lightweight no-ops.
+        var outboxWriter = NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>();
+        var txScope = NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.IWorkflowTransactionScope>();
+
         return new ApplicationService(
             new ApplicationRepository(ctx),
             new CategoryRepository(ctx),
@@ -145,6 +151,8 @@ public class QuotationCreateCrcTests
             new DocumentRepository(ctx),
             supplierCatalog,
             conversion,
+            outboxWriter,
+            txScope,
             NullLogger<ApplicationService>.Instance);
     }
 

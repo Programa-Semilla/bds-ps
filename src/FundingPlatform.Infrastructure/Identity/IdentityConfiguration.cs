@@ -11,7 +11,7 @@ namespace FundingPlatform.Infrastructure.Identity;
 
 public static class IdentityConfiguration
 {
-    public const string SentinelEmail = "admin@FundingPlatform.com";
+    public const string SentinelEmail = "admin@programa-semilla.test";
     public const string SentinelPasswordConfigKey = "Admin:DefaultPassword";
 
     public static async Task SeedRolesAsync(IServiceProvider serviceProvider)
@@ -90,9 +90,9 @@ public static class IdentityConfiguration
 
         var seedUsers = new[]
         {
-            new { Email = "applicant@demo.com", Password = "Demo123!", FirstName = "Ana", LastName = "Pérez", LegalId = "DEMO-APP-001", Roles = new[] { "Applicant" } },
-            new { Email = "reviewer@demo.com", Password = "Demo123!", FirstName = "Carlos", LastName = "Rivera", LegalId = "DEMO-REV-001", Roles = new[] { "Reviewer" } },
-            new { Email = "admin@demo.com", Password = "Demo123!", FirstName = "María", LastName = "Torres", LegalId = "DEMO-ADM-001", Roles = new[] { "Admin" } },
+            new { Email = "applicant@programa-semilla.test", Password = "Demo123!", FirstName = "Ana", LastName = "Pérez", LegalId = "DEMO-APP-001", Roles = new[] { "Applicant" } },
+            new { Email = "reviewer@programa-semilla.test", Password = "Demo123!", FirstName = "Carlos", LastName = "Rivera", LegalId = "DEMO-REV-001", Roles = new[] { "Reviewer" } },
+            new { Email = "demo-admin@programa-semilla.test", Password = "Demo123!", FirstName = "María", LastName = "Torres", LegalId = "DEMO-ADM-001", Roles = new[] { "Admin" } },
         };
 
         foreach (var seed in seedUsers)

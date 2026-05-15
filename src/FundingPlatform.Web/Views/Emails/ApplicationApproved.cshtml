@@ -1,0 +1,16 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Tu solicitud fue aprobada</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    Nos complace informarte que tu solicitud <strong>#@Model.Payload.ApplicationId</strong>
+    fue <strong>aprobada</strong>. Próximamente recibirás indicaciones sobre los siguientes
+    pasos del proceso.
+</p>
+<p>Puedes consultar los detalles desde tu panel:</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ver siguientes pasos</a>
+</p>
+<p>Si el botón no funciona, copia y pega este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

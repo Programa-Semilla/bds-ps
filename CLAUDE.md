@@ -51,6 +51,17 @@ brainstorm/                        Working scratchpad for in-flight design explo
 | `Storage:Categories:{name}:UrlExpirySeconds` | `300` (5 min, max 900) | SAS URL TTL when `ServingMode=TimeLimitedUrl`. Hard cap is 15 min (FR-019). |
 | `Storage:Categories:{name}:RetentionPolicy` | `none` | Future-seam string. `signed-funding-agreements` is the legal-hold candidate (FR-023). |
 | `Storage:TestFallback:AllowFilesystem` | `false` | When `true`, the E2E `AspireFixture` may swap to `LocalFilesystem` if Azurite cannot start (FR-008). Logs a warning. |
+| `Notifications:Provider` | `Mailtrap` (Local) / `Mailgun` (non-Local) | Spec 021 — selects the `IEmailSender` impl. Absence of provider config in non-Production → `NoOpEmailSender` with WARN log (FR-015). |
+| `Notifications:BaseUrl` | per env | Absolute base URL used to compose CTA deep links in email bodies (FR-026). |
+| `Notifications:NonProdAllowlist` | `["@programa-semilla.test"]` (dev) | Spec 021 / FR-017 — recipients whose email or `@domain` is not in the list are dropped and recorded as `BlockedByAllowlist`. Empty list is fail-closed. Bypassed in Production (FR-019). |
+| `Notifications:Mailgun:ApiKey` / `Domain` / `BaseUrl` | `` / `` / `https://api.mailgun.net/v3` | Mailgun HTTP API config (FR-014). AppHost fails fast in Production when any of ApiKey/Domain/Sender:Email/BaseUrl is missing (FR-016). |
+| `Notifications:Mailtrap:Host` / `Port` / `Username` / `Password` | from Aspire smtp4dev binding | SMTP path config; in Local resolved automatically from the Aspire smtp4dev sidecar endpoint. |
+| `Notifications:Worker:PollIntervalSeconds` / `MaxAttempts` / `BatchSize` | `5` / `3` / `25` | `EmailDispatchWorker` poll cadence + retry budget + per-poll claim batch size (FR-003, FR-021). |
+| `Notifications:Sender:Name` / `Email` | `Programa Semilla / Sistema de Banca para el Desarrollo` / `no-reply@programa-semilla.cr` | RFC-5322 From: display + address used by every variant (FR-014, spec 019 sender display). |
+
+### Spec 021 sidecar
+
+The Aspire AppHost registers `rnwood/smtp4dev` as a container resource named `smtp4dev` with two endpoints (`smtp` TCP 25, `http` 80). The Web project consumes both via `WithReference` so `MailtrapSmtpEmailSender` resolves the dynamic SMTP host:port; the E2E `MailCaptureClient` consumes the HTTP REST API.
 
 ## Testing
 
@@ -58,7 +69,7 @@ brainstorm/                        Working scratchpad for in-flight design explo
 - Integration: `dotnet test tests/FundingPlatform.Tests.Integration`
 - E2E: `dotnet test tests/FundingPlatform.Tests.E2E`
 - E2E uses `AspireFixture`, which boots AppHost with `--EphemeralStorage=true`. Each fixture run starts with a clean SQL Server container; the fixture deploys the dacpac via `sqlpackage` and waits synchronously before tests start.
-- Sentinel admin in ephemeral E2E: `admin@FundingPlatform.com` / `Sentinel123!`.
+- Sentinel admin in ephemeral E2E: `admin@programa-semilla.test` / `Sentinel123!`. Demo seeds: `applicant@programa-semilla.test`, `reviewer@programa-semilla.test`, `demo-admin@programa-semilla.test` (all `Demo123!`). All seed emails live in the `Notifications:NonProdAllowlist` default `["@programa-semilla.test"]` so mail captures in smtp4dev without further config.
 - Integration tests must hit a real DB, never mocks. Mocks burned the team on a prod migration last quarter.
 - Delivery bar: a feature is not delivered until the **full E2E suite has been personally executed and is green**. Structural readiness, type-checks, or partial runs do not count.
 
@@ -84,15 +95,21 @@ brainstorm/                        Working scratchpad for in-flight design explo
 - C# 13 / .NET 10.0 (015-multi-currency-quotes — Currencies, ExchangeRates, snapshot-locked Quotation conversion)
 - C# 13 / .NET 10.0 (016-user-groups — Group / UserGroupMembership / AdminAuditEvent; reviewer-side group-overlap predicate composed at the EF query level on every listing surface; detail-page authorization mirrors the same predicate)
 - C# 13 / .NET 10.0 (017-admin-ux-facelift — `IAdminDashboardProjection` + `IAdminAuditEventReader` + `IAdminAuditEventCopyProvider`; new `_AdminDashboard` + `_CapabilityCard` partials; `_KpiTile` + `_ReportSubTabs` re-templated; route-attribute renames on three admin controllers; **schema unchanged**)
+- C# 13 / .NET 10.0 (020-ai-quote-comparison — `IComparisonOrchestrator` + `IAiClient` (Anthropic) + `IPiiRedactor`; new `ComparisonArtifact` + `ComparisonJob` aggregate roots; hosted `BackgroundService` worker; reviewer-screen comparison region; reused `AdminAuditEvent` payload shape)
+- C# 13 / .NET 10.0 (021-email-notifications — `NotificationOutbox` + `NotificationDelivery` dacpac tables; `IEmailSender` (MailKit v3 MIT) + `MailgunHttpEmailSender` + `NoOpEmailSender` + `RecipientAllowlistFilter` decorator; `INotificationRecipientResolver`; `EmailDispatchWorker` BackgroundService; Razor email templates under `Views/Emails/`; **AppHost smtp4dev sidecar**; `MailCaptureClient` E2E surface)
 - C# 13 / .NET 10.0 (021-feedback-session-may13 — `Process` aggregate above `Group` + per-Process `Plantilla` snapshot with copy-on-assign; Application carries `Impact` value object + opaque `PublicCode` (base32 `A-HJ-NP-Z2-9`, regex `^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$`); `Province`/`Cantón` CR catalogs cascade on supplier-branch entry; ASP.NET Identity `PasswordResetToken` flow; `StageExpiryReminderService` hosted background worker + `SmtpEmailSender` (`System.Net.Mail.SmtpClient`, no MailKit per NFR-005); Tabler-branded public landing scaffold; acompañamiento copy pivot over "financiamiento" on every applicant-facing surface; reviewer queue search; `[Hint]` attribute + `_HintTooltip.cshtml` scaffold for FR-020 hint copy (strings deferred per OQ-8))
 - Azure Blob Storage in production / Azurite (Docker container) in dev+test / local filesystem fallback. SQL Server unchanged. (014-azure-blob-storage)
+- `Anthropic.SDK` NuGet (new managed dep, approved via spec 020 A-10)
+- smtp4dev (rnwood/smtp4dev) Aspire container in Local; Mailgun HTTP API outside Local (021-email-notifications)
 
 ## Recent Changes
+- 022-combined-release: 020 + 021 merged for joint PR; no behavioral changes beyond per-spec contracts; conflict-resolution log in `specs/022-combined-release/plan.md`
 - 021-feedback-session-may13: Consolidated implementation of the 26 May-13 stakeholder refinements across US1–US8 — Process/Plantilla/PublicCode/Impact-at-Application, supplier autocomplete + Province/Cantón cascade + new-supplier inline branch, autosave-on-blur + masks + required markers + submit gating + `/review` confirmation, profile + forgot-password flows, stage-expiry windows + reminder emails, acompañamiento copy pivot + landing scaffold, admin KPI repivot + deleted-still-active bug fix
+- 021-email-notifications: First email-notification subsystem — transactional outbox + BackgroundService dispatcher, six v1 events (APPLICATION_SUBMITTED_REVIEWER/APPLICANT, RETURNED_TO_APPLICANT, RESUBMITTED_BY_APPLICANT, APPLICATION_APPROVED/REJECTED), es-CR Razor templates with text-only wordmark, fail-closed allowlist guard outside Production, idempotency via `(EventType, ApplicationId, VersionHistoryId, RecipientUserId)` unique index, smtp4dev capture sidecar wired into Aspire, `EmailTemplateSenderTests.Assert.Ignore` replaced with real captures
+- 020-ai-quote-comparison: AI-powered per-item supplier-quotation comparison persisted as hash-keyed `ComparisonArtifact`, three-stage `extract → normalize → compare` pipeline behind `IComparisonOrchestrator`, single Anthropic provider behind `IAiClient`, PII redaction at the boundary, per-app rate limit + per-run token cap with admin bypass, hosted-service worker + 3 s polling for "Generar todo", numeric-superscript citations linking back to supplier blobs via existing storage signed URLs, es-CR output, reused `AdminAuditEvent` (FR-H1, SC-001..012)
 - 017-admin-ux-facelift: `/Admin` becomes a capability-complete dashboard (4 action KPIs + 9 grouped capability cards + optional activity feed); 10-surface admin sweep at spec 011 quality bar; sidebar admin grouping; route normalization (AdminCurrencies/AdminExchangeRates/AdminLegacyQuotations); Reports tab UX refresh; schema unchanged (FR-027 / SC-016)
 - 016-user-groups: Group-scoped reviewer access — `Group` + `UserGroupMembership` + `AdminAuditEvent`, admin Groups CRUD, multi-select group selector on the user form, EF-level group-overlap predicate on queue / signing inbox / detail-page auth, FR-014 reviewer queue search input
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
-- 014-azure-blob-storage: Added C# 13 / .NET 10.0
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

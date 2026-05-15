@@ -31,7 +31,7 @@ public class VisualRegressionTests : AuthenticatedTestBase
     public async Task AdminIndex_Snapshot()
     {
         await Page.GotoAsync($"{BaseUrl}/Account/Login");
-        await Page.Locator("[name=Email]").FillAsync("admin@FundingPlatform.com");
+        await Page.Locator("[name=Email]").FillAsync("admin@programa-semilla.test");
         await Page.Locator("[name=Password]").FillAsync("Sentinel123!");
         await Page.Locator("main button[type=submit]").ClickAsync();
         await Page.GotoAsync($"{BaseUrl}/Admin");
@@ -45,7 +45,7 @@ public class VisualRegressionTests : AuthenticatedTestBase
     public async Task ReviewerQueue_Snapshot()
     {
         await Page.GotoAsync($"{BaseUrl}/Account/Login");
-        await Page.Locator("[name=Email]").FillAsync("admin@FundingPlatform.com");
+        await Page.Locator("[name=Email]").FillAsync("admin@programa-semilla.test");
         await Page.Locator("[name=Password]").FillAsync("Sentinel123!");
         await Page.Locator("main button[type=submit]").ClickAsync();
         await Page.GotoAsync($"{BaseUrl}/Review");

@@ -1,3 +1,5 @@
+using FundingPlatform.Web.ViewModels.Review;
+
 namespace FundingPlatform.Web.ViewModels;
 
 public class ReviewApplicationViewModel
@@ -12,6 +14,10 @@ public class ReviewApplicationViewModel
     public List<string>? UnresolvedItemWarnings { get; set; }
     /// <summary>Spec 013 FR-052: count of quotations referencing a Rejected supplier.</summary>
     public int RejectedSupplierCount { get; set; }
+    /// <summary>Spec 020 — is the current viewer an admin? Drives the "Anular límites" toggle visibility.</summary>
+    public bool IsAdmin { get; set; }
+    /// <summary>Spec 020 — poll interval for the JS Generate-All status updates (default 3 s).</summary>
+    public int PollIntervalSeconds { get; set; } = 3;
 }
 
 public class ReviewItemViewModel
@@ -31,6 +37,8 @@ public class ReviewItemViewModel
     public List<ReviewQuotationViewModel> Quotations { get; set; } = [];
     public string? ImpactTemplateName { get; set; }
     public List<ImpactParameterDisplayViewModel> ImpactParameters { get; set; } = [];
+    /// <summary>Spec 020 — per-item AI comparison region projection.</summary>
+    public ItemComparisonViewModel? Comparison { get; set; }
 }
 
 public class ReviewQuotationViewModel

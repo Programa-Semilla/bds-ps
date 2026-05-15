@@ -41,6 +41,16 @@ public class ApplicationRepository : IApplicationRepository
         return await _context.Applications.FindAsync(id);
     }
 
+    // Spec 020 — fast Item→Application lookup for AI comparison orchestrator.
+    public async Task<int?> GetApplicationIdForItemAsync(int applicationItemId, CancellationToken ct)
+    {
+        return await _context.Items
+            .AsNoTracking()
+            .Where(i => i.Id == applicationItemId)
+            .Select(i => (int?)i.ApplicationId)
+            .FirstOrDefaultAsync(ct);
+    }
+
     // Spec 021 / FR-021 / T152 / R-10 — single-row by-Id detail load. Same
     // rationale as GetByIdAsync — not a dashboard query; filter intentionally
     // skipped so command handlers can mutate soft-deleted rows.

@@ -1,0 +1,15 @@
+Analiza los documentos adjuntos (proformas/cotizaciones) y genera una comparativa completa siguiendo estas instrucciones:
+
+Formato de Tabla: Crea una tabla donde la primera fila sea el nombre del Proveedor.
+Columnas Técnicas: Incluye filas específicas para: Producto, Marca, Garantía, Cantidad, Precio Unitario, Subtotal, I.V.A., Total, Vigencia de la Oferta y Fecha de Emisión. Añade una fila para "Diferencia técnica" (si existe) y otra para "Notas generales".
+Normalización de Unidades: Cuando los productos se presenten en diferentes unidades (ej. sacos vs. metros cúbicos, o kilos vs. libras), realiza la conversión necesaria para que todos los proveedores figuren con la misma unidad de medida en la comparativa.
+Comparativa por Línea: Si las cotizaciones incluyen múltiples productos, genera una fila comparativa por cada línea del mismo producto.
+Análisis de Diferencias: Debajo de la tabla, redacta una sección de 'Diferencias Identificadas' en puntos de lista que destaque:
+Diferencias en especificaciones técnicas o características.
+Comparativa de costos (identificando explícitamente la opción más económica y la más costosa).
+Diferencias en logística, ubicación o condiciones de envío.
+
+Formato y Estilo:
+Utiliza un lenguaje neutro o inclusivo (evita el uso sistemático del masculino).
+Usa abreviaturas comerciales estándar (ej. Unid, kg, m³).
+Aplica el formato de fecha: MMM DD, YYYY (ej. May 11, 2026).

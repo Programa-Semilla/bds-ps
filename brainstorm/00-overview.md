@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 ## Sessions
 
@@ -23,7 +23,9 @@ Last updated: 2026-05-13
 | 15 | 2026-05-08 | admin-ux-facelift | spec-created | 017 |
 | 16 | 2026-05-08 | pdf-template-lift | spec-created | 018 |
 | 17 | 2026-05-09 | programa-semilla-brand | spec-created | 019 |
-| 18 | 2026-05-13 | feedback-session-may13 | spec-created | 021 |
+| 18 | 2026-05-11 | ai-quote-comparison | spec-created | 020 |
+| 19 | 2026-05-11 | email-notifications | spec-created | 021-email-notifications |
+| 20 | 2026-05-13 | feedback-session-may13 | spec-created | 021-feedback-session-may13 |
 
 ## Open Threads
 
@@ -137,7 +139,6 @@ Last updated: 2026-05-13
 - Login hero — large seedling mark only vs commissioned scene; defaults to mark-only (from #17)
 - Sidebar collapsed-state breakpoint — Tabler default 992 px vs custom (from #17)
 - Confetti palette specifics — teal + yellow only vs include cream + danger-soft (from #17)
-- Email signature layout — text-only vs inline seedling mark; defaults to text-only (from #17)
 - 10 años badge graceful retirement plan when "10 años" stops being current — future spec (from #17)
 - BRAND-VOICE.md canonical location — repo root, new spec dir, or replace spec 011's in place (from #17)
 - Visual-regression tooling — continue Playwright snapshot comparison vs adopt Percy/Chromatic; defaults to Playwright (from #17; recurring from #08/#11)
@@ -145,19 +146,49 @@ Last updated: 2026-05-13
 - FR-014: pin display + heading weight floors (e.g., ≥ 700 / ≥ 600) during planning so spec is fully testable without depending on SC-015 sign-off (from #17)
 - FR-021: pin yellow-badge dark-text contrast ratio (e.g., ≥ 4.5:1 against fill) during planning (from #17)
 - Reviewer-surface sponsor-strip chrome density vs visual real-estate — confirm with reviewer feedback if available (from #17)
-- Plantilla cardinality per Process — one-to-one (default) vs many-to-one; pin in `/speckit-plan` (from #18, OQ-1)
-- Process closure freeze semantics on `FundingAgreement` (default = freeze) (from #18, OQ-2)
-- Stage-expiry override granularity — per-Process only (default) vs also per-Plantilla (from #18, OQ-3)
-- PublicCode rendering on legacy Funding Agreement PDF template (spec 018) — template field swap vs footnote (from #18, OQ-4)
-- Reglamento + ejemplo file content ownership and authoring source — admin team vs Programa Semilla operations (from #18, OQ-5)
-- Email-reminder cadence (T-72h / T-24h / expiry) — fixed (default) vs admin-configurable (from #18, OQ-6)
-- SupplierAdmin scope — full CRUD on suppliers (default) vs validate-only-existing (from #18, OQ-7)
-- Hint copy authorship for FR-020's initial set — designer / copywriter delivery pending (from #18, OQ-8)
-- Process audit-event coverage extends `AdminAuditEvent` (spec 016 pattern) — pin in plan (from #18, OQ-9)
-- Provincia *"Otro/Extranjero"* handling — block in UI (default) vs catalog row; revisit if foreign suppliers surface (from #18, OQ-10)
-- Admin-override path for expired stage-windows — whether the HTTP 422 hard-block should be overridable from the admin panel (from #18)
-- BCCR exchange-rate auto-fetch + Tropic AI quotation extraction — research-only in 021; needs future brainstorm / spec to productize (from #18)
-- Single-spec scope vs. architectural / UX split — stakeholder picked single-shot; reviewer brief flags this for stakeholder pushback (from #18)
+- Image-only PDF strategy — refuse with clear "envíe un PDF con capa de texto" message vs OCR-then-redact pre-pass (from #18)
+- Final AI model picks — Sonnet 4.6 extract + Opus 4.7 compare default; reconsider after token-cost estimate against sample application (from #18)
+- Spreadsheet (.xlsx/.csv) ingestion in MVP — currently deferred; confirm whether basic text conversion belongs in MVP (from #18)
+- Polling vs SignalR for "Generar todo" — polling chosen for MVP; reconfirm at plan time once Aspire+SignalR overhead is measured (from #18)
+- Citation marker style — numeric superscripts mimicking source image; final visual + interaction (hover preview vs click-through) deferred to design pass during plan (from #18)
+- DB-vs-file discrepancy reconciliation — default is "comparator gets both + flags it"; alternatives are silent DB-wins or file-wins (from #18)
+- "Forzar regeneración total" UX placement — two-step (toggle Override → click Generate all) chosen; single-click composite admin action rejected as too easy to mis-fire (from #18)
+- Token-cost dashboard scope — out of MVP; FR-H3 promises audit shape supports it; confirm aggregation dimensions at plan time (from #18)
+- SC-012 measurement protocol — define how the 70% task-time reduction is measured (sample selection, who runs it, baseline definition) during plan (from #18)
+- Domain behaviour methods on `ComparisonArtifact` and `ComparisonJob` (`IsStaleAgainst(InputDescriptor)`, `Reap()`, `RecordSuccess(...)`, `RecordFailure(...)`) to satisfy Constitution Principle II — flagged in REVIEW-SPEC.md (from #18)
+- History table for compliance — does the team need an append-only audit trail of every AI output beyond the latest cached artefact, or is "latest only" acceptable forever? (from #18)
+- Redaction list completeness — should the deny-list expand to banking info, CCSS account numbers, fiscal IDs of third parties before MVP ships, or stay at the 5 fields and revisit? (from #18)
+- Multi-provider AI posture — any near-term need for OpenAI / Azure / Gemini (data residency, cost, customer requirement) that would push multi-provider into MVP? (from #18)
+- Polling-path covering index — pin during planning whether composite indexes on `(ApplicationItemId)` and `(ApplicationId, Status)` are sufficient for `dbo.ComparisonArtifacts` / `dbo.ComparisonJobs`, or whether a covering index on the polling read path is also needed (from #18)
+- Anthropic.SDK NuGet version pin and transitive supply-chain notes — new managed dependency; this spec is the approval vehicle per CLAUDE.md; reconfirm at plan time (from #18)
+- Mailgun ToS unsubscribe footer (List-Unsubscribe header vs static `mailto:soporte@…`) — pin with Mailgun account owner during planning (from #19)
+- SMTP-capture sidecar choice: smtp4dev (.NET-native, lighter) vs MailHog (Go, broadly used) — pin during planning (from #19)
+- Real Mailtrap stays an opt-in dev override; SMTP-sidecar is the default — confirm during planning (from #19)
+- Production sender email address — `no-reply@programa-semilla.cr` recommended; pin with ops (from #19)
+- `MailKit` license posture: v3 (MIT) vs v4 (commercial) — confirm during planning (from #19)
+- `APPLICATION_SUBMITTED` enum split: two values for the two recipient buckets (clean idempotency) vs one value with two template variants (resolver fan-out) — recommended: split (from #19)
+- Confirm `Application.Folio` field exists and is populated by `Submit()` — pin against spec 001 / data-model (from #19)
+- `NotificationOutbox` retention — 90 days for `Done`, 1 year for `DeadLetter` recommended (from #19)
+- Future multi-replica worker scaling — correctness covered today (FR-004 + FR-020 + EC-008); throughput tuning deferred (from #19)
+- Brand-grep gate scope for new email templates: source-`.cshtml` layer (recommended) vs render-time scan (from #19)
+- Future in-app notifications / bell icon / SignalR / push / SMS / Slack — spec 021-email-notifications ships email-only; in-app channel still pending (carries forward from #08 / #11)
+- Future stage-granular notification events (`STAGE_APPROVED`, `REVIEWER_ASSIGNED`, `REVIEWER_UNASSIGNED`, `COMMENT_ADDED`) — out of scope for 021-email-notifications; eligible for v2 if reviewer churn proves a real signal (from #19)
+- Future signing-stage notification events (`AGREEMENT_GENERATED`, `SIGNED_PDF_UPLOADED`) — out of scope for 021-email-notifications; eligible for a follow-up once 005 / 006 traffic patterns are observed (from #19)
+- Future user-facing notification-preferences UI / opt-out flow — deferred; OQ-001 may force a static unsubscribe-mailto footer in the interim (from #19)
+- Future Mailgun bounce-webhook ingestion + suppression-list sync — deferred until Mailgun delivery telemetry justifies the loop (from #19)
+- Plantilla cardinality per Process — one-to-one (default) vs many-to-one; pin in `/speckit-plan` (from #20, OQ-1)
+- Process closure freeze semantics on `FundingAgreement` (default = freeze) (from #20, OQ-2)
+- Stage-expiry override granularity — per-Process only (default) vs also per-Plantilla (from #20, OQ-3)
+- PublicCode rendering on legacy Funding Agreement PDF template (spec 018) — template field swap vs footnote (from #20, OQ-4)
+- Reglamento + ejemplo file content ownership and authoring source — admin team vs Programa Semilla operations (from #20, OQ-5)
+- Email-reminder cadence (T-72h / T-24h / expiry) — fixed (default) vs admin-configurable (from #20, OQ-6)
+- SupplierAdmin scope — full CRUD on suppliers (default) vs validate-only-existing (from #20, OQ-7)
+- Hint copy authorship for FR-020's initial set — designer / copywriter delivery pending (from #20, OQ-8)
+- Process audit-event coverage extends `AdminAuditEvent` (spec 016 pattern) — pin in plan (from #20, OQ-9)
+- Provincia *"Otro/Extranjero"* handling — block in UI (default) vs catalog row; revisit if foreign suppliers surface (from #20, OQ-10)
+- Admin-override path for expired stage-windows — whether the HTTP 422 hard-block should be overridable from the admin panel (from #20)
+- BCCR exchange-rate auto-fetch + Tropic AI quotation extraction — research-only in 021-feedback-session-may13; needs future brainstorm / spec to productize (from #20)
+- Single-spec scope vs. architectural / UX split — stakeholder picked single-shot; reviewer brief flags this for stakeholder pushback (from #20)
 
 ## Closed Threads
 
@@ -168,6 +199,9 @@ Last updated: 2026-05-13
 - Future localization-layer spec — partials must be checked to ensure no UI copy was embedded during the 008 sweep (from #08; reaffirmed by #11) — **Closed by #12**: executed during the localization sweep (User Story 2 + NFR-004); the partial-parameterization rule from spec 008 was preserved.
 - Future localization-layer spec — voice-guide rewrites in spec 011 must keep copy out of partials' code paths to remain compatible (from #11; carries forward from #08) — **Closed by #12**: validated during the spec 012 sweep; voice-guide rewrites in 011 stayed compatible with the inline-replace pattern.
 - Display brand name selection — Forge / Ascent / keep FundingPlatform — user sign-off gate (from #11) — **Closed by #12**: **Capital Semilla** chosen (FR-006). Display brand only; code namespaces, project names, and config keys remain `FundingPlatform`. — **Reopened and re-closed by #17**: display brand pivots again to **Programa Semilla** (spec 019 FR-001) to align with the actual sponsor-program identity from the funding-agreement PDF. Code namespaces still remain `FundingPlatform`.
+- Future spec 010 (notifications & inbox) needs its own brainstorm — likely SignalR (from #08) — **Partially closed by #19**: email channel ships in spec 021 with outbox + worker + Mailgun + spec-019-branded templates. In-app inbox / SignalR remains open for a future spec.
+- Future notifications & inbox / SignalR spec needs its own brainstorm — spec 011 deliberately excludes real-time push (from #11) — **Partially closed by #19**: email channel ships in spec 021. Real-time push / in-app inbox remains open.
+- Email signature layout — text-only vs inline seedling mark; defaults to text-only (from #17) — **Closed by #19**: spec 021 ships text-only email signatures with no inline `<img>` (FR-023 + NFR-001), preserving spec 019 NFR-005 email-client compatibility.
 
 ## Parked Ideas
 

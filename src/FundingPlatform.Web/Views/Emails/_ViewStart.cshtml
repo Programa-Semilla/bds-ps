@@ -1,0 +1,12 @@
+@{
+    // Spec 021 / FR-023 — HTML emails use the shared _EmailLayout. Plain-text
+    // variants set ViewData["DisableLayout"]=true to skip the layout entirely.
+    if (ViewData["DisableLayout"] as bool? == true)
+    {
+        Layout = null;
+    }
+    else
+    {
+        Layout = "_EmailLayout";
+    }
+}

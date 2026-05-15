@@ -1,0 +1,75 @@
+/*
+ * Spec 020 — AI quote comparison styles. Consistent with Tabler design tokens
+ * (uses CSS variables Tabler exposes) and WCAG 2.1 AA color contrast.
+ */
+.comparison-region {
+    border-top: 1px solid var(--tblr-border-color, #e6e7e9);
+    padding-top: 0.75rem;
+}
+
+.comparison-empty {
+    font-size: 0.875rem;
+}
+
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.comparison-table th,
+.comparison-table td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--tblr-border-color, #e6e7e9);
+    vertical-align: top;
+}
+
+.comparison-table thead th {
+    background-color: var(--tblr-bg-surface-secondary, #f6f8fb);
+    text-align: left;
+}
+
+.comparison-narratives {
+    background-color: var(--tblr-bg-surface-secondary, #f9fafb);
+    border-radius: 6px;
+    padding: 0.75rem;
+}
+
+.comparison-narrative p {
+    margin-top: 0.15rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.comparison-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.comparison-app-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.comparison-status:not(:empty)::before {
+    content: "•";
+    margin-right: 0.25rem;
+    color: var(--tblr-secondary, #6c7480);
+}
+
+/* WCAG 2.1 AA — citation marker styling.
+ * Markers carry both color and a subtle underline so color is not the sole
+ * indicator. Focus ring is visible on keyboard navigation. */
+.comparison-region sup a {
+    color: var(--tblr-primary, #206bc4);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
+.comparison-region sup a:focus-visible {
+    outline: 2px solid var(--tblr-primary, #206bc4);
+    outline-offset: 2px;
+}
