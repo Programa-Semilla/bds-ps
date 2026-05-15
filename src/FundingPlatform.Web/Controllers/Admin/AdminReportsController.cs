@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FundingPlatform.Web.Controllers.Admin;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SupplierAdmin")]
 [SupplierAdminDenied]
 [Route("Admin/Reports")]
 public class AdminReportsController : Controller

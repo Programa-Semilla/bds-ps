@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FundingPlatform.Web.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SupplierAdmin")]
 [SupplierAdminDenied]
 public class AdminController : Controller
 {

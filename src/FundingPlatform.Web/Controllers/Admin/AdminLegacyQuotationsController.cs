@@ -19,7 +19,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 ///
 /// Note on role naming: codebase uses "Admin" (see other admin controllers).
 /// </summary>
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SupplierAdmin")]
 [SupplierAdminDenied]
 [Route("Admin/LegacyQuotations")]
 public class AdminLegacyQuotationsController : Controller

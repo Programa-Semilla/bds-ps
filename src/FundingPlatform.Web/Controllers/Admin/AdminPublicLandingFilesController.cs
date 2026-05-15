@@ -28,7 +28,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// brand content, so <see cref="SupplierAdminDeniedAttribute"/> is applied to
 /// match the rest of the admin sweep.
 /// </summary>
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SupplierAdmin")]
 [SupplierAdminDenied]
 [Route("Admin/PublicLanding")]
 public class AdminPublicLandingFilesController : Controller

@@ -336,13 +336,15 @@ public class Application
             throw new StageWindowClosedException(currentStage, stageClosesAt);
         }
 
+        // Enumerate every submit-blocker in one pass so the applicant sees all
+        // problems at once (FR-017 impact gate + per-item quotation counts).
+        // The impact failure leads the list but does not short-circuit the
+        // item/quotation enumeration.
+        var errors = Validate(minQuotations);
         if (ImpactTemplateId is null)
         {
-            throw new InvalidOperationException(
-                "Cannot submit application: Impact must be set before submission (FR-017).");
+            errors.Insert(0, "Impact must be set before submission (FR-017).");
         }
-
-        var errors = Validate(minQuotations);
         if (errors.Count > 0)
         {
             throw new InvalidOperationException(
