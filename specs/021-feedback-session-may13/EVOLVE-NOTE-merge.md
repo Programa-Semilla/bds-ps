@@ -102,8 +102,42 @@ Plus `specs/022-combined-release/` (main).
 
 ---
 
+## E2E reconciliation — 116 → 0 failures
+
+The first post-merge full E2E run failed 116 of 229. Investigation showed
+**these were almost entirely pre-existing spec-021 worktree defects** the
+prior "stamp PASS" never caught — InMemory integration tests do not enforce
+SQL Server type/FK contracts, so the defects only surface against the real
+database the E2E `AspireFixture` deploys. One failure cluster was a genuine
+merge conceptual conflict (the outbox enqueue). Fixes, in order:
+
+| Fix | Failures cleared | Merge-caused? |
+|---|---|---|
+| dacpac `DATETIME2(0)` → `DATETIMEOFFSET(0)` — 10 columns across 6 spec-021 tables mistyped vs their `DateTimeOffset` entity properties; every full `Application` materialisation threw `InvalidCastException` | ~73 | No — worktree |
+| `PublicCodeGenerator` — `EF.Property<string>` collision probe hit the value-converter `Sanitize` under EF Core 10; switched to typed value-object comparison | ~12 | No — worktree |
+| `Seed`/`ResetAdminFixture` dev endpoints — stale vs spec-021 schema (`Groups.ProcessId` FK, dropped `dbo.Impacts`, `PlantillaImpactTemplates`) | ~10 | No — worktree |
+| `GroupService.CreateAsync` — used the pre-021 `Group.Create(name)` overload (`ProcessId=0` → FK violation); now attaches to the bootstrap Process | ~12 | No — worktree |
+| `SubmitApplicationHandler` — restored spec-013 FR-024 supplier Draft→PendingReview flip dropped when the handler replaced `ApplicationService.SubmitApplicationAsync` | ~6 | No — worktree |
+| `Application.Submit` — enumerates impact + quotation blockers together instead of throwing impact-first | 2 | No — worktree |
+| 10 admin controllers — `[Authorize(Roles="Admin")]` short-circuited the `[SupplierAdminDenied]` filter before it could render the styled 403; now `"Admin,SupplierAdmin"` | 2 | No — worktree |
+| **`SubmitApplicationHandler` outbox enqueue** — main added the notification outbox enqueue to `ApplicationService.SubmitApplicationAsync`; worktree replaced the submit path with `SubmitApplicationHandler`. git auto-merged both files but the worktree handler is the live path, so main's outbox code was dead and zero notification mail fired. Ported the enqueue (+ the "Submitted" `VersionHistory` row) onto the handler. | 2 | **Yes — the core merge conflict** |
+| `SystemConfiguration.Value` — `[Required]` + non-nullable `string` implicit-required failed for the empty `Public.Landing.*.StorageKey` seed rows | 1 | No — worktree |
+| `AdminUsers` process-filter — catalog inner-joined Groups, hiding group-less Processes | 1 | No — worktree |
+| `_Layout` topbar title + `_PageHeader` h2 both `data-testid="page-title"` → Playwright strict-mode; topbar renamed `topbar-title` | 1 | No — worktree |
+| E2E test staleness — `Admin_ChangePassword` regex (US6 reviewer dashboard), `US2` autosave-indicator visible→attached, `US2` greeting selector | 3 | No — test debt |
+
+**Final E2E**: 224 passed / 0 failed / 5 skipped (pre-existing intentional skips).
+
+**Key takeaway**: only 1 of ~16 failure clusters was a true merge conflict
+(the dual submit-path / outbox). The rest were latent worktree spec-021
+implementation gaps that the merge's full-suite E2E run was the first to
+exercise against a real SQL Server.
+
+---
+
 ## Open follow-ups
 
-- Run full E2E suite (delivery bar per CLAUDE.md). Pre-merge stamp at `4d7e040` is invalidated; re-stamp required.
 - Spec 021-email-notifications + 021-feedback-session-may13 architectural unification under a future spec.
 - `MailKit` vulnerability advisories (NU1902/NU1903) carried over from main — consider upgrade in follow-up.
+- Admin Groups Create form has no Process picker — new groups default to the "Migración inicial" Process; a proper selector is spec-021 follow-up work.
+- `AdminSuppliers_RendersSearchInputAndProcessFilter` + `SupplierAdmin_SeesNarrowedSidebar` depend on prior suppliers existing in the shared `AspireFixture` (the `admin-suppliers-col-last-used` header only renders with rows) — fixture-ordering fragility worth a self-seeding follow-up.
