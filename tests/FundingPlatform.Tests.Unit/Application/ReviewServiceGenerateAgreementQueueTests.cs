@@ -27,7 +27,12 @@ public class ReviewServiceGenerateAgreementQueueTests
         repo.GetPendingAgreementPagedAsync(page: 1, pageSize: 25)
             .Returns((new List<AppEntity> { olderApp, newerApp }, TotalCount: 2));
 
-        var service = new ReviewService(repo, logger);
+        // Spec 021 — ReviewService now also depends on INotificationOutboxWriter
+        // + IWorkflowTransactionScope. GetGenerateAgreementQueueAsync does not
+        // enqueue notifications; substitute lightweight no-ops.
+        var outboxWriter = Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>();
+        var txScope = Substitute.For<FundingPlatform.Application.Notifications.IWorkflowTransactionScope>();
+        var service = new ReviewService(repo, outboxWriter, txScope, logger);
 
         var (items, totalCount) = await service.GetGenerateAgreementQueueAsync(page: 1);
 
@@ -52,7 +57,12 @@ public class ReviewServiceGenerateAgreementQueueTests
         repo.GetPendingAgreementPagedAsync(Arg.Any<int>(), Arg.Any<int>())
             .Returns((new List<AppEntity>(), 0));
 
-        var service = new ReviewService(repo, logger);
+        // Spec 021 — ReviewService now also depends on INotificationOutboxWriter
+        // + IWorkflowTransactionScope. GetGenerateAgreementQueueAsync does not
+        // enqueue notifications; substitute lightweight no-ops.
+        var outboxWriter = Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>();
+        var txScope = Substitute.For<FundingPlatform.Application.Notifications.IWorkflowTransactionScope>();
+        var service = new ReviewService(repo, outboxWriter, txScope, logger);
 
         await service.GetGenerateAgreementQueueAsync(page: 0);
 

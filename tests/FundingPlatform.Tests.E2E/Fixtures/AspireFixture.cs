@@ -21,6 +21,7 @@ public class AspireFixture : IAsyncDisposable
     ];
 
     private DistributedApplication? _app;
+    private HttpClient? _mailCaptureHttp;
     public string BaseUrl { get; private set; } = string.Empty;
     public string ConnectionString { get; private set; } = string.Empty;
 
@@ -33,6 +34,12 @@ public class AspireFixture : IAsyncDisposable
     /// surfaces this flag so individual tests can document the degraded mode.
     /// </summary>
     public bool FellBackToFilesystem { get; private set; }
+
+    /// <summary>
+    /// Spec 021 / T029 / FR-031 — smtp4dev REST client. Non-null when the
+    /// sidecar started successfully; null in the NFR-007 degraded mode.
+    /// </summary>
+    public MailCaptureClient? MailCapture { get; private set; }
 
     public async Task StartAsync()
     {
@@ -60,6 +67,21 @@ public class AspireFixture : IAsyncDisposable
         // Use http — the test environment may not trust the dev HTTPS certificate
         var webapp = _app.GetEndpoint("webapp", "http");
         BaseUrl = webapp.ToString().TrimEnd('/');
+
+        // Spec 021 / T029 — wire MailCaptureClient against the smtp4dev http endpoint.
+        // Failure to resolve the endpoint leaves MailCapture=null (NFR-007 dev workflow
+        // must continue with NoOp fallback in that degraded mode).
+        try
+        {
+            var smtp4devHttp = _app.GetEndpoint("smtp4dev", "http");
+            _mailCaptureHttp = new HttpClient { BaseAddress = smtp4devHttp };
+            MailCapture = new MailCaptureClient(_mailCaptureHttp);
+        }
+        catch (Exception)
+        {
+            // Sidecar missing or not yet started — leave MailCapture null.
+            MailCapture = null;
+        }
 
         // Verify the web app is actually responding
         await WaitForWebAppAsync();
@@ -275,6 +297,8 @@ public class AspireFixture : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        MailCapture?.Dispose();
+        _mailCaptureHttp?.Dispose();
         if (_app is not null)
         {
             await _app.DisposeAsync();

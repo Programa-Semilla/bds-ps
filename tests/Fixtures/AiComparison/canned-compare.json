@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "v1",
+  "items": [
+    {
+      "header": "Ficha 1",
+      "suppliers": [
+        {
+          "supplierId": "00000000-0000-0000-0000-000000000001",
+          "supplierName": "Proveedor Económico",
+          "branchName": "San José Centro",
+          "verificationStatus": "Verified"
+        },
+        {
+          "supplierId": "00000000-0000-0000-0000-000000000002",
+          "supplierName": "Proveedor Premium",
+          "branchName": "Heredia",
+          "verificationStatus": "PendingReview"
+        }
+      ],
+      "attributeRows": [
+        {
+          "label": "Producto",
+          "cells": [
+            {
+              "supplierIdx": 0, "value": "Bomba centrífuga 1HP",
+              "sourceRefs": [
+                { "supplierIdx": 0, "blobId": "00000000-0000-0000-0000-000000000010", "page": 1, "label": "Proveedor Económico — quote-A.pdf" }
+              ]
+            },
+            {
+              "supplierIdx": 1, "value": "Bomba centrífuga 1HP",
+              "sourceRefs": [
+                { "supplierIdx": 1, "blobId": "00000000-0000-0000-0000-000000000020", "page": 1, "label": "Proveedor Premium — quote-B.pdf" }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Marca",
+          "cells": [
+            {
+              "supplierIdx": 0, "value": "Pedrollo",
+              "sourceRefs": [
+                { "supplierIdx": 0, "blobId": "00000000-0000-0000-0000-000000000010", "page": 1, "label": "Proveedor Económico — quote-A.pdf" }
+              ]
+            },
+            {
+              "supplierIdx": 1, "value": "Grundfos",
+              "sourceRefs": [
+                { "supplierIdx": 1, "blobId": "00000000-0000-0000-0000-000000000020", "page": 1, "label": "Proveedor Premium — quote-B.pdf" }
+              ]
+            }
+          ]
+        },
+        {
+          "label": "Material",
+          "cells": [
+            { "supplierIdx": 0, "value": "Acero inoxidable" },
+            { "supplierIdx": 1, "value": "Acero inoxidable AISI 316" }
+          ]
+        },
+        {
+          "label": "Garantía",
+          "cells": [
+            { "supplierIdx": 0, "value": "12 meses" },
+            { "supplierIdx": 1, "value": "24 meses" }
+          ]
+        },
+        {
+          "label": "Total (CRC)",
+          "cells": [
+            { "supplierIdx": 0, "value": "₡120.000,00" },
+            { "supplierIdx": 1, "value": "₡165.000,00 (USD 300,00)" }
+          ]
+        }
+      ],
+      "narrativeSections": [
+        {
+          "title": "Sistemas de Marca",
+          "body": "Ambos proveedores ofrecen bombas centrífugas reconocidas: Pedrollo y Grundfos. Grundfos cuenta con respaldo técnico local más amplio."
+        },
+        {
+          "title": "Plazos de Respaldo",
+          "body": "El Proveedor Premium ofrece 24 meses de garantía, el doble del plazo del Proveedor Económico.",
+          "sourceRefs": [
+            { "supplierIdx": 0, "blobId": "00000000-0000-0000-0000-000000000010", "page": 2, "label": "Proveedor Económico — quote-A.pdf" },
+            { "supplierIdx": 1, "blobId": "00000000-0000-0000-0000-000000000020", "page": 2, "label": "Proveedor Premium — quote-B.pdf" }
+          ]
+        },
+        {
+          "title": "Análisis de Costos",
+          "body": "El Proveedor Económico es el más barato en CRC con ₡120.000,00. El Proveedor Premium es el más caro con ₡165.000,00 (cotizado originalmente en USD 300,00 al tipo de cambio aplicado)."
+        },
+        {
+          "title": "Logística y Ubicación",
+          "body": "Proveedor Económico despacha desde San José Centro; Proveedor Premium desde Heredia."
+        }
+      ]
+    }
+  ]
+}

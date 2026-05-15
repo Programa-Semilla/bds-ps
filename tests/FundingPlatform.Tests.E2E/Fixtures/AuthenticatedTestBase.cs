@@ -17,6 +17,13 @@ public class AuthenticatedTestBase : PageTest
     protected string ConnectionString => _fixture.ConnectionString;
 
     /// <summary>
+    /// Spec 021 / T029 — surface the smtp4dev REST client for notification E2E tests.
+    /// Null in the NFR-007 degraded mode (sidecar failed to start); tests that
+    /// require it MUST Assert.Inconclusive when null rather than silently passing.
+    /// </summary>
+    protected MailCaptureClient? MailCapture => _fixture.MailCapture;
+
+    /// <summary>
     /// Spec 014 — exposes a configured <see cref="BlobServiceClient"/> so tests/seeders
     /// can write placeholder blobs to Azurite at the same canonical keys recorded on
     /// the seeded SQL rows. Returns null when the fixture fell back to filesystem mode.

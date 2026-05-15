@@ -1,8 +1,10 @@
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
+using FundingPlatform.Application.Notifications;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.Notifications;
 using FundingPlatform.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
@@ -12,14 +14,36 @@ namespace FundingPlatform.Application.Services;
 public class ReviewService
 {
     private readonly IApplicationRepository _applicationRepository;
+    private readonly INotificationOutboxWriter _outboxWriter;
+    private readonly IWorkflowTransactionScope _txScope;
     private readonly ILogger<ReviewService> _logger;
 
     private const int PageSize = 25;
 
-    public ReviewService(IApplicationRepository applicationRepository, ILogger<ReviewService> logger)
+    public ReviewService(
+        IApplicationRepository applicationRepository,
+        INotificationOutboxWriter outboxWriter,
+        IWorkflowTransactionScope txScope,
+        ILogger<ReviewService> logger)
     {
         _applicationRepository = applicationRepository;
+        _outboxWriter = outboxWriter;
+        _txScope = txScope;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Spec 020 — resolves the parent ApplicationId for a given ApplicationItemId
+    /// so the comparison endpoints can run the group-scope guard against the
+    /// application (FR-A1). Returns null when the item id is unknown.
+    /// </summary>
+    public async Task<int?> GetApplicationIdForItemAsync(int applicationItemId, CancellationToken ct)
+    {
+        // Walk via the existing GetByIdWithDetails path — the application
+        // repository already projects Items so the join is local memory.
+        // Cheap O(applications) scan for MVP; can be optimized to a single
+        // EF projection later.
+        return await _applicationRepository.GetApplicationIdForItemAsync(applicationItemId, ct);
     }
 
     public async Task<(List<ReviewQueueItemDto> Items, int TotalCount)> GetReviewQueueAsync(int page)
@@ -205,9 +229,30 @@ public class ReviewService
         try
         {
             application.SendBack();
-            application.AddVersionHistory(new VersionHistory(userId, "SendBack",
-                "Application sent back to applicant for more information"));
+            var vhRow = new VersionHistory(userId, "SendBack",
+                "Application sent back to applicant for more information");
+            application.AddVersionHistory(vhRow);
+
+            // Spec 021 / FR-001 — two-phase save (workflow first, outbox second).
+            // See ApplicationService.SubmitApplicationAsync for the rationale on
+            // not using an explicit transaction with Aspire's SqlClient retry policy.
             await _applicationRepository.UpdateAsync(application);
+            await _applicationRepository.SaveChangesAsync();
+
+            var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
+                application.Id, CancellationToken.None);
+            var applicantDisplayName = application.Applicant is not null
+                ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+                : "Solicitante";
+            var applicantUserId = application.Applicant?.UserId ?? string.Empty;
+            var payload = new NotificationPayload(
+                application.Id, applicantUserId, applicantDisplayName,
+                stageGroupIds, OutcomeCode: null);
+
+            await _outboxWriter.EnqueueAsync(
+                NotificationEvent.ReturnedToApplicant,
+                application.Id, vhRow.Id, payload, CancellationToken.None);
+
             await _applicationRepository.SaveChangesAsync();
             return null;
         }
@@ -230,9 +275,35 @@ public class ReviewService
         try
         {
             application.Finalize(force);
-            application.AddVersionHistory(new VersionHistory(userId, "Finalize",
-                $"Review finalized{(force ? " (force — unresolved items implicitly rejected)" : "")}"));
+            var vhRow = new VersionHistory(userId, "Finalize",
+                $"Review finalized{(force ? " (force — unresolved items implicitly rejected)" : "")}");
+            application.AddVersionHistory(vhRow);
+
+            // Spec 021 / US4 + US5 / R-004 — derive terminal outcome from per-item
+            // decisions: every required item Approved → Approved; otherwise Rejected.
+            var allApproved = application.Items.All(i => i.ReviewStatus == ItemReviewStatus.Approved);
+            var outcomeEvent = allApproved
+                ? NotificationEvent.ApplicationApproved
+                : NotificationEvent.ApplicationRejected;
+            var outcomeCode = allApproved ? "Approved" : "Rejected";
+
+            // Spec 021 / FR-001 — two-phase save. See SubmitApplicationAsync rationale.
             await _applicationRepository.UpdateAsync(application);
+            await _applicationRepository.SaveChangesAsync();
+
+            var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
+                application.Id, CancellationToken.None);
+            var applicantDisplayName = application.Applicant is not null
+                ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+                : "Solicitante";
+            var applicantUserId = application.Applicant?.UserId ?? string.Empty;
+            var payload = new NotificationPayload(
+                application.Id, applicantUserId, applicantDisplayName,
+                stageGroupIds, OutcomeCode: outcomeCode);
+
+            await _outboxWriter.EnqueueAsync(
+                outcomeEvent, application.Id, vhRow.Id, payload, CancellationToken.None);
+
             await _applicationRepository.SaveChangesAsync();
             return (null, null);
         }

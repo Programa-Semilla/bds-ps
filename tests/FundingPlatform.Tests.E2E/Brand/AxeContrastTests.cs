@@ -35,7 +35,7 @@ public class AxeContrastTests : AuthenticatedTestBase
         // surface is reachable; applicant + reviewer pages tolerate redirect when
         // not authorized.
         await Page.GotoAsync($"{BaseUrl}/Account/Login");
-        await Page.Locator("[name=Email]").FillAsync("admin@FundingPlatform.com");
+        await Page.Locator("[name=Email]").FillAsync("admin@programa-semilla.test");
         await Page.Locator("[name=Password]").FillAsync("Sentinel123!");
         await Page.Locator("main button[type=submit]").ClickAsync();
 

@@ -12,6 +12,18 @@
     <PackageReference Include="Azure.Identity" Version="1.18.0" />
   </ItemGroup>
 
+  <!-- Spec 020 / NFR-M2 — copy prompts/ + schemas/ to Web output so PromptCatalog
+       and SchemaValidator can read them at runtime. The repo-root checked-in
+       artifacts are the source of truth; this copy is purely for deploy. -->
+  <ItemGroup>
+    <Content Include="..\..\prompts\**\*.md" LinkBase="prompts">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\schemas\**\*.json" LinkBase="schemas">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>

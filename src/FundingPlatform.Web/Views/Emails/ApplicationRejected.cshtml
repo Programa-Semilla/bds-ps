@@ -1,0 +1,18 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Decisión sobre tu solicitud</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    Te informamos que el equipo evaluador completó la revisión de tu solicitud
+    <strong>#@Model.Payload.ApplicationId</strong> y la <strong>decisión es no continuar</strong>
+    con su aprobación en esta ocasión.
+</p>
+<p>
+    Puedes consultar el detalle de la decisión y los siguientes pasos disponibles desde tu panel.
+</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ver detalle de la decisión</a>
+</p>
+<p>Si el botón no funciona, copia y pega este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

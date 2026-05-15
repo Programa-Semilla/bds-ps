@@ -7,6 +7,8 @@
     var appState = Enum.Parse<ApplicationState>(Model.State);
 }
 
+<link rel="stylesheet" href="~/css/comparison.css" />
+
 @await Html.PartialAsync("Components/_PageHeader",
     new PageHeaderViewModel(
         Title: $"Revisar solicitud N.º {Model.ApplicationId}",
@@ -76,7 +78,33 @@
     </div>
 </div>
 
-<h4>Ítems (@Model.Items.Count)</h4>
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h4 class="mb-0">Ítems (@Model.Items.Count)</h4>
+    @if (appState == ApplicationState.UnderReview && Model.Items.Any(i => i.Quotations.Count >= 2))
+    {
+        <div class="comparison-app-actions" data-app-id="@Model.ApplicationId">
+            <button type="button" class="btn btn-sm btn-outline-primary comparison-generate-all-btn"
+                    data-testid="comparison-generate-all-btn"
+                    data-app-id="@Model.ApplicationId">
+                Generar todo
+            </button>
+            @if (Model.IsAdmin)
+            {
+                <label class="form-check form-check-inline ms-2 comparison-bypass-app-toggle"
+                       data-testid="comparison-bypass-app-toggle">
+                    <input type="checkbox" class="form-check-input" />
+                    <span class="form-check-label">Anular límites</span>
+                </label>
+                <button type="button" class="btn btn-sm btn-outline-warning comparison-force-all-btn ms-1"
+                        data-testid="comparison-force-all-btn"
+                        data-app-id="@Model.ApplicationId"
+                        disabled>
+                    Forzar regeneración total
+                </button>
+            }
+        </div>
+    }
+</div>
 
 @foreach (var item in Model.Items)
 {
@@ -201,6 +229,11 @@
                     </tbody>
                 </table>
             </div>
+
+            @if (item.Comparison is not null)
+            {
+                @await Html.PartialAsync("_ComparisonRegion", item.Comparison)
+            }
 
             @if (item.ReviewComment is not null)
             {
@@ -376,4 +409,18 @@
             });
         });
     </script>
+    @{
+        var afTokens = ViewContext.HttpContext.RequestServices
+            .GetRequiredService<Microsoft.AspNetCore.Antiforgery.IAntiforgery>()
+            .GetAndStoreTokens(ViewContext.HttpContext);
+    }
+    <script>
+        window.__fundingComparison = {
+            applicationId: @Model.ApplicationId,
+            pollIntervalMs: @(Model.PollIntervalSeconds * 1000),
+            antiforgeryToken: '@afTokens.RequestToken',
+            antiforgeryHeader: '@afTokens.HeaderName'
+        };
+    </script>
+    <script src="~/js/comparison.js"></script>
 }

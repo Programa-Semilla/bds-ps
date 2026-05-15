@@ -1,0 +1,14 @@
+Proveedor: Construcciones del Valle S.A.
+Cédula jurídica: 3-101-234567
+Representante: María González Solano
+Cédula: 1-2345-6789
+Teléfono: +506 8888-8888
+Correo: maria.gonzalez@constval.co.cr
+
+Solicitante: Carlos Pérez Rodríguez
+Cédula: 1-1234-5678
+Teléfono: 7777-7777
+Correo personal: carlos.perez.r@gmail.com
+
+Cotización válida hasta 2026-12-31. El representante puede contactarse al
+correo maria.gonzalez@constval.co.cr o al teléfono 8888-8888.
