@@ -93,7 +93,57 @@ literal reading of FR-001 / US1 ("Groups *under* the Process").
    Process Details; step 7 cascade assertion strengthened to require the Group
    dropdown to actually narrow to the picked Process's Groups.
 
-### Known deviation until executed
+### Known deviation
 
 `tasks.md` US1 block is missing the Group-admin-Process-axis task. Tracked here;
 to be reflected on the next `/speckit-tasks` regeneration.
+
+---
+
+## Resolution executed (2026-05-16)
+
+Implemented per the plan above (commit `3600959`). Build green; unit 26/26,
+integration 34/34, the six reworked admin E2E classes 18/18.
+
+### Mismatch 3 (discovered during E2E): shared-fixture contamination — MAJOR
+
+The first full E2E run after the fix surfaced **43 failures**, all one root
+cause:
+
+- `SubmitApplicationHandler.ResolveMinimumQuotationsAsync` resolves an
+  applicant's submit-time minimum quotations by walking
+  `UserGroupMemberships → Groups → ProcessPlantillas` and taking
+  `FirstOrDefault()`.
+- The E2E helper `RegisterUserAsync → AssignAllGroups` assigns **every**
+  registered user to **every** Group — which violates **FR-002** ("Applicants
+  belong to exactly one Group").
+- Before this fix, `US1_ProcessAdmin`'s Groups landed in the Plantilla-less
+  "Migración inicial" Process, so `ResolveMinimumQuotationsAsync` found no
+  snapshot and fell back to the default (2).
+- After the fix (correctly, per FR-001) `US1`'s Groups sit under its
+  Plantilla-bearing `Crocus 2025` Process (`MinimumQuotationsPerItem = 3`).
+  Every later-registered applicant, force-joined to those Groups, now resolved
+  to that snapshot → every downstream submit/review/appeal test that supplies
+  2 quotations failed with *"must have at least 3 quotation(s)"*.
+
+**Verdict**: not a product defect. In production **FR-002 holds** — an applicant
+is in exactly one Group, so the resolution is deterministic. The defect is E2E
+**test isolation**: `US1_ProcessAdmin` leaked a Plantilla-bearing
+Process-with-Groups into the shared `AspireFixture`.
+
+**Resolution** (commit on top of `3600959`): `US1_ProcessAdmin` deletes the
+three Groups it creates in a `[TearDown]`, keeping the shared fixture neutral.
+
+**Follow-up seam (out of scope here)**: `RegisterUserAsync → AssignAllGroups`
+applied to applicants is itself an FR-002 violation; and
+`ResolveMinimumQuotationsAsync` / `ResolveStageClosesAtAsync` rely on
+`FirstOrDefault` over the applicant's memberships. Both are correct only while
+the single-Group invariant holds. A future spec could (a) make the test helper
+assign applicants to one Group, and (b) resolve the Plantilla from the
+Application's own Process rather than the applicant's memberships.
+
+### Final verification
+
+Full Playwright E2E suite personally executed: **224 passed / 0 failed /
+5 skipped** — identical to the pre-drift `88ca991` baseline. NFR-004 / SC-016
+satisfied.
