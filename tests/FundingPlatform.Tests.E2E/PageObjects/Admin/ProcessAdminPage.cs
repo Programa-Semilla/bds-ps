@@ -44,6 +44,11 @@ public class ProcessAdminPage : AdminBasePage
     public ILocator AssignPlantillaSelect => Page.Locator("[data-testid=\"admin-process-assign-plantilla-select\"]");
     public ILocator AssignPlantillaSubmit => Page.Locator("[data-testid=\"admin-process-assign-plantilla-submit\"]");
 
+    // Spec 021 / US1 — detach the ProcessPlantilla snapshot so a different
+    // base Plantilla can be assigned. Detach posts to AdminPlantillasController.
+    public ILocator DetachPlantillaForm => Page.Locator("[data-testid=\"admin-process-detach-plantilla-form\"]");
+    public ILocator DetachPlantillaSubmit => Page.Locator("[data-testid=\"admin-process-detach-plantilla-submit\"]");
+
     public ILocator GroupsCard => Page.Locator("[data-testid=\"admin-process-groups-card\"]");
     public ILocator GroupRow(string name) =>
         Page.Locator("tr[data-testid^=\"admin-process-group-row-\"]").Filter(new() { HasText = name });
@@ -105,5 +110,15 @@ public class ProcessAdminPage : AdminBasePage
                 $"Plantilla option containing '{plantillaOptionTextFragment}' not found. Available: {string.Join(" | ", labels)}");
         await AssignPlantillaSelect.SelectOptionAsync(new SelectOptionValue { Label = match });
         await AssignPlantillaSubmit.ClickAsync();
+    }
+
+    /// <summary>
+    /// Spec 021 / US1 — clicks "Desasignar plantilla" on the Process detail and
+    /// accepts the JS confirm dialog. After this the assign form is shown again.
+    /// </summary>
+    public async Task DetachPlantillaAsync()
+    {
+        Page.Dialog += (_, dialog) => dialog.AcceptAsync();
+        await DetachPlantillaSubmit.ClickAsync();
     }
 }

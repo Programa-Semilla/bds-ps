@@ -79,11 +79,57 @@
                             <dt class="col-sm-5">Asignada el</dt>
                             <dd class="col-sm-7">@snapshot.AssignedAt.ToString("yyyy-MM-dd HH:mm")</dd>
                         </dl>
-                        <p class="text-muted small mb-0">
+                        <p class="text-muted small mb-2">
                             <i class="ti ti-info-circle"></i>
                             Esta plantilla es una <strong>instantánea</strong>. Editar la plantilla base
                             no afecta a este proceso.
                         </p>
+                        @* Spec 021 / US1 — the snapshot is immutable to base-Plantilla
+                           edits (FR-004). To change a Process's values the admin
+                           detaches the snapshot here, then assigns a different base
+                           Plantilla. Detach lives on AdminPlantillasController. *@
+                        @if (detail.Status == ProcessStatus.Active)
+                        {
+                            <hr class="my-2" />
+                            <p class="text-muted small">
+                                ¿Necesita otros valores para este proceso? Desasigne la plantilla
+                                y asigne una plantilla base distinta.
+                            </p>
+                            <form method="post" asp-action="Detach" asp-controller="AdminPlantillas"
+                                  asp-route-id="@snapshot.SourcePlantillaId" asp-route-processId="@detail.Id"
+                                  data-testid="admin-process-detach-plantilla-form"
+                                  onsubmit="return confirm('¿Desasignar la plantilla de este proceso? Después podrá asignar otra.');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-danger btn-sm"
+                                        data-testid="admin-process-detach-plantilla-submit">
+                                    <i class="ti ti-unlink"></i> Desasignar plantilla
+                                </button>
+                            </form>
+                            <details class="mt-2">
+                                <summary class="text-muted small" style="cursor: pointer;">
+                                    Forzar desasignación (proceso con solicitudes activas)
+                                </summary>
+                                <form method="post" asp-action="Detach" asp-controller="AdminPlantillas"
+                                      asp-route-id="@snapshot.SourcePlantillaId" asp-route-processId="@detail.Id"
+                                      class="mt-2" data-testid="admin-process-force-detach-form"
+                                      onsubmit="return confirm('Forzar la desasignación afectará a las solicitudes activas. ¿Continuar?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="force" value="true" />
+                                    <div class="mb-2">
+                                        <label class="form-label" for="forceDetachReason">
+                                            Razón de la desasignación forzada
+                                        </label>
+                                        <textarea name="reason" id="forceDetachReason" class="form-control"
+                                                  rows="2" required
+                                                  data-testid="admin-process-force-detach-reason"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-danger btn-sm"
+                                            data-testid="admin-process-force-detach-submit">
+                                        <i class="ti ti-alert-triangle"></i> Forzar desasignación
+                                    </button>
+                                </form>
+                            </details>
+                        }
                     }
                     else if (detail.Status == ProcessStatus.Active)
                     {

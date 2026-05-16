@@ -179,4 +179,58 @@ public class US1_ProcessAdmin : AuthenticatedTestBase
             $"FR-001 / FR-034 — '{processName}' has exactly {groupNames.Length} groups (plus the "
             + $"placeholder). Got: {string.Join(" | ", scopedOptions)}");
     }
+
+    /// <summary>
+    /// Spec 021 / US1 — the ProcessPlantilla snapshot is immutable to base-Plantilla
+    /// edits (FR-004), so changing a Process's values means detaching the snapshot
+    /// and assigning a different base Plantilla. This drives that flow from the
+    /// Process detail page: assign → detach → reassign a different base Plantilla,
+    /// and asserts the snapshot carries the new base's values.
+    /// </summary>
+    [Test]
+    public async Task DetachPlantilla_FromProcessDetail_AllowsAssigningADifferentBasePlantilla()
+    {
+        var unique = Guid.NewGuid().ToString("N")[..6];
+        await SignInAsAdminAsync(unique);
+
+        var processName = $"Nexo 2026 {unique}";
+        var firstPlantilla = $"PlantillaA-{unique}";
+        var secondPlantilla = $"PlantillaB-{unique}";
+
+        var procPage = new ProcessAdminPage(Page);
+        var planPage = new PlantillaAdminPage(Page);
+
+        // ----- Create the Process. -----
+        await procPage.GoToCreateAsync(BaseUrl);
+        await procPage.CreateProcessAsync(processName);
+        await Expect(procPage.ProcessRow(processName)).ToBeVisibleAsync();
+        var rowId = await procPage.ProcessRow(processName).GetAttributeAsync("data-testid");
+        var processId = int.Parse(
+            Regex.Match(rowId ?? string.Empty, @"admin-process-row-(\d+)$").Groups[1].Value);
+
+        // ----- Two base Plantillas with distinct minimum quotations. -----
+        await planPage.GoToCreateAsync(BaseUrl);
+        await planPage.CreatePlantillaAsync(firstPlantilla, minimumQuotationsPerItem: 2);
+        await planPage.GoToCreateAsync(BaseUrl);
+        await planPage.CreatePlantillaAsync(secondPlantilla, minimumQuotationsPerItem: 5);
+
+        // ----- Assign the first; snapshot reflects its value. -----
+        await procPage.GoToDetailsAsync(BaseUrl, processId);
+        await procPage.AssignPlantillaAsync(firstPlantilla);
+        await Expect(procPage.PlantillaSnapshot).ToBeVisibleAsync();
+        await Expect(procPage.PlantillaMinQuotations).ToHaveTextAsync("2");
+
+        // ----- Detach — the control the Process detail was previously missing. -----
+        await Expect(procPage.DetachPlantillaSubmit).ToBeVisibleAsync();
+        await procPage.DetachPlantillaAsync();
+
+        // The snapshot is gone and the assign form is offered again.
+        await Expect(procPage.AssignPlantillaForm).ToBeVisibleAsync();
+
+        // ----- Reassign a *different* base Plantilla; values follow the new base. -----
+        await procPage.AssignPlantillaAsync(secondPlantilla);
+        await Expect(procPage.PlantillaSnapshot).ToBeVisibleAsync();
+        await Expect(procPage.PlantillaBaseName).ToHaveTextAsync(secondPlantilla);
+        await Expect(procPage.PlantillaMinQuotations).ToHaveTextAsync("5");
+    }
 }
