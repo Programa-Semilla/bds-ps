@@ -65,21 +65,20 @@ public class AuthenticatedTestBase : PageTest
     }
 
     /// <summary>
-    /// Pick the first real impact template and wait until the JS-rendered
-    /// <c>.parameter-field</c> elements are in the DOM. Encapsulates two race
-    /// hazards observed under shared-fixture load:
+    /// Spec 021 / FR-005 — pick the first real impact template on the
+    /// Application-level Impact step (<c>Views/Application/Impact.cshtml</c>)
+    /// and wait until the JS-rendered <c>.parameter-field</c> elements are in
+    /// the DOM. Encapsulates two race hazards observed under shared-fixture
+    /// load:
     ///   1) <see cref="ILocator.ClickAsync"/> on the Impact link does not block
-    ///      until <c>DOMContentLoaded</c>, so the DCL handler in
-    ///      <c>Views/Item/Impact.cshtml</c> that binds the dropdown's
-    ///      <c>change</c> listener may not yet have run when we call
-    ///      <see cref="ILocator.SelectOptionAsync"/>. Without an explicit DCL
-    ///      wait, the change event is fired with no listener and no fetch
-    ///      happens. Waiting for <see cref="LoadState.DOMContentLoaded"/>
-    ///      guarantees the handler is bound before we interact.
+    ///      until <c>DOMContentLoaded</c>, so the DCL handler that binds the
+    ///      dropdown's <c>change</c> listener may not yet have run when we call
+    ///      <see cref="ILocator.SelectOptionAsync"/>. Waiting for
+    ///      <see cref="LoadState.DOMContentLoaded"/> guarantees the handler is
+    ///      bound before we interact.
     ///   2) The change handler issues an async fetch; pinning the action to
     ///      <see cref="IPage.RunAndWaitForResponseAsync"/> so the test only
-    ///      proceeds once the response arrives, instead of relying on the
-    ///      <c>Expect(.parameter-field).ToBeVisibleAsync()</c> 5s/15s timeout.
+    ///      proceeds once the response arrives.
     /// </summary>
     protected async Task PickFirstImpactTemplateAsync()
     {
@@ -94,9 +93,32 @@ public class AuthenticatedTestBase : PageTest
 
         await Page.RunAndWaitForResponseAsync(
             async () => await templateSelector.SelectOptionAsync(value!),
-            r => r.Url.Contains("/Item/TemplateParameters/"));
+            r => r.Url.Contains("/Impact/TemplateParameters/"));
 
         await Expect(Page.Locator(".parameter-field").First).ToBeVisibleAsync();
+    }
+
+    /// <summary>
+    /// Spec 021 / FR-005 — completes the Application-level Impact step. Assumes
+    /// the page is currently on <c>/Application/{id}/Impact</c>; picks the first
+    /// seeded template, fills every parameter, and saves (which redirects to
+    /// the draft editor).
+    /// </summary>
+    protected async Task CompleteImpactStepAsync()
+    {
+        await PickFirstImpactTemplateAsync();
+        var paramInputs = Page.Locator(".parameter-field input.form-control");
+        var inputCount = await paramInputs.CountAsync();
+        for (var i = 0; i < inputCount; i++)
+        {
+            var input = paramInputs.Nth(i);
+            var inputType = await input.GetAttributeAsync("type");
+            await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "Test value");
+        }
+        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SaveImpact}')").ClickAsync();
+        // Saving Impact returns to the draft editor (returnTo=edit) or to
+        // Details, depending on where the step was entered from.
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/(Edit|Details)"));
     }
 
     protected async Task RegisterUserAsync(IPage page, string email, string password, string firstName, string lastName, string legalId)
@@ -222,6 +244,7 @@ public class AuthenticatedTestBase : PageTest
         var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
+        // Items + supplier quotations (Details surface).
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "Seed Item", 0, "Specs", BaseUrl);
 
@@ -236,20 +259,14 @@ public class AuthenticatedTestBase : PageTest
         await supplierPage.FillSupplierFormAsync($"SQ2-{uniqueId}", "Supplier Beta", 1100m, "2027-12-31", quotationFilePath);
         await supplierPage.SubmitAsync();
 
-        var impactButton = Page.Locator($"a:has-text('{UiCopy.Impact}')").First;
-        await impactButton.ClickAsync();
-        await PickFirstImpactTemplateAsync();
-        var paramInputs = Page.Locator(".parameter-field input.form-control");
-        var inputCount = await paramInputs.CountAsync();
-        for (var i = 0; i < inputCount; i++)
-        {
-            var input = paramInputs.Nth(i);
-            var inputType = await input.GetAttributeAsync("type");
-            await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "Test value");
-        }
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SaveImpact}')").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        // Spec 021 / FR-005 — Impact is a per-Application step reached from the
+        // Details item-row "Impacto" link, which routes to /Application/{id}/Impact.
+        await Page.GotoAsync($"{BaseUrl}/Application/Details/{appId}");
+        await Page.Locator($"a:has-text('{UiCopy.Impact}')").First.ClickAsync();
+        await CompleteImpactStepAsync();
 
+        // Submit from the Details surface.
+        await Page.GotoAsync($"{BaseUrl}/Application/Details/{appId}");
         await Page.Locator($"button[type=submit]:has-text('{UiCopy.SubmitApplication}')").ClickAsync();
         await Expect(Page.Locator($"[data-testid=status-pill]:has-text('{UiCopy.State.Submitted}')")).ToBeVisibleAsync();
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();

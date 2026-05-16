@@ -1,14 +1,11 @@
-// Spec 021 / US2 / T087 — applicant end-to-end on the new flow.
+// Spec 021 / US2 / FR-005, FR-016, FR-017 — applicant end-to-end on the new
+// flow. Drives the real user journey via clicked links (no deep-linking into
+// MVC routes the UI never exposes):
 //
-// Drives the real user journey from /Account/Login → applicant dashboard →
-// CTA → draft → autosave → impact + items + quotations → /review →
-// "Confirmar y enviar" → PublicCode displayed on dashboard. After confirm,
-// crawls every applicant-facing surface with ForbiddenStringsCrawler and
-// asserts zero `Solicitud N.º \d+` matches (SC-005).
-//
-// Per project memory ("E2E must drive real user journey"), no deep-linking:
-// every navigation lands via a clicked link or the canonical URL the
-// sidebar / header exposes.
+//   register/login -> dashboard greeting -> "Iniciar acompañamiento" CTA ->
+//   create draft -> "Continuar borrador" -> draft editor -> Impact step FIRST
+//   -> autosave on blur -> inline add item -> submit gate opens -> /review ->
+//   "Confirmar y enviar" -> PublicCode rendered, zero "Solicitud N.º N".
 
 using System.Text.RegularExpressions;
 using FundingPlatform.Tests.E2E.Constants;
@@ -21,61 +18,111 @@ namespace FundingPlatform.Tests.E2E.Tests.Applications;
 [TestFixture]
 public class US2_ApplicantE2E : AuthenticatedTestBase
 {
+    private string _quotationFile = string.Empty;
+
+    [SetUp]
+    public void SetUpQuotationFile()
+    {
+        _quotationFile = Path.Combine(Path.GetTempPath(), $"us2-quote-{Guid.NewGuid():N}.pdf");
+        File.WriteAllText(_quotationFile, "Quotation placeholder content");
+    }
+
+    [TearDown]
+    public void DeleteQuotationFile()
+    {
+        if (File.Exists(_quotationFile)) File.Delete(_quotationFile);
+    }
+
     [Test]
-    public async Task Applicant_DraftToReviewToConfirm_RendersPublicCodeEverywhere()
+    public async Task Applicant_ImpactFirst_InlineItems_GatedSubmit_ReviewConfirm()
     {
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         const string password = "Test123!";
         var applicantEmail = $"us2_app_{uniqueId}@example.com";
 
-        // 1. Register and sign in (real user journey, no deep-links).
+        // 1. Register + sign in.
         await RegisterUserAsync(Page, applicantEmail, password, "Vivi", "Pérez", $"VAPP-{uniqueId}");
         await LoginAsync(Page, applicantEmail, password);
 
-        // 2. Land on /Applications (applicant dashboard). Greeting renders.
-        // Target the page-title element directly: the spec-019 brand wordmark
-        // is an <h1> in the layout masthead, so a generic "h1,h2,h3 first"
-        // selector resolves to the brand, not the greeting.
+        // 2. Applicant dashboard — "Hola, Vivi" greeting (FR-030).
         await Page.GotoAsync($"{BaseUrl}/Application");
         await Expect(Page.Locator("[data-testid=page-title]")).ToContainTextAsync("Hola");
 
-        // 3. Click "Iniciar acompañamiento" CTA — leads to /Application/Create.
-        var ctaButton = Page.Locator("a:has-text('Iniciar acompañamiento')").First;
-        await ctaButton.ClickAsync();
+        // 3. "Iniciar acompañamiento" CTA -> /Application/Create.
+        await Page.Locator("a:has-text('Iniciar acompañamiento')").First.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Create"));
 
-        // 4. Create the draft with a CompanyName.
+        // 4. Create the draft.
         var appPage = new ApplicationPage(Page);
         await appPage.CompanyNameInput.FillAsync($"Sazón {uniqueId}");
         await appPage.SubmitDraftButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Details/(\d+)").Groups[1].Value);
 
-        var detailsUrlMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
-        var appId = int.Parse(detailsUrlMatch.Groups[1].Value);
-
-        // 5. Go to the Edit surface (US2 draft editor).
-        await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
+        // 5. Continue into the draft editor.
+        await Page.Locator("a:has-text('Continuar borrador')").First.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Edit"));
         var draft = new ApplicationDraftPage(Page);
-        // The autosave indicator is rendered idle (data-autosave-state="idle")
-        // on first load — by design every state span carries `d-none`, so the
-        // wrapper has zero size and is not "visible" until a field blurs.
-        // Assert it is present in the DOM scaffold, not visually rendered.
-        await Expect(draft.AutosaveIndicator).ToBeAttachedAsync();
-        await Expect(draft.AddItemButton).ToBeVisibleAsync();
 
-        // 6. The applicant dashboard now lists the new Application by its
-        // PublicCode. Navigate back and assert the code is rendered (not
-        // "Solicitud N.º {appId}").
+        // 6. FR-017 — submit gate is CLOSED before Impact is defined.
+        await Expect(draft.SubmitButton).ToBeDisabledAsync();
+
+        // 7. FR-005 — Impact is the first step; defined on its own surface.
+        await draft.ImpactLink.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Impact"));
+        await CompleteImpactStepAsync();
+        await Expect(draft.ImpactStatus).ToContainTextAsync("Definido");
+
+        // 8. Still gated — Impact done but no items yet.
+        await Expect(draft.SubmitButton).ToBeDisabledAsync();
+
+        // 9. FR-016 — editing a field autosaves on blur.
+        await draft.FillCompanyNameAsync($"Sazón Cocina {uniqueId}");
+        await Expect(draft.AutosaveIndicator).ToHaveAttributeAsync("data-autosave-state", "saved");
+
+        // 10. FR-005 — add an item inline; the editor reloads on the same surface.
+        await draft.AddItemAsync("Horno industrial", "Acero inoxidable, 60L");
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Edit"));
+        await Expect(draft.ItemRows).ToHaveCountAsync(1);
+
+        // 11. FR-017 — gate now OPEN (Impact + >=1 item + required fields).
+        await Expect(draft.SubmitButton).ToBeEnabledAsync();
+
+        // 12. Add two supplier quotations to the item.
+        for (var i = 1; i <= 2; i++)
+        {
+            await Page.Locator("a:has-text('Agregar proveedor')").First.ClickAsync();
+            var supplier = new SupplierPage(Page);
+            await supplier.FillSupplierFormAsync(
+                $"US2Q{i}{uniqueId}", $"Proveedor {i} {uniqueId}", 900m * i, "2027-12-31", _quotationFile);
+            await supplier.SubmitAsync();
+            await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        }
+
+        // 13. Return to the draft editor via the "Continuar borrador" link.
+        await Page.Locator("a:has-text('Continuar borrador')").First.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Edit"));
+
+        // 14. FR-017 — the gated submit routes to /review.
+        await draft.GoToReviewAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Applications/.+/Review"));
+        await Expect(Page.Locator("[data-testid=review-impact-card]")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid=review-items-card]")).ToBeVisibleAsync();
+
+        // 15. Confirm and send.
+        await Page.Locator("[data-testid=review-confirm-submit]").ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page.Locator("[data-testid=status-pill]").First)
+            .ToContainTextAsync(UiCopy.State.Submitted);
+
+        // 16. SC-005 — the Application surfaces only under its PublicCode.
         await Page.GotoAsync($"{BaseUrl}/Application");
         await Expect(Page.Locator("[data-testid=application-public-code]").First).ToBeVisibleAsync();
 
-        // 7. SC-005 — ForbiddenStringsCrawler asserts zero `Solicitud N.º \d+`
-        // matches on every applicant-facing surface for this Application.
         var crawler = new ForbiddenStringsCrawler(Page, BaseUrl, new[]
         {
             "/Application",
             $"/Application/Details/{appId}",
-            $"/Application/Edit/{appId}",
         });
         await crawler.AssertNoMatchesAsync(new[]
         {

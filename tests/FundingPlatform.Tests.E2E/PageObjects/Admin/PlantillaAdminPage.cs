@@ -36,6 +36,14 @@ public class PlantillaAdminPage : AdminBasePage
     public ILocator ImpactTemplateCheckbox(int impactTemplateId) =>
         Page.Locator($"[data-testid=\"admin-plantilla-impact-template-{impactTemplateId}\"]");
 
+    /// <summary>
+    /// One required-field checkbox in the "Campos requeridos" group, keyed by its
+    /// bit value (1 = Nombre del responsable, 2 = Teléfono, 4 = Dirección,
+    /// 8 = Detalle de impacto).
+    /// </summary>
+    public ILocator RequiredFieldCheckbox(long bit) =>
+        Page.Locator($"[data-testid=\"admin-plantilla-required-{bit}\"]");
+
     // ---------- Navigation ----------
 
     public Task GoToIndexAsync(string baseUrl) =>

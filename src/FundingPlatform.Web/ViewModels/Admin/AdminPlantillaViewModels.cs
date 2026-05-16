@@ -25,9 +25,16 @@ public sealed class AdminPlantillaCreateViewModel
     [Range(1, 10, ErrorMessage = "Mínimo de cotizaciones por ítem debe estar entre 1 y 10.")]
     public int MinimumQuotationsPerItem { get; set; } = 3;
 
-    /// <summary>Encoded as a bit-mask of <c>RequiredFieldKind</c> values (FR-003).
-    /// Bound to a multi-checkbox group in the view.</summary>
-    public long RequiredFieldFlags { get; set; }
+    /// <summary>Bound from the "Campos requeridos" multi-checkbox group — one
+    /// single-bit value per checked box. The group cannot bind to the scalar
+    /// <see cref="RequiredFieldFlags"/> directly: repeated form keys collapse to
+    /// the first value, silently dropping every flag but the lowest bit.</summary>
+    public long[] RequiredFieldFlagBits { get; set; } = Array.Empty<long>();
+
+    /// <summary>FR-003 bit-mask of <c>RequiredFieldKind</c> values, OR-folded
+    /// from the checked <see cref="RequiredFieldFlagBits"/>.</summary>
+    public long RequiredFieldFlags =>
+        RequiredFieldFlagBits.Aggregate(0L, (mask, bit) => mask | bit);
 
     public int[] ImpactTemplateIds { get; set; } = Array.Empty<int>();
 
@@ -47,7 +54,17 @@ public sealed class AdminPlantillaEditViewModel
     [Range(1, 10, ErrorMessage = "Mínimo de cotizaciones por ítem debe estar entre 1 y 10.")]
     public int MinimumQuotationsPerItem { get; set; } = 3;
 
-    public long RequiredFieldFlags { get; set; }
+    /// <summary>Bound from the "Campos requeridos" multi-checkbox group — one
+    /// single-bit value per checked box. The group cannot bind to the scalar
+    /// <see cref="RequiredFieldFlags"/> directly: repeated form keys collapse to
+    /// the first value, silently dropping every flag but the lowest bit.</summary>
+    public long[] RequiredFieldFlagBits { get; set; } = Array.Empty<long>();
+
+    /// <summary>FR-003 bit-mask of <c>RequiredFieldKind</c> values, OR-folded
+    /// from the checked <see cref="RequiredFieldFlagBits"/>.</summary>
+    public long RequiredFieldFlags =>
+        RequiredFieldFlagBits.Aggregate(0L, (mask, bit) => mask | bit);
+
     public int[] ImpactTemplateIds { get; set; } = Array.Empty<int>();
     public bool IsArchived { get; set; }
     public int AssignedProcessCount { get; set; }

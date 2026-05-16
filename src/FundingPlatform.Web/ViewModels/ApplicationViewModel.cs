@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc.Rendering;
+
 namespace FundingPlatform.Web.ViewModels;
 
 public class ApplicationViewModel
@@ -11,6 +13,22 @@ public class ApplicationViewModel
     public DateTime UpdatedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public List<ItemViewModel> Items { get; set; } = new();
+
+    /// <summary>Spec 021 / FR-005 — true once the applicant has completed the
+    /// Impact step. Drives the Impact card state and the submit gate.</summary>
+    public bool ImpactSet { get; set; }
+
+    /// <summary>Spec 021 / FR-005 — chosen ImpactTemplate name, for the Edit-page
+    /// Impact summary card. Null until the Impact step is completed.</summary>
+    public string? ImpactTemplateName { get; set; }
+
+    /// <summary>Spec 021 / FR-005 — label/value pairs of the captured Impact
+    /// parameters, rendered read-only on the Edit-page Impact summary.</summary>
+    public List<ImpactParameterDisplayViewModel> ImpactParameters { get; set; } = new();
+
+    /// <summary>Spec 021 / FR-005 — active categories for the inline add-item
+    /// form embedded in the draft editor.</summary>
+    public List<SelectListItem> Categories { get; set; } = new();
 
     /// <summary>
     /// Spec 015 / T413 — application-summary computed total in CRC. Sums each

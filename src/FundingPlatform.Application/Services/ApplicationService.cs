@@ -520,13 +520,10 @@ public class ApplicationService
                 p.SortOrder)).ToList())).ToList();
     }
 
-    public async Task SetItemImpactAsync(SetItemImpactCommand cmd)
+    public async Task SetApplicationImpactAsync(SetApplicationImpactCommand cmd)
     {
         var application = await _applicationRepository.GetByIdWithDetailsAsync(cmd.ApplicationId)
             ?? throw new InvalidOperationException($"Application {cmd.ApplicationId} not found.");
-
-        var item = application.Items.FirstOrDefault(i => i.Id == cmd.ItemId)
-            ?? throw new InvalidOperationException($"Item {cmd.ItemId} not found in application {cmd.ApplicationId}.");
 
         var template = await _impactTemplateRepository.GetByIdWithParametersAsync(cmd.ImpactTemplateId)
             ?? throw new InvalidOperationException($"Impact template {cmd.ImpactTemplateId} not found.");
@@ -543,13 +540,8 @@ public class ApplicationService
             .Select(kvp => new ImpactParameterValue(kvp.Key, kvp.Value))
             .ToList();
 
-        // Spec 021 / FR-005 — Impact relocated from Item to Application. The
-        // per-Item SetImpact entry point is gone; we now write through the
-        // Application aggregate which validates the ImpactTemplate against the
-        // ProcessPlantilla snapshot before stamping. The `item` lookup above
-        // remains so the command signature stays backward-compatible; later
-        // phases will drop the unused itemId from SetItemImpactCommand.
-        _ = item;
+        // Spec 021 / FR-005 — Impact is captured on the Application aggregate
+        // upfront, before any Item exists; there is no per-Item Impact path.
         application.SetImpact(template, parameterValues);
 
         await _applicationRepository.UpdateAsync(application);
@@ -558,12 +550,10 @@ public class ApplicationService
 
     private static ApplicationDto MapToDto(AppEntity application)
     {
-        // Spec 021 / FR-005 — Impact relocated from Item to Application. The
-        // per-Item ImpactDto on ItemDto is now sourced from the Application's
-        // per-Application impact; every item carries the same projection so
-        // existing read paths keep compiling until the DTO contract is
-        // refactored in a later spec-021 phase. Id = 0 (the legacy Impact PK
-        // is gone — value-object projection has no row identity).
+        // Spec 021 / FR-005 — Impact is a per-Application value, surfaced as
+        // ApplicationDto.Impact below. The per-Item ImpactDto on ItemDto is a
+        // vestigial mirror kept so existing read paths keep compiling; Id = 0
+        // (the value-object projection has no row identity).
         var applicationImpactDto = application.ImpactTemplate is not null
             ? new ImpactDto(
                 0,
@@ -613,6 +603,7 @@ public class ApplicationService
             application.SubmittedAt,
             items,
             application.PublicCode?.Value,
-            application.CompanyName);
+            application.CompanyName,
+            applicationImpactDto);
     }
 }

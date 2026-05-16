@@ -50,6 +50,24 @@ public class AdminPlantillasController : Controller
             .ToListAsync(ct);
     }
 
+    /// <summary>
+    /// Splits a required-field bit-mask into its individual single-bit values so
+    /// the Edit form's multi-checkbox group can bind one checkbox per bit.
+    /// </summary>
+    private static long[] DecomposeBits(long mask)
+    {
+        var bits = new List<long>();
+        for (var position = 0; position < 63; position++)
+        {
+            var bit = 1L << position;
+            if ((mask & bit) != 0)
+            {
+                bits.Add(bit);
+            }
+        }
+        return bits.ToArray();
+    }
+
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
@@ -115,7 +133,7 @@ public class AdminPlantillasController : Controller
             Id = detail.Id,
             Name = detail.Name,
             MinimumQuotationsPerItem = detail.MinimumQuotationsPerItem,
-            RequiredFieldFlags = detail.RequiredFieldFlags,
+            RequiredFieldFlagBits = DecomposeBits(detail.RequiredFieldFlags),
             ImpactTemplateIds = detail.ImpactTemplateIds.ToArray(),
             IsArchived = detail.IsArchived,
             AssignedProcessCount = detail.AssignedProcessCount,

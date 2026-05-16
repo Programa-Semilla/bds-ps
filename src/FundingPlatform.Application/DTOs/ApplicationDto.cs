@@ -14,7 +14,10 @@ public record ApplicationDto(
     // identity rendering. Nullable for legacy rows seeded before the
     // schema cutover; new rows always carry it.
     string? PublicCode = null,
-    string? CompanyName = null);
+    string? CompanyName = null,
+    // Spec 021 / FR-005 — Impact is a per-Application value captured upfront.
+    // Null until the applicant completes the Impact step.
+    ImpactDto? Impact = null);
 
 public record ApplicationSummaryDto(
     int Id,

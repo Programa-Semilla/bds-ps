@@ -96,7 +96,7 @@ public class ApplicationSubmissionTests : AuthenticatedTestBase
         // Set impact assessment
         var impactButton = Page.Locator("a:has-text('Impacto')").First;
         await impactButton.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Item/\d+/Impact"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Impact"));
 
         var templateSelector = Page.Locator("#templateSelector");
         await Expect(templateSelector).ToBeVisibleAsync();

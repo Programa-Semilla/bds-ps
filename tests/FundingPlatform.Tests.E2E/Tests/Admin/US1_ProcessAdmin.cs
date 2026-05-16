@@ -233,4 +233,46 @@ public class US1_ProcessAdmin : AuthenticatedTestBase
         await Expect(procPage.PlantillaBaseName).ToHaveTextAsync(secondPlantilla);
         await Expect(procPage.PlantillaMinQuotations).ToHaveTextAsync("5");
     }
+
+    /// <summary>
+    /// Spec 021 / US1 / FR-003 — the "Campos requeridos" group on the Plantilla
+    /// Edit form is a multi-checkbox bit-mask. Checking every flag and saving
+    /// MUST persist every bit; the regression dropped all but the lowest bit
+    /// because the checkbox group bound to a scalar instead of a collection.
+    /// </summary>
+    [Test]
+    public async Task EditPlantilla_AllRequiredFieldFlags_PersistAcrossSave()
+    {
+        var unique = Guid.NewGuid().ToString("N")[..6];
+        await SignInAsAdminAsync(unique);
+
+        var plantillaName = $"PlantillaFlags-{unique}";
+        var planPage = new PlantillaAdminPage(Page);
+        long[] bits = { 1, 2, 4, 8 };
+
+        // ----- Create a base Plantilla (Create leaves required flags unset). -----
+        await planPage.GoToCreateAsync(BaseUrl);
+        await planPage.CreatePlantillaAsync(plantillaName, minimumQuotationsPerItem: 3);
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Plantillas(\\?.*)?$"));
+        await Expect(planPage.PlantillaRow(plantillaName)).ToBeVisibleAsync();
+
+        // ----- Open Edit, check ALL four required-field flags, save. -----
+        await planPage.PlantillaRow(plantillaName)
+            .Locator("[data-testid=\"admin-plantilla-edit\"]").ClickAsync();
+        foreach (var bit in bits)
+        {
+            await planPage.RequiredFieldCheckbox(bit).CheckAsync();
+        }
+        await planPage.EditSubmit.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Plantillas(\\?.*)?$"));
+
+        // ----- Reopen Edit — every flag must still be checked. -----
+        await planPage.PlantillaRow(plantillaName)
+            .Locator("[data-testid=\"admin-plantilla-edit\"]").ClickAsync();
+        foreach (var bit in bits)
+        {
+            await Expect(planPage.RequiredFieldCheckbox(bit)).ToBeCheckedAsync(
+                new() { Timeout = 5_000 });
+        }
+    }
 }

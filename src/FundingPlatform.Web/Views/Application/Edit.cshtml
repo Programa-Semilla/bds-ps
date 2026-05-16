@@ -3,18 +3,12 @@
 
 @{
     // Spec 021 / FR-022 — single source string lives in 021.es-CR.resx (key
-    // Application.Disclaimer.Fx); the project does not wire IStringLocalizer
-    // into views (Resources/SuppliersResources.cs notes the inline-string
-    // convention) so we render the canonical text directly. Polish-phase
-    // localization sweep will switch to a localizer once the wiring lands.
+    // Application.Disclaimer.Fx). IStringLocalizer is not wired into views;
+    // the canonical text is rendered directly until the localization sweep.
     const string FxDisclaimer = "El monto en colones puede variar según el tipo de cambio vigente en la fecha de compra.";
-    ViewData["Title"] = string.IsNullOrEmpty(Model.PublicCode)
-        ? "Editar solicitud"
-        : $"Editar solicitud {Model.PublicCode}";
-    var state = Enum.Parse<ApplicationState>(Model.State);
-    var codeLabel = string.IsNullOrEmpty(Model.PublicCode)
-        ? $"#{Model.Id}"
-        : Model.PublicCode;
+    var codeLabel = string.IsNullOrEmpty(Model.PublicCode) ? $"#{Model.Id}" : Model.PublicCode;
+    ViewData["Title"] = $"Editar solicitud {codeLabel}";
+    var reviewUrl = Url.Action("Review", "Application", new { publicCode = Model.PublicCode });
 }
 
 @await Html.PartialAsync("Components/_PageHeader",
@@ -27,13 +21,23 @@
             new BreadcrumbItem("Editar"),
         }))
 
-@* Spec 021 / T119 / FR-024 — stage countdown banner. The controller stashes
-   the populated ViewModel in ViewData["StageBanner"] via
-   ApplicationController.PopulateStageBannerAsync; when present we render the
-   shared _StageCountdownBanner partial (warning style > 24h, danger style
-   < 24h, danger + "Vencido" when closed). When absent (terminal state or
-   evaluator skip), we fall back to a minimal slot marker so the US2 E2E that
-   asserts the slot's presence still passes. *@
+@if (TempData["ValidationErrors"] is string validationErrorsJson)
+{
+    var errors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(validationErrorsJson);
+    if (errors is not null && errors.Count > 0)
+    {
+        <div class="alert alert-danger" role="alert">
+            <ul class="mb-0">
+                @foreach (var error in errors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+}
+
+@* Spec 021 / T119 / FR-024 — stage countdown banner. *@
 @{
     var stageBanner = ViewData["StageBanner"] as FundingPlatform.Web.ViewModels.StageCountdownBannerViewModel;
 }
@@ -72,6 +76,7 @@ else
                        required
                        data-autosave-field="CompanyName"
                        data-required="true"
+                       data-field-label="Nombre comercial"
                        data-testid="application-edit-company-name" />
             </div>
             <div class="col-md-4 d-flex align-items-end">
@@ -81,103 +86,156 @@ else
     </div>
 </form>
 
-@* Spec 021 / FR-005 — Impact step first. We surface the existing per-Application
-   Impact picker via the Item-level Impact route which, after Phase 2c, writes
-   through to the Application aggregate (see ApplicationService.SetItemImpactAsync).
-   The applicant chooses an ImpactTemplate and fills parameter values for the
-   whole Application; reusing the existing Impact view keeps the UX surface area
-   small while US2's contract is satisfied. *@
-<div class="card mb-4">
-    <div class="card-header">
-        <h4 class="card-title">Impacto <span class="text-danger" aria-label="campo obligatorio">*</span></h4>
-    </div>
-    <div class="card-body">
-        @if (Model.Items.Count == 0)
+@* Spec 021 / FR-005 — Impact card FIRST and ungated. Impact is a per-Application
+   concern captured on its own step; the applicant reaches it directly, never
+   through an Item. *@
+<div class="card mb-4" data-testid="application-edit-impact-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="card-title mb-0">
+            Impacto <span class="text-danger" aria-label="campo obligatorio">*</span>
+        </h4>
+        @if (Model.ImpactSet)
         {
-            <p class="text-secondary mb-2">
-                Agregue al menos un ítem para iniciar la captura del impacto del acompañamiento.
-            </p>
+            <span class="badge bg-success-lt" data-testid="application-edit-impact-status">
+                <i class="ti ti-check me-1"></i>Definido
+            </span>
         }
         else
         {
-            var firstItem = Model.Items[0];
-            <p class="text-secondary mb-2">
-                El impacto vive a nivel de solicitud y se captura una vez por solicitud.
+            <span class="badge bg-warning-lt" data-testid="application-edit-impact-status">Pendiente</span>
+        }
+    </div>
+    <div class="card-body">
+        @if (Model.ImpactSet)
+        {
+            <p class="mb-2">
+                Plantilla de impacto: <strong>@Model.ImpactTemplateName</strong>
             </p>
-            <a asp-controller="Item" asp-action="Impact"
-               asp-route-appId="@Model.Id"
-               asp-route-id="@firstItem.Id"
-               class="btn btn-outline-primary"
-               data-testid="application-edit-impact-link">
+            @if (Model.ImpactParameters.Count > 0)
+            {
+                <dl class="row mb-2">
+                    @foreach (var p in Model.ImpactParameters)
+                    {
+                        <dt class="col-sm-5 text-secondary">@p.DisplayLabel</dt>
+                        <dd class="col-sm-7">@p.Value</dd>
+                    }
+                </dl>
+            }
+            <a asp-action="Impact" asp-controller="Application" asp-route-id="@Model.Id"
+               asp-route-returnTo="edit"
+               class="btn btn-outline-primary" data-testid="application-edit-impact-link">
+                <i class="ti ti-edit me-1"></i>Editar impacto
+            </a>
+        }
+        else
+        {
+            <p class="text-secondary mb-2">
+                El impacto vive a nivel de solicitud y se captura una vez. Defínalo para habilitar el envío.
+            </p>
+            <a asp-action="Impact" asp-controller="Application" asp-route-id="@Model.Id"
+               asp-route-returnTo="edit"
+               class="btn btn-primary" data-testid="application-edit-impact-link">
                 <i class="ti ti-target me-1"></i>Definir impacto
             </a>
         }
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
+@* Spec 021 / FR-005 — items added inline; the add-item form is embedded in the
+   draft editor and posts back to it, so the applicant never leaves the screen. *@
+<div class="card mb-4" data-testid="application-edit-items-card">
+    <div class="card-header">
         <h4 class="card-title mb-0">Ítems <span class="text-danger" aria-label="campo obligatorio">*</span></h4>
-        <a asp-controller="Item" asp-action="Add" asp-route-appId="@Model.Id" class="btn btn-primary"
-           data-testid="application-edit-add-item">
-            <i class="ti ti-plus me-1"></i>Agregar ítem
-        </a>
     </div>
-    @if (Model.Items.Count == 0)
-    {
-        <div class="card-body">
+    <div class="card-body">
+        <form asp-controller="Application" asp-action="AddItem" asp-route-id="@Model.Id"
+              method="post" class="row g-3 mb-4" data-testid="application-edit-add-item-form">
+            @Html.AntiForgeryToken()
+            <div class="col-md-4">
+                <label class="form-label" for="add-item-name">
+                    Nombre del producto <span class="text-danger">*</span>
+                </label>
+                <input id="add-item-name" name="ProductName" type="text" class="form-control"
+                       maxlength="500" required data-testid="application-edit-item-name" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="add-item-category">
+                    Categoría <span class="text-danger">*</span>
+                </label>
+                <select id="add-item-category" name="CategoryId" class="form-select" required
+                        data-testid="application-edit-item-category">
+                    <option value="">-- Seleccione --</option>
+                    @foreach (var cat in Model.Categories)
+                    {
+                        <option value="@cat.Value">@cat.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="add-item-specs">
+                    Especificaciones <span class="text-danger">*</span>
+                </label>
+                <input id="add-item-specs" name="TechnicalSpecifications" type="text" class="form-control"
+                       required data-testid="application-edit-item-specs" />
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100" data-testid="application-edit-add-item">
+                    <i class="ti ti-plus me-1"></i>Agregar
+                </button>
+            </div>
+        </form>
+
+        @if (Model.Items.Count == 0)
+        {
             @await Html.PartialAsync("Components/_EmptyState",
                 new EmptyStateViewModel(
                     Headline: "Aún no se han agregado ítems",
                     Body: "Agregue al menos un ítem para enviar su solicitud.",
-                    Icon: "ti ti-package",
-                    PrimaryAction: new ActionItem("Agregar ítem", ActionClass.Primary,
-                        Url: Url.Action("Add", "Item", new { appId = Model.Id }),
-                        Icon: "ti ti-plus")))
-        </div>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table card-table table-vcenter">
-                <thead>
-                    <tr>
-                        <th>Nombre del producto</th>
-                        <th>Categoría</th>
-                        <th>Cotizaciones</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Model.Items)
-                    {
+                    Icon: "ti ti-package"))
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table card-table table-vcenter">
+                    <thead>
                         <tr>
-                            <td>@item.ProductName</td>
-                            <td>@item.CategoryName</td>
-                            <td>@item.QuotationCount</td>
-                            <td>
-                                <a asp-controller="Supplier" asp-action="Add"
-                                   asp-route-appId="@Model.Id" asp-route-itemId="@item.Id"
-                                   class="btn btn-sm btn-outline-primary">Agregar proveedor</a>
-                                <a asp-controller="Item" asp-action="Edit"
-                                   asp-route-appId="@Model.Id" asp-route-itemId="@item.Id"
-                                   class="btn btn-sm btn-outline-secondary">Editar</a>
-                                <form asp-controller="Item" asp-action="Delete"
-                                      asp-route-appId="@Model.Id" asp-route-itemId="@item.Id"
-                                      method="post" class="d-inline">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-sm btn-danger"
-                                            onclick="return confirm('¿Está seguro de que desea eliminar este ítem?')">
-                                        Eliminar
-                                    </button>
-                                </form>
-                            </td>
+                            <th>Nombre del producto</th>
+                            <th>Categoría</th>
+                            <th>Cotizaciones</th>
+                            <th>Acciones</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr data-testid="application-edit-item-row">
+                                <td>@item.ProductName</td>
+                                <td>@item.CategoryName</td>
+                                <td>@item.QuotationCount</td>
+                                <td>
+                                    <a asp-controller="Supplier" asp-action="Add"
+                                       asp-route-appId="@Model.Id" asp-route-itemId="@item.Id"
+                                       class="btn btn-sm btn-outline-primary">Agregar proveedor</a>
+                                    <a asp-controller="Item" asp-action="Edit"
+                                       asp-route-appId="@Model.Id" asp-route-itemId="@item.Id"
+                                       class="btn btn-sm btn-outline-secondary">Editar</a>
+                                    <form asp-controller="Application" asp-action="RemoveItem"
+                                          asp-route-id="@Model.Id" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="itemId" value="@item.Id" />
+                                        <button type="submit" class="btn btn-sm btn-danger"
+                                                onclick="return confirm('¿Está seguro de que desea eliminar este ítem?')">
+                                            Eliminar
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
 </div>
 
 @if (Model.TotalConvertedCrc.HasValue)
@@ -198,21 +256,23 @@ else
     </div>
 }
 
-@if (Model.Items.Count > 0)
-{
-    @* Spec 021 / FR-017 — submit gating. The button is disabled until JS
-       enables it when required fields are satisfied; tooltip enumerates
-       missing requirements. Submit routes through /review per the contract. *@
-    <div class="d-flex justify-content-end mb-3">
-        <a asp-action="Review" asp-route-publicCode="@Model.PublicCode"
-           class="btn btn-success"
-           data-testid="application-edit-submit-link"
-           data-submit-gate="enabled"
-           title="Revise antes de enviar">
-            <i class="ti ti-send me-1"></i>Revisar y enviar
-        </a>
-    </div>
-}
+@* Spec 021 / FR-017 — submit gating. The button is a real disabled-capable
+   control; submit-gate.js recomputes completeness (Impact + >=1 item + every
+   required field) and toggles `disabled` + a tooltip enumerating what is
+   missing. Clicking an enabled button routes to /review. *@
+<div class="d-flex justify-content-end mb-3">
+    <button type="button"
+            class="btn btn-success"
+            data-testid="application-edit-submit"
+            data-submit-gate
+            data-item-count="@Model.Items.Count"
+            data-impact-set="@(Model.ImpactSet ? "true" : "false")"
+            data-review-url="@reviewUrl"
+            disabled
+            title="Complete los campos requeridos para enviar">
+        <i class="ti ti-send me-1"></i>Revisar y enviar
+    </button>
+</div>
 
 <div class="mt-3">
     <a asp-action="Index" asp-controller="Application" class="btn btn-link">&larr; Volver a solicitudes</a>
@@ -224,4 +284,5 @@ else
     <script type="module" src="~/js/province-canton-cascade.js" defer></script>
     <script type="module" src="~/js/input-masks.js" defer></script>
     <script type="module" src="~/js/public-code-banner.js" defer></script>
+    <script type="module" src="~/js/submit-gate.js" defer></script>
 }

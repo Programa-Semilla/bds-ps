@@ -107,49 +107,60 @@ record of the work that closes the gap.
 
 ### Design decisions (HOW — not spec changes)
 
-- **Impact-first.** `Application/Create` POST redirects to a new
-  **Application-level** Impact step (`GET Application/{id}/Impact`), not to
-  `Details`. Impact is per-Application, never item-routed.
-- **Inline items.** Item add/remove on the draft editor happen via `fetch` to
-  JSON endpoints with client-side row append/remove — no navigation. The
-  standalone `Item/Add` page is retained (other E2E suites drive it) but is no
-  longer the US2 path.
+- **Impact-first, Application-level.** Impact moves to a dedicated
+  Application-scoped step (`GET/POST Application/{id}/Impact`,
+  `Views/Application/Impact.cshtml`) — never item-routed. On the rebuilt draft
+  editor (`Edit.cshtml`) the Impact card is rendered **first**, ungated; it is
+  the canonical impact-first surface.
+- **`Create` POST stays → `Details`.** Redirecting `Create` straight into the
+  Impact step rippled a `/Application/Details/{id}` URL assumption through ~30
+  E2E files. Keeping `Create → Details` contains the blast radius; the draft
+  editor (reached via the Details "Continuar borrador" action or the dashboard
+  "Editar" link) carries the impact-first flow.
+- **`returnTo` on the Impact step.** The Impact step accepts `?returnTo=edit`:
+  entered from the draft editor it saves back to `Edit`; entered from the
+  Details item-row "Impacto" link (legacy submit-flow tests) it saves back to
+  `Details`. One parameter keeps both the new flow and ~19 legacy E2E files
+  working.
+- **Inline items.** The draft editor embeds an add-item form that posts to
+  `POST Application/{id}/AddItem` and returns to `Edit` (and `RemoveItem`
+  likewise) — the applicant never leaves the draft screen. The standalone
+  `Item/Add` page is retained (other E2E suites drive it).
 - **Real gated submit.** The submit `<a>` becomes a `<button disabled>` whose
   click navigates to `/review`; `submit-gate.js` recomputes completeness on
   load + input and toggles `disabled` + a `title` enumerating what is missing.
 - **Autosave scope.** `CompanyName` is the only free-text Application-level
-  draft field; autosave on it satisfies FR-016 for the draft form. Item / impact
-  capture happens through their own explicit save actions, not blur-autosave.
+  draft field; autosave on it satisfies FR-016 for the draft form. Item /
+  impact capture happens through their own explicit save actions.
 
-### Execution plan
+### Execution plan (as built)
 
-1. **`ImpactViewModel`** — drop `ItemId` / `ItemProductName`; add `PublicCode`.
-   New `Views/Application/Impact.cshtml` (Application-scoped copy of the impact
-   picker; reuses the template-parameter AJAX from `Item/Impact.cshtml`).
-2. **`ApplicationController`** — add `GET/POST Application/{id}/Impact`
-   (Application-scoped). `POST` success → redirect to `Edit`. `Create` POST →
-   redirect to `Impact` instead of `Details`.
-3. **Retire** `ItemController.Impact` GET/POST + `Views/Item/Impact.cshtml`.
-   Simplify `SetItemImpactCommand` → `SetApplicationImpactCommand` (drop
-   `ItemId`); rename `SetItemImpactAsync` → `SetApplicationImpactAsync`.
-4. **Inline items API** — `POST /api/applications/{publicCode}/items` (add) and
-   `POST /api/applications/{publicCode}/items/{itemId}/delete`, returning JSON.
-5. **`wwwroot/js/draft-items.js`** — reveal inline add form, `fetch` create,
-   append table row; `fetch` delete, remove row.
-6. **`wwwroot/js/submit-gate.js`** — read `data-item-count` / `data-impact-set`
-   + required autosave fields; toggle the submit `<button disabled>` + `title`.
-7. **`Views/Application/Edit.cshtml`** — rebuilt: (a) Impact summary card first
-   with "Editar impacto" → Impact step; (b) inline Items card; (c) gated submit
-   `<button>`. Load `draft-items.js` + `submit-gate.js`.
-8. **`US2_ApplicantE2E.cs`** — rewritten to drive the full journey via clicked
-   links; update `ApplicationDraftPage` / add an impact page object.
-9. Build + unit + integration + **full Playwright E2E suite green** (NFR-004 /
+1. **`ImpactViewModel`** — dropped `ItemId` / `ItemProductName`; added
+   `PublicCode`, `CompanyName`, `ReturnTo`. New `Views/Application/Impact.cshtml`.
+2. **`ApplicationController`** — added `GET/POST Application/{id}/Impact`,
+   `GET Application/{id}/Impact/TemplateParameters/{templateId}`,
+   `POST Application/{id}/AddItem`, `POST Application/{id}/RemoveItem`. Impact
+   POST redirects to `Edit` or `Details` per `returnTo`.
+3. **Retired** `ItemController.Impact` GET/POST + `GetTemplateParameters` +
+   `Views/Item/Impact.cshtml`. `SetItemImpactCommand`→`SetApplicationImpactCommand`
+   (dropped `ItemId`); `SetItemImpactAsync`→`SetApplicationImpactAsync`.
+   `ApplicationDto` gained an Application-level `Impact`.
+4. **`Details.cshtml`** — per-item "Impacto" link repointed to the
+   Application-level step; "Continuar borrador" action added for Draft state.
+5. **`wwwroot/js/submit-gate.js`** — reads `data-item-count` / `data-impact-set`
+   + required fields; toggles the submit `<button disabled>` + `title`.
+6. **`Views/Application/Edit.cshtml`** — rebuilt: Impact card first, inline
+   add/remove item form, gated submit `<button>`.
+7. **E2E** — `US2_ApplicantE2E` rewritten to drive the full journey;
+   `ImpactTemplateTests` rewritten; `AuthenticatedTestBase` helper +
+   `ApplicationDraftPage` migrated; `ApplicationSubmissionTests` intermediate
+   URL assert updated.
+8. Build + unit + integration + **full Playwright E2E suite green** (NFR-004 /
    SC-016) before this work is considered delivered.
 
 ### Known deviation
 
-Between `Create` and the first Impact save, the draft row has a transient null
+Between `Create` and the first Impact save the draft row has a transient null
 `ImpactTemplateId`. The domain permits this (`ImpactTemplateId` is `int?`); the
-UI never exposes an items surface until impact is set, and the submit guard
-rejects null impact. Hardening the `Application` constructor to require impact
-is deferred — out of scope for this fix.
+submit guard rejects null impact and the gated submit button stays disabled.
+Hardening the `Application` constructor to require impact is deferred.

@@ -13,7 +13,12 @@
     var headerActions = new List<ActionItem>();
     if (Model.State == nameof(ApplicationState.Draft))
     {
-        headerActions.Add(new ActionItem("Agregar ítem", ActionClass.Primary,
+        // Spec 021 / US2 / FR-005 — the draft editor (impact-first, inline
+        // items, gated submit) is the canonical place to complete a draft.
+        headerActions.Add(new ActionItem("Continuar borrador", ActionClass.Primary,
+            Url: Url.Action("Edit", "Application", new { id = Model.Id }),
+            Icon: "ti ti-edit"));
+        headerActions.Add(new ActionItem("Agregar ítem", ActionClass.Secondary,
             Url: Url.Action("Add", "Item", new { appId = Model.Id }),
             Icon: "ti ti-plus"));
     }
@@ -203,7 +208,9 @@ else
                                 {
                                     <a asp-controller="Supplier" asp-action="Add" asp-route-appId="@Model.Id" asp-route-itemId="@item.Id" class="btn btn-sm btn-outline-primary">Agregar proveedor</a>
                                     <a asp-controller="Item" asp-action="Edit" asp-route-appId="@Model.Id" asp-route-itemId="@item.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
-                                    <a asp-controller="Item" asp-action="Impact" asp-route-appId="@Model.Id" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary">Impacto</a>
+                                    @* Spec 021 / FR-005 — Impact is a per-Application step, not per-Item;
+                                       the link routes to the Application-level Impact surface. *@
+                                    <a asp-controller="Application" asp-action="Impact" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-secondary">Impacto</a>
                                     <form asp-controller="Item" asp-action="Delete" asp-route-appId="@Model.Id" asp-route-itemId="@item.Id" method="post" class="d-inline">
                                         @Html.AntiForgeryToken()
                                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Está seguro de que desea eliminar este ítem?')">Eliminar</button>
