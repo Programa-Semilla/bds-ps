@@ -30,6 +30,46 @@ public class US1_ProcessAdmin : AuthenticatedTestBase
 {
     private const string AdminPassword = "Test123!";
 
+    private string[] _createdGroupNames = Array.Empty<string>();
+
+    /// <summary>
+    /// Spec 021 / FR-001 — US1 creates Groups under a Plantilla-bearing Process.
+    /// The shared E2E fixture + <c>RegisterUserAsync→AssignAllGroups</c> would
+    /// otherwise cross-wire every later-registered applicant into this Process,
+    /// and <c>SubmitApplicationHandler.ResolveMinimumQuotationsAsync</c>
+    /// (<c>FirstOrDefault</c> over the applicant's group memberships) would
+    /// resolve their submit-time minimum quotations to this Process's
+    /// ProcessPlantilla snapshot. Delete the groups so the shared fixture stays
+    /// neutral for downstream submission tests.
+    /// </summary>
+    [TearDown]
+    public async Task CleanUpCreatedGroupsAsync()
+    {
+        if (_createdGroupNames.Length == 0)
+        {
+            return;
+        }
+        var page = new AdminGroupsPage(Page);
+        foreach (var name in _createdGroupNames)
+        {
+            try
+            {
+                await page.GoToIndexAsync(BaseUrl);
+                if (await page.RowFor(name).CountAsync() == 0)
+                {
+                    continue;
+                }
+                await page.RowEditButton(name).ClickAsync();
+                await page.DeleteGroupAsync();
+                await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Groups(\\?.*)?$"));
+            }
+            catch (Exception ex)
+            {
+                TestContext.Out.WriteLine($"US1 group cleanup: could not delete '{name}': {ex.Message}");
+            }
+        }
+    }
+
     private async Task SignInAsAdminAsync(string suffix)
     {
         var adminEmail = $"procadmin_{suffix}@example.com";
@@ -88,6 +128,9 @@ public class US1_ProcessAdmin : AuthenticatedTestBase
         // the owning Process is *this* Process by construction. The inline
         // "Nuevo grupo" form lives in the Groups panel of the same detail page.
         var groupNames = new[] { $"Norte-{unique}", $"Sur-{unique}", $"Centro-{unique}" };
+        // Register for [TearDown] cleanup before creating — a mid-loop failure
+        // still leaves the partially-created groups removable.
+        _createdGroupNames = groupNames;
         foreach (var gname in groupNames)
         {
             await procPage.GoToDetailsAsync(BaseUrl, processId);
