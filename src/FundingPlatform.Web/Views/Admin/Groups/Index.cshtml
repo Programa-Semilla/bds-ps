@@ -12,11 +12,13 @@
             Subtitle: AdminGroupsResources.Page_Subtitle,
             PrimaryActions: new[]
             {
+                @* Spec 021 / FR-001 — Groups are created from a Process detail
+                   page, so the catalog's only top-level action routes there. *@
                 new ActionItem(
-                    Label: AdminGroupsResources.Action_Create,
-                    Class: ActionClass.Primary,
-                    Url: Url.Action("Create", "AdminGroups"),
-                    Icon: "ti ti-plus")
+                    Label: AdminGroupsResources.Action_GoToProcesses,
+                    Class: ActionClass.Secondary,
+                    Url: Url.Action("Index", "AdminProcesses"),
+                    Icon: "ti ti-folders")
             }))
 
     @if (TempData["SuccessMessage"] is string flash && !string.IsNullOrEmpty(flash))
@@ -34,10 +36,10 @@
                     Icon: "ti ti-users-group",
                     IllustrationSceneKey: "folders-stack",
                     PrimaryAction: new ActionItem(
-                        Label: AdminGroupsResources.Action_Create,
+                        Label: AdminGroupsResources.Action_GoToProcesses,
                         Class: ActionClass.Primary,
-                        Url: Url.Action("Create", "AdminGroups"),
-                        Icon: "ti ti-plus")))
+                        Url: Url.Action("Index", "AdminProcesses"),
+                        Icon: "ti ti-folders")))
         </div>
     }
     else
@@ -48,6 +50,7 @@
                     <thead>
                         <tr>
                             <th>@AdminGroupsResources.Column_Name</th>
+                            <th>@AdminGroupsResources.Column_Process</th>
                             <th class="w-1">@AdminGroupsResources.Column_MemberCount</th>
                             <th class="text-end">@AdminGroupsResources.Column_Actions</th>
                         </tr>
@@ -57,6 +60,7 @@
                         {
                             <tr data-testid="admin-group-row-@row.Id">
                                 <td data-testid="admin-group-name">@row.Name</td>
+                                <td data-testid="admin-group-process">@row.ProcessName</td>
                                 <td data-testid="admin-group-member-count">@row.MemberCount</td>
                                 <td class="text-end">
                                     <div class="btn-list justify-content-end">

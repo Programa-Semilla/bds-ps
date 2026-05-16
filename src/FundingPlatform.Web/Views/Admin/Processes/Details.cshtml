@@ -179,20 +179,21 @@
             </div>
         </div>
 
-        @* Groups panel. *@
+        @* Groups panel. Spec 021 / FR-001 — Groups are created *here*, under the
+           Process; the owning Process is implied by this page's route id. *@
         <div class="col-12">
             <div class="card" data-testid="admin-process-groups-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title mb-0">Grupos del proceso (@detail.Groups.Count)</h3>
-                    <a class="btn btn-sm btn-outline-primary" href="@Url.Action("Index", "AdminGroups")"
+                    <a class="btn btn-sm btn-outline-secondary" href="@Url.Action("Index", "AdminGroups")"
                        data-testid="admin-process-manage-groups">
-                        <i class="ti ti-users-group"></i> Administrar grupos
+                        <i class="ti ti-users-group"></i> Catálogo de grupos
                     </a>
                 </div>
                 @if (detail.Groups.Count == 0)
                 {
                     <div class="card-body">
-                        <p class="text-muted mb-0">Sin grupos asignados todavía.</p>
+                        <p class="text-muted mb-0">Sin grupos en este proceso todavía.</p>
                     </div>
                 }
                 else
@@ -212,6 +213,29 @@
                                 }
                             </tbody>
                         </table>
+                    </div>
+                }
+                @if (detail.Status == ProcessStatus.Active)
+                {
+                    <div class="card-body border-top">
+                        <form method="post" asp-action="CreateGroup" asp-controller="AdminProcesses"
+                              asp-route-id="@detail.Id" class="row g-2"
+                              data-testid="admin-process-group-create-form">
+                            @Html.AntiForgeryToken()
+                            <div class="col-md-8">
+                                <label class="form-label" for="groupName">Nuevo grupo</label>
+                                <input name="groupName" id="groupName" class="form-control"
+                                       maxlength="100" required
+                                       placeholder="Nombre del grupo (p. ej. Norte)"
+                                       data-testid="admin-process-group-name-input" />
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100"
+                                        data-testid="admin-process-group-create-submit">
+                                    <i class="ti ti-plus"></i> Crear grupo
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 }
             </div>

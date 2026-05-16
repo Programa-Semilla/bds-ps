@@ -32,6 +32,24 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
     }
 
+    /// <summary>
+    /// Spec 021 / FR-001 — Groups are created from the Process detail page (the
+    /// owning Process is implied by route context). Creates one Active Process
+    /// and the given Groups under it.
+    /// </summary>
+    private async Task CreateGroupsUnderNewProcessAsync(string suffix, params string[] groupNames)
+    {
+        var procPage = new ProcessAdminPage(Page);
+        await procPage.GoToCreateAsync(BaseUrl);
+        await procPage.CreateProcessAsync($"RSProc-{suffix}");
+        var processId = await procPage.OpenProcessDetailByNameAsync(BaseUrl, $"RSProc-{suffix}");
+        foreach (var name in groupNames)
+        {
+            await procPage.GoToDetailsAsync(BaseUrl, processId);
+            await procPage.CreateGroupAsync(name);
+        }
+    }
+
     [Test]
     public async Task Reviewer_OutOfScope_DetailUrl_Returns403()
     {
@@ -40,11 +58,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var unique = Guid.NewGuid().ToString("N")[..6];
         await SignInAsAdminAsync(unique);
 
-        var groupsPage = new AdminGroupsPage(Page);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync($"SC-{unique}-A");
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync($"SC-{unique}-B");
+        await CreateGroupsUnderNewProcessAsync(unique, $"SC-{unique}-A", $"SC-{unique}-B");
 
         // Create an applicant in group A.
         var applicantEmail = $"sc_app_{unique}@example.com";
@@ -111,9 +125,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var unique = Guid.NewGuid().ToString("N")[..6];
         await SignInAsAdminAsync(unique);
 
-        var groupsPage = new AdminGroupsPage(Page);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync($"SR-{unique}");
+        await CreateGroupsUnderNewProcessAsync(unique, $"SR-{unique}");
 
         var reviewerEmail = $"sr_rev_{unique}@example.com";
         var createPage = new AdminUserCreatePage(Page);
@@ -176,11 +188,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         // Two real groups named after the spec convention.
         var norteName = $"Norte-{unique}";
         var surName = $"Sur-{unique}";
-        var groupsPage = new AdminGroupsPage(Page);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync(norteName);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync(surName);
+        await CreateGroupsUnderNewProcessAsync(unique, norteName, surName);
 
         // Sur applicant.
         var surApplicantEmail = $"sur_app_{unique}@example.com";
@@ -269,11 +277,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
 
         var norteName = $"NorteSI-{unique}";
         var surName = $"SurSI-{unique}";
-        var groupsPage = new AdminGroupsPage(Page);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync(norteName);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync(surName);
+        await CreateGroupsUnderNewProcessAsync(unique, norteName, surName);
 
         // Sur applicant + pending signed upload (seeded via SQL/Azurite).
         var surApplicantEmail = $"si_sur_app_{unique}@example.com";
@@ -358,13 +362,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var groupAName = $"QSA-{unique}";
         var groupBName = $"QSB-{unique}";
         var groupCName = $"QSC-{unique}";
-        var groupsPage = new AdminGroupsPage(Page);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync(groupAName);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync(groupBName);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync(groupCName);
+        await CreateGroupsUnderNewProcessAsync(unique, groupAName, groupBName, groupCName);
 
         // Distinctive fragment used both for the in-scope match and the
         // out-of-scope decoy — guarantees the search-on-last-name path

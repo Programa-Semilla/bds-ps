@@ -29,6 +29,19 @@
             <span asp-validation-for="Name" class="text-danger" data-testid="admin-group-name-error"></span>
         </div>
 
+        @* Spec 021 / FR-001 — owning Process. Changing it reparents the group. *@
+        <div class="col-md-6 mb-3">
+            <label class="form-label" asp-for="ProcessId">@AdminGroupsResources.Label_Process</label>
+            <select asp-for="ProcessId" class="form-select" data-testid="admin-group-process-select">
+                @foreach (var p in Model.ProcessOptions)
+                {
+                    <option value="@p.Id" selected="@(p.Id == Model.ProcessId)">@p.Name</option>
+                }
+            </select>
+            <small class="form-hint">@AdminGroupsResources.Hint_Process</small>
+            <span asp-validation-for="ProcessId" class="text-danger" data-testid="admin-group-process-error"></span>
+        </div>
+
         <div class="d-flex justify-content-between mt-2">
             @* Spec 016 — confirm prompt copy is rendered as data-* attributes (HTML-encoded by
                Razor) and read by inline JS. This avoids interpolating Model.Name into a JS string

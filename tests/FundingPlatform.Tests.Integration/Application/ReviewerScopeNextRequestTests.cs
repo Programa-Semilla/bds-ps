@@ -44,7 +44,11 @@ public class ReviewerScopeNextRequestTests
         AppEntity app;
         using (var ctx = CreateContext(dbName))
         {
-            norte = Group.Create("Norte");
+            // Spec 021 / FR-001 — every Group belongs to exactly one Process.
+            var process = Process.Create("Crocus 2025");
+            ctx.Processes.Add(process);
+            await ctx.SaveChangesAsync();
+            norte = Group.Create("Norte", process.Id);
             ctx.Groups.Add(norte);
             await ctx.SaveChangesAsync();
 

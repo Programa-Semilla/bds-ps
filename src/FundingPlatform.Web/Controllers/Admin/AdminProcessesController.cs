@@ -1,6 +1,7 @@
 // Spec 021 — see specs/021-feedback-session-may13/tasks.md T080
 // and contracts/admin-routes.md (Processes section).
 
+using FundingPlatform.Application.Admin.Groups;
 using FundingPlatform.Application.Plantillas;
 using FundingPlatform.Application.Processes;
 using FundingPlatform.Application.Processes.Queries;
@@ -28,17 +29,20 @@ public class AdminProcessesController : Controller
     private readonly IProcessService _processes;
     private readonly IProcessQueryService _processQuery;
     private readonly IPlantillaService _plantillas;
+    private readonly IGroupService _groups;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public AdminProcessesController(
         IProcessService processes,
         IProcessQueryService processQuery,
         IPlantillaService plantillas,
+        IGroupService groups,
         UserManager<ApplicationUser> userManager)
     {
         _processes = processes;
         _processQuery = processQuery;
         _plantillas = plantillas;
+        _groups = groups;
         _userManager = userManager;
     }
 
@@ -159,6 +163,40 @@ public class AdminProcessesController : Controller
         catch (Domain.Exceptions.ProcessClosedException)
         {
             TempData["ErrorMessage"] = "El proceso está cerrado; no se pueden modificar las ventanas de etapa.";
+        }
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost("{id:int}/Groups")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateGroup(int id, string groupName, CancellationToken ct)
+    {
+        // Spec 021 / FR-001 — Groups are created *under* a Process. The owning
+        // Process is the route id; the form on Process Details posts only the
+        // name. Mirrors the AssignPlantilla / StageOverride flash pattern.
+        var actorId = _userManager.GetUserId(User) ?? string.Empty;
+        try
+        {
+            await _groups.CreateAsync(groupName ?? string.Empty, id, actorId, ct);
+            TempData["SuccessMessage"] = $"Grupo '{groupName}' creado.";
+        }
+        catch (KeyNotFoundException)
+        {
+            // The Process in the route does not exist.
+            return NotFound();
+        }
+        catch (DuplicateGroupNameException)
+        {
+            TempData["ErrorMessage"] = "Ya existe un grupo con ese nombre.";
+        }
+        catch (ArgumentException)
+        {
+            TempData["ErrorMessage"] = "El nombre del grupo es obligatorio.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Process is closed.
+            TempData["ErrorMessage"] = ex.Message;
         }
         return RedirectToAction(nameof(Details), new { id });
     }

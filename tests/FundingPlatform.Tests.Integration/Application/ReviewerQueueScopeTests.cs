@@ -40,8 +40,12 @@ public class ReviewerQueueScopeTests
     /// </summary>
     private static async Task<(int a, int b, int c, int norteId, int surId)> SeedFixtureAsync(AppDbContext ctx)
     {
-        var norte = Group.Create("Norte");
-        var sur = Group.Create("Sur");
+        // Spec 021 / FR-001 — every Group belongs to exactly one Process.
+        var process = Process.Create("Crocus 2025");
+        ctx.Processes.Add(process);
+        await ctx.SaveChangesAsync();
+        var norte = Group.Create("Norte", process.Id);
+        var sur = Group.Create("Sur", process.Id);
         ctx.Groups.AddRange(norte, sur);
         await ctx.SaveChangesAsync();
 

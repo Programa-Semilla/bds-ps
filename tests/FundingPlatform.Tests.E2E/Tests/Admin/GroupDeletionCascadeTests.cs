@@ -24,6 +24,23 @@ public class GroupDeletionCascadeTests : AuthenticatedTestBase
         await LoginAsync(Page, adminEmail, Pwd);
     }
 
+    /// <summary>
+    /// Spec 021 / FR-001 — Groups are created from the Process detail page.
+    /// Creates one Active Process and the given Groups under it.
+    /// </summary>
+    private async Task CreateGroupsUnderNewProcessAsync(string suffix, params string[] groupNames)
+    {
+        var procPage = new ProcessAdminPage(Page);
+        await procPage.GoToCreateAsync(BaseUrl);
+        await procPage.CreateProcessAsync($"CascProc-{suffix}");
+        var processId = await procPage.OpenProcessDetailByNameAsync(BaseUrl, $"CascProc-{suffix}");
+        foreach (var name in groupNames)
+        {
+            await procPage.GoToDetailsAsync(BaseUrl, processId);
+            await procPage.CreateGroupAsync(name);
+        }
+    }
+
     [Test]
     public async Task DeleteGroup_PreservesUsers_AndOtherGroupMemberships()
     {
@@ -33,11 +50,8 @@ public class GroupDeletionCascadeTests : AuthenticatedTestBase
         // Create two groups.
         var groupA = $"CASC-{unique}-A";
         var groupB = $"CASC-{unique}-B";
+        await CreateGroupsUnderNewProcessAsync(unique, groupA, groupB);
         var groupsPage = new AdminGroupsPage(Page);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync(groupA);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync(groupB);
 
         // Create a reviewer in BOTH groups.
         var dualEmail = $"casc_dual_{unique}@example.com";

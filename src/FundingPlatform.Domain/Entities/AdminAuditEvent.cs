@@ -11,6 +11,8 @@ public class AdminAuditEvent
     public const string ActionGroupCreate = "group.create";
     public const string ActionGroupRename = "group.rename";
     public const string ActionGroupDelete = "group.delete";
+    /// <summary>Spec 021 / FR-001 — admin reparented a Group to a different Process.</summary>
+    public const string ActionGroupMoveProcess = "group.move_process";
     /// <summary>User membership-update action key.</summary>
     public const string ActionUserMembershipsUpdate = "user.memberships.update";
 

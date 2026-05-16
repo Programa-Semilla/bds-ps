@@ -84,18 +84,15 @@ public class US1_ProcessAdmin : AuthenticatedTestBase
         await Expect(procPage.PlantillaMinQuotations).ToHaveTextAsync("3");
 
         // ----- (5) Groups *Norte* / *Sur* / *Centro* under the Process. -----
-        // The /Admin/Groups surface (spec 016) creates groups on the active
-        // *Migración inicial* Process today (until a per-Process Group create
-        // surface lands in a later spec sweep). The cascade-filter assertion
-        // below verifies the Process column is in fact populated; we add the
-        // three demo groups via /Admin/Groups for the catalog and then verify
-        // the cascade catalog includes them.
-        foreach (var gname in new[] { $"Norte-{unique}", $"Sur-{unique}", $"Centro-{unique}" })
+        // Spec 021 / FR-001 — Groups are created from the Process detail page;
+        // the owning Process is *this* Process by construction. The inline
+        // "Nuevo grupo" form lives in the Groups panel of the same detail page.
+        var groupNames = new[] { $"Norte-{unique}", $"Sur-{unique}", $"Centro-{unique}" };
+        foreach (var gname in groupNames)
         {
-            await Page.GotoAsync($"{BaseUrl}/Admin/Groups/Create");
-            await Page.Locator("[data-testid=\"admin-group-name-input\"]").FillAsync(gname);
-            await Page.Locator("[data-testid=\"admin-group-create-submit\"]").ClickAsync();
-            await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Groups(\\?.*)?$"));
+            await procPage.GoToDetailsAsync(BaseUrl, processId);
+            await procPage.CreateGroupAsync(gname);
+            await Expect(procPage.GroupRow(gname)).ToBeVisibleAsync();
         }
 
         // ----- (6) Snapshot-independence (SC-002). -----
@@ -120,24 +117,23 @@ public class US1_ProcessAdmin : AuthenticatedTestBase
         await Expect(usersPage.ProcessFilter).ToBeVisibleAsync();
         await Expect(usersPage.GroupFilter).ToBeVisibleAsync();
 
-        // The newly-created Process appears in the catalog. Pick it.
+        // FR-001 + FR-034 — picking *Crocus 2025* must narrow the Group dropdown
+        // to exactly the three groups created under it in step (5). The three
+        // groups genuinely belong to this Process (no "Migración inicial"
+        // fallback), so the cascade is a real subset assertion now.
         await usersPage.SelectProcessByLabelAsync(processName);
+        var scopedOptions = await usersPage.GroupFilter.Locator("option").AllTextContentsAsync();
 
-        // The cascade JS rebuilds the Group dropdown. The new Process has no
-        // groups attached to it directly via the legacy /Admin/Groups surface
-        // (groups land on the Migración inicial Process), so the assertion
-        // here is structural: picking *any* Process must change the dropdown
-        // from "all groups" to "scoped to this Process".
-        var optionsAfter = await usersPage.GroupFilter.Locator("option").AllTextContentsAsync();
-        // First option is always the "Todos los grupos" placeholder; subsequent
-        // options should be the scoped subset (possibly empty if the Process
-        // has no groups, which is allowed). The structural assertion is that
-        // the option count changed *relative* to the all-Processes baseline.
-        await usersPage.SelectProcessByLabelAsync("Todos los procesos");
-        var optionsAll = await usersPage.GroupFilter.Locator("option").AllTextContentsAsync();
-        // Whether the new Process has 0 or N groups, the "all" set is a
-        // superset of the per-Process set — assert |all| >= |afterPick|.
-        Assert.That(optionsAll.Count, Is.GreaterThanOrEqualTo(optionsAfter.Count),
-            "FR-034 — picking a Process must narrow (or equal) the Group dropdown vs. the all-Processes baseline.");
+        foreach (var gname in groupNames)
+        {
+            Assert.That(scopedOptions.Any(o => o.Contains(gname, StringComparison.Ordinal)), Is.True,
+                $"FR-034 — Group dropdown scoped to '{processName}' must include '{gname}'. "
+                + $"Got: {string.Join(" | ", scopedOptions)}");
+        }
+        // First option is the "Todos los grupos" placeholder; the rest are the
+        // Process's three groups and nothing else.
+        Assert.That(scopedOptions.Count, Is.EqualTo(groupNames.Length + 1),
+            $"FR-001 / FR-034 — '{processName}' has exactly {groupNames.Length} groups (plus the "
+            + $"placeholder). Got: {string.Join(" | ", scopedOptions)}");
     }
 }

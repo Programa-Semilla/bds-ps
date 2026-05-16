@@ -2,6 +2,7 @@ using System.Text.Json;
 using FundingPlatform.Application.Admin.Groups;
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,11 +28,18 @@ public sealed class GroupService : IGroupService
 
     public async Task<IReadOnlyList<GroupRow>> ListAsync(CancellationToken ct)
     {
-        // Single round-trip: project the count via the configured navigation.
+        // Single round-trip: project the member count via the configured
+        // navigation and the owning Process name via a correlated subquery
+        // (FR-001 — every Group belongs to exactly one Process).
         return await _db.Groups
             .AsNoTracking()
             .OrderBy(g => g.Name)
-            .Select(g => new GroupRow(g.Id, g.Name, g.Memberships.Count()))
+            .Select(g => new GroupRow(
+                g.Id,
+                g.Name,
+                g.Memberships.Count(),
+                g.ProcessId,
+                _db.Processes.Where(p => p.Id == g.ProcessId).Select(p => p.Name).FirstOrDefault() ?? ""))
             .ToListAsync(ct);
     }
 
@@ -40,35 +48,27 @@ public sealed class GroupService : IGroupService
         var g = await _db.Groups
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, ct);
-        return g is null ? null : new GroupDetail(g.Id, g.Name);
+        return g is null ? null : new GroupDetail(g.Id, g.Name, g.ProcessId);
     }
 
-    public async Task<int> CreateAsync(string name, string actorUserId, CancellationToken ct)
+    public async Task<int> CreateAsync(string name, int processId, string actorUserId, CancellationToken ct)
     {
+        // Spec 021 / FR-001 — every Group is attached to exactly one Process
+        // (FK_Groups_Processes). The owning Process is supplied by the caller —
+        // the Process Details "Nuevo grupo" form passes the route's id — so
+        // there is no bootstrap/"Migración inicial" fallback anymore.
+        var process = await _db.Processes
+            .FirstOrDefaultAsync(p => p.Id == processId, ct)
+            ?? throw new KeyNotFoundException($"Process {processId} not found.");
+        if (process.Status == ProcessStatus.Closed)
+        {
+            throw new InvalidOperationException("No se pueden crear grupos en un proceso cerrado.");
+        }
+
         // Domain entity does the trim + length validation. Uniqueness is the
         // unique index on dbo.Groups.Name; we surface DbUpdateException as
         // DuplicateGroupNameException for the controller.
-        //
-        // Spec 021-feedback-session-may13 / FR-001 — every Group is attached to
-        // a Process (FK_Groups_Processes). The spec-016 admin Groups form was
-        // not extended with a Process picker; new ad-hoc groups land under the
-        // bootstrap "Migración inicial" Process (the same row the post-deploy
-        // seed reconciles legacy groups to). A dedicated Process selector is
-        // tracked as spec-021 follow-up work.
-        var bootstrapProcessId = await _db.Processes
-            .Where(p => p.Name == "Migración inicial")
-            .Select(p => p.Id)
-            .FirstOrDefaultAsync(ct);
-        if (bootstrapProcessId == 0)
-        {
-            bootstrapProcessId = await _db.Processes
-                .OrderBy(p => p.Id)
-                .Select(p => p.Id)
-                .FirstOrDefaultAsync(ct);
-        }
-        var entity = bootstrapProcessId == 0
-            ? Group.Create(name)
-            : Group.Create(name, bootstrapProcessId);
+        var entity = Group.Create(name, processId);
 
         // Pre-check for a friendlier round-trip: if a duplicate is already in
         // the catalog, no need to issue the INSERT at all. The unique index is
@@ -105,11 +105,43 @@ public sealed class GroupService : IGroupService
                 AdminAuditEvent.ActionGroupCreate,
                 AdminAuditEvent.TargetTypeGroup,
                 entity.Id.ToString(),
-                JsonSerializer.Serialize(new { name = entity.Name })),
+                JsonSerializer.Serialize(new { name = entity.Name, processId })),
             ct);
         await _db.SaveChangesAsync(ct);
 
         return entity.Id;
+    }
+
+    public async Task MoveToProcessAsync(int id, int newProcessId, string actorUserId, CancellationToken ct)
+    {
+        var group = await _db.Groups.FirstOrDefaultAsync(g => g.Id == id, ct)
+            ?? throw new KeyNotFoundException($"Group {id} not found.");
+
+        var fromProcessId = group.ProcessId;
+        // Idempotent — a no-op reparent writes no audit row (mirrors Rename).
+        if (fromProcessId == newProcessId)
+        {
+            return;
+        }
+
+        var target = await _db.Processes.FirstOrDefaultAsync(p => p.Id == newProcessId, ct)
+            ?? throw new KeyNotFoundException($"Process {newProcessId} not found.");
+        if (target.Status == ProcessStatus.Closed)
+        {
+            throw new InvalidOperationException("No se puede mover un grupo a un proceso cerrado.");
+        }
+
+        group.MoveToProcess(newProcessId);
+
+        await _audit.WriteAsync(
+            AdminAuditEvent.Record(
+                actorUserId,
+                AdminAuditEvent.ActionGroupMoveProcess,
+                AdminAuditEvent.TargetTypeGroup,
+                group.Id.ToString(),
+                JsonSerializer.Serialize(new { groupId = group.Id, fromProcessId, toProcessId = newProcessId })),
+            ct);
+        await _db.SaveChangesAsync(ct);
     }
 
     public async Task RenameAsync(int id, string newName, string actorUserId, CancellationToken ct)

@@ -9,13 +9,12 @@ public static class AdminGroupsResources
 {
     // Page titles + nav
     public const string Page_Title = "Catálogo de grupos";
-    public const string Page_Subtitle = "Crea y administra los grupos que delimitan la visibilidad de los revisores.";
+    public const string Page_Subtitle = "Administra los grupos que delimitan la visibilidad de los revisores. Los grupos se crean dentro de un proceso.";
     public const string Breadcrumb_Index = "Grupos";
-    public const string Breadcrumb_Create = "Nuevo grupo";
     public const string Breadcrumb_Edit = "Editar grupo";
 
     // Actions
-    public const string Action_Create = "Nuevo grupo";
+    public const string Action_GoToProcesses = "Ir a procesos";
     public const string Action_Edit = "Editar";
     public const string Action_Delete = "Eliminar";
     public const string Action_Save = "Guardar";
@@ -23,15 +22,18 @@ public static class AdminGroupsResources
 
     // Table headers
     public const string Column_Name = "Nombre";
+    public const string Column_Process = "Proceso";
     public const string Column_MemberCount = "Miembros";
     public const string Column_Actions = "Acciones";
 
     // Form labels
     public const string Label_Name = "Nombre del grupo";
+    public const string Label_Process = "Proceso";
+    public const string Hint_Process = "Cambiar el proceso reasigna el grupo. Las membresías de revisores se conservan.";
 
     // Empty state
     public const string EmptyState_Title = "Aún no hay grupos.";
-    public const string EmptyState_Body = "Crea el primer grupo para comenzar a delimitar la visibilidad de los revisores.";
+    public const string EmptyState_Body = "Los grupos se crean dentro de un proceso. Abre un proceso para crear su primer grupo.";
 
     // Delete confirmation
     public const string Delete_ConfirmTitle = "¿Eliminar el grupo \"{0}\"?";

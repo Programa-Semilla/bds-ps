@@ -40,18 +40,12 @@ public class Group
         UpdatedAt = now;
     }
 
-    /// <summary>FR-001 — group name MUST be non-empty (after trim) and ≤ 100 chars.
-    /// Uniqueness is enforced by the unique index on <c>dbo.Groups.Name</c>.
-    /// Pre-021 overload: groups created here are detached from any Process and
-    /// must have <see cref="ProcessId"/> assigned by the Application layer
-    /// (which knows the active "Migración inicial" Process).</summary>
-    public static Group Create(string name)
-    {
-        var trimmed = ValidateName(name);
-        return new Group(trimmed, processId: 0);
-    }
-
-    /// <summary>Spec 021 FR-001 — every Group is attached to a Process at creation.</summary>
+    /// <summary>Spec 021 FR-001 — every Group is attached to exactly one Process
+    /// at creation. Group name MUST be non-empty (after trim) and ≤ 100 chars;
+    /// uniqueness is enforced by the unique index on <c>dbo.Groups.Name</c>.
+    /// There is no Process-less group-create path — the spec-016 overload that
+    /// produced an FK-invalid <c>ProcessId = 0</c> row was removed when the
+    /// Group admin surface gained its Process axis.</summary>
     public static Group Create(string name, int processId)
     {
         if (processId <= 0)

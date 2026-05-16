@@ -22,6 +22,23 @@ public class AdminUserGroupAssignmentTests : AuthenticatedTestBase
     }
 
     /// <summary>
+    /// Spec 021 / FR-001 — Groups are created from the Process detail page.
+    /// Creates one Active Process and the given Groups under it.
+    /// </summary>
+    private async Task CreateGroupsUnderNewProcessAsync(string suffix, params string[] groupNames)
+    {
+        var procPage = new ProcessAdminPage(Page);
+        await procPage.GoToCreateAsync(BaseUrl);
+        await procPage.CreateProcessAsync($"GASProc-{suffix}");
+        var processId = await procPage.OpenProcessDetailByNameAsync(BaseUrl, $"GASProc-{suffix}");
+        foreach (var name in groupNames)
+        {
+            await procPage.GoToDetailsAsync(BaseUrl, processId);
+            await procPage.CreateGroupAsync(name);
+        }
+    }
+
+    /// <summary>
     /// Story 2 acceptance scenario 1 — Reviewer + zero groups → validation error,
     /// no user created.
     /// </summary>
@@ -65,11 +82,7 @@ public class AdminUserGroupAssignmentTests : AuthenticatedTestBase
         var applicantEmail = $"asn_app_{unique}@example.com";
 
         // Pre-create a couple of groups so we have known names to select.
-        var groupsPage = new AdminGroupsPage(Page);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync($"AS-{unique}-A");
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync($"AS-{unique}-B");
+        await CreateGroupsUnderNewProcessAsync(unique, $"AS-{unique}-A", $"AS-{unique}-B");
 
         var createPage = new AdminUserCreatePage(Page);
         await createPage.GoToAsync(BaseUrl);
@@ -103,9 +116,7 @@ public class AdminUserGroupAssignmentTests : AuthenticatedTestBase
         await SignInAsAdminAsync(unique);
         var reviewerEmail = $"promo_{unique}@example.com";
 
-        var groupsPage = new AdminGroupsPage(Page);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync($"PR-{unique}-A");
+        await CreateGroupsUnderNewProcessAsync(unique, $"PR-{unique}-A");
 
         var createPage = new AdminUserCreatePage(Page);
         await createPage.GoToAsync(BaseUrl);
@@ -152,9 +163,7 @@ public class AdminUserGroupAssignmentTests : AuthenticatedTestBase
         await SignInAsAdminAsync(unique);
         var adminEmail = $"demo_{unique}@example.com";
 
-        var groupsPage = new AdminGroupsPage(Page);
-        await groupsPage.GoToCreateAsync(BaseUrl);
-        await groupsPage.CreateGroupAsync($"DM-{unique}-X");
+        await CreateGroupsUnderNewProcessAsync(unique, $"DM-{unique}-X");
 
         // Need at least 2 admins for the demotion not to hit the
         // last-admin-protection guard. The signed-in admin is the first; create

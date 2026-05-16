@@ -50,7 +50,10 @@ public class ReviewerBucketExcludesApplicantTests
         var reviewerRoleId = ctx.Roles.Single(r => r.NormalizedName == "REVIEWER").Id;
         var applicantRoleId = ctx.Roles.Single(r => r.NormalizedName == "APPLICANT").Id;
 
-        var group = Domain.Entities.Group.Create("Reviewers G1");
+        var process = Domain.Entities.Process.Create("Crocus 2025");
+        ctx.Processes.Add(process);
+        await ctx.SaveChangesAsync();
+        var group = Domain.Entities.Group.Create("Reviewers G1", process.Id);
         ctx.Groups.Add(group);
         await ctx.SaveChangesAsync();
 
@@ -150,7 +153,10 @@ public class ReviewerBucketExcludesApplicantTests
         // Group G1 contains: A1 (submitting applicant), A2 (other applicant),
         // A3 (other applicant), R1 (real reviewer). This mirrors the spec 016
         // production shape where applicants and reviewers share groups.
-        var group = Domain.Entities.Group.Create("Reviewers G1");
+        var process = Domain.Entities.Process.Create("Crocus 2025");
+        ctx.Processes.Add(process);
+        await ctx.SaveChangesAsync();
+        var group = Domain.Entities.Group.Create("Reviewers G1", process.Id);
         ctx.Groups.Add(group);
         await ctx.SaveChangesAsync();
 

@@ -1,5 +1,6 @@
 // Spec 021 — see specs/021-feedback-session-may13/tasks.md T076.
 
+using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.PageObjects.Admin;
@@ -47,6 +48,13 @@ public class ProcessAdminPage : AdminBasePage
     public ILocator GroupRow(string name) =>
         Page.Locator("tr[data-testid^=\"admin-process-group-row-\"]").Filter(new() { HasText = name });
 
+    // Spec 021 / FR-001 — Groups are created from the Process detail page.
+    public ILocator GroupCreateForm => Page.Locator("[data-testid=\"admin-process-group-create-form\"]");
+    public ILocator GroupNameInput => Page.Locator("[data-testid=\"admin-process-group-name-input\"]");
+    public ILocator GroupCreateSubmit => Page.Locator("[data-testid=\"admin-process-group-create-submit\"]");
+    public ILocator FlashMessageDetail => Page.Locator("[data-testid=\"admin-process-flash\"]");
+    public ILocator FlashError => Page.Locator("[data-testid=\"admin-process-error\"]");
+
     // ---------- Navigation ----------
 
     public Task GoToIndexAsync(string baseUrl) =>
@@ -62,6 +70,29 @@ public class ProcessAdminPage : AdminBasePage
     {
         await NameInput.FillAsync(name);
         await CreateSubmit.ClickAsync();
+    }
+
+    /// <summary>
+    /// Spec 021 / FR-001 — opens /Admin/Processes, locates the row for
+    /// <paramref name="name"/>, and navigates to its detail page. Returns the
+    /// parsed Process id.
+    /// </summary>
+    public async Task<int> OpenProcessDetailByNameAsync(string baseUrl, string name)
+    {
+        await GoToIndexAsync(baseUrl);
+        var testid = await ProcessRow(name).GetAttributeAsync("data-testid")
+            ?? throw new InvalidOperationException($"Process row '{name}' not found on /Admin/Processes.");
+        var id = int.Parse(Regex.Match(testid, @"admin-process-row-(\d+)$").Groups[1].Value);
+        await GoToDetailsAsync(baseUrl, id);
+        return id;
+    }
+
+    /// <summary>Spec 021 / FR-001 — creates a Group under the currently-open
+    /// Process detail page via the inline "Nuevo grupo" form.</summary>
+    public async Task CreateGroupAsync(string name)
+    {
+        await GroupNameInput.FillAsync(name);
+        await GroupCreateSubmit.ClickAsync();
     }
 
     public async Task AssignPlantillaAsync(string plantillaOptionTextFragment)
