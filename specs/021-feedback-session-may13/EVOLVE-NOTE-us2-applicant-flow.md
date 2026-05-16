@@ -164,3 +164,43 @@ Between `Create` and the first Impact save the draft row has a transient null
 `ImpactTemplateId`. The domain permits this (`ImpactTemplateId` is `int?`); the
 submit guard rejects null impact and the gated submit button stays disabled.
 Hardening the `Application` constructor to require impact is deferred.
+
+---
+
+## Resolution executed (2026-05-16)
+
+Implemented per the plan above (commits `fix(021): US2 — rebuild applicant
+draft flow` + `fix(021): PublicCode value-object queries`). Build green;
+unit 383/383, integration 268/268.
+
+### Mismatch 5 (discovered during E2E): `PublicCode` value-object queries — MAJOR
+
+The first US2 E2E run after the rebuild surfaced an HTTP 500 on the autosave
+endpoint: *"InvalidCastException: Invalid cast from 'System.String' to
+'FundingPlatform.Domain.ValueObjects.PublicCode'."*
+
+- `Application.PublicCode` is a value-object property stored via a
+  `HasConversion` converter (`ApplicationConfiguration.cs`).
+- Three call sites looked it up with `EF.Property<string>(a, "PublicCode")` —
+  the wrong CLR type — throwing `InvalidCastException` on every request:
+  `AutosaveFieldHandler` (FR-016 autosave), `GetApplicationReviewProjection`
+  (the `/review` page), and `ApplicationController.SubmitByPublicCode` (the
+  `/review` "Confirmar y enviar" form).
+- **This is why FR-016 autosave never worked.** Commit `9b69ea3` had weakened
+  the autosave-indicator E2E assertion to a passive `ToBeAttachedAsync()`
+  check — the indicator was asserted *present*, never asserted to reach the
+  `saved` state — masking the 500. The `/review` and confirm-submit paths had
+  no test coverage at all, so their identical breakage was latent.
+
+**Verdict**: not US2-introduced — a pre-existing spec-021 defect across the
+PublicCode read paths. **Resolution**: compare the `PublicCode` value object
+directly (`a.PublicCode == codeVo`) so EF applies the converter; malformed
+codes are caught and mapped to `NotFound` / `400`.
+
+### Final verification
+
+Full Playwright E2E suite personally executed: **226 passed / 0 failed /
+5 skipped**. `US2_ApplicantE2E` now drives the real journey end-to-end
+(register → CTA → create → impact-first → autosave → inline item → gated
+submit → `/review` → "Confirmar y enviar" → PublicCode). NFR-004 / SC-016
+satisfied.
