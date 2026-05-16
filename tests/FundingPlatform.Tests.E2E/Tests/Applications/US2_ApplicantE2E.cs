@@ -61,7 +61,7 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
 
         // 5. Continue into the draft editor.
         await Page.Locator("a:has-text('Continuar borrador')").First.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Edit"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
         var draft = new ApplicationDraftPage(Page);
 
         // 6. FR-017 — submit gate is CLOSED before Impact is defined.
@@ -82,7 +82,7 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
 
         // 10. FR-005 — add an item inline; the editor reloads on the same surface.
         await draft.AddItemAsync("Horno industrial", "Acero inoxidable, 60L");
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Edit"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
         await Expect(draft.ItemRows).ToHaveCountAsync(1);
 
         // 11. FR-017 — gate now OPEN (Impact + >=1 item + required fields).
@@ -101,7 +101,7 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
 
         // 13. Return to the draft editor via the "Continuar borrador" link.
         await Page.Locator("a:has-text('Continuar borrador')").First.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Edit"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // 14. FR-017 — the gated submit routes to /review.
         await draft.GoToReviewAsync();

@@ -409,9 +409,13 @@ public class ApplicationController : Controller
     public async Task<IActionResult> SubmitByPublicCode(string publicCode)
     {
         var applicantId = await GetCurrentApplicantIdAsync();
-        var canonical = publicCode.Trim().ToUpperInvariant();
+        // PublicCode is a value-object column (HasConversion); compare the VO
+        // directly so EF applies the converter — never EF.Property<string>.
+        FundingPlatform.Domain.ValueObjects.PublicCode codeVo;
+        try { codeVo = new FundingPlatform.Domain.ValueObjects.PublicCode(publicCode); }
+        catch (ArgumentException) { return NotFound(); }
         var application = await _dbContext.Applications
-            .FirstOrDefaultAsync(a => EF.Property<string>(a, "PublicCode") == canonical);
+            .FirstOrDefaultAsync(a => a.PublicCode == codeVo);
         if (application is null || application.ApplicantId != applicantId)
         {
             return NotFound();

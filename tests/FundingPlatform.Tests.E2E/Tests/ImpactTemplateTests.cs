@@ -29,7 +29,7 @@ public class ImpactTemplateTests : AuthenticatedTestBase
         var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Details/(\d+)").Groups[1].Value);
 
         await Page.Locator("a:has-text('Continuar borrador')").First.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Edit"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         await Page.Locator("[data-testid=application-edit-impact-link]").ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Impact"));

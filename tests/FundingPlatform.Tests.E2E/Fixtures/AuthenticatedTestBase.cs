@@ -118,7 +118,7 @@ public class AuthenticatedTestBase : PageTest
         await Page.Locator($"button[type=submit]:has-text('{UiCopy.SaveImpact}')").ClickAsync();
         // Saving Impact returns to the draft editor (returnTo=edit) or to
         // Details, depending on where the step was entered from.
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/(Edit|Details)"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/(Edit|Details)/\d+"));
     }
 
     protected async Task RegisterUserAsync(IPage page, string email, string password, string firstName, string lastName, string legalId)

@@ -5,6 +5,7 @@ using FundingPlatform.Application.Applications;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Exceptions;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,11 +39,13 @@ public sealed class AutosaveFieldHandler : IAutosaveFieldHandler
             throw new ArgumentException("PublicCode is required.", nameof(cmd));
         }
 
-        var publicCode = cmd.PublicCode.Trim().ToUpperInvariant();
+        // PublicCode is a value-object column (HasConversion); compare the VO
+        // directly so EF applies the converter — never EF.Property&lt;string&gt;.
+        var codeVo = new PublicCode(cmd.PublicCode);
         var application = await _db.Applications
-            .FirstOrDefaultAsync(a => EF.Property<string>(a, "PublicCode") == publicCode, ct)
+            .FirstOrDefaultAsync(a => a.PublicCode == codeVo, ct)
             ?? throw new InvalidOperationException(
-                $"Application with PublicCode '{publicCode}' not found.");
+                $"Application with PublicCode '{codeVo.Value}' not found.");
 
         if (application.ApplicantId != currentApplicantId)
         {

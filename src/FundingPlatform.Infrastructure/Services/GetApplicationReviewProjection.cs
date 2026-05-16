@@ -2,6 +2,7 @@
 
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Applications.Queries;
+using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,7 +35,11 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
         {
             return null;
         }
-        var canonical = publicCode.Trim().ToUpperInvariant();
+        // PublicCode is a value-object column (HasConversion); compare the VO
+        // directly so EF applies the converter — never EF.Property&lt;string&gt;.
+        PublicCode canonical;
+        try { canonical = new PublicCode(publicCode); }
+        catch (ArgumentException) { return null; }
 
         // Spec 021 / FR-021 / T152 — exclude soft-deleted Applications so the
         // /review page returns NotFound for a deleted draft.
@@ -48,7 +53,7 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
                 .ThenInclude(t => t!.Parameters)
             .Include(a => a.ImpactParameterValues)
                 .ThenInclude(pv => pv.ImpactTemplateParameter)
-            .FirstOrDefaultAsync(a => EF.Property<string>(a, "PublicCode") == canonical, ct);
+            .FirstOrDefaultAsync(a => a.PublicCode == canonical, ct);
 
         if (application is null || application.ApplicantId != currentApplicantId)
         {
