@@ -136,7 +136,7 @@ public class AdditionalUserStoryCoverageTests : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
@@ -148,7 +148,7 @@ public class AdditionalUserStoryCoverageTests : AuthenticatedTestBase
         await supplier.FillNewSupplierFormAsync(name: supplierName, branchName: "Sede principal");
         await supplier.FillQuotationFieldsAsync(900m, "2027-12-31", _testFilePath);
         await supplier.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // MinQuotationsPerItem (default 2) — add a second supplier to make the app submittable.
         await Page.Locator($"a:has-text('{UiCopy.AddSupplier}')").First.ClickAsync();
@@ -157,24 +157,13 @@ public class AdditionalUserStoryCoverageTests : AuthenticatedTestBase
         await supplier2.FillNewSupplierFormAsync(name: $"Filler Cov {_uniqueId}", branchName: "Sede principal");
         await supplier2.FillQuotationFieldsAsync(1100m, "2027-12-31", _testFilePath);
         await supplier2.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Fill impact (required to submit).
-        await Page.Locator($"a:has-text('{UiCopy.Impact}')").First.ClickAsync();
-        await PickFirstImpactTemplateAsync();
-        var paramInputs = Page.Locator(".parameter-field input.form-control");
-        var inputCount = await paramInputs.CountAsync();
-        for (var i = 0; i < inputCount; i++)
-        {
-            var input = paramInputs.Nth(i);
-            var inputType = await input.GetAttributeAsync("type");
-            await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "Test");
-        }
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SaveImpact}')").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await SetImpactFromEditAsync(appId);
 
         // Submit application — supplier flips Draft → PendingReview.
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SubmitApplication}')").ClickAsync();
+        await SubmitDraftViaReviewAsync(appId);
         await Expect(Page.Locator($"[data-testid=status-pill]:has-text('{UiCopy.State.Submitted}')")).ToBeVisibleAsync();
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
 

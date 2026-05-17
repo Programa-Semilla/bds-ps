@@ -75,8 +75,8 @@ public class ApplicantReusesVerifiedSupplierTests : AuthenticatedTestBase
         await supplier.FillQuotationFieldsAsync(2500m, "2027-12-31", _testFilePath);
         await supplier.SubmitAsync();
 
-        // Successful save returns to the application detail page.
-        await Expect(Page).ToHaveURLAsync(new Regex($@"/Application/Details/{appId}"));
+        // Successful save returns to the draft editor.
+        await Expect(Page).ToHaveURLAsync(new Regex($@"/Application/Edit/{appId}"));
     }
 
     [Test]
@@ -121,7 +121,7 @@ public class ApplicantReusesVerifiedSupplierTests : AuthenticatedTestBase
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
 
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
@@ -134,7 +134,7 @@ public class ApplicantReusesVerifiedSupplierTests : AuthenticatedTestBase
             name: supplierName, branchName: "Sede principal", contact: "Seed", email: "s@e.com");
         await supplier.FillQuotationFieldsAsync(900m, "2027-12-31", _testFilePath);
         await supplier.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Submission requires MinQuotationsPerItem (default 2) — add a throwaway second
         // supplier so the application is submittable. Only the first supplier (above) is
@@ -146,24 +146,13 @@ public class ApplicantReusesVerifiedSupplierTests : AuthenticatedTestBase
             name: $"Filler Co {_uniqueId}", branchName: "Sede principal", contact: "F", email: "f@e.com");
         await secondSupplier.FillQuotationFieldsAsync(1100m, "2027-12-31", _testFilePath);
         await secondSupplier.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Fill impact so we can submit.
-        await Page.Locator($"a:has-text('{UiCopy.Impact}')").First.ClickAsync();
-        await PickFirstImpactTemplateAsync();
-        var paramInputs = Page.Locator(".parameter-field input.form-control");
-        var inputCount = await paramInputs.CountAsync();
-        for (var i = 0; i < inputCount; i++)
-        {
-            var input = paramInputs.Nth(i);
-            var inputType = await input.GetAttributeAsync("type");
-            await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "Test value");
-        }
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SaveImpact}')").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await SetImpactFromEditAsync(appId);
 
         // Submit application — supplier flips Draft → PendingReview (US4).
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SubmitApplication}')").ClickAsync();
+        await SubmitDraftViaReviewAsync(appId);
         await Expect(Page.Locator($"[data-testid=status-pill]:has-text('{UiCopy.State.Submitted}')")).ToBeVisibleAsync();
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
 
@@ -212,7 +201,7 @@ public class ApplicantReusesVerifiedSupplierTests : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);

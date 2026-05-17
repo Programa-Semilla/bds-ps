@@ -51,7 +51,7 @@ public class SupplierCatalogTests : AuthenticatedTestBase
         await supplier.FillQuotationFieldsAsync(1500m, "2027-12-31", _testFilePath);
         await supplier.SubmitAsync();
 
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class SupplierCatalogTests : AuthenticatedTestBase
         await supplier.FillNewSupplierFormAsync(name: "Reuse Co", branchName: "Sede principal");
         await supplier.FillQuotationFieldsAsync(1000m, "2027-12-31", _testFilePath);
         await supplier.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Add a 2nd item, search the same legal ID — it should be a Hit (Draft visible to creator).
         var itemPage = new ItemPage(Page);
@@ -131,13 +131,13 @@ public class SupplierCatalogTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
 
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
         Assert.That(appIdMatch.Success, Is.True);
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, $"Item {scenarioPrefix}", 0, "Specs", BaseUrl);
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         return (appId, 0); // itemId not needed for happy-path navigation; tests use the link.
     }

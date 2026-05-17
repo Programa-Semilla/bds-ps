@@ -96,8 +96,8 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
-        Assert.That(appIdMatch.Success, Is.True, "Applicant must land on a created application detail page.");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
+        Assert.That(appIdMatch.Success, Is.True, "Applicant must land on the created application's draft editor.");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
         await LogoutAsync();
 
@@ -222,7 +222,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         Assert.That(appIdMatch.Success, Is.True);
         var surAppId = int.Parse(appIdMatch.Groups[1].Value);
         await LogoutAsync();
@@ -314,7 +314,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         Assert.That(appIdMatch.Success, Is.True);
         var surAppId = int.Parse(appIdMatch.Groups[1].Value);
         await LogoutAsync();
@@ -424,7 +424,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
             var appPage = new ApplicationPage(Page);
             await appPage.GotoListAsync(BaseUrl);
             await appPage.CreateApplicationAsync();
-            var m = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+            var m = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
             Assert.That(m.Success, Is.True);
             return int.Parse(m.Groups[1].Value);
         }

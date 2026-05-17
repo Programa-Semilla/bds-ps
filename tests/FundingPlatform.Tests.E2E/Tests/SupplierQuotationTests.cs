@@ -48,13 +48,13 @@ public class SupplierQuotationTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
 
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
         Assert.That(appIdMatch.Success, Is.True);
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "Server Equipment", 0, "High-performance server", BaseUrl);
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         var addSupplierLink = Page.Locator("a:has-text('Agregar proveedor')").First;
         await Expect(addSupplierLink).ToBeVisibleAsync();
@@ -76,7 +76,7 @@ public class SupplierQuotationTests : AuthenticatedTestBase
             price: 1500.00m, validUntil: "2027-12-31", filePath: _testFilePath, currency: "USD");
         await supplierPage.SubmitAsync();
 
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         var itemRow = Page.Locator("table tbody tr:has-text('Server Equipment')");
         await Expect(itemRow).ToBeVisibleAsync();
@@ -98,7 +98,7 @@ public class SupplierQuotationTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
 
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
@@ -115,7 +115,7 @@ public class SupplierQuotationTests : AuthenticatedTestBase
             name: "Duplicate Supplier", branchName: "Sede principal");
         await supplierPage.FillQuotationFieldsAsync(2000.00m, "2027-12-31", _testFilePath);
         await supplierPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Second save (same item): the (item, supplier) UNIQUE constraint
         // should reject a duplicate quotation against the same supplier.

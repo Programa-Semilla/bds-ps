@@ -63,13 +63,13 @@ public class ReviewerDisplayE2E : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         Assert.That(appIdMatch.Success, Is.True);
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "Mixed Item", 0, "Specs", BaseUrl);
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // First supplier — CRC quotation 600,000.
         var supplierPage = new SupplierPage(Page);
@@ -83,7 +83,7 @@ public class ReviewerDisplayE2E : AuthenticatedTestBase
         await supplierPage.FillQuotationFieldsAsync(
             price: 600_000m, validUntil: "2027-12-31", filePath: _testFilePath, currency: "CRC");
         await supplierPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Second supplier — USD quotation 1000.
         addSupplierLink = Page.Locator($"a:has-text('{UiCopy.AddSupplier}')").First;
@@ -96,7 +96,7 @@ public class ReviewerDisplayE2E : AuthenticatedTestBase
         await supplierPage.FillQuotationFieldsAsync(
             price: 1000m, validUntil: "2027-12-31", filePath: _testFilePath, currency: "USD");
         await supplierPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Confirm the applicant's view shows MoneyDisplay components, conversion
         // indicator only on USD, and the legacy badge nowhere.

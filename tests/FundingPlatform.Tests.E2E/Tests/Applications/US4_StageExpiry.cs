@@ -70,10 +70,10 @@ public class US4_StageExpiry : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.CompanyNameInput.FillAsync($"Vencida {uniqueId}");
         await appPage.SubmitDraftButton.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
-        var detailsUrlMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
-        var appId = int.Parse(detailsUrlMatch.Groups[1].Value);
+        var editUrlMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
+        var appId = int.Parse(editUrlMatch.Groups[1].Value);
 
         // ----- 3. Backdate StageEnteredAt by 2 days via the dev-only helper
         //          (well past the 1-day Solicitud window). This mirrors the

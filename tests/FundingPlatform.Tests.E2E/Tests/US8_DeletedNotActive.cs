@@ -44,9 +44,9 @@ public class US8_DeletedNotActive : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync($"Empresa US8 {unique}");
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
-        var idMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var idMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         Assert.That(idMatch.Success, Is.True, "Could not parse Application Id from URL.");
         var applicationId = int.Parse(idMatch.Groups[1].Value);
 

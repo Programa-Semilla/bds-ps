@@ -24,28 +24,24 @@ public class ItemManagementTests : AuthenticatedTestBase
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
 
-        // Should be on application details page
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        // Should be on the draft editor page
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Extract application ID from URL
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
-        Assert.That(appIdMatch.Success, Is.True, "Should be on application details page with ID");
-
-        // Verify application was created with Draft status
-        var statusBadge = Page.Locator("[data-testid=status-pill]:has-text('Borrador')");
-        await Expect(statusBadge).ToBeVisibleAsync();
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
+        Assert.That(appIdMatch.Success, Is.True, "Should be on the draft editor page with ID");
 
         // Add an item
         var itemPage = new ItemPage(Page);
         var appId = int.Parse(appIdMatch.Groups[1].Value);
         await itemPage.AddItemAsync(appId, "Test Laptop", 0, "Intel i7, 16GB RAM, 512GB SSD", BaseUrl);
 
-        // Should redirect back to application details
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        // Should redirect back to the draft editor
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
-        // Verify item appears in the table
-        var itemRow = Page.Locator("table tbody tr:has-text('Test Laptop')");
+        // Verify item appears in the editor's item rows
+        var itemRow = Page.Locator("[data-testid=application-edit-item-row]:has-text('Test Laptop')");
         await Expect(itemRow).ToBeVisibleAsync();
     }
 
@@ -66,15 +62,15 @@ public class ItemManagementTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
 
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         // Add an item
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "Original Product", 0, "Original specs", BaseUrl);
 
-        // Find the edit button for the item and click it
-        var editButton = Page.Locator("a:has-text('Editar')").First;
+        // Find the edit button for the item in the draft editor and click it
+        var editButton = Page.Locator("[data-testid=application-edit-item-row] a:has-text('Editar')").First;
         await editButton.ClickAsync();
 
         // Edit the item
@@ -84,15 +80,15 @@ public class ItemManagementTests : AuthenticatedTestBase
         await itemPage.TechnicalSpecificationsInput.FillAsync("Updated specs");
         await itemPage.SubmitButton.ClickAsync();
 
-        // Should redirect back to application details
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        // Should redirect back to the draft editor
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Verify updated item appears
-        var updatedRow = Page.Locator("table tbody tr:has-text('Updated Product')");
+        var updatedRow = Page.Locator("[data-testid=application-edit-item-row]:has-text('Updated Product')");
         await Expect(updatedRow).ToBeVisibleAsync();
 
         // Verify original name is gone
-        var originalRow = Page.Locator("table tbody tr:has-text('Original Product')");
+        var originalRow = Page.Locator("[data-testid=application-edit-item-row]:has-text('Original Product')");
         await Expect(originalRow).Not.ToBeVisibleAsync();
     }
 
@@ -113,27 +109,27 @@ public class ItemManagementTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
 
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         // Add an item
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "Item To Delete", 0, "Will be removed", BaseUrl);
 
-        // Verify item exists
-        var itemRow = Page.Locator("table tbody tr:has-text('Item To Delete')");
+        // Verify item exists in the draft editor
+        var itemRow = Page.Locator("[data-testid=application-edit-item-row]:has-text('Item To Delete')");
         await Expect(itemRow).ToBeVisibleAsync();
 
         // Click delete button and handle confirmation dialog
         Page.Dialog += (_, dialog) => dialog.AcceptAsync();
-        var deleteButton = Page.Locator($"button:has-text('{UiCopy.Delete}')").First;
+        var deleteButton = Page.Locator($"[data-testid=application-edit-item-row] button:has-text('{UiCopy.Delete}')").First;
         await deleteButton.ClickAsync();
 
-        // Should redirect back to application details
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        // Should redirect back to the draft editor
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Verify item is gone
-        var deletedRow = Page.Locator("table tbody tr:has-text('Item To Delete')");
+        var deletedRow = Page.Locator("[data-testid=application-edit-item-row]:has-text('Item To Delete')");
         await Expect(deletedRow).Not.ToBeVisibleAsync();
     }
 }

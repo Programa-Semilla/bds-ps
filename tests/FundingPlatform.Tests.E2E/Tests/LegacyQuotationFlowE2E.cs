@@ -67,13 +67,13 @@ public class LegacyQuotationFlowE2E : AuthenticatedTestBase
         var appPage = new PageObjects.ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         Assert.That(appIdMatch.Success, Is.True);
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new PageObjects.ItemPage(Page);
         await itemPage.AddItemAsync(appId, "Legacy Item", 0, "Specs", BaseUrl);
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         var addSupplierLink = Page.Locator($"a:has-text('{Constants.UiCopy.AddSupplier}')").First;
         await addSupplierLink.ClickAsync();
@@ -90,7 +90,7 @@ public class LegacyQuotationFlowE2E : AuthenticatedTestBase
         await supplierPage.FillQuotationFieldsAsync(
             price: 1m, validUntil: "2027-12-31", filePath: _testFilePath, currency: "CRC");
         await supplierPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // 3. SQL: morph that CRC quotation into a legacy USD one. Mirrors exactly
         //    what the post-deploy migration produces for a real upgrade.

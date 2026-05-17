@@ -90,10 +90,10 @@ public class ApplicantUsdQuoteE2E : AuthenticatedTestBase
         await supplierPage.QuotationFileInput.SetInputFilesAsync(_testFilePath);
         await supplierPage.SubmitAsync();
 
-        // Saved → redirected back to Application Details.
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        // Saved → redirected back to the draft editor.
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
-        // Detail page shows the converted CRC + the original USD amount.
+        // Editor shows the converted CRC + the original USD amount.
         var quotationRow = Page.Locator("[data-testid=quotation-row]").First;
         await Expect(quotationRow).ToBeVisibleAsync();
         await Expect(quotationRow).ToContainTextAsync(new Regex(@"1[\.,\s]?000"));
@@ -161,13 +161,13 @@ public class ApplicantUsdQuoteE2E : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         Assert.That(appIdMatch.Success, Is.True);
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "USD Test Item", 0, "Specs", BaseUrl);
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
     }
 
     private async Task ClickAddSupplierOnItemRowAsync()

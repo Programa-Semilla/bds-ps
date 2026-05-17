@@ -142,14 +142,15 @@ public class LineCodeReviewFlowTests : AuthenticatedTestBase
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync("Sazón Vegetariano");
 
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "Item A", 0, "Specs A", BaseUrl);
         await itemPage.AddItemAsync(appId, "Item B", 0, "Specs B", BaseUrl);
 
-        // Add suppliers + impact for each item
+        // Add suppliers for each item — supplier-add links are anchored to each
+        // item card in the draft editor and redirect back to the editor.
         for (var iter = 0; iter < 2; iter++)
         {
             var supplierPage = new SupplierPage(Page);
@@ -164,23 +165,11 @@ public class LineCodeReviewFlowTests : AuthenticatedTestBase
             await supplierPage.FillSupplierFormAsync(
                 $"LCS{iter}b-{_uniqueId}", $"Supplier {iter}B", 700m, "2027-12-31", _testFilePath);
             await supplierPage.SubmitAsync();
-
-            var impactButton = Page.Locator("a:has-text('Impacto')").Nth(iter);
-            await impactButton.ClickAsync();
-            await PickFirstImpactTemplateAsync();
-            var paramInputs = Page.Locator(".parameter-field input.form-control");
-            var inputCount = await paramInputs.CountAsync();
-            for (var i = 0; i < inputCount; i++)
-            {
-                var input = paramInputs.Nth(i);
-                var inputType = await input.GetAttributeAsync("type");
-                await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "v");
-            }
-            await Page.Locator("button[type=submit]:has-text('Guardar impacto')").ClickAsync();
-            await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
         }
 
-        await Page.Locator("button[type=submit]:has-text('Enviar solicitud')").ClickAsync();
+        // Impact is now a single Application-level step in the draft editor.
+        await SetImpactFromEditAsync(appId);
+        await SubmitDraftViaReviewAsync(appId);
         await Expect(Page.Locator("[data-testid=status-pill]:has-text('Enviada')")).ToBeVisibleAsync();
 
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();

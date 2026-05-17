@@ -70,8 +70,9 @@ public class SendBackApplicationTests : AuthenticatedTestBase
         // Verify reviewer comments are visible
         await Expect(Page.Locator("text=Please provide updated specifications")).ToBeVisibleAsync();
 
-        // Verify applicant can resubmit
-        var submitButton = Page.Locator("button[type=submit]:has-text('Enviar solicitud')");
+        // Verify applicant can resubmit — the draft editor surfaces the gated submit.
+        await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
+        var submitButton = Page.Locator("[data-testid=application-edit-submit]");
         await Expect(submitButton).ToBeVisibleAsync();
     }
 
@@ -89,7 +90,7 @@ public class SendBackApplicationTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
 
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
@@ -106,21 +107,8 @@ public class SendBackApplicationTests : AuthenticatedTestBase
         await supplierPage.FillSupplierFormAsync($"SB2-{_uniqueId}", "Supplier Two", 1200m, "2027-12-31", _testFilePath);
         await supplierPage.SubmitAsync();
 
-        var impactButton = Page.Locator("a:has-text('Impacto')").First;
-        await impactButton.ClickAsync();
-        await PickFirstImpactTemplateAsync();
-        var paramInputs = Page.Locator(".parameter-field input.form-control");
-        var inputCount = await paramInputs.CountAsync();
-        for (int i = 0; i < inputCount; i++)
-        {
-            var input = paramInputs.Nth(i);
-            var inputType = await input.GetAttributeAsync("type");
-            await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "Test value");
-        }
-        await Page.Locator("button[type=submit]:has-text('Guardar impacto')").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
-
-        await Page.Locator("button[type=submit]:has-text('Enviar solicitud')").ClickAsync();
+        await SetImpactFromEditAsync(appId);
+        await SubmitDraftViaReviewAsync(appId);
         await Expect(Page.Locator("[data-testid=status-pill]:has-text('Enviada')")).ToBeVisibleAsync();
 
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
