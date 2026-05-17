@@ -55,7 +55,7 @@ public class ReturnedToApplicantNotificationsTests : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Details/(\d+)").Groups[1].Value);
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "SendBack Item", 0, "Specs", BaseUrl);
@@ -72,24 +72,12 @@ public class ReturnedToApplicantNotificationsTests : AuthenticatedTestBase
                 validUntil: "2027-12-31",
                 filePath: _quotation);
             await supplierPage.SubmitAsync();
-            await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+            await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
         }
 
-        var impactButton = Page.Locator($"a:has-text('{UiCopy.Impact}')").First;
-        await impactButton.ClickAsync();
-        await PickFirstImpactTemplateAsync();
-        var paramInputs = Page.Locator(".parameter-field input.form-control");
-        var inputCount = await paramInputs.CountAsync();
-        for (var i = 0; i < inputCount; i++)
-        {
-            var input = paramInputs.Nth(i);
-            var t = await input.GetAttributeAsync("type");
-            await input.FillAsync(t == "number" ? "100" : t == "date" ? "2026-12-31" : "Test");
-        }
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SaveImpact}')").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
-
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SubmitApplication}')").ClickAsync();
+        // Impact + submit through the draft editor → /review.
+        await SetImpactFromEditAsync(appId);
+        await SubmitDraftViaReviewAsync(appId);
         await Expect(Page.Locator($"[data-testid=status-pill]:has-text('{UiCopy.State.Submitted}')")).ToBeVisibleAsync();
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
 

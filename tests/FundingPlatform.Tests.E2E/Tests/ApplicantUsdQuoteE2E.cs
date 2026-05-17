@@ -93,7 +93,11 @@ public class ApplicantUsdQuoteE2E : AuthenticatedTestBase
         // Saved → redirected back to the draft editor.
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
-        // Editor shows the converted CRC + the original USD amount.
+        // Quotation rows render on the read-only Details summary.
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
+        await Page.GotoAsync($"{BaseUrl}/Application/Details/{appId}");
+
+        // The summary shows the converted CRC + the original USD amount.
         var quotationRow = Page.Locator("[data-testid=quotation-row]").First;
         await Expect(quotationRow).ToBeVisibleAsync();
         await Expect(quotationRow).ToContainTextAsync(new Regex(@"1[\.,\s]?000"));

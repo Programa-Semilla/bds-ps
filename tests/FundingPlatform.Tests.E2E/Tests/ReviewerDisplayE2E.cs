@@ -98,6 +98,10 @@ public class ReviewerDisplayE2E : AuthenticatedTestBase
         await supplierPage.SubmitAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
+        // Quotation rendering (MoneyDisplay / conversion indicator) lives on the
+        // read-only Details summary, not the draft editor.
+        await Page.GotoAsync($"{BaseUrl}/Application/Details/{appId}");
+
         // Confirm the applicant's view shows MoneyDisplay components, conversion
         // indicator only on USD, and the legacy badge nowhere.
         var moneyDisplays = Page.Locator("[data-testid=money-display]");

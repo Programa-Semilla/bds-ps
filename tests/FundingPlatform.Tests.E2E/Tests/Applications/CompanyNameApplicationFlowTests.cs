@@ -63,11 +63,9 @@ public class CompanyNameApplicationFlowTests : AuthenticatedTestBase
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
         var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
 
-        // The CompanyName surfaces in TempData["SuccessMessage"] = "Solicitud creada con éxito."
-        // and in the FundingAgreement preview later. For SC-012's first half we just
-        // confirm the persistence path didn't reject the input.
+        // Draft creation surfaces a success banner (TempData) on the editor.
         var successBanner = Page.Locator(".alert-success");
-        await Expect(successBanner).ToContainTextAsync("Solicitud creada con éxito.");
+        await Expect(successBanner).ToContainTextAsync("Borrador creado");
 
         // Verify the persisted CompanyName surfaces on the read-only Details summary.
         await Page.GotoAsync($"{BaseUrl}/Application/Details/{appId}");

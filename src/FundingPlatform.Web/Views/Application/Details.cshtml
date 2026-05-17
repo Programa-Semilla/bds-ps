@@ -37,6 +37,7 @@
 @await Html.PartialAsync("Components/_PageHeader",
     new PageHeaderViewModel(
         Title: $"Solicitud {idLabel}",
+        Subtitle: Model.CompanyName,
         PrimaryActions: headerActions))
 
 @if (TempData["ValidationErrors"] is string validationErrorsJson)

@@ -90,7 +90,11 @@ public class ApplicantCrcQuoteE2E : AuthenticatedTestBase
         // Saved → redirected back to the draft editor.
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
-        // Editor page shows only the CRC amount + CRC currency. No USD/converted block.
+        // Quotation rows render on the read-only Details summary.
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
+        await Page.GotoAsync($"{BaseUrl}/Application/Details/{appId}");
+
+        // The summary shows only the CRC amount + CRC currency. No USD/converted block.
         // Note: Intl/CultureInfo es-CR uses U+00A0 (non-breaking space) as the
         // thousands separator; \s in .NET regex matches it, plain ' ' does not.
         var quotationRow = Page.Locator("[data-testid=quotation-row]").First;

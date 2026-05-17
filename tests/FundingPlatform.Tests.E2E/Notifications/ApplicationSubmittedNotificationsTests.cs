@@ -59,7 +59,7 @@ public class ApplicationSubmittedNotificationsTests : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         Assert.That(appIdMatch.Success, Is.True);
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
@@ -80,26 +80,12 @@ public class ApplicationSubmittedNotificationsTests : AuthenticatedTestBase
                 validUntil: "2027-12-31",
                 filePath: _testFilePath);
             await supplierPage.SubmitAsync();
-            await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+            await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
         }
 
-        // Impact (required by Submit validation).
-        var impactButton = Page.Locator($"a:has-text('{UiCopy.Impact}')").First;
-        await impactButton.ClickAsync();
-        await PickFirstImpactTemplateAsync();
-        var paramInputs = Page.Locator(".parameter-field input.form-control");
-        var inputCount = await paramInputs.CountAsync();
-        for (var i = 0; i < inputCount; i++)
-        {
-            var input = paramInputs.Nth(i);
-            var inputType = await input.GetAttributeAsync("type");
-            await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "Test value");
-        }
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SaveImpact}')").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
-
-        // 3) Submit.
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SubmitApplication}')").ClickAsync();
+        // 3) Impact + submit through the draft editor → /review.
+        await SetImpactFromEditAsync(appId);
+        await SubmitDraftViaReviewAsync(appId);
         await Expect(Page.Locator($"[data-testid=status-pill]:has-text('{UiCopy.State.Submitted}')")).ToBeVisibleAsync();
 
         // 4) Wait for the worker to pick up the two outbox rows and dispatch.
