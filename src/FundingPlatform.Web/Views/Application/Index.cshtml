@@ -84,10 +84,15 @@ else
                                 }
                             </td>
                             <td>
-                                <a asp-action="Details" asp-route-id="@app.Id" class="fl-btn" data-variant="secondary" data-size="sm">Ver</a>
+                                @* Spec 021 / US2 — a Draft opens in the editor; a sent
+                                   application opens its read-only summary. One action each. *@
                                 @if (app.State == nameof(ApplicationState.Draft))
                                 {
-                                    <a asp-action="Edit" asp-route-id="@app.Id" class="fl-btn" data-variant="secondary" data-size="sm">Editar</a>
+                                    <a asp-action="Edit" asp-route-id="@app.Id" class="fl-btn" data-variant="primary" data-size="sm">Editar</a>
+                                }
+                                else
+                                {
+                                    <a asp-action="Details" asp-route-id="@app.Id" class="fl-btn" data-variant="secondary" data-size="sm">Ver</a>
                                 }
                             </td>
                         </tr>

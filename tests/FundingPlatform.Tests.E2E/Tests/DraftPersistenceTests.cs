@@ -6,6 +6,9 @@ using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.Tests;
 
+// Spec 021 / US2 — a draft is created and edited entirely on the draft editor
+// (/Application/Edit/{id}); this test verifies a draft (and its items) survives
+// a logout / login round-trip.
 public class DraftPersistenceTests : AuthenticatedTestBase
 {
     [Test]
@@ -15,63 +18,36 @@ public class DraftPersistenceTests : AuthenticatedTestBase
         var email = $"draft_persist_{uniqueId}@example.com";
         var password = "Test123!";
 
-        // Register and login
         await RegisterUserAsync(Page, email, password, "Draft", "Tester", $"LID-{uniqueId}");
         await LoginAsync(Page, email, password);
 
-        // Create application
+        // Create a draft — opens the draft editor.
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
 
-        var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
-        Assert.That(appIdMatch.Success, Is.True, "Should be on application details page with ID");
-        var appId = int.Parse(appIdMatch.Groups[1].Value);
+        // Add an item inline.
+        var draft = new ApplicationDraftPage(Page);
+        await draft.AddItemAsync("Persisted Laptop", "16GB RAM, 512GB SSD");
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
+        await Expect(draft.ItemRows.Filter(new() { HasTextString = "Persisted Laptop" })).ToBeVisibleAsync();
 
-        // Verify Draft status
-        var draftBadge = Page.Locator("[data-testid=status-pill]:has-text('Borrador')");
-        await Expect(draftBadge).ToBeVisibleAsync();
-
-        // Add an item
-        var itemPage = new ItemPage(Page);
-        await itemPage.AddItemAsync(appId, "Persisted Laptop", 0, "16GB RAM, 512GB SSD", BaseUrl);
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
-
-        // Verify item appears
-        var itemRow = Page.Locator("table tbody tr:has-text('Persisted Laptop')");
-        await Expect(itemRow).ToBeVisibleAsync();
-
-        // Log out by clicking the logout button in the navigation
-        var logoutButton = Page.Locator($"button:has-text('{UiCopy.Logout}')");
-        await logoutButton.ClickAsync();
-        // Wait for redirect to home
+        // Log out, then log back in.
+        await Page.Locator($"button:has-text('{UiCopy.Logout}')").ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/$|/Home"));
-
-        // Log back in
         await LoginAsync(Page, email, password);
 
-        // Navigate to the application
+        // The draft appears in the list as a Borrador, with an Editar link.
         await appPage.GotoListAsync(BaseUrl);
-
-        // Verify application appears in the list
-        var appRow = Page.Locator($"table tbody tr:has(a[href*='Application/Details/{appId}'])");
+        var appRow = Page.Locator($"table tbody tr:has(a[href*='Application/Edit/{appId}'])");
         await Expect(appRow).ToBeVisibleAsync();
+        await Expect(appRow.Locator("[data-testid=status-pill]:has-text('Borrador')")).ToBeVisibleAsync();
 
-        // Verify Draft status in the list
-        var draftBadgeInList = appRow.Locator("[data-testid=status-pill]:has-text('Borrador')");
-        await Expect(draftBadgeInList).ToBeVisibleAsync();
-
-        // Click to view details
-        await appPage.ViewApplicationAsync(appId);
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
-
-        // Verify the item data is still intact
-        var persistedItem = Page.Locator("table tbody tr:has-text('Persisted Laptop')");
-        await Expect(persistedItem).ToBeVisibleAsync();
-
-        // Verify application is still in Draft state
-        var draftBadgeAfterReturn = Page.Locator("[data-testid=status-pill]:has-text('Borrador')");
-        await Expect(draftBadgeAfterReturn).ToBeVisibleAsync();
+        // Reopen the draft — the item is still there.
+        await appRow.Locator("a:has-text('Editar')").ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
+        await Expect(draft.ItemRows.Filter(new() { HasTextString = "Persisted Laptop" })).ToBeVisibleAsync();
     }
 }

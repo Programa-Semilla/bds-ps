@@ -75,7 +75,7 @@ public class ItemController : Controller
         await _applicationService.AddItemAsync(command);
 
         TempData["SuccessMessage"] = "Ítem agregado con éxito.";
-        return RedirectToAction("Details", "Application", new { id = appId });
+        return RedirectToAction("Edit", "Application", new { id = appId });
     }
 
     [HttpGet("{itemId}/Edit")]
@@ -142,7 +142,7 @@ public class ItemController : Controller
         await _applicationService.UpdateItemAsync(command);
 
         TempData["SuccessMessage"] = "Ítem actualizado con éxito.";
-        return RedirectToAction("Details", "Application", new { id = appId });
+        return RedirectToAction("Edit", "Application", new { id = appId });
     }
 
     [HttpPost("{itemId}/Delete")]
@@ -155,7 +155,7 @@ public class ItemController : Controller
         await _applicationService.RemoveItemAsync(command);
 
         TempData["SuccessMessage"] = "Ítem eliminado con éxito.";
-        return RedirectToAction("Details", "Application", new { id = appId });
+        return RedirectToAction("Edit", "Application", new { id = appId });
     }
 
     private async Task<int> GetCurrentApplicantIdAsync()

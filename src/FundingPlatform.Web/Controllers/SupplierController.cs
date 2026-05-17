@@ -193,7 +193,7 @@ public class SupplierController : Controller
                     model.QuotationFile.ContentType, model.QuotationFile.Length);
 
                 TempData["SuccessMessage"] = "Cotización agregada con éxito.";
-                return RedirectToAction("Details", "Application", new { id = appId });
+                return RedirectToAction("Edit", "Application", new { id = appId });
             }
 
             if (model.NewBranch is not null && model.LookupResult?.Supplier is not null)
@@ -235,7 +235,7 @@ public class SupplierController : Controller
                     model.QuotationFile.ContentType, model.QuotationFile.Length);
 
                 TempData["SuccessMessage"] = "Sucursal y cotización agregadas con éxito.";
-                return RedirectToAction("Details", "Application", new { id = appId });
+                return RedirectToAction("Edit", "Application", new { id = appId });
             }
 
             if (model.NewSupplier is not null)
@@ -282,7 +282,7 @@ public class SupplierController : Controller
                     model.QuotationFile.ContentType, model.QuotationFile.Length);
 
                 TempData["SuccessMessage"] = "Proveedor y cotización agregados con éxito.";
-                return RedirectToAction("Details", "Application", new { id = appId });
+                return RedirectToAction("Edit", "Application", new { id = appId });
             }
 
             ModelState.AddModelError(string.Empty, "Selecciona una sucursal, agrega una nueva, o crea un proveedor nuevo.");

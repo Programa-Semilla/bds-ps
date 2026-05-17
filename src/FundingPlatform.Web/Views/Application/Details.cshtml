@@ -10,17 +10,17 @@
         : Model.PublicCode;
     ViewData["Title"] = $"Solicitud {idLabel}";
     var state = Enum.Parse<ApplicationState>(Model.State);
+    var isDraft = Model.State == nameof(ApplicationState.Draft);
+
+    // Spec 021 / US2 — Details is a read-only application summary. Draft
+    // editing (impact, items, quotations, submit) lives solely on the draft
+    // editor (/Application/Edit/{id}); a Draft surfaces a single CTA into it.
     var headerActions = new List<ActionItem>();
-    if (Model.State == nameof(ApplicationState.Draft))
+    if (isDraft)
     {
-        // Spec 021 / US2 / FR-005 — the draft editor (impact-first, inline
-        // items, gated submit) is the canonical place to complete a draft.
-        headerActions.Add(new ActionItem("Continuar borrador", ActionClass.Primary,
+        headerActions.Add(new ActionItem("Continuar edición", ActionClass.Primary,
             Url: Url.Action("Edit", "Application", new { id = Model.Id }),
             Icon: "ti ti-edit"));
-        headerActions.Add(new ActionItem("Agregar ítem", ActionClass.Secondary,
-            Url: Url.Action("Add", "Item", new { appId = Model.Id }),
-            Icon: "ti ti-plus"));
     }
     if (Model.State == nameof(ApplicationState.Resolved)
         || Model.State == nameof(ApplicationState.ResponseFinalized)
@@ -56,6 +56,17 @@
     }
 }
 
+@if (isDraft)
+{
+    <div class="alert alert-info d-flex justify-content-between align-items-center" data-testid="draft-continue-notice">
+        <span><i class="ti ti-edit me-2" aria-hidden="true"></i>Esta solicitud es un borrador. Continúe la edición para enviarla.</span>
+        <a asp-action="Edit" asp-controller="Application" asp-route-id="@Model.Id"
+           class="btn btn-primary" data-testid="application-details-continue">
+            Continuar edición
+        </a>
+    </div>
+}
+
 <div class="card mb-4">
     <div class="card-body">
         <div class="row g-2">
@@ -79,6 +90,34 @@
     </div>
 </div>
 
+@* Spec 021 / FR-005 — Impact is a per-Application value; surface it as a
+   single read-only summary, not a per-item column. *@
+<div class="card mb-4" data-testid="application-details-impact">
+    <div class="card-header">
+        <h4 class="card-title mb-0">Impacto</h4>
+    </div>
+    <div class="card-body">
+        @if (Model.ImpactSet)
+        {
+            <p class="mb-2">Plantilla de impacto: <strong>@Model.ImpactTemplateName</strong></p>
+            @if (Model.ImpactParameters.Count > 0)
+            {
+                <dl class="row mb-0">
+                    @foreach (var p in Model.ImpactParameters)
+                    {
+                        <dt class="col-sm-5 text-secondary">@p.DisplayLabel</dt>
+                        <dd class="col-sm-7">@p.Value</dd>
+                    }
+                </dl>
+            }
+        }
+        else
+        {
+            <p class="text-secondary mb-0">El impacto aún no se ha definido.</p>
+        }
+    </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0">Ítems</h4>
     @if (Model.TotalConvertedCrc.HasValue)
@@ -86,8 +125,7 @@
         <div class="text-end" data-testid="application-total">
             <div class="text-muted small">Total estimado</div>
             <strong>
-                @* Spec 015 / T413 — computed total summed in CRC across selected-supplier quotations.
-                   originalCurrency = null routes the component to the CRC-only render path (no indicator). *@
+                @* Spec 015 / T413 — computed total summed in CRC across selected-supplier quotations. *@
                 @await Component.InvokeAsync("MoneyDisplay", new
                 {
                     original = Model.TotalConvertedCrc,
@@ -111,15 +149,10 @@
     @await Html.PartialAsync("Components/_EmptyState",
         new EmptyStateViewModel(
             Headline: "Aún no se han agregado ítems",
-            Body: Model.State == nameof(ApplicationState.Draft)
-                ? "Agregue al menos un ítem para enviar su solicitud."
+            Body: isDraft
+                ? "Continúe la edición del borrador para agregar ítems."
                 : "Esta solicitud no tiene ítems.",
-            Icon: "ti ti-package",
-            PrimaryAction: Model.State == nameof(ApplicationState.Draft)
-                ? new ActionItem("Agregar ítem", ActionClass.Primary,
-                    Url: Url.Action("Add", "Item", new { appId = Model.Id }),
-                    Icon: "ti ti-plus")
-                : null))
+            Icon: "ti ti-package"))
 }
 else
 {
@@ -131,8 +164,6 @@ else
                         <th>Nombre del producto</th>
                         <th>Categoría</th>
                         <th>Cotizaciones</th>
-                        <th>Impacto</th>
-                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -142,11 +173,9 @@ else
                             <td>@item.ProductName</td>
                             <td>@item.CategoryName</td>
                             <td>
-                                @* Spec 015 / T412 — per-Item quotation rows now render via the
-                                   MoneyDisplayViewComponent, which delegates to the
-                                   ConversionIndicatorViewComponent for non-CRC rows. The pre-T412
-                                   rate-snapshot subblock is preserved (data-testid=quotation-rate-snapshot)
-                                   so spec-015 US1 E2E selectors keep working. *@
+                                @* Spec 015 / T412 — per-Item quotation rows render via the
+                                   MoneyDisplayViewComponent; the rate-snapshot subblock keeps the
+                                   spec-015 E2E selectors (data-testid=quotation-rate-snapshot). *@
                                 <span class="badge bg-secondary">@item.QuotationCount</span>
                                 @if (item.Quotations.Count > 0)
                                 {
@@ -193,35 +222,11 @@ else
                                     </ul>
                                 }
                             </td>
-                            <td>
-                                @if (item.HasImpact)
-                                {
-                                    <span class="status status-green"><i class="ti ti-check"></i> Completo</span>
-                                }
-                                else
-                                {
-                                    <span class="status status-yellow"><i class="ti ti-clock"></i> Pendiente</span>
-                                }
-                            </td>
-                            <td>
-                                @if (Model.State == nameof(ApplicationState.Draft))
-                                {
-                                    <a asp-controller="Supplier" asp-action="Add" asp-route-appId="@Model.Id" asp-route-itemId="@item.Id" class="btn btn-sm btn-outline-primary">Agregar proveedor</a>
-                                    <a asp-controller="Item" asp-action="Edit" asp-route-appId="@Model.Id" asp-route-itemId="@item.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
-                                    @* Spec 021 / FR-005 — Impact is a per-Application step, not per-Item;
-                                       the link routes to the Application-level Impact surface. *@
-                                    <a asp-controller="Application" asp-action="Impact" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-secondary">Impacto</a>
-                                    <form asp-controller="Item" asp-action="Delete" asp-route-appId="@Model.Id" asp-route-itemId="@item.Id" method="post" class="d-inline">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Está seguro de que desea eliminar este ítem?')">Eliminar</button>
-                                    </form>
-                                }
-                            </td>
                         </tr>
                         @if (!string.IsNullOrEmpty(item.ReviewComment))
                         {
                             <tr>
-                                <td colspan="5">
+                                <td colspan="3">
                                     <div class="text-secondary small ps-2 border-start border-3 border-info py-1">
                                         <strong>Comentario del revisor:</strong> @item.ReviewComment
                                     </div>
@@ -235,22 +240,9 @@ else
     </div>
 }
 
-@if (Model.State == nameof(ApplicationState.Draft))
-{
-    <div class="d-flex justify-content-end mb-3">
-        <form asp-controller="Application" asp-action="Submit" asp-route-id="@Model.Id" method="post">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-success">
-                <i class="ti ti-send me-1"></i>Enviar solicitud
-            </button>
-        </form>
-    </div>
-}
-
 <div class="mt-3" id="funding-agreement-panel-container">
     @* Spec 021 / US7 / T149 / FR-029 — loading placeholder scrubbed of
-       "financiamiento". The application details page is in scope for the
-       applicant-facing sweep; the legal entity name remains on /FundingAgreement/*. *@
+       "financiamiento". The legal entity name remains on /FundingAgreement/*. *@
     <div data-async-panel-url="@Url.RouteUrl(new { controller = "FundingAgreement", action = "Panel", applicationId = Model.Id })">
         Cargando panel del convenio...
     </div>

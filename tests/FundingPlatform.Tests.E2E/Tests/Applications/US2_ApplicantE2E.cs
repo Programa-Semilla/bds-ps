@@ -52,16 +52,12 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
         await Page.Locator("a:has-text('Iniciar acompañamiento')").First.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Create"));
 
-        // 4. Create the draft.
+        // 4. Create the draft — opens straight in the draft editor (US2).
         var appPage = new ApplicationPage(Page);
         await appPage.CompanyNameInput.FillAsync($"Sazón {uniqueId}");
         await appPage.SubmitDraftButton.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
-        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Details/(\d+)").Groups[1].Value);
-
-        // 5. Continue into the draft editor.
-        await Page.Locator("a:has-text('Continuar borrador')").First.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
         var draft = new ApplicationDraftPage(Page);
 
         // 6. FR-017 — submit gate is CLOSED before Impact is defined.
@@ -88,7 +84,8 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
         // 11. FR-017 — gate now OPEN (Impact + >=1 item + required fields).
         await Expect(draft.SubmitButton).ToBeEnabledAsync();
 
-        // 12. Add two supplier quotations to the item.
+        // 12. Add two supplier quotations to the item. Supplier/Add is linked
+        //     from the editor and redirects back to it.
         for (var i = 1; i <= 2; i++)
         {
             await Page.Locator("a:has-text('Agregar proveedor')").First.ClickAsync();
@@ -96,12 +93,8 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
             await supplier.FillSupplierFormAsync(
                 $"US2Q{i}{uniqueId}", $"Proveedor {i} {uniqueId}", 900m * i, "2027-12-31", _quotationFile);
             await supplier.SubmitAsync();
-            await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+            await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
         }
-
-        // 13. Return to the draft editor via the "Continuar borrador" link.
-        await Page.Locator("a:has-text('Continuar borrador')").First.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // 14. FR-017 — the gated submit routes to /review.
         await draft.GoToReviewAsync();

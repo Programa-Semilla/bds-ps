@@ -121,6 +121,35 @@ public class AuthenticatedTestBase : PageTest
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/(Edit|Details)/\d+"));
     }
 
+    /// <summary>
+    /// Spec 021 / US2 / FR-005 — opens the draft editor for <paramref name="appId"/>,
+    /// enters the Impact step from it, completes the step, and lands back on
+    /// the editor. The Impact card is the editor's first card.
+    /// </summary>
+    protected async Task SetImpactFromEditAsync(int appId)
+    {
+        await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
+        await Page.Locator("[data-testid=application-edit-impact-link]").ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Impact"));
+        await CompleteImpactStepAsync();
+    }
+
+    /// <summary>
+    /// Spec 021 / US2 / FR-017 — submits a complete draft through the gated
+    /// editor button → <c>/review</c> → "Confirmar y enviar". Leaves the page
+    /// on the Details summary of the now-submitted Application.
+    /// </summary>
+    protected async Task SubmitDraftViaReviewAsync(int appId)
+    {
+        await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
+        var submit = Page.Locator("[data-testid=application-edit-submit]");
+        await Expect(submit).ToBeEnabledAsync();
+        await submit.ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Applications/.+/Review"));
+        await Page.Locator("[data-testid=review-confirm-submit]").ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+    }
+
     protected async Task RegisterUserAsync(IPage page, string email, string password, string firstName, string lastName, string legalId)
     {
         await page.GotoAsync($"{BaseUrl}/Account/Register");
@@ -241,10 +270,12 @@ public class AuthenticatedTestBase : PageTest
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
 
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        // Spec 021 / US2 — draft creation opens the draft editor.
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
-        // Items + supplier quotations (Details surface).
+        // Items + supplier quotations — Item/Add + Supplier/Add are linked
+        // from the draft editor and redirect back to it.
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "Seed Item", 0, "Specs", BaseUrl);
 
@@ -259,15 +290,8 @@ public class AuthenticatedTestBase : PageTest
         await supplierPage.FillSupplierFormAsync($"SQ2-{uniqueId}", "Supplier Beta", 1100m, "2027-12-31", quotationFilePath);
         await supplierPage.SubmitAsync();
 
-        // Spec 021 / FR-005 — Impact is a per-Application step reached from the
-        // Details item-row "Impacto" link, which routes to /Application/{id}/Impact.
-        await Page.GotoAsync($"{BaseUrl}/Application/Details/{appId}");
-        await Page.Locator($"a:has-text('{UiCopy.Impact}')").First.ClickAsync();
-        await CompleteImpactStepAsync();
-
-        // Submit from the Details surface.
-        await Page.GotoAsync($"{BaseUrl}/Application/Details/{appId}");
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SubmitApplication}')").ClickAsync();
+        await SetImpactFromEditAsync(appId);
+        await SubmitDraftViaReviewAsync(appId);
         await Expect(Page.Locator($"[data-testid=status-pill]:has-text('{UiCopy.State.Submitted}')")).ToBeVisibleAsync();
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
 

@@ -117,8 +117,10 @@ public class ApplicationController : Controller
             return View(model);
         }
 
-        TempData["SuccessMessage"] = "Solicitud creada con éxito.";
-        return RedirectToAction(nameof(Details), new { id = result.ApplicationId });
+        // Spec 021 / US2 — a fresh draft opens straight in the draft editor;
+        // Details is a read-only summary and is never an editing surface.
+        TempData["SuccessMessage"] = "Borrador creado. Complete el impacto y los ítems para enviarlo.";
+        return RedirectToAction(nameof(Edit), new { id = result.ApplicationId });
     }
 
     [HttpGet]
@@ -145,6 +147,13 @@ public class ApplicationController : Controller
         if (application is null || application.ApplicantId != applicantId)
         {
             return NotFound();
+        }
+
+        // Spec 021 / US2 — the draft editor only edits Drafts. A submitted (or
+        // later-state) Application is read-only; route it to the summary.
+        if (application.State != FundingPlatform.Domain.Enums.ApplicationState.Draft)
+        {
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         // Spec 021 / T119 / FR-024 — populate ViewData with the stage countdown
