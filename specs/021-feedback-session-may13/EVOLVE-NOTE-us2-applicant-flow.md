@@ -204,3 +204,34 @@ Full Playwright E2E suite personally executed: **226 passed / 0 failed /
 (register → CTA → create → impact-first → autosave → inline item → gated
 submit → `/review` → "Confirmar y enviar" → PublicCode). NFR-004 / SC-016
 satisfied.
+
+---
+
+## Follow-up: Details decommissioned as a draft editor (2026-05-16)
+
+The first fix kept `Create → Details` and left `Details` editable to contain
+the E2E blast radius. That left **two parallel draft surfaces** — `Details`
+and `Edit` — both editing the same draft with Impact placed differently. Per
+user review, the duplication was resolved:
+
+- `Application/Create` POST → `Edit` (the draft editor is the only place to
+  edit a draft). `Edit` GET guards non-Draft → `Details`.
+- `Details` is now a **read-only application summary** for every state: the
+  per-item action links, "Agregar ítem", and the direct "Enviar solicitud"
+  button are removed; an Application-level Impact summary card and the
+  applicant `CompanyName` are added. A Draft shows a single "Continuar
+  edición" CTA into the editor.
+- Item/Supplier `Add`/`Edit`/`Delete` POSTs redirect to `Edit` (were Details).
+- `/Application` list: a Draft row shows "Editar" (→ Edit); a sent row shows
+  "Ver" (→ Details).
+
+**E2E cost**: the whole submit-flow suite drove `Details` for create → item →
+supplier → impact → submit. 72 tests across ~31 files were migrated to the
+`Edit` flow — `appId` captured from `/Application/Edit`, impact via
+`SetImpactFromEditAsync`, submit via `SubmitDraftViaReviewAsync` (both new
+`AuthenticatedTestBase` helpers). Quotation-rendering assertions (MoneyDisplay,
+rate snapshot) were repointed to `Details` (the editor shows a count only).
+Negative submit tests now assert the gated editor button stays disabled rather
+than a server-side error banner.
+
+Full E2E suite re-run: **226 passed / 0 failed / 5 skipped**.
