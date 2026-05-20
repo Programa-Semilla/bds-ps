@@ -508,6 +508,20 @@ public class UserAdministrationService : IUserAdministrationService
             throw new SelfModificationException(SelfModificationAction.ResetOwnPassword);
         }
 
+        // Validate the new password BEFORE removing the old one. RemovePassword
+        // followed by a rejected AddPassword would leave the user with no
+        // password at all — locked out by a failed reset. Validate first so a
+        // weak password aborts the operation with the old password intact.
+        foreach (var validator in _userManager.PasswordValidators)
+        {
+            var validation = await validator.ValidateAsync(
+                _userManager, target, request.NewTemporaryPassword);
+            if (!validation.Succeeded)
+            {
+                return Result.Failure(MapIdentityErrors(validation.Errors));
+            }
+        }
+
         var hasPassword = await _userManager.HasPasswordAsync(target);
         if (hasPassword)
         {
@@ -653,7 +667,12 @@ public class UserAdministrationService : IUserAdministrationService
             }
             if (code.StartsWith("Password", StringComparison.Ordinal))
             {
-                return new DomainError("WEAK_PASSWORD", "InitialPassword", e.Description);
+                // No field name — the infrastructure layer cannot know which
+                // form field the caller used (Create-user form: "InitialPassword";
+                // admin reset form: "NewTemporaryPassword"). A wrong key renders
+                // nowhere and silently swallows the error. Null routes it to the
+                // model-level validation summary, which every caller's form has.
+                return new DomainError("WEAK_PASSWORD", null, e.Description);
             }
             return new DomainError("INVALID_INPUT", null, e.Description);
         }).ToList();

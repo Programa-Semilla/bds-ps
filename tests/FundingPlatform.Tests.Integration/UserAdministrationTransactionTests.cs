@@ -330,4 +330,93 @@ public class UserAdministrationTransactionTests
             conn.Dispose();
         }
     }
+
+    [Test]
+    public async Task ResetUserPassword_WeakPassword_PreservesExistingPasswordAndReportsError()
+    {
+        // Bug: ResetUserPasswordAsync removes the old password BEFORE adding the
+        // new one. A new password that fails Identity's policy makes AddPassword
+        // fail — leaving the user with NO password at all. The failure is also
+        // mapped to a DomainError keyed "InitialPassword", a field that exists
+        // only on the Create-user form, so the reset form renders it nowhere.
+        var (sut, ctx, sp, conn, _) = Build(injectFault: false);
+        try
+        {
+            await SeedRolesAsync(sp);
+            var ids = await SeedGroupsAsync(ctx, "Norte");
+
+            var created = await sut.CreateUserAsync(
+                new CreateUserRequest("Target", "User", "reset-weak@test.com", null, "Reviewer",
+                    "GoodPass1", null, GroupIds: new[] { ids[0] }),
+                ActorAdminId, CancellationToken.None);
+            Assert.That(created.Succeeded, Is.True,
+                string.Join("; ", created.Errors.Select(e => e.Message)));
+            var userId = created.Value!.Id;
+
+            // Act — reset with a password too short for the length-4 test policy.
+            var result = await sut.ResetUserPasswordAsync(
+                new ResetPasswordRequest(userId, "ab"), ActorAdminId, CancellationToken.None);
+
+            // Assert — failure is surfaced with a renderable error.
+            Assert.That(result.Succeeded, Is.False, "Weak-password reset must fail.");
+            var err = result.Errors.FirstOrDefault(e => e.Code == "WEAK_PASSWORD");
+            Assert.That(err, Is.Not.Null,
+                "Weak-password failure must carry a WEAK_PASSWORD domain error.");
+            Assert.That(err!.Field, Is.Null,
+                "WEAK_PASSWORD must not be keyed to the caller-specific 'InitialPassword' field — "
+                + "that key renders nowhere on the reset form, swallowing the error.");
+
+            // Assert — the existing password survived a failed reset.
+            var userMgr = sp.GetRequiredService<UserManager<ApplicationUser>>();
+            var target = await userMgr.FindByIdAsync(userId);
+            Assert.That(await userMgr.HasPasswordAsync(target!), Is.True,
+                "A failed reset must leave the user's existing password intact — not wipe it.");
+            Assert.That(await userMgr.CheckPasswordAsync(target!, "GoodPass1"), Is.True,
+                "The original password must still authenticate after a failed reset.");
+        }
+        finally
+        {
+            conn.Close();
+            conn.Dispose();
+        }
+    }
+
+    [Test]
+    public async Task ResetUserPassword_ValidPassword_ReplacesPasswordAndForcesChange()
+    {
+        var (sut, ctx, sp, conn, _) = Build(injectFault: false);
+        try
+        {
+            await SeedRolesAsync(sp);
+            var ids = await SeedGroupsAsync(ctx, "Norte");
+
+            var created = await sut.CreateUserAsync(
+                new CreateUserRequest("Target", "User", "reset-ok@test.com", null, "Reviewer",
+                    "GoodPass1", null, GroupIds: new[] { ids[0] }),
+                ActorAdminId, CancellationToken.None);
+            Assert.That(created.Succeeded, Is.True,
+                string.Join("; ", created.Errors.Select(e => e.Message)));
+            var userId = created.Value!.Id;
+
+            var result = await sut.ResetUserPasswordAsync(
+                new ResetPasswordRequest(userId, "FreshPass2"), ActorAdminId, CancellationToken.None);
+
+            Assert.That(result.Succeeded, Is.True,
+                string.Join("; ", result.Errors.Select(e => e.Message)));
+
+            var userMgr = sp.GetRequiredService<UserManager<ApplicationUser>>();
+            var target = await userMgr.FindByIdAsync(userId);
+            Assert.That(await userMgr.CheckPasswordAsync(target!, "FreshPass2"), Is.True,
+                "The new temporary password must authenticate after a successful reset.");
+            Assert.That(await userMgr.CheckPasswordAsync(target!, "GoodPass1"), Is.False,
+                "The old password must no longer authenticate after a successful reset.");
+            Assert.That(target!.MustChangePassword, Is.True,
+                "A reset must force the user to change the temporary password at next login.");
+        }
+        finally
+        {
+            conn.Close();
+            conn.Dispose();
+        }
+    }
 }
