@@ -374,18 +374,20 @@ public class QuotationController : Controller
             return NotFound();
         }
 
+        // Spec 023 / FR-013 (evolution) — force BackendStream so the response
+        // carries `Content-Disposition: attachment; filename=...` and the
+        // browser saves the file to disk instead of rendering the PDF inline.
+        // Signed-URL hosting cannot set the attachment disposition on the
+        // remote response, so we proxy the stream through the server for the
+        // download path. Inline preview is intentionally not exposed.
         var storage = HttpContext.RequestServices.GetRequiredService<IObjectStorage>();
         var key = ObjectKey.Parse(quotation.Document.BlobKey);
         var handle = await storage.ResolveServingHandleAsync(
             FileCategory.ApplicationAttachment,
             key,
-            ServingMode.TimeLimitedUrl,
+            ServingMode.BackendStream,
             ct);
 
-        if (handle is TimeLimitedUrlHandle url)
-        {
-            return Redirect(url.Url.ToString());
-        }
         if (handle is BackendStreamHandle stream)
         {
             return File(

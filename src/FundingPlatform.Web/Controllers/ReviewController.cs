@@ -498,6 +498,10 @@ public class ReviewController : Controller
             if (!allowed) return Forbid();
         }
 
+        // Spec 023 / FR-014 (evolution) — same rationale as the applicant
+        // download path: force BackendStream so `Content-Disposition: attachment`
+        // is set on the response and the browser saves the file. Inline preview
+        // is intentionally not exposed on this endpoint.
         var storage = HttpContext.RequestServices.GetRequiredService<
             FundingPlatform.Application.Abstractions.Storage.IObjectStorage>();
         var key = FundingPlatform.Application.Abstractions.Storage.ObjectKey.Parse(
@@ -505,11 +509,9 @@ public class ReviewController : Controller
         var handle = await storage.ResolveServingHandleAsync(
             FundingPlatform.Application.Abstractions.Storage.FileCategory.ApplicationAttachment,
             key,
-            FundingPlatform.Application.Abstractions.Storage.ServingMode.TimeLimitedUrl,
+            FundingPlatform.Application.Abstractions.Storage.ServingMode.BackendStream,
             ct);
 
-        if (handle is FundingPlatform.Application.Abstractions.Storage.TimeLimitedUrlHandle url)
-            return Redirect(url.Url.ToString());
         if (handle is FundingPlatform.Application.Abstractions.Storage.BackendStreamHandle stream)
             return File(
                 stream.Content,
