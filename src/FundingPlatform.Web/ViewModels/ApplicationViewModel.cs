@@ -81,4 +81,10 @@ public class QuotationSummaryViewModel
     // affordance (Editar) and any subsequent vigencia summary without re-querying.
     public int SupplierBranchId { get; set; }
     public DateOnly ValidUntil { get; set; }
+
+    // Spec 023 / FR-013 (evolution) — surfaced so the Application/Edit and
+    // Application/Details views can build the Descargar link without an extra
+    // EF round-trip for the Document row.
+    public int DocumentId { get; set; }
+    public string? DocumentFileName { get; set; }
 }

@@ -270,6 +270,17 @@ else
                                                         </td>
                                                         <td>@q.ValidUntil.ToString("yyyy-MM-dd")</td>
                                                         <td>
+                                                            @* Spec 023 / FR-013 — applicant download is always available
+                                                               regardless of lifecycle state. *@
+                                                            <a asp-controller="Quotation" asp-action="Download"
+                                                               asp-route-appId="@Model.Id"
+                                                               asp-route-itemId="@item.Id"
+                                                               asp-route-quotationId="@q.Id"
+                                                               class="btn btn-sm btn-outline-secondary"
+                                                               data-testid="quotation-row-download-@q.Id"
+                                                               aria-label="Descargar cotización de @q.SupplierName">
+                                                                Descargar
+                                                            </a>
                                                             @if (isEditableState && !q.LegacyNeedsReview)
                                                             {
                                                                 <a asp-controller="Quotation" asp-action="Edit"
@@ -281,6 +292,45 @@ else
                                                                    aria-label="Editar cotización de @q.SupplierName">
                                                                     Editar
                                                                 </a>
+                                                                @* Spec 023 / FR-012 — Reemplazar (file swap) reuses the
+                                                                   pre-existing POST endpoint on QuotationController. *@
+                                                                <form asp-controller="Quotation" asp-action="Replace"
+                                                                      asp-route-appId="@Model.Id"
+                                                                      asp-route-itemId="@item.Id"
+                                                                      asp-route-quotationId="@q.Id"
+                                                                      method="post" enctype="multipart/form-data"
+                                                                      class="d-inline-flex align-items-center gap-1"
+                                                                      data-testid="quotation-row-replace-form-@q.Id">
+                                                                    @Html.AntiForgeryToken()
+                                                                    <input type="file" name="quotationFile"
+                                                                           accept="application/pdf"
+                                                                           class="form-control form-control-sm"
+                                                                           style="max-width: 12rem;"
+                                                                           data-testid="quotation-row-replace-file-@q.Id" />
+                                                                    <button type="submit"
+                                                                            class="btn btn-sm btn-outline-secondary"
+                                                                            data-testid="quotation-row-replace-@q.Id"
+                                                                            aria-label="Reemplazar archivo de cotización de @q.SupplierName">
+                                                                        Reemplazar
+                                                                    </button>
+                                                                </form>
+                                                                @* Spec 023 / FR-012 — Eliminar reuses the pre-existing
+                                                                   POST endpoint on QuotationController. *@
+                                                                <form asp-controller="Quotation" asp-action="Delete"
+                                                                      asp-route-appId="@Model.Id"
+                                                                      asp-route-itemId="@item.Id"
+                                                                      asp-route-quotationId="@q.Id"
+                                                                      method="post"
+                                                                      class="d-inline">
+                                                                    @Html.AntiForgeryToken()
+                                                                    <button type="submit"
+                                                                            class="btn btn-sm btn-danger"
+                                                                            data-testid="quotation-row-delete-@q.Id"
+                                                                            aria-label="Eliminar cotización de @q.SupplierName"
+                                                                            onclick="return confirm('¿Está seguro de que desea eliminar esta cotización?')">
+                                                                        Eliminar
+                                                                    </button>
+                                                                </form>
                                                             }
                                                             else if (q.LegacyNeedsReview)
                                                             {

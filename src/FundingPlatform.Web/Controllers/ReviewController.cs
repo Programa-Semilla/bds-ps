@@ -461,6 +461,63 @@ public class ReviewController : Controller
         return NotFound();
     }
 
+    /// <summary>
+    /// Spec 023 / FR-014 (evolution 2026-05-20) — reviewer (group-scoped) and
+    /// Admin download the PDF attached to any quotation on an Application
+    /// they're authorized to view. Mirrors the auth + storage rails of the
+    /// spec-020 <see cref="Citation"/> endpoint but is keyed by
+    /// <c>quotationId</c> directly so the reviewer Review screen can build
+    /// the link without an extra DocumentId resolution step.
+    /// </summary>
+    [HttpGet]
+    [Route("Review/Quotation/{quotationId:int}/Download")]
+    public async Task<IActionResult> DownloadQuotation(
+        int quotationId,
+        CancellationToken ct)
+    {
+        var db = HttpContext.RequestServices.GetRequiredService<
+            FundingPlatform.Infrastructure.Persistence.AppDbContext>();
+        var quotation = await db.Quotations
+            .Include(q => q.Document)
+            .FirstOrDefaultAsync(q => q.Id == quotationId, ct);
+        if (quotation is null
+            || quotation.Document is null
+            || string.IsNullOrEmpty(quotation.Document.BlobKey))
+            return NotFound();
+
+        var parentApplicationId = await db.Items
+            .Where(i => i.Id == quotation.ItemId)
+            .Select(i => (int?)i.ApplicationId)
+            .FirstOrDefaultAsync(ct);
+        if (parentApplicationId is null) return NotFound();
+        var scope = await GetScopeAsync(ct);
+        if (!scope.IsAdmin)
+        {
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(
+                parentApplicationId.Value, scope.GroupIds, ct);
+            if (!allowed) return Forbid();
+        }
+
+        var storage = HttpContext.RequestServices.GetRequiredService<
+            FundingPlatform.Application.Abstractions.Storage.IObjectStorage>();
+        var key = FundingPlatform.Application.Abstractions.Storage.ObjectKey.Parse(
+            quotation.Document.BlobKey);
+        var handle = await storage.ResolveServingHandleAsync(
+            FundingPlatform.Application.Abstractions.Storage.FileCategory.ApplicationAttachment,
+            key,
+            FundingPlatform.Application.Abstractions.Storage.ServingMode.TimeLimitedUrl,
+            ct);
+
+        if (handle is FundingPlatform.Application.Abstractions.Storage.TimeLimitedUrlHandle url)
+            return Redirect(url.Url.ToString());
+        if (handle is FundingPlatform.Application.Abstractions.Storage.BackendStreamHandle stream)
+            return File(
+                stream.Content,
+                stream.ContentType ?? "application/octet-stream",
+                quotation.Document.OriginalFileName);
+        return NotFound();
+    }
+
     /// <summary>Spec 020 / FR-A4 — enqueue per-item comparison jobs for the whole application.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]

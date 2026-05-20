@@ -609,7 +609,9 @@ public class ApplicationController : Controller
                     SnapshotEffectiveAtUtc = q.SnapshotEffectiveAtUtc,
                     LegacyNeedsReview = q.LegacyNeedsReview,
                     SupplierBranchId = q.SupplierBranchId,
-                    ValidUntil = q.ValidUntil
+                    ValidUntil = q.ValidUntil,
+                    DocumentId = q.DocumentId,
+                    DocumentFileName = q.DocumentFileName,
                 }).ToList()
             }).ToList()
         };

@@ -204,6 +204,17 @@ else
                                                     convertedCrc = q.ConvertedCrcAmount,
                                                     snapshot = snapshot
                                                 })
+                                                @* Spec 023 / FR-013 (evolution) — applicant can
+                                                   download their own quotation PDF at any time. *@
+                                                <a asp-controller="Quotation" asp-action="Download"
+                                                   asp-route-appId="@Model.Id"
+                                                   asp-route-itemId="@item.Id"
+                                                   asp-route-quotationId="@q.Id"
+                                                   class="btn btn-sm btn-link p-0 ms-2"
+                                                   data-testid="quotation-row-download-@q.Id"
+                                                   aria-label="Descargar cotización de @q.SupplierName">
+                                                    <i class="ti ti-download me-1"></i>Descargar
+                                                </a>
                                                 @if (q.SnapshotRateValue.HasValue && q.Currency != "CRC")
                                                 {
                                                     <div class="text-muted small" data-testid="quotation-rate-snapshot">

@@ -311,14 +311,14 @@ public class QuotationController : Controller
         if (quotationFile is null || quotationFile.Length == 0)
         {
             TempData["ErrorMessage"] = QuotationFileRequiredMessage;
-            return RedirectToAction("Details", "Application", new { id = appId });
+            return RedirectToAction("Edit", "Application", new { id = appId });
         }
 
         var validationError = await ValidateFileAsync(quotationFile);
         if (validationError is not null)
         {
             TempData["ErrorMessage"] = validationError;
-            return RedirectToAction("Details", "Application", new { id = appId });
+            return RedirectToAction("Edit", "Application", new { id = appId });
         }
 
         var command = new ReplaceQuotationDocumentCommand
@@ -335,7 +335,7 @@ public class QuotationController : Controller
         await _applicationService.ReplaceQuotationDocumentAsync(command, stream);
 
         TempData["SuccessMessage"] = "Documento de cotización reemplazado con éxito.";
-        return RedirectToAction("Details", "Application", new { id = appId });
+        return RedirectToAction("Edit", "Application", new { id = appId });
     }
 
     [HttpPost("{quotationId}/Delete")]
@@ -347,7 +347,53 @@ public class QuotationController : Controller
         await _applicationService.RemoveQuotationAsync(appId, itemId, quotationId);
 
         TempData["SuccessMessage"] = "Cotización eliminada con éxito.";
-        return RedirectToAction("Details", "Application", new { id = appId });
+        return RedirectToAction("Edit", "Application", new { id = appId });
+    }
+
+    /// <summary>
+    /// Spec 023 / FR-013 (evolution 2026-05-20) — applicant downloads the PDF
+    /// attached to one of their quotations. Available at any time regardless of
+    /// Application state. Owner-scoped; non-owners receive HTTP 403 via the
+    /// existing <see cref="VerifyOwnershipAsync"/> guard. Storage resolution
+    /// reuses the spec-014 <see cref="IObjectStorage"/> rails so signed-URL
+    /// hosting and backend-stream fallback behave identically to the reviewer
+    /// download path on <c>ReviewController</c>.
+    /// </summary>
+    [HttpGet("{quotationId}/Download")]
+    public async Task<IActionResult> Download(
+        int appId, int itemId, int quotationId, CancellationToken ct)
+    {
+        await VerifyOwnershipAsync(appId);
+
+        var quotation = await _dbContext.Quotations
+            .Include(q => q.Document)
+            .FirstOrDefaultAsync(q => q.Id == quotationId && q.ItemId == itemId, ct);
+        if (quotation is null || quotation.Document is null
+            || string.IsNullOrEmpty(quotation.Document.BlobKey))
+        {
+            return NotFound();
+        }
+
+        var storage = HttpContext.RequestServices.GetRequiredService<IObjectStorage>();
+        var key = ObjectKey.Parse(quotation.Document.BlobKey);
+        var handle = await storage.ResolveServingHandleAsync(
+            FileCategory.ApplicationAttachment,
+            key,
+            ServingMode.TimeLimitedUrl,
+            ct);
+
+        if (handle is TimeLimitedUrlHandle url)
+        {
+            return Redirect(url.Url.ToString());
+        }
+        if (handle is BackendStreamHandle stream)
+        {
+            return File(
+                stream.Content,
+                stream.ContentType ?? "application/octet-stream",
+                quotation.Document.OriginalFileName);
+        }
+        return NotFound();
     }
 
     private async Task<string?> ValidateFileAsync(IFormFile file)
