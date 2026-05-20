@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-14
+Last updated: 2026-05-20
 
 ## Sessions
 
@@ -26,6 +26,7 @@ Last updated: 2026-05-14
 | 18 | 2026-05-11 | ai-quote-comparison | spec-created | 020 |
 | 19 | 2026-05-11 | email-notifications | spec-created | 021-email-notifications |
 | 20 | 2026-05-13 | feedback-session-may13 | spec-created | 021-feedback-session-may13 |
+| 21 | 2026-05-20 | quotation-edit | spec-created | 023 |
 
 ## Open Threads
 
@@ -189,6 +190,12 @@ Last updated: 2026-05-14
 - Admin-override path for expired stage-windows — whether the HTTP 422 hard-block should be overridable from the admin panel (from #20)
 - BCCR exchange-rate auto-fetch + Tropic AI quotation extraction — research-only in 021-feedback-session-may13; needs future brainstorm / spec to productize (from #20)
 - Single-spec scope vs. architectural / UX split — stakeholder picked single-shot; reviewer brief flags this for stakeholder pushback (from #20)
+- Include "Replace file" affordance on the Quotation/Edit page (one-stop editing) vs keep Replace on the Application/Edit row — default: keep on row (from #21, OQ-1)
+- Emit `AdminAuditEvent` for applicant-initiated quotation edits vs stay silent like Item/Edit — default: silent for v1 (from #21, OQ-2)
+- Deep-link the `RETURNED_TO_APPLICANT` email CTA to `Quotation/{id}/Edit` — defer to spec 021 email-template touch-up (from #21, OQ-3)
+- Constitution OC-gate posture on Quotation Edit — single-actor / two-tabs-same-user; justify last-write-wins in `plan.md` Complexity Tracking or add a rowversion token (from #21, R-1)
+- Shared partial file name for the extracted quote-fields fragment — `_QuotationFieldsForm.cshtml` working name; pin during planning (from #21)
+- AI-cache invalidation race window with in-flight `ComparisonJob` for the same Item — pin during planning (from #21)
 
 ## Closed Threads
 
