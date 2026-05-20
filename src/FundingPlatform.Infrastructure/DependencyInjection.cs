@@ -1,5 +1,6 @@
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Abstractions.AiComparison;
+using FundingPlatform.Application.Abstractions.Comparison;
 using FundingPlatform.Application.Admin.Reports;
 using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Admin.Users;
@@ -161,6 +162,11 @@ public static class DependencyInjection
 
         // Spec 020 — AI quote comparison wiring.
         services.AddAiComparison(configuration);
+
+        // Spec 023 / FR-009 — silent cache invalidation when an applicant
+        // edits a quotation field. The next reviewer Generar todo regenerates.
+        services.AddScoped<IComparisonCacheInvalidator,
+            Comparison.ComparisonCacheInvalidator>();
 
         return services;
     }

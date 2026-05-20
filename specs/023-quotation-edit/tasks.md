@@ -33,7 +33,7 @@ Clean Architecture, four-layer .NET (see [plan.md](./plan.md) §Project Structur
 
 **Purpose**: Pre-existing project — nothing to bootstrap. This feature reuses the established stack (.NET 10, EF Core, Aspire, Playwright). No new managed dependencies (NFR-005).
 
-- [ ] T001 [P] Verify build is green on `023-quotation-edit` baseline: run `dotnet build FundingPlatform.slnx` and confirm 0 errors / 0 warnings.
+- [x] T001 [P] Verify build is green on `023-quotation-edit` baseline: run `dotnet build FundingPlatform.slnx` and confirm 0 errors / 0 warnings.
 
 ---
 
@@ -45,37 +45,37 @@ Clean Architecture, four-layer .NET (see [plan.md](./plan.md) §Project Structur
 
 ### Shared form partial extraction (FR-003)
 
-- [ ] T002 [P] Define `IQuoteFieldsModel` marker interface in `src/FundingPlatform.Web/ViewModels/IQuoteFieldsModel.cs` with properties `decimal Price { get; set; }`, `string Currency { get; set; }`, `DateOnly ValidUntil { get; set; }`, `IReadOnlyList<CurrencyOption> EnabledCurrencies { get; set; }`.
+- [x] T002 [P] Define `IQuoteFieldsModel` marker interface in `src/FundingPlatform.Web/ViewModels/IQuoteFieldsModel.cs` with properties `decimal Price { get; set; }`, `string Currency { get; set; }`, `DateOnly ValidUntil { get; set; }`, `IReadOnlyList<CurrencyOption> EnabledCurrencies { get; set; }`.
 
-- [ ] T003 Update `src/FundingPlatform.Web/ViewModels/AddSupplierViewModel.cs` to implement `IQuoteFieldsModel`. Adjust the `EnabledCurrencies` setter from `init` to `set` if currently `init`; otherwise no behavioral change.
+- [x] T003 Update `src/FundingPlatform.Web/ViewModels/AddSupplierViewModel.cs` to implement `IQuoteFieldsModel`. Adjust the `EnabledCurrencies` setter from `init` to `set` if currently `init`; otherwise no behavioral change.
 
-- [ ] T004 [P] Create `src/FundingPlatform.Web/Views/Shared/_QuoteFields.cshtml`. Bind to `IQuoteFieldsModel`. Render Price / Currency `<select>` over `EnabledCurrencies` / ValidUntil inputs + the `data-quote-preview` conversion alert block — markup per [research.md](./research.md) §R0.2.
+- [x] T004 [P] Create `src/FundingPlatform.Web/Views/Shared/_QuoteFields.cshtml`. Bind to `IQuoteFieldsModel`. Render Price / Currency `<select>` over `EnabledCurrencies` / ValidUntil inputs + the `data-quote-preview` conversion alert block — markup per [research.md](./research.md) §R0.2.
 
-- [ ] T005 Refactor `src/FundingPlatform.Web/Views/Supplier/Add.cshtml` to consume `<partial name="_QuoteFields" model="Model" />` in place of the inline Price / Currency / ValidUntil markup (lines 79–119 of the current file). Preserve the `data-quote-form` + `data-convert-url` attributes on the form element. Existing `data-testid` selectors remain identical (the partial owns them now).
+- [x] T005 Refactor `src/FundingPlatform.Web/Views/Supplier/Add.cshtml` to consume `<partial name="_QuoteFields" model="Model" />` in place of the inline Price / Currency / ValidUntil markup (lines 79–119 of the current file). Preserve the `data-quote-form` + `data-convert-url` attributes on the form element. Existing `data-testid` selectors remain identical (the partial owns them now).
 
 ### Domain primitive (FR-004, Principle II)
 
-- [ ] T006 [P] Add `public void ChangeBranch(SupplierBranch branch)` to `src/FundingPlatform.Domain/Entities/Quotation.cs`. Implementation: assert `branch is not null`; assert `branch.SupplierId == this.SupplierId` else throw `ArgumentException("Sucursal no válida para este proveedor.", nameof(branch))`; assign `SupplierBranchId = branch.Id; SupplierBranch = branch;`. No exchange-rate side-effects.
+- [x] T006 [P] Add `public void ChangeBranch(SupplierBranch branch)` to `src/FundingPlatform.Domain/Entities/Quotation.cs`. Implementation: assert `branch is not null`; assert `branch.SupplierId == this.SupplierId` else throw `ArgumentException("Sucursal no válida para este proveedor.", nameof(branch))`; assign `SupplierBranchId = branch.Id; SupplierBranch = branch;`. No exchange-rate side-effects.
 
-- [ ] T007 [P] Add unit tests in `tests/FundingPlatform.Tests.Unit/Domain/Entities/Quotation_ChangeBranchTests.cs`: (1) `ChangeBranch_WithSameSupplierBranch_UpdatesBranchAndId`, (2) `ChangeBranch_WithCrossSupplierBranch_ThrowsArgumentException`, (3) `ChangeBranch_WithNull_ThrowsArgumentNullException`, (4) `ChangeBranch_DoesNotMutateCurrencyOrSnapshotOrConvertedCrcAmount`.
+- [x] T007 [P] Add unit tests in `tests/FundingPlatform.Tests.Unit/Domain/Entities/Quotation_ChangeBranchTests.cs`: (1) `ChangeBranch_WithSameSupplierBranch_UpdatesBranchAndId`, (2) `ChangeBranch_WithCrossSupplierBranch_ThrowsArgumentException`, (3) `ChangeBranch_WithNull_ThrowsArgumentNullException`, (4) `ChangeBranch_DoesNotMutateCurrencyOrSnapshotOrConvertedCrcAmount`.
 
 ### Comparison-cache invalidation seam (FR-009)
 
-- [ ] T008 [P] Create `src/FundingPlatform.Application/Abstractions/Comparison/IComparisonCacheInvalidator.cs`. Single member: `Task InvalidateForItemAsync(int itemId, CancellationToken ct = default);`.
+- [x] T008 [P] Create `src/FundingPlatform.Application/Abstractions/Comparison/IComparisonCacheInvalidator.cs`. Single member: `Task InvalidateForItemAsync(int itemId, CancellationToken ct = default);`.
 
-- [ ] T009 Create `src/FundingPlatform.Infrastructure/Comparison/ComparisonCacheInvalidator.cs` implementing `IComparisonCacheInvalidator`. Inject `AppDbContext`. Implementation: delete every `ComparisonArtifact` row where `ItemId == itemId` (or set a stale flag if the spec 020 read path uses one — confirm against `src/FundingPlatform.Domain/Entities/ComparisonArtifact.cs` while implementing). `SaveChangesAsync(ct)`.
+- [x] T009 Create `src/FundingPlatform.Infrastructure/Comparison/ComparisonCacheInvalidator.cs` implementing `IComparisonCacheInvalidator`. Inject `AppDbContext`. Implementation: delete every `ComparisonArtifact` row where `ItemId == itemId` (or set a stale flag if the spec 020 read path uses one — confirm against `src/FundingPlatform.Domain/Entities/ComparisonArtifact.cs` while implementing). `SaveChangesAsync(ct)`.
 
-- [ ] T010 Register `IComparisonCacheInvalidator` in DI. Edit `src/FundingPlatform.AppHost/AppHost.cs` or the Web project's `Program.cs` (whichever currently registers Application/Infrastructure services for ApplicationService) and add `services.AddScoped<IComparisonCacheInvalidator, ComparisonCacheInvalidator>()`.
+- [x] T010 Register `IComparisonCacheInvalidator` in DI. Edit `src/FundingPlatform.AppHost/AppHost.cs` or the Web project's `Program.cs` (whichever currently registers Application/Infrastructure services for ApplicationService) and add `services.AddScoped<IComparisonCacheInvalidator, ComparisonCacheInvalidator>()`.
 
 ### Application service orchestration (FR-005..FR-011, NFR-004)
 
-- [ ] T011 [P] Create `src/FundingPlatform.Application/Applications/Commands/EditQuotationCommand.cs` with the record shape from [data-model.md](./data-model.md) §2.1.
+- [x] T011 [P] Create `src/FundingPlatform.Application/Applications/Commands/EditQuotationCommand.cs` with the record shape from [data-model.md](./data-model.md) §2.1.
 
-- [ ] T012 [P] Create `src/FundingPlatform.Application/Applications/Commands/EditQuotationResult.cs` containing `EditQuotationResult` record + `EditQuotationOutcome` enum from [data-model.md](./data-model.md) §2.2.
+- [x] T012 [P] Create `src/FundingPlatform.Application/Applications/Commands/EditQuotationResult.cs` containing `EditQuotationResult` record + `EditQuotationOutcome` enum from [data-model.md](./data-model.md) §2.2.
 
-- [ ] T013 Implement `EditQuotationAsync(EditQuotationCommand command, CancellationToken ct = default)` on `src/FundingPlatform.Application/Services/ApplicationService.cs` following the orchestration order in [data-model.md](./data-model.md) §2.3. Inject `IComparisonCacheInvalidator` and reuse the already-injected `IConversionService`. The method MUST: (a) load with `Include(q => q.Supplier).ThenInclude(s => s.Branches)` + `Include(q => q.Item).ThenInclude(i => i.Application)` + `Include(q => q.Snapshot)`, (b) return field errors collected together (FR-005), (c) short-circuit when all four fields match (NFR-004), (d) run `ChangeCurrencyAsync` → `EditAmount` → `ChangeBranch` → `ValidUntil` assignment in that order (research §R0.7), (e) invoke `IComparisonCacheInvalidator.InvalidateForItemAsync` AFTER the save commits (FR-009), (f) catch `MissingRateException` from `ChangeCurrencyAsync` and map to `Outcome = MissingRate`.
+- [x] T013 Implement `EditQuotationAsync(EditQuotationCommand command, CancellationToken ct = default)` on `src/FundingPlatform.Application/Services/ApplicationService.cs` following the orchestration order in [data-model.md](./data-model.md) §2.3. Inject `IComparisonCacheInvalidator` and reuse the already-injected `IConversionService`. The method MUST: (a) load with `Include(q => q.Supplier).ThenInclude(s => s.Branches)` + `Include(q => q.Item).ThenInclude(i => i.Application)` + `Include(q => q.Snapshot)`, (b) return field errors collected together (FR-005), (c) short-circuit when all four fields match (NFR-004), (d) run `ChangeCurrencyAsync` → `EditAmount` → `ChangeBranch` → `ValidUntil` assignment in that order (research §R0.7), (e) invoke `IComparisonCacheInvalidator.InvalidateForItemAsync` AFTER the save commits (FR-009), (f) catch `MissingRateException` from `ChangeCurrencyAsync` and map to `Outcome = MissingRate`.
 
-- [ ] T014 Add `public void SetValidUntil(DateOnly newValidUntil)` to `Quotation` (the entity has no such method today; `public` is required because `FundingPlatform.Application` lives in a different assembly than `FundingPlatform.Domain`). Implementation: `if (newValidUntil < DateOnly.FromDateTime(DateTime.UtcNow.Date)) throw new ArgumentException("La fecha de vigencia debe ser hoy o futura.", nameof(newValidUntil)); ValidUntil = newValidUntil;`. The Application service is responsible for catching this and projecting it onto `ModelState` (server-side aggregation per research §R0.5). **File**: `src/FundingPlatform.Domain/Entities/Quotation.cs`.
+- [x] T014 Add `public void SetValidUntil(DateOnly newValidUntil)` to `Quotation` (the entity has no such method today; `public` is required because `FundingPlatform.Application` lives in a different assembly than `FundingPlatform.Domain`). Implementation: `if (newValidUntil < DateOnly.FromDateTime(DateTime.UtcNow.Date)) throw new ArgumentException("La fecha de vigencia debe ser hoy o futura.", nameof(newValidUntil)); ValidUntil = newValidUntil;`. The Application service is responsible for catching this and projecting it onto `ModelState` (server-side aggregation per research §R0.5). **File**: `src/FundingPlatform.Domain/Entities/Quotation.cs`.
 
 **Checkpoint**: Foundation ready — `ApplicationService.EditQuotationAsync` is callable; the shared `_QuoteFields.cshtml` partial is consumed by `Supplier/Add.cshtml`. User story implementation can now begin.
 

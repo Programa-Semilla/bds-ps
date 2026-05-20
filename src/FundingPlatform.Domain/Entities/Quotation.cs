@@ -171,6 +171,44 @@ public class Quotation
     }
 
     /// <summary>
+    /// Spec 023 / FR-004 — reassigns this quotation to a different branch of the
+    /// SAME supplier. Enforces the spec-013 invariant <c>branch.SupplierId ==
+    /// this.SupplierId</c> on the entity itself so no future caller can bypass
+    /// it. No exchange-rate side effects: Currency / Snapshot / ConvertedCrcAmount
+    /// stay untouched.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">When <paramref name="branch"/> is null.</exception>
+    /// <exception cref="ArgumentException">When the branch belongs to a different supplier.</exception>
+    public void ChangeBranch(SupplierBranch branch)
+    {
+        ArgumentNullException.ThrowIfNull(branch);
+        if (branch.SupplierId != SupplierId)
+        {
+            throw new ArgumentException(
+                "Sucursal no válida para este proveedor.", nameof(branch));
+        }
+
+        SupplierBranchId = branch.Id;
+        SupplierBranch = branch;
+    }
+
+    /// <summary>
+    /// Spec 023 / FR-005 — sets the quotation's <see cref="ValidUntil"/> with the
+    /// es-CR calendar "today-or-future" guard enforced on the entity. No
+    /// exchange-rate side effects.
+    /// </summary>
+    /// <exception cref="ArgumentException">When <paramref name="newValidUntil"/> is in the past.</exception>
+    public void SetValidUntil(DateOnly newValidUntil)
+    {
+        if (newValidUntil < DateOnly.FromDateTime(DateTime.UtcNow.Date))
+        {
+            throw new ArgumentException(
+                "La fecha de vigencia debe ser hoy o futura.", nameof(newValidUntil));
+        }
+        ValidUntil = newValidUntil;
+    }
+
+    /// <summary>
     /// Spec 015 / US6 — admin attaches a historical rate to a flagged legacy
     /// quotation, clears the flag, and stamps the converted CRC amount.
     /// </summary>

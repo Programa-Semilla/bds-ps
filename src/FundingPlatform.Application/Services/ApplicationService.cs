@@ -1,3 +1,4 @@
+using FundingPlatform.Application.Abstractions.Comparison;
 using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.DTOs;
@@ -21,6 +22,24 @@ namespace FundingPlatform.Application.Services;
 /// </summary>
 public sealed record CreateApplicationResult(int ApplicationId, UserFacingError? Error);
 
+/// <summary>Spec 023 — read projection consumed by <c>QuotationController.Edit</c> (GET).</summary>
+public sealed record EditQuotationReadDto(
+    int ApplicationId,
+    int ApplicantId,
+    ApplicationState ApplicationState,
+    int ItemId,
+    int QuotationId,
+    decimal Price,
+    string Currency,
+    DateOnly ValidUntil,
+    int SupplierBranchId,
+    string SupplierName,
+    int SupplierId,
+    bool LegacyNeedsReview,
+    IReadOnlyList<EditQuotationBranchDto> Branches);
+
+public sealed record EditQuotationBranchDto(int Id, string BranchName);
+
 public class ApplicationService
 {
     // Spec 014 / T052 — quotation files stream through IObjectStorage with the
@@ -42,6 +61,12 @@ public class ApplicationService
     private readonly INotificationOutboxWriter _outboxWriter;
     private readonly IWorkflowTransactionScope _txScope;
     private readonly ILogger<ApplicationService> _logger;
+    // Spec 023 / FR-009 — optional so legacy integration-test ctors still
+    // compile. When null, EditQuotationAsync no-ops the cache hook.
+    private readonly IComparisonCacheInvalidator? _comparisonCacheInvalidator;
+    // Spec 023 — optional currency repo. When null, EditQuotationAsync falls
+    // back to CurrencyCode.From shape validation only (matches QuotationController.Convert).
+    private readonly ICurrencyRepository? _currencyRepository;
 
     public ApplicationService(
         IApplicationRepository applicationRepository,
@@ -56,7 +81,9 @@ public class ApplicationService
         INotificationOutboxWriter outboxWriter,
         IWorkflowTransactionScope txScope,
         ILogger<ApplicationService> logger,
-        IPublicCodeGenerator? publicCodeGenerator = null)
+        IPublicCodeGenerator? publicCodeGenerator = null,
+        IComparisonCacheInvalidator? comparisonCacheInvalidator = null,
+        ICurrencyRepository? currencyRepository = null)
     {
         _applicationRepository = applicationRepository;
         _categoryRepository = categoryRepository;
@@ -71,6 +98,8 @@ public class ApplicationService
         _outboxWriter = outboxWriter;
         _txScope = txScope;
         _logger = logger;
+        _comparisonCacheInvalidator = comparisonCacheInvalidator;
+        _currencyRepository = currencyRepository;
     }
 
     /// <summary>
@@ -450,6 +479,280 @@ public class ApplicationService
 
         await _applicationRepository.UpdateAsync(application);
         await _applicationRepository.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Spec 023 — read projection for the Quotation/Edit form. Resolves the
+    /// quotation, the owning Item, and the parent Application, plus the
+    /// Supplier's branch set (needed by the branch picker). Returns null when
+    /// any link is missing or soft-deleted. Used by <c>QuotationController.Edit</c>
+    /// (GET) to render the form pre-populated with current values.
+    /// </summary>
+    public async Task<EditQuotationReadDto?> GetQuotationForEditAsync(
+        int applicationId, int itemId, int quotationId)
+    {
+        var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId);
+        if (application is null) return null;
+
+        var item = application.Items.FirstOrDefault(i => i.Id == itemId);
+        if (item is null) return null;
+
+        var quotation = item.Quotations.FirstOrDefault(q => q.Id == quotationId);
+        if (quotation is null) return null;
+
+        // Eager-load the supplier's branches (the included Supplier nav only carries
+        // the single branch this quotation references, not the full branch set).
+        var supplier = await _supplierRepository.GetByIdWithBranchesAsync(quotation.SupplierId);
+        if (supplier is null) return null;
+
+        return new EditQuotationReadDto(
+            ApplicationId: application.Id,
+            ApplicantId: application.ApplicantId,
+            ApplicationState: application.State,
+            ItemId: item.Id,
+            QuotationId: quotation.Id,
+            Price: quotation.Price,
+            Currency: quotation.Currency,
+            ValidUntil: quotation.ValidUntil,
+            SupplierBranchId: quotation.SupplierBranchId,
+            SupplierName: supplier.Name,
+            SupplierId: supplier.Id,
+            LegacyNeedsReview: quotation.LegacyNeedsReview,
+            Branches: supplier.Branches
+                .Select(b => new EditQuotationBranchDto(b.Id, b.BranchName))
+                .ToList());
+    }
+
+    /// <summary>
+    /// Spec 023 — applicant-initiated in-place edit of a quotation. See
+    /// <c>contracts/quotation-edit-endpoint.md</c> and <c>data-model.md</c> §2.3
+    /// for the orchestration contract. Returns an <see cref="EditQuotationResult"/>
+    /// envelope; the controller dispatches on <see cref="EditQuotationOutcome"/>.
+    ///
+    /// Implementation notes:
+    /// - Load order: Application + its Quotation chain via <c>GetByIdWithDetailsAsync</c>;
+    ///   the Supplier's branch set via <c>ISupplierRepository.GetByIdWithBranchesAsync</c>
+    ///   (the application-detail load only carries the branch the quotation already
+    ///   references, not the full supplier branch set the picker needs).
+    /// - Note on lifecycle states: the codebase has a single editable state
+    ///   (<see cref="ApplicationState.Draft"/>). Spec 023 references a logical
+    ///   "ReturnedForChanges" state; in the current implementation, the reviewer's
+    ///   <c>SendBack</c> path transitions back to Draft (Application.cs:418-434),
+    ///   so the state gate is satisfied by <c>state == Draft</c>.
+    /// - Idempotency (NFR-004): when no field changed, returns Success without
+    ///   touching the DB, exchange-rate, or comparison cache.
+    /// - Mutation order (research §R0.7): ChangeCurrency → EditAmount → ChangeBranch
+    ///   → SetValidUntil. Currency-change resets the snapshot first; price change
+    ///   then re-multiplies against the fresh rate.
+    /// </summary>
+    public async Task<EditQuotationResult> EditQuotationAsync(
+        EditQuotationCommand command,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var application = await _applicationRepository.GetByIdWithDetailsAsync(command.ApplicationId);
+        if (application is null)
+        {
+            return new EditQuotationResult(EditQuotationOutcome.NotFound);
+        }
+
+        // FR-007 — ownership gate.
+        if (application.ApplicantId != command.ApplicantId)
+        {
+            return new EditQuotationResult(EditQuotationOutcome.Forbidden);
+        }
+
+        var item = application.Items.FirstOrDefault(i => i.Id == command.ItemId);
+        if (item is null)
+        {
+            return new EditQuotationResult(EditQuotationOutcome.NotFound);
+        }
+
+        var quotation = item.Quotations.FirstOrDefault(q => q.Id == command.QuotationId);
+        if (quotation is null)
+        {
+            return new EditQuotationResult(EditQuotationOutcome.NotFound);
+        }
+
+        // FR-008 — state gate. See the lifecycle note in the XML summary.
+        if (application.State != ApplicationState.Draft)
+        {
+            return new EditQuotationResult(
+                EditQuotationOutcome.StateChanged,
+                GlobalError: "El estado de la solicitud cambió, recarga la página.");
+        }
+
+        // FR-011 — legacy-flagged quotations route through the admin-only path.
+        if (quotation.LegacyNeedsReview)
+        {
+            return new EditQuotationResult(
+                EditQuotationOutcome.LegacyFlagged,
+                GlobalError: "Esta cotización está marcada para revisión administrativa de tipo de cambio.");
+        }
+
+        // Eager-load the supplier with its branch set so the branch invariant
+        // can be enforced in code without a second DB round-trip per branch.
+        var supplier = await _supplierRepository.GetByIdWithBranchesAsync(quotation.SupplierId);
+        if (supplier is null)
+        {
+            return new EditQuotationResult(EditQuotationOutcome.NotFound);
+        }
+
+        // FR-005 — aggregate field validation (R0.5).
+        var fieldErrors = new Dictionary<string, string>();
+        if (command.Price <= 0m)
+        {
+            fieldErrors[nameof(command.Price)] = "El precio debe ser mayor a cero.";
+        }
+
+        CurrencyCode? parsedCurrency = null;
+        if (string.IsNullOrWhiteSpace(command.Currency))
+        {
+            fieldErrors[nameof(command.Currency)] = "La moneda es obligatoria.";
+        }
+        else
+        {
+            try
+            {
+                parsedCurrency = CurrencyCode.From(command.Currency);
+            }
+            catch (ArgumentException)
+            {
+                fieldErrors[nameof(command.Currency)] =
+                    $"La moneda '{command.Currency}' no está configurada.";
+            }
+        }
+
+        // Currency-catalog gate (only when shape parsed cleanly).
+        if (parsedCurrency is not null && _currencyRepository is not null)
+        {
+            var catalogEntry = await _currencyRepository.GetByCodeAsync(parsedCurrency, ct);
+            if (catalogEntry is null)
+            {
+                fieldErrors[nameof(command.Currency)] =
+                    $"La moneda '{parsedCurrency}' no está configurada.";
+            }
+            else if (!catalogEntry.IsEnabled)
+            {
+                fieldErrors[nameof(command.Currency)] =
+                    $"La moneda '{parsedCurrency}' está deshabilitada.";
+            }
+        }
+
+        if (command.ValidUntil < DateOnly.FromDateTime(DateTime.UtcNow.Date))
+        {
+            fieldErrors[nameof(command.ValidUntil)] =
+                "La fecha de vigencia debe ser hoy o futura.";
+        }
+
+        var targetBranch = supplier.Branches.FirstOrDefault(b => b.Id == command.SupplierBranchId);
+        if (targetBranch is null)
+        {
+            fieldErrors[nameof(command.SupplierBranchId)] =
+                "Sucursal no válida para este proveedor.";
+        }
+
+        if (fieldErrors.Count > 0)
+        {
+            return new EditQuotationResult(
+                EditQuotationOutcome.ValidationFailed,
+                FieldErrors: fieldErrors);
+        }
+
+        // NFR-004 — idempotency short-circuit. All four fields match → no-op.
+        var normalizedCurrency = parsedCurrency!.Value;
+        var currencyChanged = !string.Equals(quotation.Currency, normalizedCurrency, StringComparison.Ordinal);
+        var priceChanged = quotation.Price != command.Price;
+        var validUntilChanged = quotation.ValidUntil != command.ValidUntil;
+        var branchChanged = quotation.SupplierBranchId != command.SupplierBranchId;
+
+        if (!currencyChanged && !priceChanged && !validUntilChanged && !branchChanged)
+        {
+            return new EditQuotationResult(EditQuotationOutcome.Success);
+        }
+
+        try
+        {
+            // Order (R0.7): ChangeCurrency → EditAmount → ChangeBranch → SetValidUntil.
+            if (currencyChanged)
+            {
+                await quotation.ChangeCurrencyAsync(parsedCurrency, _conversionService, ct)
+                    .ConfigureAwait(false);
+            }
+
+            if (priceChanged)
+            {
+                quotation.EditAmount(command.Price);
+            }
+            else if (!currencyChanged && quotation.Currency == CurrencyCode.Crc.Value)
+            {
+                // CRC, same price, same currency — nothing else to recompute. The
+                // ConvertedCrcAmount is already Price by the entity invariant.
+            }
+
+            if (branchChanged)
+            {
+                quotation.ChangeBranch(targetBranch!);
+            }
+
+            if (validUntilChanged)
+            {
+                quotation.SetValidUntil(command.ValidUntil);
+            }
+        }
+        catch (MissingRateException ex)
+        {
+            _logger.LogWarning(ex,
+                "EditQuotation: missing rate for currency {Currency} on quotation {QuotationId}.",
+                normalizedCurrency, command.QuotationId);
+            return new EditQuotationResult(
+                EditQuotationOutcome.MissingRate,
+                GlobalError: "No hay un tipo de cambio publicado para la moneda solicitada.");
+        }
+        catch (ArgumentException ex) when (ex.ParamName == nameof(SupplierBranch.SupplierId)
+                                            || ex.ParamName == "branch"
+                                            || ex.ParamName == "newValidUntil")
+        {
+            // Defensive: entity-level invariants we already pre-validated above.
+            // Translate any residual exception into a field error so the form
+            // re-renders cleanly instead of 500-ing.
+            var key = ex.ParamName == "newValidUntil"
+                ? nameof(command.ValidUntil)
+                : nameof(command.SupplierBranchId);
+            return new EditQuotationResult(
+                EditQuotationOutcome.ValidationFailed,
+                FieldErrors: new Dictionary<string, string> { [key] = ex.Message.Split('\n')[0] });
+        }
+
+        await _applicationRepository.UpdateAsync(application);
+        await _applicationRepository.SaveChangesAsync();
+
+        // FR-009 — silent cache invalidation after commit. Only on the non-idempotent
+        // path (the early return above guarantees we got here only when something changed).
+        if (_comparisonCacheInvalidator is not null)
+        {
+            try
+            {
+                await _comparisonCacheInvalidator.InvalidateForItemAsync(item.Id, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // Cache miss is the expected reviewer-side behaviour anyway; log and continue.
+                _logger.LogWarning(ex,
+                    "EditQuotation: cache invalidation failed for itemId={ItemId}; reviewer will see stale until regenerate.",
+                    item.Id);
+            }
+        }
+
+        _logger.LogInformation(
+            "EditQuotation: applicantId={ApplicantId} applicationId={ApplicationId} itemId={ItemId} quotationId={QuotationId} "
+                + "currencyChanged={CurrencyChanged} priceChanged={PriceChanged} validUntilChanged={ValidUntilChanged} branchChanged={BranchChanged}",
+            command.ApplicantId, command.ApplicationId, command.ItemId, command.QuotationId,
+            currencyChanged, priceChanged, validUntilChanged, branchChanged);
+
+        return new EditQuotationResult(EditQuotationOutcome.Success);
     }
 
     /// <summary>
