@@ -114,5 +114,5 @@ The Aspire AppHost registers `rnwood/smtp4dev` as a container resource named `sm
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/021-feedback-session-may13/plan.md`
+`specs/023-quotation-edit/plan.md`
 <!-- SPECKIT END -->
