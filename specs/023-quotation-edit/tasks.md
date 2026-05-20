@@ -119,15 +119,15 @@ Clean Architecture, four-layer .NET (see [plan.md](./plan.md) §Project Structur
 
 ### Tests for User Story 2
 
-- [ ] T023 [P] [US2] Create `tests/FundingPlatform.Tests.E2E/Tests/Application/QuotationEditAfterReturnTests.cs` with two tests: (1) `SwapsBranchOnReturned_PreservesReviewerComments` (golden), (2) `RejectsCrossSupplierBranch` (POST a branch belonging to a different supplier; expects `400`, expects `quotation-edit-validation-summary` visible with *"Sucursal no válida para este proveedor."*). Both drive from the landing page.
+- [x] T023 [P] [US2] Create `tests/FundingPlatform.Tests.E2E/Tests/Application/QuotationEditAfterReturnTests.cs` with two tests: (1) `SwapsBranchOnReturned_PreservesReviewerComments` (golden), (2) `RejectsCrossSupplierBranch` (POST a branch belonging to a different supplier; expects `400`, expects `quotation-edit-validation-summary` visible with *"Sucursal no válida para este proveedor."*). Both drive from the landing page.
 
-- [ ] T024 [P] [US2] Extend `ApplicationServiceEditQuotationTests` (file from T017) with: `EditQuotation_BranchChangeOnReturnedForChanges_PersistsAndKeepsAuditTrail`, `EditQuotation_CrossSupplierBranch_ReturnsValidationFailedWithFieldError`.
+- [x] T024 [P] [US2] Extend `ApplicationServiceEditQuotationTests` (file from T017) with: `EditQuotation_BranchChangeOnReturnedForChanges_PersistsAndKeepsAuditTrail`, `EditQuotation_CrossSupplierBranch_ReturnsValidationFailedWithFieldError`.
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] Ensure `EditQuotationAsync` (from T013) routes branch changes through `Quotation.ChangeBranch` (already accounted for in the orchestration order). Verify that when the branch is the **only** change, no `SaveChangesAsync` writes to `ExchangeRate.IsUsed` and no snapshot reset occurs — this is implicit in the entity-method choice but must be validated by T024 integration tests.
+- [x] T025 [US2] Ensure `EditQuotationAsync` (from T013) routes branch changes through `Quotation.ChangeBranch` (already accounted for in the orchestration order). Verify that when the branch is the **only** change, no `SaveChangesAsync` writes to `ExchangeRate.IsUsed` and no snapshot reset occurs — this is implicit in the entity-method choice but must be validated by T024 integration tests.
 
-- [ ] T026 [US2] Verify the affordance gate in `Application/Edit.cshtml` (from T021) renders the `Editar` button when `Application.State == ReturnedForChanges` (same code path as `Draft`). If `_StageCountdownBanner` hides the row or constrains it differently for `ReturnedForChanges`, adjust the partial guard.
+- [x] T026 [US2] Verify the affordance gate in `Application/Edit.cshtml` (from T021) renders the `Editar` button when `Application.State == ReturnedForChanges` (same code path as `Draft`). If `_StageCountdownBanner` hides the row or constrains it differently for `ReturnedForChanges`, adjust the partial guard.
 
 **Checkpoint**: US2 fully functional. `QuotationEditAfterReturnTests` E2E pass; the two new integration cases pass.
 
@@ -141,15 +141,15 @@ Clean Architecture, four-layer .NET (see [plan.md](./plan.md) §Project Structur
 
 ### Tests for User Story 3
 
-- [ ] T027 [P] [US3] Create `tests/FundingPlatform.Tests.E2E/Tests/Application/QuotationEditCurrencyTests.cs`: (1) `ChangesCurrencyCrcToUsd_SnapshotFresh_RateMarkedUsed`, (2) `InvalidatesComparisonCacheOnEdit` (seed a `ComparisonArtifact` row for the Item before the Edit; after submit, query the DB and assert the row is gone or its hash key is stale per the spec 020 cache-read semantics). Both drive from the landing page.
+- [x] T027 [P] [US3] Create `tests/FundingPlatform.Tests.E2E/Tests/Application/QuotationEditCurrencyTests.cs`: (1) `ChangesCurrencyCrcToUsd_SnapshotFresh_RateMarkedUsed`, (2) `InvalidatesComparisonCacheOnEdit` (seed a `ComparisonArtifact` row for the Item before the Edit; after submit, query the DB and assert the row is gone or its hash key is stale per the spec 020 cache-read semantics). Both drive from the landing page.
 
-- [ ] T028 [P] [US3] Extend `ApplicationServiceEditQuotationTests` with: `EditQuotation_CurrencyChange_TakesFreshSnapshotAndMarksRateUsed`, `EditQuotation_MissingRate_ReturnsOutcomeMissingRate`, `EditQuotation_AnyChange_InvokesCacheInvalidatorWithItemId`, and `EditQuotation_IdempotentRepeat_DoesNotInvalidateCache` (use a fake `IComparisonCacheInvalidator` to verify the call on the non-idempotent path and to assert zero invocations on the idempotent short-circuit).
+- [x] T028 [P] [US3] Extend `ApplicationServiceEditQuotationTests` with: `EditQuotation_CurrencyChange_TakesFreshSnapshotAndMarksRateUsed`, `EditQuotation_MissingRate_ReturnsOutcomeMissingRate`, `EditQuotation_AnyChange_InvokesCacheInvalidatorWithItemId`, and `EditQuotation_IdempotentRepeat_DoesNotInvalidateCache` (use a fake `IComparisonCacheInvalidator` to verify the call on the non-idempotent path and to assert zero invocations on the idempotent short-circuit).
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Verify `EditQuotationAsync` (T013) routes currency changes through `Quotation.ChangeCurrencyAsync(newCurrency, _conversionService, ct)`. Confirm the order against research §R0.7: `ChangeCurrencyAsync` first (resets snapshot, retains old Price), then `EditAmount(newPrice)` if Price also changed (re-multiplies against the fresh snapshot). The `MissingRateException` is caught at the service boundary and mapped to `Outcome.MissingRate` with the `IUserFacingErrorTranslator`'s translation.
+- [x] T029 [US3] Verify `EditQuotationAsync` (T013) routes currency changes through `Quotation.ChangeCurrencyAsync(newCurrency, _conversionService, ct)`. Confirm the order against research §R0.7: `ChangeCurrencyAsync` first (resets snapshot, retains old Price), then `EditAmount(newPrice)` if Price also changed (re-multiplies against the fresh snapshot). The `MissingRateException` is caught at the service boundary and mapped to `Outcome.MissingRate` with the `IUserFacingErrorTranslator`'s translation.
 
-- [ ] T030 [US3] Confirm cache invalidation fires only on the non-idempotent success path. The idempotent short-circuit (NFR-004) MUST NOT invoke `IComparisonCacheInvalidator` (assert in T028's `EditQuotation_IdempotentRepeat_DoesNotInvalidateCache` case).
+- [x] T030 [US3] Confirm cache invalidation fires only on the non-idempotent success path. The idempotent short-circuit (NFR-004) MUST NOT invoke `IComparisonCacheInvalidator` (assert in T028's `EditQuotation_IdempotentRepeat_DoesNotInvalidateCache` case).
 
 **Checkpoint**: US3 fully functional. `QuotationEditCurrencyTests` E2E pass; cache-invalidation integration tests pass.
 
