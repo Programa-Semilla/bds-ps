@@ -177,8 +177,13 @@ else
                                 @* Spec 015 / T412 — per-Item quotation rows render via the
                                    MoneyDisplayViewComponent; the rate-snapshot subblock keeps the
                                    spec-015 E2E selectors (data-testid=quotation-rate-snapshot). *@
-                                <span class="badge bg-secondary">@item.QuotationCount</span>
-                                @if (item.Quotations.Count > 0)
+                                @if (item.Quotations.Count == 0)
+                                {
+                                    <span class="text-secondary fst-italic" data-testid="quotation-empty">
+                                        Sin cotizaciones
+                                    </span>
+                                }
+                                else
                                 {
                                     <ul class="list-unstyled mb-0 mt-2 small" data-testid="quotation-list">
                                         @foreach (var q in item.Quotations)
