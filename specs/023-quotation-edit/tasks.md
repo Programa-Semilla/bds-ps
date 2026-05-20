@@ -159,17 +159,17 @@ Clean Architecture, four-layer .NET (see [plan.md](./plan.md) §Project Structur
 
 **Purpose**: Constitution compliance + delivery-quality checks across all stories.
 
-- [ ] T031 [P] Run `dotnet test tests/FundingPlatform.Tests.Unit` — confirm `Quotation_ChangeBranchTests` green.
+- [x] T031 [P] Run `dotnet test tests/FundingPlatform.Tests.Unit` — confirm `Quotation_ChangeBranchTests` green.
 
-- [ ] T032 [P] Run `dotnet test tests/FundingPlatform.Tests.Integration` — confirm `ApplicationServiceEditQuotationTests` green and no regression elsewhere.
+- [x] T032 [P] Run `dotnet test tests/FundingPlatform.Tests.Integration` — confirm `ApplicationServiceEditQuotationTests` green and no regression elsewhere.
 
-- [ ] T033 Run `dotnet test tests/FundingPlatform.Tests.E2E` — confirm the **entire** E2E suite is green, including pre-existing `Supplier/Add` tests (regression for FR-003 / SC-005). Per delivery memory `feedback_delivery_requires_e2e_green.md`, structural readiness is not a substitute.
+- [x] T033 Run `dotnet test tests/FundingPlatform.Tests.E2E` — confirm the **entire** E2E suite is green, including pre-existing `Supplier/Add` tests (regression for FR-003 / SC-005). Per delivery memory `feedback_delivery_requires_e2e_green.md`, structural readiness is not a substitute.
 
-- [ ] T034 Manual walkthrough of [quickstart.md](./quickstart.md) US1, US2, US3 paths against a fresh `dotnet run --project src/FundingPlatform.AppHost` instance. Confirm es-CR copy, keyboard navigation, and that the live conversion preview shows on the Edit form (FR-010).
+- [~] T034 Manual walkthrough of [quickstart.md](./quickstart.md) US1, US2, US3 paths against a fresh `dotnet run --project src/FundingPlatform.AppHost` instance. Confirm es-CR copy, keyboard navigation, and that the live conversion preview shows on the Edit form (FR-010).
 
-- [ ] T035 [P] Verify `Application/Edit.cshtml` accessibility: each Editar button has `aria-label` or visible text; required-field markers per spec 021 convention are present on the Edit view; the conversion-preview alert exposes status updates via `data-preview-status` (NFR-002).
+- [x] T035 [P] Verify `Application/Edit.cshtml` accessibility: each Editar button has `aria-label` or visible text; required-field markers per spec 021 convention are present on the Edit view; the conversion-preview alert exposes status updates via `data-preview-status` (NFR-002).
 
-- [ ] T036 [P] Performance sanity-check (NFR-003): wall-clock the Edit GET p50 and POST p50 against an Application with 10 items × 3 quotations each (typical) using the Aspire instrumentation tab. Confirm GET ≤ 200 ms, POST ≤ 500 ms.
+- [~] T036 [P] Performance sanity-check (NFR-003): wall-clock the Edit GET p50 and POST p50 against an Application with 10 items × 3 quotations each (typical) using the Aspire instrumentation tab. Confirm GET ≤ 200 ms, POST ≤ 500 ms.
 
 ---
 

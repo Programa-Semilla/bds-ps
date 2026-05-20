@@ -209,7 +209,7 @@ public class QuotationEditCurrencyTests : AuthenticatedTestBase
                 (ApplicationItemId, JsonContent, InputHash, PromptVersion, SchemaVersion, AiModel,
                  GeneratedAt, GeneratedByUserId, TokenCostInput, TokenCostOutput, LatencyMs)
             VALUES
-                (@ItemId, '{}', @Hash, 'v1', 'v1', 'stub', SYSUTCDATETIMEOFFSET(), @SeedUser, 0, 0, 0);";
+                (@ItemId, '{}', @Hash, 'v1', 'v1', 'stub', SYSDATETIMEOFFSET(), @SeedUser, 0, 0, 0);";
         cmd.Parameters.AddWithValue("@ItemId", itemId);
         cmd.Parameters.AddWithValue("@Hash", new string('a', 64));
         await cmd.ExecuteNonQueryAsync();

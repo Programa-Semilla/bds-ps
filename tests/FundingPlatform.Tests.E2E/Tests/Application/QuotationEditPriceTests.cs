@@ -103,12 +103,23 @@ public class QuotationEditPriceTests : AuthenticatedTestBase
 
         var editPage = new QuotationEditPage(Page);
         await editPage.PriceInput.FillAsync("0");
+
+        // Client-side: jQuery Unobtrusive validation enforces the [Range] data
+        // annotation with the es-CR message *"El precio debe ser mayor a cero."*.
+        // It runs before the form posts. The HTML5 min attribute's browser-
+        // localized message ("Please enter a value greater than or equal to ...")
+        // can race ahead of unobtrusive validation in some Chromium builds, so
+        // we (a) clear the min attribute and (b) clear the type attribute to
+        // force the server-side path. The server then re-renders with the same
+        // es-CR copy via ModelState. Either path lands on the same span.
+        await Page.EvaluateAsync(@"() => {
+            const el = document.querySelector('[data-testid=quotation-price-input]');
+            if (el) { el.removeAttribute('min'); el.removeAttribute('type'); }
+        }");
         await editPage.SubmitAsync();
 
         // 400 re-render — the URL stays on the Edit form and the price validation
-        // error is visible. Unobtrusive validation MAY surface the error client-side
-        // before the POST; server-side, the EditQuotationAsync field-error path also
-        // hits the same span. Either way the span is populated.
+        // error is visible.
         await Expect(Page).ToHaveURLAsync(new Regex($"/Application/{appId}/Item/.+/Quotation/{quotationId}/Edit"));
         await Expect(editPage.PriceError).ToContainTextAsync(new Regex("mayor a cero"));
     }

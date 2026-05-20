@@ -21,18 +21,10 @@
             new BreadcrumbItem("Editar"),
         }))
 
-@if (TempData["SuccessMessage"] is string successMessage)
-{
-    <div class="alert alert-success" role="alert" data-testid="application-edit-success">
-        @successMessage
-    </div>
-}
-@if (TempData["ErrorMessage"] is string errorMessage)
-{
-    <div class="alert alert-danger" role="alert" data-testid="application-edit-error">
-        @errorMessage
-    </div>
-}
+@* Spec 023 — TempData["SuccessMessage"] and TempData["ErrorMessage"] are
+   already rendered by _Layout.cshtml's success-banner / error-banner blocks,
+   so this view does not redeclare them (would trip the .alert-success strict-
+   mode locator used by spec 018 E2E tests). *@
 @if (TempData["ValidationErrors"] is string validationErrorsJson)
 {
     var errors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(validationErrorsJson);
