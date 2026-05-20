@@ -17,4 +17,7 @@ public record QuotationDto(
     decimal? SnapshotRateValue = null,
     string? SnapshotRateType = null,
     DateTime? SnapshotEffectiveAtUtc = null,
-    bool LegacyNeedsReview = false);
+    bool LegacyNeedsReview = false,
+    // Spec 023 — exposed so the applicant Edit affordance can be rendered on
+    // the Application/Edit listing without a second query.
+    int SupplierBranchId = 0);

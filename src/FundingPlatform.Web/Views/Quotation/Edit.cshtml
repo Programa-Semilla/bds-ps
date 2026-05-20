@@ -1,0 +1,62 @@
+@model FundingPlatform.Web.ViewModels.EditQuotationViewModel
+
+@{
+    ViewData["Title"] = "Editar cotización";
+    var convertUrl = Url.Action("Convert", "Quotation",
+        new { appId = Model.ApplicationId, itemId = Model.ItemId });
+}
+
+<div class="row">
+    <div class="col-md-10">
+        <h2 class="mb-3" data-testid="quotation-edit-heading">
+            Editando cotización de @Model.SupplierName
+        </h2>
+
+        <form asp-controller="Quotation" asp-action="Edit"
+              asp-route-appId="@Model.ApplicationId"
+              asp-route-itemId="@Model.ItemId"
+              asp-route-quotationId="@Model.QuotationId"
+              method="post"
+              id="edit-quotation-form"
+              data-quote-form
+              data-convert-url="@convertUrl"
+              data-testid="quotation-edit-form">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger"
+                 data-testid="quotation-edit-validation-summary"></div>
+
+            <input type="hidden" asp-for="ApplicationId" />
+            <input type="hidden" asp-for="ItemId" />
+            <input type="hidden" asp-for="QuotationId" />
+
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h4 class="card-title">Detalles de la cotización</h4>
+                    @* Spec 023 / FR-003 — shared Price/Currency/ValidUntil block. *@
+                    <partial name="_QuoteFields" model="@((FundingPlatform.Web.ViewModels.IQuoteFieldsModel)Model)" />
+
+                    <div class="mb-3" data-testid="form-section" data-field="SupplierBranchId">
+                        <label asp-for="SupplierBranchId" class="form-label"></label>
+                        <select asp-for="SupplierBranchId"
+                                asp-items="Model.BranchOptions"
+                                class="form-select"
+                                data-testid="quotation-branch-input">
+                        </select>
+                        <span asp-validation-for="SupplierBranchId" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" data-testid="quotation-submit-button">
+                Guardar cambios
+            </button>
+            <a asp-controller="Application" asp-action="Edit" asp-route-id="@Model.ApplicationId"
+               class="btn btn-secondary" data-testid="quotation-cancel-button">Cancelar</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/quote-conversion-preview.js" asp-append-version="true"></script>
+}

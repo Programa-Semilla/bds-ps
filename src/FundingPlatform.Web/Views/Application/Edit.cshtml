@@ -21,6 +21,18 @@
             new BreadcrumbItem("Editar"),
         }))
 
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="alert" data-testid="application-edit-success">
+        @successMessage
+    </div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert" data-testid="application-edit-error">
+        @errorMessage
+    </div>
+}
 @if (TempData["ValidationErrors"] is string validationErrorsJson)
 {
     var errors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(validationErrorsJson);
@@ -195,6 +207,7 @@ else
         }
         else
         {
+            var isEditableState = Model.State == nameof(ApplicationState.Draft);
             <div class="table-responsive">
                 <table class="table card-table table-vcenter">
                     <thead>
@@ -230,6 +243,68 @@ else
                                     </form>
                                 </td>
                             </tr>
+                            @* Spec 023 / FR-001 / T021 — per-quotation row with the Editar
+                               affordance. Hidden when (a) the application is not in an
+                               editable state OR (b) the quotation is legacy-flagged. *@
+                            @if (item.Quotations.Count > 0)
+                            {
+                                <tr data-testid="application-edit-quotations-row">
+                                    <td colspan="4" class="bg-secondary-subtle">
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Proveedor</th>
+                                                    <th>Monto</th>
+                                                    <th>Equiv. CRC</th>
+                                                    <th>Vigente hasta</th>
+                                                    <th>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var q in item.Quotations)
+                                                {
+                                                    <tr data-testid="quotation-row-@q.Id">
+                                                        <td>@q.SupplierName</td>
+                                                        <td>@q.Price.ToString("N2", new System.Globalization.CultureInfo("es-CR")) @q.Currency</td>
+                                                        <td>
+                                                            @if (q.ConvertedCrcAmount.HasValue)
+                                                            {
+                                                                @q.ConvertedCrcAmount.Value.ToString("C0", new System.Globalization.CultureInfo("es-CR"))
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="text-muted">—</span>
+                                                            }
+                                                        </td>
+                                                        <td>@q.ValidUntil.ToString("yyyy-MM-dd")</td>
+                                                        <td>
+                                                            @if (isEditableState && !q.LegacyNeedsReview)
+                                                            {
+                                                                <a asp-controller="Quotation" asp-action="Edit"
+                                                                   asp-route-appId="@Model.Id"
+                                                                   asp-route-itemId="@item.Id"
+                                                                   asp-route-quotationId="@q.Id"
+                                                                   class="btn btn-sm btn-outline-primary"
+                                                                   data-testid="quotation-row-edit-@q.Id"
+                                                                   aria-label="Editar cotización de @q.SupplierName">
+                                                                    Editar
+                                                                </a>
+                                                            }
+                                                            else if (q.LegacyNeedsReview)
+                                                            {
+                                                                <span class="badge bg-warning"
+                                                                      data-testid="legacy-needs-review-badge-@q.Id">
+                                                                    Revisión administrativa
+                                                                </span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            }
                         }
                     </tbody>
                 </table>

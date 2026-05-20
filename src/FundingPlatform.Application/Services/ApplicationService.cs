@@ -892,7 +892,8 @@ public class ApplicationService
                 SnapshotRateValue: q.Snapshot?.RateValue,
                 SnapshotRateType: q.Snapshot?.RateType.ToString(),
                 SnapshotEffectiveAtUtc: q.Snapshot?.EffectiveAtUtc,
-                LegacyNeedsReview: q.LegacyNeedsReview)).ToList(),
+                LegacyNeedsReview: q.LegacyNeedsReview,
+                SupplierBranchId: q.SupplierBranchId)).ToList(),
             applicationImpactDto,
             item.ReviewComment,
             item.SelectedSupplierId)).ToList();

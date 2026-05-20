@@ -607,7 +607,9 @@ public class ApplicationController : Controller
                     SnapshotRateValue = q.SnapshotRateValue,
                     SnapshotRateType = q.SnapshotRateType,
                     SnapshotEffectiveAtUtc = q.SnapshotEffectiveAtUtc,
-                    LegacyNeedsReview = q.LegacyNeedsReview
+                    LegacyNeedsReview = q.LegacyNeedsReview,
+                    SupplierBranchId = q.SupplierBranchId,
+                    ValidUntil = q.ValidUntil
                 }).ToList()
             }).ToList()
         };

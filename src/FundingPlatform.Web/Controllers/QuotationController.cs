@@ -131,6 +131,176 @@ public class QuotationController : Controller
         }
     }
 
+    /// <summary>
+    /// Spec 023 / FR-001 / FR-002 — render the per-quotation Edit form. Pre-populates
+    /// Price, Currency, ValidUntil, SupplierBranchId. The branch picker lists only
+    /// branches of the quotation's current Supplier (FR-004). The form rejects
+    /// editing on out-of-state applications (FR-008) and legacy-flagged quotations
+    /// (FR-011) by redirecting back to Application/Edit with TempData["ErrorMessage"].
+    /// </summary>
+    [HttpGet("{quotationId}/Edit")]
+    public async Task<IActionResult> Edit(int appId, int itemId, int quotationId)
+    {
+        await VerifyOwnershipAsync(appId);
+
+        var dto = await _applicationService.GetQuotationForEditAsync(appId, itemId, quotationId);
+        if (dto is null)
+        {
+            return NotFound();
+        }
+
+        // FR-008 — state gate at GET time. Redirect back so the applicant sees
+        // the surface that actually owns the affordance (Application/Edit) and
+        // an es-CR explanation.
+        if (dto.ApplicationState != FundingPlatform.Domain.Enums.ApplicationState.Draft)
+        {
+            TempData["ErrorMessage"] =
+                "El estado de la solicitud cambió, recarga la página.";
+            return RedirectToAction("Edit", "Application", new { id = appId });
+        }
+
+        // FR-011 — legacy flagged quotations route through the admin-only path.
+        if (dto.LegacyNeedsReview)
+        {
+            TempData["ErrorMessage"] =
+                "Esta cotización está marcada para revisión administrativa de tipo de cambio.";
+            return RedirectToAction("Edit", "Application", new { id = appId });
+        }
+
+        var vm = new EditQuotationViewModel
+        {
+            ApplicationId = dto.ApplicationId,
+            ItemId = dto.ItemId,
+            QuotationId = dto.QuotationId,
+            Price = dto.Price,
+            Currency = dto.Currency,
+            ValidUntil = dto.ValidUntil,
+            SupplierBranchId = dto.SupplierBranchId,
+            SupplierName = dto.SupplierName,
+            EnabledCurrencies = await LoadEnabledCurrenciesAsync(),
+            BranchOptions = dto.Branches
+                .Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
+                {
+                    Value = b.Id.ToString(),
+                    Text = b.BranchName,
+                    Selected = b.Id == dto.SupplierBranchId,
+                })
+                .ToList(),
+        };
+
+        return View(vm);
+    }
+
+    /// <summary>
+    /// Spec 023 — save edits. Dispatches on <see cref="EditQuotationOutcome"/>
+    /// per <c>contracts/quotation-edit-endpoint.md</c>. Field-level errors are
+    /// surfaced via <c>ModelState</c> so the partial re-renders with every
+    /// error visible on the same round-trip (R0.5).
+    /// </summary>
+    [HttpPost("{quotationId}/Edit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(
+        int appId, int itemId, int quotationId,
+        EditQuotationViewModel vm,
+        CancellationToken ct)
+    {
+        await VerifyOwnershipAsync(appId);
+
+        // Anchor the route params back onto the VM so re-renders carry them through.
+        vm.ApplicationId = appId;
+        vm.ItemId = itemId;
+        vm.QuotationId = quotationId;
+
+        var applicantId = await GetCurrentApplicantIdAsync();
+
+        var result = await _applicationService.EditQuotationAsync(new EditQuotationCommand
+        {
+            ApplicationId = appId,
+            ItemId = itemId,
+            QuotationId = quotationId,
+            Price = vm.Price,
+            Currency = vm.Currency,
+            ValidUntil = vm.ValidUntil,
+            SupplierBranchId = vm.SupplierBranchId,
+            ApplicantId = applicantId,
+        }, ct);
+
+        switch (result.Outcome)
+        {
+            case EditQuotationOutcome.Success:
+                TempData["SuccessMessage"] = "Cotización actualizada con éxito.";
+                return RedirectToAction("Edit", "Application", new { id = appId });
+
+            case EditQuotationOutcome.NotFound:
+                return NotFound();
+
+            case EditQuotationOutcome.Forbidden:
+                return Forbid();
+
+            case EditQuotationOutcome.StateChanged:
+                TempData["ErrorMessage"] = result.GlobalError;
+                return RedirectToAction("Edit", "Application", new { id = appId });
+
+            case EditQuotationOutcome.LegacyFlagged:
+                TempData["ErrorMessage"] = result.GlobalError;
+                return RedirectToAction("Edit", "Application", new { id = appId });
+
+            case EditQuotationOutcome.MissingRate:
+                ModelState.AddModelError(string.Empty,
+                    result.GlobalError ?? _errorTranslator.Translate(UserFacingErrorCode.MissingExchangeRate));
+                await PopulateLookupsAsync(vm);
+                Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
+                return View(vm);
+
+            case EditQuotationOutcome.ValidationFailed:
+                if (result.FieldErrors is not null)
+                {
+                    foreach (var kvp in result.FieldErrors)
+                    {
+                        ModelState.AddModelError(kvp.Key, kvp.Value);
+                    }
+                }
+                await PopulateLookupsAsync(vm);
+                Response.StatusCode = StatusCodes.Status400BadRequest;
+                return View(vm);
+
+            default:
+                return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    private async Task PopulateLookupsAsync(EditQuotationViewModel vm)
+    {
+        vm.EnabledCurrencies = await LoadEnabledCurrenciesAsync();
+
+        // Reload the supplier name + branch options from the read projection so
+        // the re-rendered form keeps the branch <select> populated (the POST
+        // payload only carries the SupplierBranchId, not the option list).
+        var dto = await _applicationService.GetQuotationForEditAsync(
+            vm.ApplicationId, vm.ItemId, vm.QuotationId);
+        if (dto is not null)
+        {
+            vm.SupplierName = dto.SupplierName;
+            vm.BranchOptions = dto.Branches
+                .Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
+                {
+                    Value = b.Id.ToString(),
+                    Text = b.BranchName,
+                    Selected = b.Id == vm.SupplierBranchId,
+                })
+                .ToList();
+        }
+    }
+
+    private async Task<IReadOnlyList<CurrencyOption>> LoadEnabledCurrenciesAsync()
+    {
+        return await _dbContext.Currencies
+            .Where(c => c.IsEnabled)
+            .OrderBy(c => c.DisplayOrder)
+            .Select(c => new CurrencyOption(c.Code.Value, c.DisplayName, c.Symbol))
+            .ToListAsync();
+    }
+
     [HttpPost("{quotationId}/Replace")]
     [ValidateAntiForgeryToken]
     [UploadSizeGuard(FileCategory.ApplicationAttachment)]

@@ -76,4 +76,9 @@ public class QuotationSummaryViewModel
     public string? SnapshotRateType { get; set; }
     public DateTime? SnapshotEffectiveAtUtc { get; set; }
     public bool LegacyNeedsReview { get; set; }
+
+    // Spec 023 — surfaced so the Application/Edit view can render the per-row
+    // affordance (Editar) and any subsequent vigencia summary without re-querying.
+    public int SupplierBranchId { get; set; }
+    public DateOnly ValidUntil { get; set; }
 }
