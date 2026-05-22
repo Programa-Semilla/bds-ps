@@ -30,18 +30,7 @@
         </aside>
         <section class="fl-auth-content">
             <div class="fl-auth-card">
-                @if (TempData["SuccessMessage"] != null)
-                {
-                    <div class="fl-alert" data-variant="success" role="alert" data-testid="success-banner">
-                        @TempData["SuccessMessage"]
-                    </div>
-                }
-                @if (TempData["ErrorMessage"] != null)
-                {
-                    <div class="fl-alert" data-variant="danger" role="alert" data-testid="error-banner">
-                        @TempData["ErrorMessage"]
-                    </div>
-                }
+                @* Spec 024 — result messages surface as toasts via _ToastContainer (top-right), not inline alerts. *@
                 <main role="main">
                     @RenderBody()
                 </main>
@@ -50,9 +39,14 @@
     </div>
     @* Spec 019 FR-004 — sponsor strip on auth surfaces (low cost, high brand introduction). *@
     @await Html.PartialAsync("_SponsorStrip")
+    @* Spec 024 — unified notifications + confirmation surfaces (rendered once per layout). *@
+    @await Html.PartialAsync("_ToastContainer")
+    @await Html.PartialAsync("Components/_SharedConfirmModal")
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/tabler/dist/js/tabler.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
+    <script src="~/js/confirm-dialog.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

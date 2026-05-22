@@ -29,14 +29,7 @@
                 new BreadcrumbItem(detail.Name),
             }))
 
-    @if (TempData["SuccessMessage"] is string flash && !string.IsNullOrEmpty(flash))
-    {
-        <div class="alert alert-success" data-testid="admin-process-flash">@flash</div>
-    }
-    @if (TempData["ErrorMessage"] is string err && !string.IsNullOrEmpty(err))
-    {
-        <div class="alert alert-danger" data-testid="admin-process-error">@err</div>
-    }
+    @* Spec 024 — flash messages surface as toasts via _ToastContainer (success-banner / error-banner). *@
     @if (Model.CloseBlockingPublicCodes.Count > 0)
     {
         <div class="alert alert-warning" data-testid="admin-process-close-blockers">

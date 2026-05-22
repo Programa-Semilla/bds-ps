@@ -65,3 +65,19 @@
     padding-top: var(--space-2);
     padding-bottom: var(--space-2);
 }
+
+/* Spec 024 — toast notifications (FR-005, NFR-003). Fixed top-right overlay,
+   stacked, wrapping; never causes layout shift. Sits above the modal layer so a
+   toast raised over an open dialog stays visible. */
+.toast-container[data-testid="toast-container"] {
+    max-width: min(24rem, calc(100vw - 1.5rem));
+}
+
+.fl-toast {
+    max-width: 24rem;
+}
+
+.fl-toast .toast-body {
+    overflow-wrap: anywhere;
+    white-space: normal;
+}

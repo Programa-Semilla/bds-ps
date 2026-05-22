@@ -5,7 +5,7 @@ public sealed record ConfirmDialogViewModel(
     string Title,
     string IrreversibilityRationale,
     string ConfirmLabel,
-    string CancelLabel = "Cancel",
+    string CancelLabel = "Cancelar", // Spec 024 — es-CR default (was "Cancel"); FR-007/FR-010.
     ActionClass ConfirmClass = ActionClass.Destructive,
     string FormController = "",
     string FormAction = "",

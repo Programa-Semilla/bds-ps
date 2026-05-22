@@ -1,0 +1,92 @@
+@*
+    Spec 024 — TempData → toast bridge (FR-002, FR-008, FR-011).
+    Server-renders a Bootstrap toast for each present message channel; activated
+    on load by notifications.js. Rendered inside _ToastContainer (top-right region).
+    TempData one-read semantics give "exactly once" (no re-show on refresh).
+
+    Variant lifetime: success/info auto-dismiss; error/warning sticky (FR-004).
+    Test ids reuse the legacy banner ids so existing E2E selectors keep working.
+*@
+@functions {
+    private static string VariantBg(string variant) => variant switch
+    {
+        "success" => "text-bg-success",
+        "error" => "text-bg-danger",
+        "warning" => "text-bg-warning",
+        "info" => "text-bg-info",
+        _ => "text-bg-secondary",
+    };
+
+    private static bool IsAssertive(string variant) => variant is "error" or "warning";
+    private static string CloseBtn(string variant) => variant == "warning" ? "btn-close" : "btn-close btn-close-white";
+}
+@{
+    void RenderToast(string variant, string testid, string? message, IEnumerable<string>? items = null)
+    {
+        var sticky = IsAssertive(variant);
+        <div class="toast fl-toast border-0 @VariantBg(variant)"
+             role="@(IsAssertive(variant) ? "alert" : "status")"
+             aria-live="@(IsAssertive(variant) ? "assertive" : "polite")"
+             aria-atomic="true"
+             data-toast-variant="@variant"
+             data-toast-sticky="@(sticky ? "true" : "false")"
+             data-testid="@testid">
+            <div class="d-flex">
+                <div class="toast-body">
+                    @if (items is not null)
+                    {
+                        if (!string.IsNullOrEmpty(message))
+                        {
+                            <strong>@message</strong>
+                        }
+                        <ul class="mb-0 mt-1 ps-3">
+                            @foreach (var item in items)
+                            {
+                                <li>@item</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        @message
+                    }
+                </div>
+                <button type="button" class="@CloseBtn(variant) me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+            </div>
+        </div>
+    }
+
+    var hasValidationErrors = false;
+    List<string>? validationErrors = null;
+    if (TempData["ValidationErrors"] is string validationErrorsJson)
+    {
+        validationErrors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(validationErrorsJson);
+        hasValidationErrors = validationErrors is { Count: > 0 };
+    }
+}
+
+@if (TempData["SuccessMessage"] is string successMessage && !string.IsNullOrWhiteSpace(successMessage))
+{
+    RenderToast("success", "success-banner", successMessage);
+}
+@if (TempData["ErrorMessage"] is string errorMessage && !string.IsNullOrWhiteSpace(errorMessage))
+{
+    RenderToast("error", "error-banner", errorMessage);
+}
+@if (TempData["FundingAgreementSuccess"] is string faSuccess && !string.IsNullOrWhiteSpace(faSuccess))
+{
+    RenderToast("success", "funding-agreement-success", faSuccess);
+}
+@if (TempData["FundingAgreementError"] is string faError && !string.IsNullOrWhiteSpace(faError))
+{
+    RenderToast("error", "funding-agreement-error", faError);
+}
+@if (hasValidationErrors)
+{
+    RenderToast("error", "validation-summary-toast", "No se puede enviar la solicitud:", validationErrors);
+}
+else if (!ViewData.ModelState.IsValid)
+{
+    @* FR-008 — inline field errors remain; this is the additive summary cue. *@
+    RenderToast("error", "validation-summary-toast", "Corrige los campos marcados.");
+}

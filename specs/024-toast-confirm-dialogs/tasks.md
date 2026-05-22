@@ -20,7 +20,7 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 
 ## Phase 1: Setup
 
-- [ ] T001 [P] Confirm asset-budget scripts (`scripts/verify-asset-budget.sh`, `scripts/asset-budget-check.sh`) do not scan `wwwroot/js`/`wwwroot/css` (per research Decision 4); record baseline so NFR-002 stays green after new JS/CSS.
+- [X] T001 [P] Confirm asset-budget scripts (`scripts/verify-asset-budget.sh`, `scripts/asset-budget-check.sh`) do not scan `wwwroot/js`/`wwwroot/css` (per research Decision 4); record baseline so NFR-002 stays green after new JS/CSS.
 
 ---
 
@@ -28,12 +28,12 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 
 **⚠️ CRITICAL**: The shared toast + confirm client infrastructure below must exist before any user story is implemented.
 
-- [ ] T002 [P] Create `src/FundingPlatform.Web/wwwroot/js/notifications.js` exposing `window.Notify.toast({variant,message,sticky})` + `Notify.success/error/warning/info` over `window.bootstrap.Toast`; success/info → `autohide:true, delay:5000`, warning/error → `autohide:false` (sticky); no-op safe if `bootstrap.Toast` absent. (FR-001, FR-004, FR-005)
-- [ ] T003 [P] Create `src/FundingPlatform.Web/Views/Shared/_ToastContainer.cshtml` — fixed top-right container (`position-fixed top-0 end-0 p-3`, `data-testid="toast-container"`, z-index above content) with aria-live semantics (polite for success/info, assertive for warning/error). (FR-005, FR-013, NFR-003)
-- [ ] T004 [P] Add toast styles to `src/FundingPlatform.Web/wwwroot/css/site.css` — max-width, body wrap, stacking gap, z-index; no layout shift. (NFR-003)
-- [ ] T005 [P] Fix es-CR default: change `CancelLabel = "Cancel"` → `"Cancelar"` in `src/FundingPlatform.Web/Models/ConfirmDialogViewModel.cs`. (FR-007, FR-010)
-- [ ] T006 Create `src/FundingPlatform.Web/Views/Shared/Components/_SharedConfirmModal.cshtml` (single shared modal mirroring `_ConfirmDialog` styling + `data-testid="confirm-dialog"/"confirm-button"/"cancel-button"`) and `src/FundingPlatform.Web/wwwroot/js/confirm-dialog.js` — intercept `[data-confirm]` elements, populate+open the shared modal from `data-confirm-*` attributes, submit the originating form (or follow link) on confirm, return focus to trigger on close; keep native `confirm()` fallback active until JS initializes. (FR-006, FR-007, FR-012, NFR-004)
-- [ ] T007 Reference `notifications.js` + `confirm-dialog.js` (after `tabler.min.js`) and include `_ToastContainer` + `_SharedConfirmModal` once each in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml` and `_AuthLayout.cshtml`.
+- [X] T002 [P] Create `src/FundingPlatform.Web/wwwroot/js/notifications.js` exposing `window.Notify.toast({variant,message,sticky})` + `Notify.success/error/warning/info` over `window.bootstrap.Toast`; success/info → `autohide:true, delay:5000`, warning/error → `autohide:false` (sticky); no-op safe if `bootstrap.Toast` absent. (FR-001, FR-004, FR-005)
+- [X] T003 [P] Create `src/FundingPlatform.Web/Views/Shared/_ToastContainer.cshtml` — fixed top-right container (`position-fixed top-0 end-0 p-3`, `data-testid="toast-container"`, z-index above content) with aria-live semantics (polite for success/info, assertive for warning/error). (FR-005, FR-013, NFR-003)
+- [X] T004 [P] Add toast styles to `src/FundingPlatform.Web/wwwroot/css/site.css` — max-width, body wrap, stacking gap, z-index; no layout shift. (NFR-003)
+- [X] T005 [P] Fix es-CR default: change `CancelLabel = "Cancel"` → `"Cancelar"` in `src/FundingPlatform.Web/Models/ConfirmDialogViewModel.cs`. (FR-007, FR-010)
+- [X] T006 Create `src/FundingPlatform.Web/Views/Shared/Components/_SharedConfirmModal.cshtml` (single shared modal mirroring `_ConfirmDialog` styling + `data-testid="confirm-dialog"/"confirm-button"/"cancel-button"`) and `src/FundingPlatform.Web/wwwroot/js/confirm-dialog.js` — intercept `[data-confirm]` elements, populate+open the shared modal from `data-confirm-*` attributes, submit the originating form (or follow link) on confirm, return focus to trigger on close; keep native `confirm()` fallback active until JS initializes. (FR-006, FR-007, FR-012, NFR-004)
+- [X] T007 Reference `notifications.js` + `confirm-dialog.js` (after `tabler.min.js`) and include `_ToastContainer` + `_SharedConfirmModal` once each in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml` and `_AuthLayout.cshtml`.
 
 **Checkpoint**: Toast API + shared confirm modal load on every page; nothing user-visible changes yet.
 
@@ -45,11 +45,11 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 
 **Independent Test**: Trigger a success and an error TempData message as applicant, admin, and on an auth page → consistent toasts appear; no banner alert renders; refresh does not re-show (FR-011).
 
-- [ ] T008 [US1] Create `src/FundingPlatform.Web/Views/Shared/_NotificationToasts.cshtml` — server-render a toast for each present `TempData["SuccessMessage"]` (variant success, `data-testid="success-banner"`) and `["ErrorMessage"]` (variant error, sticky, `data-testid="error-banner"`) into the toast container; shown on load by `notifications.js`. (FR-002, FR-011)
-- [ ] T009 [US1] In `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml`, remove the `.alert.alert-success/-danger` banner blocks (lines ~217–230) and include `_NotificationToasts`. (FR-002, SC-002)
-- [ ] T010 [US1] In `src/FundingPlatform.Web/Views/Shared/_AuthLayout.cshtml`, remove the `.fl-alert` banner blocks and include `_NotificationToasts`. (FR-002, SC-002)
-- [ ] T011 [US1] Route `TempData["FundingAgreementSuccess"]/["FundingAgreementError"]` through `_NotificationToasts` (success/error toasts with `data-testid="funding-agreement-success"/"-error"`) and remove the in-panel `.alert` blocks in `src/FundingPlatform.Web/Views/Applications/_FundingAgreementPanel.cshtml` (lines 15–25). (FR-002)
-- [ ] T012 [US1] Convert the `TempData["ValidationErrors"]` submit-blocking list in `src/FundingPlatform.Web/Views/Application/Details.cshtml` (line ~73) into a sticky error toast (`data-testid="validation-summary-toast"`) via the bridge; remove the in-place list alert. (FR-002)
+- [X] T008 [US1] Create `src/FundingPlatform.Web/Views/Shared/_NotificationToasts.cshtml` — server-render a toast for each present `TempData["SuccessMessage"]` (variant success, `data-testid="success-banner"`) and `["ErrorMessage"]` (variant error, sticky, `data-testid="error-banner"`) into the toast container; shown on load by `notifications.js`. (FR-002, FR-011)
+- [X] T009 [US1] In `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml`, remove the `.alert.alert-success/-danger` banner blocks (lines ~217–230) and include `_NotificationToasts`. (FR-002, SC-002)
+- [X] T010 [US1] In `src/FundingPlatform.Web/Views/Shared/_AuthLayout.cshtml`, remove the `.fl-alert` banner blocks and include `_NotificationToasts`. (FR-002, SC-002)
+- [X] T011 [US1] Route `TempData["FundingAgreementSuccess"]/["FundingAgreementError"]` through `_NotificationToasts` (success/error toasts with `data-testid="funding-agreement-success"/"-error"`) and remove the in-panel `.alert` blocks in `src/FundingPlatform.Web/Views/Applications/_FundingAgreementPanel.cshtml` (lines 15–25). (FR-002)
+- [X] T012 [US1] Convert the `TempData["ValidationErrors"]` submit-blocking list in `src/FundingPlatform.Web/Views/Application/Details.cshtml` (line ~73) into a sticky error toast (`data-testid="validation-summary-toast"`) via the bridge; remove the in-place list alert. (FR-002)
 - [ ] T013 [P] [US1] E2E: `tests/FundingPlatform.Tests.E2E/Tests/Notifications/ToastNotificationTests.cs` + toast locators/helpers in `tests/FundingPlatform.Tests.E2E/PageObjects/BasePage.cs` — assert success toast appears & auto-dismisses, error toast appears & stays, across an applicant page, an admin page, and an auth page; assert no top-of-page banner; uses `data-testid="success-banner"/"error-banner"`. (SC-002, SC-003)
 
 **Checkpoint**: US1 independently testable and demoable.
@@ -84,7 +84,7 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 
 **Independent Test**: Force the "Generar todo" enqueue to fail → error toast via `Notify.error`, no `window.alert`.
 
-- [ ] T025 [US3] Replace `alert(...)` at `src/FundingPlatform.Web/wwwroot/js/comparison.js:182` with `window.Notify.error(payload.code || 'Error desconocido al encolar.')`. (FR-003, SC-001)
+- [X] T025 [US3] Replace `alert(...)` at `src/FundingPlatform.Web/wwwroot/js/comparison.js:182` with `window.Notify.error(payload.code || 'Error desconocido al encolar.')`. (FR-003, SC-001)
 - [ ] T026 [P] [US3] E2E: extend reviewer comparison coverage (or add to `Tests/Notifications/`) to assert the enqueue-error path renders an error toast and no `window.alert` fires. (SC-001)
 
 **Checkpoint**: US3 testable; `window.alert` eliminated.
@@ -97,7 +97,7 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 
 **Independent Test**: Submit an invalid form → inline field errors AND exactly one "Corrige los campos marcados" toast.
 
-- [ ] T027 [US4] Add a ModelState-invalid hook: in `_NotificationToasts.cshtml` (or a `_ValidationSummaryToast.cshtml` it includes), when `ViewContext.ViewData.ModelState.IsValid == false` on a full-page render, emit exactly one sticky error toast "Corrige los campos marcados" (`data-testid="validation-summary-toast"`), de-duplicated against an explicit `ValidationErrors` toast. (FR-008)
+- [X] T027 [US4] Add a ModelState-invalid hook: in `_NotificationToasts.cshtml` (or a `_ValidationSummaryToast.cshtml` it includes), when `ViewContext.ViewData.ModelState.IsValid == false` on a full-page render, emit exactly one sticky error toast "Corrige los campos marcados" (`data-testid="validation-summary-toast"`), de-duplicated against an explicit `ValidationErrors` toast. (FR-008)
 - [ ] T028 [P] [US4] E2E: submit a form (e.g. Application/Edit) with an invalid required field → assert inline field error present AND exactly one summary toast; valid submit → no summary toast. (SC-005)
 
 **Checkpoint**: US4 testable.

@@ -21,25 +21,9 @@
             new BreadcrumbItem("Editar"),
         }))
 
-@* Spec 023 — TempData["SuccessMessage"] and TempData["ErrorMessage"] are
-   already rendered by _Layout.cshtml's success-banner / error-banner blocks,
-   so this view does not redeclare them (would trip the .alert-success strict-
-   mode locator used by spec 018 E2E tests). *@
-@if (TempData["ValidationErrors"] is string validationErrorsJson)
-{
-    var errors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(validationErrorsJson);
-    if (errors is not null && errors.Count > 0)
-    {
-        <div class="alert alert-danger" role="alert">
-            <ul class="mb-0">
-                @foreach (var error in errors)
-                {
-                    <li>@error</li>
-                }
-            </ul>
-        </div>
-    }
-}
+@* Spec 024 — SuccessMessage / ErrorMessage / ValidationErrors all surface as toasts
+   via the TempData→toast bridge (_NotificationToasts), so this view renders none of
+   them inline. *@
 
 @* Spec 021 / T119 / FR-024 — stage countdown banner. *@
 @{

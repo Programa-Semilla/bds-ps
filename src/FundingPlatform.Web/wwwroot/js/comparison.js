@@ -179,7 +179,9 @@
                 startPollingAll();
             } else {
                 return resp.json().then(function (payload) {
-                    alert(payload.code || 'Error desconocido al encolar.');
+                    // Spec 024 — surface AJAX failures as a toast instead of window.alert.
+                    var msg = (payload && payload.code) || 'Error desconocido al encolar.';
+                    if (window.Notify) { window.Notify.error(msg); } else { alert(msg); }
                 });
             }
         });

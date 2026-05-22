@@ -12,19 +12,7 @@
         <strong>Convenio</strong>
     </div>
     <div class="card-body">
-        @if (TempData["FundingAgreementError"] is string errorMessage)
-        {
-            <div class="alert alert-danger" role="alert" data-testid="funding-agreement-error">
-                @errorMessage
-            </div>
-        }
-        @if (TempData["FundingAgreementSuccess"] is string successMessage)
-        {
-            <div class="alert alert-success" role="alert" data-testid="funding-agreement-success">
-                @successMessage
-            </div>
-        }
-
+        @* Spec 024 — FundingAgreementSuccess/Error now surface as toasts via the TempData→toast bridge (_NotificationToasts). *@
         @if (Model.IsExecuted)
         {
             <div class="alert alert-success" role="alert" data-testid="funding-agreement-executed-badge">
