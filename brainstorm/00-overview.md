@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 ## Sessions
 
@@ -28,6 +28,7 @@ Last updated: 2026-05-21
 | 20 | 2026-05-13 | feedback-session-may13 | spec-created | 021-feedback-session-may13 |
 | 21 | 2026-05-20 | quotation-edit | spec-created | 023 |
 | 22 | 2026-05-21 | applicant-delete-withdrawal | spec-created | 021-feedback-session-may13 |
+| 23 | 2026-05-22 | toast-confirm-dialogs | spec-created | 024 |
 
 ## Open Threads
 
@@ -61,7 +62,6 @@ Last updated: 2026-05-21
 - Sidebar default-open vs. default-collapsed on first load — deferred to planning (from #08)
 - Whether the absolute "no badges outside `_StatusPill`" rule should permit non-status badges (e.g., quantity counters) — to be revisited if the planning phase surfaces concrete cases (from #08)
 - Whether to invest in visual-regression tooling (Playwright screenshot comparison or Percy) before the sweep, or leave manual side-by-side as the v1 visual gate (from #08)
-- Whether `_ConfirmDialog` for every destructive action (including draft-item deletes) is the right baseline, or whether specific exceptions should be enumerated (from #08)
 - Future spec 009 (communication surface — unified messaging panel) needs its own brainstorm before any implementation (from #08)
 - Future spec 010 (notifications & inbox) needs its own brainstorm — likely SignalR (from #08)
 - Future spec 012 (admin/configuration surface polish) — likely needed once the 008 sweep lands (from #08)
@@ -200,6 +200,9 @@ Last updated: 2026-05-21
 - Withdrawal reviewer-notification trigger — `UnderReview`-only (default) vs also still-pending `Submitted` vs never; confirm with stakeholders (from #22, OQ-11)
 - Idempotency-key shape for `APPLICATION_WITHDRAWN_BY_APPLICANT` so it's distinct from other reviewer-bucket events for the same Application — pin during planning (from #22)
 - Whether withdrawal should leave an applicant-visible "Retirada" trace vs. silently vanishing like a soft-delete — parked (from #22)
+- Exact enumeration of all `confirm()` call sites + TempData message surfaces into a coverage matrix so SC-001/SC-002 are mechanically verifiable — pin during planning (from #23)
+- Whether to introduce toast/confirm tag-helpers or partials to keep call sites DRY (from #23)
+- Confirm the ~5 s success/info auto-dismiss interval, and that top-right placement reads well on narrow viewports vs header actions (from #23)
 
 ## Closed Threads
 
@@ -213,6 +216,7 @@ Last updated: 2026-05-21
 - Future spec 010 (notifications & inbox) needs its own brainstorm — likely SignalR (from #08) — **Partially closed by #19**: email channel ships in spec 021 with outbox + worker + Mailgun + spec-019-branded templates. In-app inbox / SignalR remains open for a future spec.
 - Future notifications & inbox / SignalR spec needs its own brainstorm — spec 011 deliberately excludes real-time push (from #11) — **Partially closed by #19**: email channel ships in spec 021. Real-time push / in-app inbox remains open.
 - Email signature layout — text-only vs inline seedling mark; defaults to text-only (from #17) — **Closed by #19**: spec 021 ships text-only email signatures with no inline `<img>` (FR-023 + NFR-001), preserving spec 019 NFR-005 email-client compatibility.
+- Whether `_ConfirmDialog` for every destructive action (including draft-item deletes) is the right baseline, or whether specific exceptions should be enumerated (from #08) — **Closed by #23**: spec 024 establishes one reusable styled confirmation modal for **all** current `confirm()` sites + any destructive action (FR-006); no per-site exceptions — only the mechanism changes, not which actions are guarded.
 
 ## Parked Ideas
 
