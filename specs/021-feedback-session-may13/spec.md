@@ -172,6 +172,22 @@ Impact templates (the evaluation-parameter sets an applicant must pick and fill 
 
 ---
 
+### User Story 11 — Admin reaches system configuration from the sidebar (Priority: P2)
+
+Identical root cause to US10: the system-configuration surface `/Admin/Configuration` (admin-editable platform `SystemConfiguration` key/value rows — e.g. stage-expiry defaults per FR-006) has working read/update CRUD and a *"Configuración del sistema"* dashboard capability card (spec 017, *Operaciones* section), but the US1 sidebar repivot left it without a direct nav entry. This story adds the Admin-only sidebar entry so configuration is reachable from the menu like every other admin surface.
+
+**Why this priority**: Same access-gap class as US10 — capability exists but is undiscoverable from normal navigation. P2, nav-only, zero schema/domain risk.
+
+**Independent Test**: Log in as Admin → open the sidebar *Administración* section → confirm a *"Configuración del sistema"* entry → click it → land on `/Admin/Configuration` with the settings table.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authenticated Admin, **When** the admin sidebar renders, **Then** it includes an entry labeled *"Configuración del sistema"* linking to `/Admin/Configuration` with stable testid `sidebar-entry-system-config`.
+2. **Given** the new sidebar entry, **When** the admin clicks it, **Then** `/Admin/Configuration` loads with its configuration table/heading, reachable without typing a URL or routing through the dashboard card.
+3. **Given** a SupplierAdmin-only user (no Admin role), **When** their narrowed sidebar renders, **Then** the system-config entry MUST NOT appear (parity with the `[SupplierAdminDenied]` guard).
+
+---
+
 ### Edge Cases
 
 - **First Process bootstrap.** Empty system has no Processes; empty-state on `/admin/processes` guides creation. Applicant onboarding flow blocks gracefully until at least one active Process exists.
@@ -281,6 +297,7 @@ Impact templates (the evaluation-parameter sets an applicant must pick and fill 
 **Admin navigation**
 
 - **FR-042**: The admin sidebar MUST expose a direct, Admin-only navigation entry to the impact-template management surface (`/Admin/ImpactTemplates`), labeled *"Plantillas de impacto"*, with the stable English testid slug `impact-templates` (rendered as `data-testid="sidebar-entry-impact-templates"` per NFR-001). The entry MUST be absent from the SupplierAdmin-only sidebar variant (parity with the controller's `[SupplierAdminDenied]` guard). This restores the entry dropped when US1 (FR-001) repivoted the sidebar around `Process`; the existing `/Admin` dashboard capability card (spec 017) remains and is unaffected. No new admin route, controller action, view, or schema is introduced — the target surface already exists.
+- **FR-043**: The admin sidebar MUST expose a direct, Admin-only navigation entry to the system-configuration surface (`/Admin/Configuration`), labeled *"Configuración del sistema"*, with the stable English testid slug `system-config` (rendered as `data-testid="sidebar-entry-system-config"`). Same constraints as FR-042: absent from the SupplierAdmin-only variant, the existing dashboard capability card remains, and no new route/controller/view/schema is introduced.
 
 ### Non-Functional Requirements
 
@@ -329,6 +346,7 @@ Impact templates (the evaluation-parameter sets an applicant must pick and fill 
 - **SC-017**: An applicant deletes a `Draft` → it disappears from their dashboard within the same request lifecycle and zero emails are captured in smtp4dev. An applicant withdraws an `UnderReview` Application → it leaves both the applicant dashboard and the reviewer queue and exactly one `APPLICATION_WITHDRAWN_BY_APPLICANT` email is captured per Reviewer-role member of its stage group. An applicant withdraws a `Submitted` (not-yet-under-review) Application → zero reviewer emails are captured.
 - **SC-018**: For every Application state in `{Resolved, AppealOpen, ResponseFinalized, AgreementExecuted}`, the delete/withdraw affordance is absent from rendered HTML AND a direct POST to the endpoint returns 403/redirect in 100 % of E2E permutations. A withdraw of a `Submitted` (not-yet-under-review) Application, and a withdraw of an `UnderReview` Application whose stage group has no Reviewer-role members, both send zero emails.
 - **SC-019**: From a logged-in Admin session, the impact-template list is reachable via the sidebar (*Administración* → *Plantillas de impacto*) with zero URL typing, asserted by an E2E test that drives the click path and then creates a template that appears in the list. The entry is absent for SupplierAdmin-only users.
+- **SC-020**: From a logged-in Admin session, the system-configuration surface is reachable via the sidebar (*Administración* → *Configuración del sistema*) with zero URL typing, asserted by an E2E test that drives the click path. The entry is absent for SupplierAdmin-only users.
 
 ## Assumptions
 
@@ -389,4 +407,4 @@ Impact templates (the evaluation-parameter sets an applicant must pick and fill 
 - **OQ-9**: Process audit-event coverage — extends `AdminAuditEvent` (spec 016 pattern)? Pin in plan.
 - **OQ-10**: Province *"Otro/Extranjero"* — block in UI (default) vs catalog row. Revisit if foreign suppliers surface.
 - **OQ-11**: Withdrawal reviewer notification trigger — fire only for `UnderReview` (default, decided in brainstorm) vs also for still-pending `Submitted` withdrawals vs never. Confirm with stakeholders.
-- **OQ-12**: Should the impact-template **list** gain an inline *Activar / Desactivar* (soft-delete) toggle per row, so deactivation is not buried inside the *Editar* form? Deferred — current CRUD is complete (deactivate lives in `EditTemplate` via the `IsActive` field); this is a discoverability refinement, not a capability gap. Parked for stakeholder confirm. **Related:** `/Admin/Configuration` (system-config) is likewise present on the dashboard card but absent from the sidebar (same US1 repivot root cause); a broader nav-parity sweep is out of scope for US10 but flagged here.
+- **OQ-12**: Should the impact-template **list** gain an inline *Activar / Desactivar* (soft-delete) toggle per row, so deactivation is not buried inside the *Editar* form? Deferred — current CRUD is complete (deactivate lives in `EditTemplate` via the `IsActive` field); this is a discoverability refinement, not a capability gap. Parked for stakeholder confirm. **Resolved (US11 / FR-043):** the parallel `/Admin/Configuration` sidebar gap flagged here is now closed; only the list-level toggle above remains deferred.
