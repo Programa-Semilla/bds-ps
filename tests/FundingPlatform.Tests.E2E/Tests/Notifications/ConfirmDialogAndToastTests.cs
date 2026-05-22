@@ -89,11 +89,13 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
         await Expect(SuccessToast).ToBeVisibleAsync();
         await Expect(SuccessToast).ToHaveAttributeAsync("aria-live", "polite");
 
-        // The action proceeded — the row now offers Enable (user disabled).
-        await Expect(listPage.RowEnableButton(targetEmail)).ToBeVisibleAsync();
-
-        // FR-004 — the success toast auto-dismisses (default 15s expect timeout
-        // comfortably exceeds the ~5s auto-hide window).
+        // FR-004 — the success toast auto-dismisses (~5s; well within the 15s timeout).
         await Expect(SuccessToast).Not.ToBeVisibleAsync();
+
+        // The action proceeded. The post-disable redirect drops the search filter,
+        // so re-search before asserting the row flipped to "Enable" (robust under
+        // shared-fixture load where the unfiltered list spans many pages).
+        await listPage.SearchAsync(targetEmail);
+        await Expect(listPage.RowEnableButton(targetEmail)).ToBeVisibleAsync();
     }
 }
