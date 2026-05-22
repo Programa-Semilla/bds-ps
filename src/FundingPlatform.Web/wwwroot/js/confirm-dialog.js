@@ -43,13 +43,20 @@
         var modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
 
         var pendingForm = null;
+        var pendingTrigger = null;
 
         function openFor(trigger) {
             var form = trigger.closest('form');
             if (!form) {
                 return false;
             }
+            // Surface native field validation (e.g. required inputs) before the modal,
+            // matching the original onsubmit-after-validation order.
+            if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
+                return false;
+            }
             pendingForm = form;
+            pendingTrigger = trigger;
 
             var variant = (trigger.getAttribute('data-confirm-variant') || 'destructive').toLowerCase();
             titleEl.textContent = trigger.getAttribute('data-confirm-title') || 'Confirmar acción';
@@ -67,14 +74,18 @@
         // so focus has returned to the trigger (FR-012) before navigation.
         confirmBtn.addEventListener('click', function () {
             var form = pendingForm;
+            var trigger = pendingTrigger;
             pendingForm = null;
+            pendingTrigger = null;
             modalEl.addEventListener('hidden.bs.modal', function once() {
                 modalEl.removeEventListener('hidden.bs.modal', once);
                 if (!form) {
                     return;
                 }
+                // requestSubmit(trigger) preserves the submitter's formaction/formmethod
+                // (e.g. a Delete button using formaction in a multi-submit form).
                 if (typeof form.requestSubmit === 'function') {
-                    form.requestSubmit();
+                    form.requestSubmit(trigger && trigger.type === 'submit' ? trigger : undefined);
                 } else {
                     form.submit();
                 }

@@ -213,6 +213,11 @@ else
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="itemId" value="@item.Id" />
                                         <button type="submit" class="btn btn-sm btn-danger"
+                                                data-confirm
+                                                data-confirm-variant="destructive"
+                                                data-confirm-title="Eliminar ítem"
+                                                data-confirm-body="¿Está seguro de que desea eliminar este ítem?"
+                                                data-confirm-label="Eliminar"
                                                 onclick="return confirm('¿Está seguro de que desea eliminar este ítem?')">
                                             Eliminar
                                         </button>
@@ -311,6 +316,11 @@ else
                                                                             class="btn btn-sm btn-danger"
                                                                             data-testid="quotation-row-delete-@q.Id"
                                                                             aria-label="Eliminar cotización de @q.SupplierName"
+                                                                            data-confirm
+                                                                            data-confirm-variant="destructive"
+                                                                            data-confirm-title="Eliminar cotización"
+                                                                            data-confirm-body="¿Está seguro de que desea eliminar esta cotización?"
+                                                                            data-confirm-label="Eliminar"
                                                                             onclick="return confirm('¿Está seguro de que desea eliminar esta cotización?')">
                                                                         Eliminar
                                                                     </button>

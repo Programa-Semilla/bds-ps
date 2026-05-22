@@ -51,7 +51,12 @@
                           onsubmit="return confirm('Esta acción sobrescribirá el convenio actual. ¿Continuar?');">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-outline-warning"
-                                data-testid="funding-agreement-regenerate">
+                                data-testid="funding-agreement-regenerate"
+                                data-confirm
+                                data-confirm-variant="statelocking"
+                                data-confirm-title="Regenerar convenio"
+                                data-confirm-body="Esta acción sobrescribirá el convenio actual. ¿Continuar?"
+                                data-confirm-label="Regenerar">
                             Regenerar
                         </button>
                     </form>
@@ -109,7 +114,12 @@
                                       onsubmit="return confirm('¿Retirar la carga pendiente?');">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="btn btn-outline-secondary btn-sm"
-                                            data-testid="signed-upload-withdraw">Retirar carga pendiente</button>
+                                            data-testid="signed-upload-withdraw"
+                                            data-confirm
+                                            data-confirm-variant="destructive"
+                                            data-confirm-title="Retirar carga pendiente"
+                                            data-confirm-body="¿Retirar la carga pendiente?"
+                                            data-confirm-label="Retirar">Retirar carga pendiente</button>
                                 </form>
                             </div>
                         }

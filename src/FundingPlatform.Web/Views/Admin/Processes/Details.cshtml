@@ -94,7 +94,12 @@
                                   onsubmit="return confirm('¿Desasignar la plantilla de este proceso? Después podrá asignar otra.');">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="btn btn-outline-danger btn-sm"
-                                        data-testid="admin-process-detach-plantilla-submit">
+                                        data-testid="admin-process-detach-plantilla-submit"
+                                        data-confirm
+                                        data-confirm-variant="destructive"
+                                        data-confirm-title="Desasignar plantilla"
+                                        data-confirm-body="¿Desasignar la plantilla de este proceso? Después podrá asignar otra."
+                                        data-confirm-label="Desasignar plantilla">
                                     <i class="ti ti-unlink"></i> Desasignar plantilla
                                 </button>
                             </form>
@@ -117,7 +122,12 @@
                                                   data-testid="admin-process-force-detach-reason"></textarea>
                                     </div>
                                     <button type="submit" class="btn btn-danger btn-sm"
-                                            data-testid="admin-process-force-detach-submit">
+                                            data-testid="admin-process-force-detach-submit"
+                                            data-confirm
+                                            data-confirm-variant="destructive"
+                                            data-confirm-title="Forzar desasignación"
+                                            data-confirm-body="Forzar la desasignación afectará a las solicitudes activas. ¿Continuar?"
+                                            data-confirm-label="Forzar desasignación">
                                         <i class="ti ti-alert-triangle"></i> Forzar desasignación
                                     </button>
                                 </form>
@@ -293,7 +303,12 @@
                         <form method="post" asp-action="Close" asp-controller="AdminProcesses"
                               asp-route-id="@detail.Id" onsubmit="return confirm('¿Cerrar definitivamente el proceso?');">
                             @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-danger" data-testid="admin-process-close-submit">
+                            <button type="submit" class="btn btn-danger" data-testid="admin-process-close-submit"
+                                    data-confirm
+                                    data-confirm-variant="destructive"
+                                    data-confirm-title="Cerrar proceso"
+                                    data-confirm-body="¿Cerrar definitivamente el proceso?"
+                                    data-confirm-label="Cerrar proceso">
                                 <i class="ti ti-lock"></i> Cerrar proceso
                             </button>
                         </form>

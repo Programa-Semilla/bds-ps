@@ -181,7 +181,12 @@
                                                       onsubmit="return confirm('¿Inhabilitar a @row.Email? Esto cierra la sesión del usuario.');">
                                                     @Html.AntiForgeryToken()
                                                     <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                            data-testid="row-action-disable">
+                                                            data-testid="row-action-disable"
+                                                            data-confirm
+                                                            data-confirm-variant="destructive"
+                                                            data-confirm-title="Inhabilitar usuario"
+                                                            data-confirm-body="¿Inhabilitar a @row.Email? Esto cierra la sesión del usuario."
+                                                            data-confirm-label="Inhabilitar">
                                                         <i class="ti ti-ban"></i> Inhabilitar
                                                     </button>
                                                 </form>

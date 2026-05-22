@@ -97,7 +97,12 @@
                                 <form method="post" asp-action="Verify" asp-route-supplierId="@Model.Id"
                                       onsubmit="return confirm('@AdminSuppliersResources.Verify_Confirm');">
                                     @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-success w-100" data-testid="admin-supplier-verify-button">
+                                    <button type="submit" class="btn btn-success w-100" data-testid="admin-supplier-verify-button"
+                                            data-confirm
+                                            data-confirm-variant="primary"
+                                            data-confirm-title="Verificar proveedor"
+                                            data-confirm-body="@AdminSuppliersResources.Verify_Confirm"
+                                            data-confirm-label="Verificar proveedor">
                                         <i class="ti ti-circle-check"></i> Verificar proveedor
                                     </button>
                                 </form>

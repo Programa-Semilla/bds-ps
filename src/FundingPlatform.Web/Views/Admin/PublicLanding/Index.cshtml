@@ -73,7 +73,12 @@
                               onsubmit="return confirm('¿Eliminar el Reglamento publicado?');">
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-outline-danger btn-sm"
-                                    data-testid="admin-public-landing-reglamento-clear">
+                                    data-testid="admin-public-landing-reglamento-clear"
+                                    data-confirm
+                                    data-confirm-variant="destructive"
+                                    data-confirm-title="Eliminar Reglamento"
+                                    data-confirm-body="¿Eliminar el Reglamento publicado?"
+                                    data-confirm-label="Eliminar">
                                 <i class="ti ti-trash me-1"></i>Eliminar
                             </button>
                         </form>
@@ -131,7 +136,12 @@
                               onsubmit="return confirm('¿Eliminar el Ejemplo de cotización publicado?');">
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-outline-danger btn-sm"
-                                    data-testid="admin-public-landing-ejemplo-clear">
+                                    data-testid="admin-public-landing-ejemplo-clear"
+                                    data-confirm
+                                    data-confirm-variant="destructive"
+                                    data-confirm-title="Eliminar Ejemplo de cotización"
+                                    data-confirm-body="¿Eliminar el Ejemplo de cotización publicado?"
+                                    data-confirm-label="Eliminar">
                                 <i class="ti ti-trash me-1"></i>Eliminar
                             </button>
                         </form>

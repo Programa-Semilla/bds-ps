@@ -86,7 +86,12 @@
                                                   onsubmit="return confirm('¿Archivar la plantilla?');">
                                                 @Html.AntiForgeryToken()
                                                 <button type="submit" class="btn btn-sm btn-outline-warning"
-                                                        data-testid="admin-plantilla-archive">
+                                                        data-testid="admin-plantilla-archive"
+                                                        data-confirm
+                                                        data-confirm-variant="statelocking"
+                                                        data-confirm-title="Archivar plantilla"
+                                                        data-confirm-body="¿Archivar la plantilla?"
+                                                        data-confirm-label="Archivar">
                                                     <i class="ti ti-archive"></i> Archivar
                                                 </button>
                                             </form>

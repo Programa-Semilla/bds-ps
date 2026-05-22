@@ -62,16 +62,16 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 
 **Independent Test**: For a representative subset, trigger the action → styled modal with correct es-CR copy; confirm runs the action; cancel/Esc aborts with no state change.
 
-- [ ] T014 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Admin/Groups/Edit.cshtml:57` (delete group) to `data-confirm-*`, preserving the typed-name guard intent in the body copy.
-- [ ] T015 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Admin/Plantillas/Index.cshtml:93` (archive plantilla) to `data-confirm-*`.
-- [ ] T016 [US2] Migrate the 3 sites in `src/FundingPlatform.Web/Views/Admin/Processes/Details.cshtml` (lines 101 unassign, 115 force unassign, 301 close process) to `data-confirm-*`.
-- [ ] T017 [US2] Migrate the 2 sites in `src/FundingPlatform.Web/Views/Admin/PublicLanding/Index.cshtml` (lines 80, 138 — delete Reglamento / cotización example) to `data-confirm-*`.
-- [ ] T018 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Admin/Suppliers/Detail.cshtml:98` (verify supplier) to `data-confirm-*`, passing `AdminSuppliersResources.Verify_Confirm` as `data-confirm-body`. (FR-007)
-- [ ] T019 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Admin/Users/ResetPassword.cshtml:40` (reset password) to `data-confirm-*`.
-- [ ] T020 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Admin/Users/Index.cshtml:181` (disable user) to `data-confirm-*`.
-- [ ] T021 [US2] Migrate the 2 sites in `src/FundingPlatform.Web/Views/Applications/_FundingAgreementPanel.cshtml` (lines 63 overwrite, 121 withdraw upload) to `data-confirm-*`.
-- [ ] T022 [US2] Migrate the 2 row-level sites in `src/FundingPlatform.Web/Views/Application/Edit.cshtml` (lines 232 delete item, 330 delete quotation) to `data-confirm-*`, ensuring the originating per-row form is the one submitted on confirm.
-- [ ] T023 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Review/Review.cshtml:393` (return application) to `data-confirm-*`.
+- [X] T014 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Admin/Groups/Edit.cshtml:57` (delete group) to `data-confirm-*`, preserving the typed-name guard intent in the body copy.
+- [X] T015 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Admin/Plantillas/Index.cshtml:93` (archive plantilla) to `data-confirm-*`.
+- [X] T016 [US2] Migrate the 3 sites in `src/FundingPlatform.Web/Views/Admin/Processes/Details.cshtml` (lines 101 unassign, 115 force unassign, 301 close process) to `data-confirm-*`.
+- [X] T017 [US2] Migrate the 2 sites in `src/FundingPlatform.Web/Views/Admin/PublicLanding/Index.cshtml` (lines 80, 138 — delete Reglamento / cotización example) to `data-confirm-*`.
+- [X] T018 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Admin/Suppliers/Detail.cshtml:98` (verify supplier) to `data-confirm-*`, passing `AdminSuppliersResources.Verify_Confirm` as `data-confirm-body`. (FR-007)
+- [X] T019 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Admin/Users/ResetPassword.cshtml:40` (reset password) to `data-confirm-*`.
+- [X] T020 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Admin/Users/Index.cshtml:181` (disable user) to `data-confirm-*`.
+- [X] T021 [US2] Migrate the 2 sites in `src/FundingPlatform.Web/Views/Applications/_FundingAgreementPanel.cshtml` (lines 63 overwrite, 121 withdraw upload) to `data-confirm-*`.
+- [X] T022 [US2] Migrate the 2 row-level sites in `src/FundingPlatform.Web/Views/Application/Edit.cshtml` (lines 232 delete item, 330 delete quotation) to `data-confirm-*`, ensuring the originating per-row form is the one submitted on confirm.
+- [X] T023 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Review/Review.cshtml:393` (return application) to `data-confirm-*`.
 - [ ] T024 [US2] E2E: `tests/FundingPlatform.Tests.E2E/Tests/Notifications/ConfirmDialogMigrationTests.cs` — for a representative subset (admin disable user, applicant delete item, reviewer return application): modal opens with es-CR copy; confirm executes; cancel + Esc abort with no side effect; reuses `data-testid="confirm-dialog"/"confirm-button"/"cancel-button"`. (SC-004)
 
 **Checkpoint**: US2 independently testable; SC-001 (no native confirm) achievable for these sites.
