@@ -103,7 +103,7 @@ Clean Architecture, four-layer .NET (see [plan.md](./plan.md) §Project Structur
 
 - [x] T020 [US1] Create `src/FundingPlatform.Web/Views/Quotation/Edit.cshtml`. Layout: page-header partial → form `data-quote-form data-convert-url="@convertUrl"` (same hook as Supplier/Add) → `<partial name="_QuoteFields" model="Model" />` → branch `<select asp-for="SupplierBranchId" asp-items="Model.BranchOptions">` → submit / cancel buttons. Cancel returns to `Application/Edit/{appId}`. Include `@section Scripts { <partial name="_ValidationScriptsPartial" /><script src="~/js/quote-conversion-preview.js" asp-append-version="true"></script> }`. Banner: *"Editando cotización de @Model.SupplierName"*.
 
-- [x] T021 [US1] Render quotation rows in `src/FundingPlatform.Web/Views/Application/Edit.cshtml`. Inside the existing `<tbody>` items loop (around line 209–233), expand each item row to render a nested table (or row-expander) of `item.Quotations` with columns: Supplier, Price+Currency, CRC equivalent, Vigente hasta, Acciones. Action cell: `Editar` (asp-controller Quotation, asp-action Edit), `Reemplazar` (existing Replace form), `Eliminar` (existing Delete form). The `Editar` button is rendered only when (a) Application.State ∈ {Draft, ReturnedForChanges} AND (b) `!quotation.LegacyNeedsReview` — both already derivable from the model state. data-testid: `quotation-row-edit-{quotationId}`.
+- [x] T021 [US1] Render quotation rows in `src/FundingPlatform.Web/Views/Application/Edit.cshtml`. Inside the existing `<tbody>` items loop (around line 209–233), expand each item row to render a nested table (or row-expander) of `item.Quotations` with columns: Supplier, Price+Currency, CRC equivalent, Vigente hasta, Acciones. Action cell: `Editar` (asp-controller Quotation, asp-action Edit), `Reemplazar` (existing Replace form), `Eliminar` (existing Delete form). The `Editar` button is rendered only when (a) `Application.State == Draft` (the reviewer `SendBack` path returns to `Draft`; no separate `ReturnedForChanges` state — see spec FR-008) AND (b) `!quotation.LegacyNeedsReview` — both already derivable from the model state. data-testid: `quotation-row-edit-{quotationId}`.
 
 - [x] T022 [US1] Extend `ItemViewModel.Quotations` projection in `src/FundingPlatform.Application/Services/ApplicationService.cs` (or the projection helper that populates `ApplicationViewModel`) to also surface `SupplierBranchId` and `ValidUntil` on `QuotationSummaryViewModel` — needed by the row rendering for the affordance gate. Add the two fields to `src/FundingPlatform.Web/ViewModels/ApplicationViewModel.cs` `QuotationSummaryViewModel`.
 
@@ -113,9 +113,11 @@ Clean Architecture, four-layer .NET (see [plan.md](./plan.md) §Project Structur
 
 ## Phase 4: User Story 2 — Applicant applies a reviewer-requested correction (Priority: P1)
 
-**Goal**: An applicant on a `ReturnedForChanges` application can change a quotation's branch (same supplier) and resubmit without losing the reviewer's comments tied to that quotation.
+> **Evolution 2026-05-22**: this phase was authored against a `ReturnedForChanges` state that the codebase never had. The reviewer `SendBack` path returns the Application to `Draft`, so the US2 loop is exercised on a `Draft` application — see spec FR-008. The references below read `ReturnedForChanges` for historical fidelity; the shipped guard is `State == Draft`.
 
-**Independent Test**: Seed Application(ReturnedForChanges) with two quotations and a reviewer comment referencing one. Edit that quotation's branch to a different branch of the **same** supplier. Assert: row reflects new branch; reviewer's prior comments on the quotation are still present; no soft-delete cycle occurred.
+**Goal**: An applicant on a reviewer-returned application (back in `Draft`) can change a quotation's branch (same supplier) and resubmit without losing the reviewer's comments tied to that quotation.
+
+**Independent Test**: Seed a reviewer-returned Application (back in `Draft`) with two quotations and a reviewer comment referencing one. Edit that quotation's branch to a different branch of the **same** supplier. Assert: row reflects new branch; reviewer's prior comments on the quotation are still present; no soft-delete cycle occurred.
 
 ### Tests for User Story 2
 
@@ -127,7 +129,7 @@ Clean Architecture, four-layer .NET (see [plan.md](./plan.md) §Project Structur
 
 - [x] T025 [US2] Ensure `EditQuotationAsync` (from T013) routes branch changes through `Quotation.ChangeBranch` (already accounted for in the orchestration order). Verify that when the branch is the **only** change, no `SaveChangesAsync` writes to `ExchangeRate.IsUsed` and no snapshot reset occurs — this is implicit in the entity-method choice but must be validated by T024 integration tests.
 
-- [x] T026 [US2] Verify the affordance gate in `Application/Edit.cshtml` (from T021) renders the `Editar` button when `Application.State == ReturnedForChanges` (same code path as `Draft`). If `_StageCountdownBanner` hides the row or constrains it differently for `ReturnedForChanges`, adjust the partial guard.
+- [x] T026 [US2] Verify the affordance gate in `Application/Edit.cshtml` (from T021) renders the `Editar` button when `Application.State == Draft` (the state a reviewer-returned application lands in via `SendBack`). If `_StageCountdownBanner` hides the row or constrains it differently after a reviewer return, adjust the partial guard.
 
 **Checkpoint**: US2 fully functional. `QuotationEditAfterReturnTests` E2E pass; the two new integration cases pass.
 
@@ -187,7 +189,7 @@ Clean Architecture, four-layer .NET (see [plan.md](./plan.md) §Project Structur
 ### User Story Dependencies
 
 - **US1**: independently testable after Phase 2 + T015..T022. No dependency on US2 or US3.
-- **US2**: independently testable after Phase 2 + T023..T026. Reuses the same controller endpoints and service method; the only US2-specific code is the affordance gate for `ReturnedForChanges` (T026 — typically a one-line view conditional) and the two integration cases (T024).
+- **US2**: independently testable after Phase 2 + T023..T026. Reuses the same controller endpoints and service method; the only US2-specific code is the `Draft` affordance gate that also covers reviewer-returned applications (T026 — typically a one-line view conditional; see FR-008 lifecycle note) and the two integration cases (T024).
 - **US3**: independently testable after Phase 2 + T027..T030. Reuses the same controller endpoints and service method; US3-specific code is the cache-invalidation assertion (T028's fake-invalidator test) plus the E2E that drives a currency change.
 
 ### Within Each User Story

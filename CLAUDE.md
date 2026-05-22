@@ -1,6 +1,6 @@
 # Capital Semilla / FundingPlatform
 
-Last updated: 2026-05-01
+Last updated: 2026-05-22
 
 ## Stack
 
@@ -97,12 +97,14 @@ The Aspire AppHost registers `rnwood/smtp4dev` as a container resource named `sm
 - C# 13 / .NET 10.0 (017-admin-ux-facelift — `IAdminDashboardProjection` + `IAdminAuditEventReader` + `IAdminAuditEventCopyProvider`; new `_AdminDashboard` + `_CapabilityCard` partials; `_KpiTile` + `_ReportSubTabs` re-templated; route-attribute renames on three admin controllers; **schema unchanged**)
 - C# 13 / .NET 10.0 (020-ai-quote-comparison — `IComparisonOrchestrator` + `IAiClient` (Anthropic) + `IPiiRedactor`; new `ComparisonArtifact` + `ComparisonJob` aggregate roots; hosted `BackgroundService` worker; reviewer-screen comparison region; reused `AdminAuditEvent` payload shape)
 - C# 13 / .NET 10.0 (021-email-notifications — `NotificationOutbox` + `NotificationDelivery` dacpac tables; `IEmailSender` (MailKit v3 MIT) + `MailgunHttpEmailSender` + `NoOpEmailSender` + `RecipientAllowlistFilter` decorator; `INotificationRecipientResolver`; `EmailDispatchWorker` BackgroundService; Razor email templates under `Views/Emails/`; **AppHost smtp4dev sidecar**; `MailCaptureClient` E2E surface)
+- C# 13 / .NET 10.0 (023-quotation-edit — in-place quotation Edit (Price/Currency/ValidUntil/SupplierBranchId, same-supplier only) on Application owner while `Draft`; routed through existing `Quotation.EditAmount` / `ChangeCurrencyAsync` (spec 015 snapshot contract) + new `Quotation.ChangeBranch`; shared `_QuoteFields.cshtml` partial extracted from Supplier/Add; Edit GET/POST on `QuotationController`; synchronous `IComparisonCacheInvalidator` invalidates `ComparisonArtifact` (spec 020) on save; **schema unchanged**)
 - C# 13 / .NET 10.0 (021-feedback-session-may13 — `Process` aggregate above `Group` + per-Process `Plantilla` snapshot with copy-on-assign; Application carries `Impact` value object + opaque `PublicCode` (base32 `A-HJ-NP-Z2-9`, regex `^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$`); `Province`/`Cantón` CR catalogs cascade on supplier-branch entry; ASP.NET Identity `PasswordResetToken` flow; `StageExpiryReminderService` hosted background worker + `SmtpEmailSender` (`System.Net.Mail.SmtpClient`, no MailKit per NFR-005); Tabler-branded public landing scaffold; acompañamiento copy pivot over "financiamiento" on every applicant-facing surface; reviewer queue search; `[Hint]` attribute + `_HintTooltip.cshtml` scaffold for FR-020 hint copy (strings deferred per OQ-8))
 - Azure Blob Storage in production / Azurite (Docker container) in dev+test / local filesystem fallback. SQL Server unchanged. (014-azure-blob-storage)
 - `Anthropic.SDK` NuGet (new managed dep, approved via spec 020 A-10)
 - smtp4dev (rnwood/smtp4dev) Aspire container in Local; Mailgun HTTP API outside Local (021-email-notifications)
 
 ## Recent Changes
+- 023-quotation-edit: In-place per-quotation Edit affordance for the Application owner while `Draft` — editable Price / Currency / ValidUntil / SupplierBranchId (same supplier); persistence through existing `Quotation.EditAmount` / `ChangeCurrencyAsync` + new `Quotation.ChangeBranch` invariant; `_QuoteFields.cshtml` extracted from Supplier/Add; ModelState-aggregated server validation; `ComparisonArtifact` cache invalidation on save; 3 per-US Playwright E2E classes; no schema change. STAMP PASS (FR 11/11, SC 8/8). Variance: spec FR-008 names `ReturnedForChanges` but codebase has no such enum — `SendBack` returns to `Draft`, gate is on `Draft` (REVIEW-CODE Deviation #1, evolve post-merge)
 - 022-combined-release: 020 + 021 merged for joint PR; no behavioral changes beyond per-spec contracts; conflict-resolution log in `specs/022-combined-release/plan.md`
 - 021-feedback-session-may13: Consolidated implementation of the 26 May-13 stakeholder refinements across US1–US8 — Process/Plantilla/PublicCode/Impact-at-Application, supplier autocomplete + Province/Cantón cascade + new-supplier inline branch, autosave-on-blur + masks + required markers + submit gating + `/review` confirmation, profile + forgot-password flows, stage-expiry windows + reminder emails, acompañamiento copy pivot + landing scaffold, admin KPI repivot + deleted-still-active bug fix
 - 021-email-notifications: First email-notification subsystem — transactional outbox + BackgroundService dispatcher, six v1 events (APPLICATION_SUBMITTED_REVIEWER/APPLICANT, RETURNED_TO_APPLICANT, RESUBMITTED_BY_APPLICANT, APPLICATION_APPROVED/REJECTED), es-CR Razor templates with text-only wordmark, fail-closed allowlist guard outside Production, idempotency via `(EventType, ApplicationId, VersionHistoryId, RecipientUserId)` unique index, smtp4dev capture sidecar wired into Aspire, `EmailTemplateSenderTests.Assert.Ignore` replaced with real captures
@@ -112,7 +114,5 @@ The Aspire AppHost registers `rnwood/smtp4dev` as a container resource named `sm
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan:
-`specs/023-quotation-edit/plan.md`
+No active in-flight plan. `/speckit-plan` will repopulate this pointer when the next feature begins.
 <!-- SPECKIT END -->

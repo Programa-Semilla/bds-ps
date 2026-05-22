@@ -5,7 +5,7 @@
 
 ## Summary
 
-Expose a per-quotation in-place Edit affordance to the Application owner while the Application is `Draft` or `ReturnedForChanges`. Editable fields: `Price`, `Currency`, `ValidUntil`, `SupplierBranchId` (same supplier only). Persistence routes through the existing domain primitives `Quotation.EditAmount` and `Quotation.ChangeCurrencyAsync` (spec 015), preserving the multi-currency snapshot contract. Implementation extracts a shared `_QuoteFields.cshtml` partial from the Supplier/Add form, adds `Edit` GET + POST endpoints on the existing `QuotationController`, surfaces quotation rows with action affordances under each Item in `Application/Edit.cshtml`, and silently invalidates the `ComparisonArtifact` cache (spec 020) on success. Per-US Playwright E2E coverage is mandatory (constitution III).
+Expose a per-quotation in-place Edit affordance to the Application owner while the Application is `Draft` (the reviewer `SendBack` path returns a returned application to `Draft`; the codebase has no distinct `ReturnedForChanges` state — see spec FR-008). Editable fields: `Price`, `Currency`, `ValidUntil`, `SupplierBranchId` (same supplier only). Persistence routes through the existing domain primitives `Quotation.EditAmount` and `Quotation.ChangeCurrencyAsync` (spec 015), preserving the multi-currency snapshot contract. Implementation extracts a shared `_QuoteFields.cshtml` partial from the Supplier/Add form, adds `Edit` GET + POST endpoints on the existing `QuotationController`, surfaces quotation rows with action affordances under each Item in `Application/Edit.cshtml`, and silently invalidates the `ComparisonArtifact` cache (spec 020) on success. Per-US Playwright E2E coverage is mandatory (constitution III).
 
 ## Technical Context
 
