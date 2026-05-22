@@ -32,6 +32,20 @@
             Url: Url.Action("Index", "ApplicantResponse", new { id = Model.Id }),
             Icon: "ti ti-message"));
     }
+
+    // Spec 021 / US9 / FR-035–FR-039 — applicant deletes a Draft or withdraws a
+    // Submitted/UnderReview application. Destructive action ⇒ ConfirmDialog
+    // (FR-039 + _ActionBar invariant). Hidden for terminal states (FR-037).
+    var removable = state is ApplicationState.Draft or ApplicationState.Submitted or ApplicationState.UnderReview;
+    var removeDialogId = $"remove-confirm-{Model.Id}";
+    if (removable)
+    {
+        headerActions.Add(new ActionItem(
+            isDraft ? "Eliminar borrador" : "Retirar solicitud",
+            ActionClass.Destructive,
+            Icon: "ti ti-trash",
+            ConfirmDialogId: removeDialogId));
+    }
 }
 
 @await Html.PartialAsync("Components/_PageHeader",
@@ -39,6 +53,22 @@
         Title: $"Solicitud {idLabel}",
         Subtitle: Model.CompanyName,
         PrimaryActions: headerActions))
+
+@if (removable)
+{
+    @await Html.PartialAsync("Components/_ConfirmDialog", new ConfirmDialogViewModel(
+        Id: removeDialogId,
+        Title: isDraft ? "Eliminar borrador" : "Retirar solicitud",
+        IrreversibilityRationale: isDraft
+            ? "Esta acción elimina el borrador de forma permanente. No se puede deshacer."
+            : "Esta acción retira tu solicitud de forma permanente y no se puede deshacer. Si tu solicitud ya está en revisión, se notificará a las personas revisoras.",
+        ConfirmLabel: isDraft ? "Eliminar borrador" : "Retirar solicitud",
+        CancelLabel: "Cancelar",
+        ConfirmClass: ActionClass.Destructive,
+        FormController: "Application",
+        FormAction: "Remove",
+        FormRouteValues: new Dictionary<string, string> { ["id"] = Model.Id.ToString() }))
+}
 
 @if (TempData["ValidationErrors"] is string validationErrorsJson)
 {

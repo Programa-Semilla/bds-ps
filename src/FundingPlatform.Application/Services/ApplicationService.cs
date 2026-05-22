@@ -40,6 +40,18 @@ public sealed record EditQuotationReadDto(
 
 public sealed record EditQuotationBranchDto(int Id, string BranchName);
 
+/// <summary>
+/// Spec 021 / US9 — outcome of <see cref="ApplicationService.RemoveByApplicantAsync"/>.
+/// <see cref="NotFound"/> covers both a missing Application and an ownership
+/// mismatch (no information leak). <see cref="RejectedState"/> means the
+/// Application is past the point an applicant may remove it (FR-037).
+/// </summary>
+public sealed record ApplicantRemovalResult(
+    ApplicantRemovalKind Kind, bool NotFound, bool RejectedState)
+{
+    public bool Succeeded => !NotFound && !RejectedState;
+}
+
 public class ApplicationService
 {
     // Spec 014 / T052 — quotation files stream through IObjectStorage with the
@@ -282,6 +294,74 @@ public class ApplicationService
         {
             return ["This application has been modified by another user. Please refresh and try again."];
         }
+    }
+
+    /// <summary>
+    /// Spec 021 / US9 / FR-035–FR-041 — applicant-initiated delete (Draft) or
+    /// withdrawal (Submitted / UnderReview). The domain
+    /// (<see cref="AppEntity.RemoveByApplicant"/>) owns the state guard and the
+    /// notify-reviewers decision; this method enforces ownership (FR-041) and, only
+    /// when the domain asks, enqueues the <c>APPLICATION_WITHDRAWN_BY_APPLICANT</c>
+    /// reviewer notification keyed to a fresh "Withdrawn" VersionHistory row so the
+    /// idempotency key is distinct from the submission's reviewer mail (FR-040).
+    /// </summary>
+    public async Task<ApplicantRemovalResult> RemoveByApplicantAsync(
+        int applicationId, string applicantUserId, CancellationToken ct)
+    {
+        var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId);
+        if (application is null)
+        {
+            return new ApplicantRemovalResult(ApplicantRemovalKind.NoOp, NotFound: true, RejectedState: false);
+        }
+
+        // FR-041 — the acting applicant must own the Application. Treat a mismatch
+        // as not-found to avoid leaking the existence of another applicant's row.
+        if (!string.Equals(application.Applicant?.UserId, applicantUserId, StringComparison.Ordinal))
+        {
+            return new ApplicantRemovalResult(ApplicantRemovalKind.NoOp, NotFound: true, RejectedState: false);
+        }
+
+        ApplicantRemovalOutcome outcome;
+        try
+        {
+            outcome = application.RemoveByApplicant();
+        }
+        catch (InvalidOperationException)
+        {
+            // FR-037 — terminal state: nothing was mutated by the domain.
+            return new ApplicantRemovalResult(ApplicantRemovalKind.NoOp, NotFound: false, RejectedState: true);
+        }
+
+        if (!outcome.NotifyReviewers)
+        {
+            await _applicationRepository.UpdateAsync(application);
+            await _applicationRepository.SaveChangesAsync();
+            return new ApplicantRemovalResult(outcome.Kind, NotFound: false, RejectedState: false);
+        }
+
+        // UnderReview withdrawal — record the lifecycle event, persist (assigns the
+        // VersionHistory id), then enqueue the reviewer-pool notification.
+        var vhRow = new VersionHistory(applicantUserId, "Withdrawn", "Retirada por el solicitante");
+        application.AddVersionHistory(vhRow);
+        await _applicationRepository.UpdateAsync(application);
+        await _applicationRepository.SaveChangesAsync(); // vhRow.Id now assigned
+
+        var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(application.Id, ct);
+        var applicantDisplayName = application.Applicant is not null
+            ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+            : "Solicitante";
+        var payload = new NotificationPayload(
+            ApplicationId: application.Id,
+            ApplicantUserId: application.Applicant?.UserId ?? applicantUserId,
+            ApplicantDisplayName: applicantDisplayName,
+            StageGroupIds: stageGroupIds,
+            OutcomeCode: null);
+
+        await _outboxWriter.EnqueueAsync(
+            NotificationEvent.WithdrawnByApplicant, application.Id, vhRow.Id, payload, ct);
+        await _applicationRepository.SaveChangesAsync();
+
+        return new ApplicantRemovalResult(outcome.Kind, NotFound: false, RejectedState: false);
     }
 
     public async Task<ApplicationDto?> GetApplicationAsync(int id)

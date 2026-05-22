@@ -5,6 +5,7 @@ using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.Applications.Queries;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Application.Suppliers;
+using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Exceptions;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.Persistence;
@@ -405,6 +406,43 @@ public class ApplicationController : Controller
             TempData["ValidationErrors"] = System.Text.Json.JsonSerializer.Serialize(errors);
             return RedirectToAction(nameof(Details), new { id });
         }
+    }
+
+    /// <summary>
+    /// Spec 021 / US9 / FR-035–FR-041 — applicant-initiated delete (Draft) or
+    /// withdrawal (Submitted / UnderReview). State + ownership are enforced in
+    /// <see cref="ApplicationService.RemoveByApplicantAsync"/>; this action maps the
+    /// outcome to a redirect + flash message. Terminal states and cross-user
+    /// requests are rejected without mutating (FR-037 / FR-041).
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Remove(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Forbid();
+        }
+
+        var result = await _applicationService.RemoveByApplicantAsync(
+            id, userId, HttpContext.RequestAborted);
+
+        if (result.NotFound)
+        {
+            return NotFound();
+        }
+
+        if (result.RejectedState)
+        {
+            TempData["ErrorMessage"] = "La solicitud ya no puede retirarse.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        TempData["SuccessMessage"] = result.Kind == ApplicantRemovalKind.DraftDeleted
+            ? "Borrador eliminado."
+            : "Solicitud retirada.";
+        return RedirectToAction(nameof(Index));
     }
 
     /// <summary>
