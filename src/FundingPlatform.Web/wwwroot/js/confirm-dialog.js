@@ -139,8 +139,30 @@
             closeBtn.addEventListener('click', close);
         }
         document.addEventListener('keydown', function (e) {
-            if (isOpen && (e.key === 'Escape' || e.key === 'Esc')) {
+            if (!isOpen) {
+                return;
+            }
+            if (e.key === 'Escape' || e.key === 'Esc') {
                 close();
+                return;
+            }
+            // FR-012 — trap focus within the dialog while open.
+            if (e.key === 'Tab') {
+                var focusables = Array.prototype.filter.call(
+                    modalEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+                    function (el) { return el.offsetParent !== null && !el.disabled; });
+                if (focusables.length === 0) {
+                    return;
+                }
+                var first = focusables[0];
+                var last = focusables[focusables.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
             }
         });
 
