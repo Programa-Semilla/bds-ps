@@ -1,0 +1,9 @@
+@*
+    Spec 024 — fixed top-right toast region (FR-005, NFR-003).
+    Rendered once per layout. Holds server-rendered toasts (TempData bridge) and
+    receives client-side toasts appended by notifications.js. Fixed overlay → no
+    layout shift; aria-live politeness is set per-toast (FR-013).
+*@
+<div class="toast-container position-fixed top-0 end-0 p-3" data-testid="toast-container" style="z-index: 1090;">
+    @await Html.PartialAsync("_NotificationToasts")
+</div>

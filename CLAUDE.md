@@ -114,5 +114,5 @@ The Aspire AppHost registers `rnwood/smtp4dev` as a container resource named `sm
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-No active in-flight plan. `/speckit-plan` will repopulate this pointer when the next feature begins.
+Active plan: `specs/024-toast-confirm-dialogs/plan.md` — Consistent in-app notifications & confirmation dialogs. Presentation-only (Web layer; no schema change). Reuse existing `_ConfirmDialog`/`_ActionBar` confirm-modal infra + migrate 15 native `confirm()` stragglers via a shared `data-confirm-*` interceptor (native-confirm fallback); add a new toast layer (`notifications.js` + top-right `_ToastContainer`) over vendored Bootstrap Toast; bridge TempData (Success/Error/FundingAgreement*/ValidationErrors) to server-rendered toasts preserving `data-testid="success-banner"/"error-banner"`; inline validation stays + summary toast. No new dependency.
 <!-- SPECKIT END -->

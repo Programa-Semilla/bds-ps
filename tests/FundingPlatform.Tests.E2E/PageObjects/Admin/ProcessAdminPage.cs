@@ -22,7 +22,8 @@ public class ProcessAdminPage : AdminBasePage
     public ILocator AreaWrapper => Page.Locator("[data-testid=\"admin-processes-area\"]");
     public ILocator Table => Page.Locator("[data-testid=\"admin-processes-table\"]");
     public new ILocator EmptyState => Page.Locator("[data-testid=\"admin-processes-empty\"]");
-    public ILocator FlashMessage => Page.Locator("[data-testid=\"admin-processes-flash\"]");
+    // Spec 024 — flash messages now surface as toasts (success-banner / error-banner preserved).
+    public ILocator FlashMessage => Page.Locator("[data-testid=\"success-banner\"]");
     public ILocator ProcessRow(string name) =>
         Page.Locator("tr[data-testid^=\"admin-process-row-\"]").Filter(new() { HasText = name });
 
@@ -57,8 +58,8 @@ public class ProcessAdminPage : AdminBasePage
     public ILocator GroupCreateForm => Page.Locator("[data-testid=\"admin-process-group-create-form\"]");
     public ILocator GroupNameInput => Page.Locator("[data-testid=\"admin-process-group-name-input\"]");
     public ILocator GroupCreateSubmit => Page.Locator("[data-testid=\"admin-process-group-create-submit\"]");
-    public ILocator FlashMessageDetail => Page.Locator("[data-testid=\"admin-process-flash\"]");
-    public ILocator FlashError => Page.Locator("[data-testid=\"admin-process-error\"]");
+    public ILocator FlashMessageDetail => Page.Locator("[data-testid=\"success-banner\"]");
+    public ILocator FlashError => Page.Locator("[data-testid=\"error-banner\"]");
 
     // ---------- Navigation ----------
 
@@ -118,7 +119,8 @@ public class ProcessAdminPage : AdminBasePage
     /// </summary>
     public async Task DetachPlantillaAsync()
     {
-        Page.Dialog += (_, dialog) => dialog.AcceptAsync();
+        // Spec 024 — detach now opens the shared confirm modal; click confirm to proceed.
         await DetachPlantillaSubmit.ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
     }
 }

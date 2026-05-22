@@ -48,10 +48,14 @@
                literal, which Razor's HTML encoding does not protect against (browser HTML-decodes
                the attribute before the JS engine sees it, allowing apostrophe escapes from the
                group name to break out of confirm('...')). *@
+            @* Spec 024 — styled confirm modal (data-confirm); onclick remains as the native fallback (NFR-004). *@
             <button type="submit"
                     formaction="@Url.Action("Delete", "AdminGroups", new { id = Model.Id })"
                     class="btn btn-outline-danger"
                     data-testid="admin-group-delete-submit"
+                    data-confirm
+                    data-confirm-variant="destructive"
+                    data-confirm-label="@AdminGroupsResources.Delete_Submit"
                     data-confirm-title="@deletePromptTitle"
                     data-confirm-body="@deletePromptBody"
                     onclick="return (function(b){ return confirm(b.getAttribute('data-confirm-title') + '\n\n' + b.getAttribute('data-confirm-body')); })(this);">

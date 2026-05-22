@@ -29,10 +29,7 @@
                     Icon: "ti ti-plus")
             }))
 
-    @if (TempData["SuccessMessage"] is string flash && !string.IsNullOrEmpty(flash))
-    {
-        <div class="alert alert-success" data-testid="admin-processes-flash">@flash</div>
-    }
+    @* Spec 024 — flash messages surface as toasts via _ToastContainer (success-banner / error-banner). *@
 
     <form method="get" asp-action="Index" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-processes-filter-form">
         <select name="statusFilter" class="form-select" data-testid="admin-processes-status-filter" style="max-width: 200px;">

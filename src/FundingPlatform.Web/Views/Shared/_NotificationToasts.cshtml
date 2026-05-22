@@ -1,0 +1,96 @@
+@*
+    Spec 024 — TempData → toast bridge (FR-002, FR-008, FR-011).
+    Server-renders a Bootstrap toast for each present message channel; activated
+    on load by notifications.js. Rendered inside _ToastContainer (top-right region).
+    TempData one-read semantics give "exactly once" (no re-show on refresh).
+
+    Variant lifetime: success/info auto-dismiss; error/warning sticky (FR-004).
+    Test ids reuse the legacy banner ids so existing E2E selectors keep working.
+
+    NOTE: markup is written inline per message (no markup-emitting local function —
+    that pattern truncates the response at runtime).
+*@
+@{
+    string? successMessage = TempData["SuccessMessage"] as string;
+    string? errorMessage = TempData["ErrorMessage"] as string;
+    string? faSuccess = TempData["FundingAgreementSuccess"] as string;
+    string? faError = TempData["FundingAgreementError"] as string;
+
+    List<string>? validationErrors = null;
+    if (TempData["ValidationErrors"] is string validationErrorsJson)
+    {
+        validationErrors = System.Text.Json.JsonSerializer.Deserialize<List<string>>(validationErrorsJson);
+    }
+    bool hasValidationErrors = validationErrors is { Count: > 0 };
+    bool modelStateInvalid = !ViewData.ModelState.IsValid;
+}
+
+@if (!string.IsNullOrWhiteSpace(successMessage))
+{
+    <div class="toast fl-toast border-0 text-bg-success alert-success" role="status" aria-live="polite" aria-atomic="true"
+         data-toast-variant="success" data-toast-sticky="false" data-testid="success-banner">
+        <div class="d-flex">
+            <div class="toast-body">@successMessage</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+        </div>
+    </div>
+}
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="toast fl-toast border-0 text-bg-danger alert-danger" role="alert" aria-live="assertive" aria-atomic="true"
+         data-toast-variant="error" data-toast-sticky="true" data-testid="error-banner">
+        <div class="d-flex">
+            <div class="toast-body">@errorMessage</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+        </div>
+    </div>
+}
+@if (!string.IsNullOrWhiteSpace(faSuccess))
+{
+    <div class="toast fl-toast border-0 text-bg-success alert-success" role="status" aria-live="polite" aria-atomic="true"
+         data-toast-variant="success" data-toast-sticky="false" data-testid="funding-agreement-success">
+        <div class="d-flex">
+            <div class="toast-body">@faSuccess</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+        </div>
+    </div>
+}
+@if (!string.IsNullOrWhiteSpace(faError))
+{
+    <div class="toast fl-toast border-0 text-bg-danger alert-danger" role="alert" aria-live="assertive" aria-atomic="true"
+         data-toast-variant="error" data-toast-sticky="true" data-testid="funding-agreement-error">
+        <div class="d-flex">
+            <div class="toast-body">@faError</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+        </div>
+    </div>
+}
+@if (hasValidationErrors)
+{
+    <div class="toast fl-toast border-0 text-bg-danger alert-danger" role="alert" aria-live="assertive" aria-atomic="true"
+         data-toast-variant="error" data-toast-sticky="true" data-testid="validation-summary-toast">
+        <div class="d-flex">
+            <div class="toast-body">
+                <strong>No se puede enviar la solicitud:</strong>
+                <ul class="mb-0 mt-1 ps-3">
+                    @foreach (var item in validationErrors!)
+                    {
+                        <li>@item</li>
+                    }
+                </ul>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+        </div>
+    </div>
+}
+else if (modelStateInvalid)
+{
+    @* FR-008 — inline field errors remain; this is the additive summary cue. *@
+    <div class="toast fl-toast border-0 text-bg-danger alert-danger" role="alert" aria-live="assertive" aria-atomic="true"
+         data-toast-variant="error" data-toast-sticky="true" data-testid="validation-summary-toast">
+        <div class="d-flex">
+            <div class="toast-body">Corrige los campos marcados.</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+        </div>
+    </div>
+}

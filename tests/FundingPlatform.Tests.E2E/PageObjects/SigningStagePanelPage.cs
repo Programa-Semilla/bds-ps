@@ -60,8 +60,9 @@ public class SigningStagePanelPage : BasePage
 
     public async Task WithdrawPending()
     {
-        Page.Dialog += async (_, dialog) => await dialog.AcceptAsync();
+        // Spec 024 — withdraw now opens the shared confirm modal; click confirm to proceed.
         await WithdrawButton.ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
     }
 
     public async Task<bool> IsExecutedBadgeVisible()

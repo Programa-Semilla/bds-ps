@@ -1,0 +1,30 @@
+@*
+    Spec 024 — single shared confirmation modal (FR-006, FR-012).
+    Rendered once per layout. Has NO form of its own: confirm-dialog.js populates
+    it from the triggering element's data-confirm-* attributes and, on confirm,
+    submits the *originating* form (preserving its fields/route). Styled to match
+    the component-based Components/_ConfirmDialog.cshtml; reuses its test ids.
+    Only one instance exists, so only one confirm can be open at a time.
+*@
+<div class="modal modal-blur fade"
+     id="fl-shared-confirm-modal"
+     tabindex="-1"
+     aria-hidden="true"
+     aria-labelledby="fl-shared-confirm-title"
+     data-testid="confirm-dialog">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content fl-surface fl-surface-shadow-md">
+            <div class="modal-header">
+                <h5 class="modal-title fl-type-heading-md" id="fl-shared-confirm-title" data-testid="confirm-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="confirm-rationale fl-type-body mb-0" data-testid="confirm-rationale"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-link link-secondary" data-bs-dismiss="modal" data-testid="cancel-button">Cancelar</button>
+                <button type="button" class="btn btn-danger ms-auto" data-testid="confirm-button">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>

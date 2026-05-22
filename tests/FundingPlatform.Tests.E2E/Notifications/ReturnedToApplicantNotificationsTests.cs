@@ -90,13 +90,12 @@ public class ReturnedToApplicantNotificationsTests : AuthenticatedTestBase
         await LoginAsync(Page, reviewerEmail, password);
         var reviewPage = new ReviewApplicationPage(Page);
         await reviewPage.GotoAsync(BaseUrl, appId);
-        // The SendBack button confirms via window.confirm() — Playwright's
-        // default handler dismisses dialogs which would cancel the submit.
-        // Accept the dialog so the form posts.
-        Page.Dialog += (_, dialog) => dialog.AcceptAsync();
+        // Spec 024 — the SendBack button now opens the shared confirm modal;
+        // click the modal's confirm button so the form posts.
         var sendBack = Page.Locator("button[type=submit]:has-text('Devolver')").First;
         await Expect(sendBack).ToBeVisibleAsync();
         await sendBack.ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
 
         var returnedMsgs = await MailCapture.WaitForAsync(
             minCount: 1, timeout: TimeSpan.FromSeconds(60),

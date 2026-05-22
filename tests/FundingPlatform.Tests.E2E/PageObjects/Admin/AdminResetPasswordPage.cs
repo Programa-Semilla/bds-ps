@@ -19,14 +19,14 @@ public class AdminResetPasswordPage : AdminBasePage
     public ILocator ValidationSummary => Page.Locator(".validation-summary-errors");
 
     /// <summary>
-    /// Fills both fields and submits. The submit button carries an
-    /// <c>onclick="return confirm(...)"</c> guard, so the caller MUST have
-    /// registered a dialog handler that accepts before invoking this.
+    /// Fills both fields and submits. Spec 024 — the submit button opens the shared
+    /// confirm modal; this method clicks the modal's confirm button to proceed.
     /// </summary>
     public async Task SubmitAsync(string newPassword, string confirmPassword)
     {
         await NewPasswordInput.FillAsync(newPassword);
         await ConfirmPasswordInput.FillAsync(confirmPassword);
         await SubmitButton.ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
     }
 }

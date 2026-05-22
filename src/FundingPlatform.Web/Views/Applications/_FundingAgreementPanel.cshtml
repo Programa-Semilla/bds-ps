@@ -12,19 +12,7 @@
         <strong>Convenio</strong>
     </div>
     <div class="card-body">
-        @if (TempData["FundingAgreementError"] is string errorMessage)
-        {
-            <div class="alert alert-danger" role="alert" data-testid="funding-agreement-error">
-                @errorMessage
-            </div>
-        }
-        @if (TempData["FundingAgreementSuccess"] is string successMessage)
-        {
-            <div class="alert alert-success" role="alert" data-testid="funding-agreement-success">
-                @successMessage
-            </div>
-        }
-
+        @* Spec 024 — FundingAgreementSuccess/Error now surface as toasts via the TempData→toast bridge (_NotificationToasts). *@
         @if (Model.IsExecuted)
         {
             <div class="alert alert-success" role="alert" data-testid="funding-agreement-executed-badge">
@@ -63,7 +51,12 @@
                           onsubmit="return confirm('Esta acción sobrescribirá el convenio actual. ¿Continuar?');">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-outline-warning"
-                                data-testid="funding-agreement-regenerate">
+                                data-testid="funding-agreement-regenerate"
+                                data-confirm
+                                data-confirm-variant="statelocking"
+                                data-confirm-title="Regenerar convenio"
+                                data-confirm-body="Esta acción sobrescribirá el convenio actual. ¿Continuar?"
+                                data-confirm-label="Regenerar">
                             Regenerar
                         </button>
                     </form>
@@ -121,7 +114,12 @@
                                       onsubmit="return confirm('¿Retirar la carga pendiente?');">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="btn btn-outline-secondary btn-sm"
-                                            data-testid="signed-upload-withdraw">Retirar carga pendiente</button>
+                                            data-testid="signed-upload-withdraw"
+                                            data-confirm
+                                            data-confirm-variant="destructive"
+                                            data-confirm-title="Retirar carga pendiente"
+                                            data-confirm-body="¿Retirar la carga pendiente?"
+                                            data-confirm-label="Retirar">Retirar carga pendiente</button>
                                 </form>
                             </div>
                         }

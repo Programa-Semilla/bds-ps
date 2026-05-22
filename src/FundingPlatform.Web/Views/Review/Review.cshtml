@@ -390,7 +390,13 @@
     <div class="mt-4 d-flex gap-2">
         <form asp-action="SendBack" asp-route-id="@Model.ApplicationId" method="post">
             @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-warning" onclick="return confirm('¿Devolver esta solicitud al solicitante?')">
+            <button type="submit" class="btn btn-warning"
+                    data-confirm
+                    data-confirm-variant="statelocking"
+                    data-confirm-title="Devolver solicitud"
+                    data-confirm-body="¿Devolver esta solicitud al solicitante?"
+                    data-confirm-label="Devolver"
+                    onclick="return confirm('¿Devolver esta solicitud al solicitante?')">
                 <i class="ti ti-arrow-back-up me-1"></i>Devolver
             </button>
         </form>

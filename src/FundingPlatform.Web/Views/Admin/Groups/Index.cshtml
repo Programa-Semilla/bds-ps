@@ -21,10 +21,7 @@
                     Icon: "ti ti-folders")
             }))
 
-    @if (TempData["SuccessMessage"] is string flash && !string.IsNullOrEmpty(flash))
-    {
-        <div class="alert alert-success" data-testid="admin-groups-flash">@flash</div>
-    }
+    @* Spec 024 — flash messages surface as toasts via _ToastContainer (success-banner / error-banner). *@
 
     @if (Model.Groups.Count == 0)
     {

@@ -120,10 +120,10 @@ public class ItemManagementTests : AuthenticatedTestBase
         var itemRow = Page.Locator("[data-testid=application-edit-item-row]:has-text('Item To Delete')");
         await Expect(itemRow).ToBeVisibleAsync();
 
-        // Click delete button and handle confirmation dialog
-        Page.Dialog += (_, dialog) => dialog.AcceptAsync();
+        // Spec 024 — delete now opens the shared confirm modal; click confirm.
         var deleteButton = Page.Locator($"[data-testid=application-edit-item-row] button:has-text('{UiCopy.Delete}')").First;
         await deleteButton.ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
 
         // Should redirect back to the draft editor
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));

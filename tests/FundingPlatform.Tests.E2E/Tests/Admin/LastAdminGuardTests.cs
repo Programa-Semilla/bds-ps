@@ -42,8 +42,9 @@ public class LastAdminGuardTests : AuthenticatedTestBase
         var listPage = new AdminUsersListPage(Page);
         await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(secondAdminEmail);
-        Page.Dialog += (_, dialog) => _ = dialog.AcceptAsync();
+        // Spec 024 — disable now opens the shared confirm modal; click confirm.
         await listPage.RowDisableButton(secondAdminEmail).ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
         await Expect(Page.Locator("[data-testid=\"success-banner\"]")).ToBeVisibleAsync();
     }
 

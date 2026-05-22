@@ -20,7 +20,8 @@ public class PlantillaAdminPage : AdminBasePage
     public ILocator AreaWrapper => Page.Locator("[data-testid=\"admin-plantillas-area\"]");
     public ILocator Table => Page.Locator("[data-testid=\"admin-plantillas-table\"]");
     public new ILocator EmptyState => Page.Locator("[data-testid=\"admin-plantillas-empty\"]");
-    public ILocator FlashMessage => Page.Locator("[data-testid=\"admin-plantillas-flash\"]");
+    // Spec 024 — flash messages now surface as toasts (success-banner test id preserved).
+    public ILocator FlashMessage => Page.Locator("[data-testid=\"success-banner\"]");
     public ILocator PlantillaRow(string name) =>
         Page.Locator("tr[data-testid^=\"admin-plantilla-row-\"]").Filter(new() { HasText = name });
 
