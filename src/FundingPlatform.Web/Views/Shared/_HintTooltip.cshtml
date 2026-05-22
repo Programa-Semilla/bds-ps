@@ -1,0 +1,68 @@
+@*
+    Spec 021 / FR-020 / T158 — `_HintTooltip` partial.
+
+    Renders a Tabler-styled `<span class="form-hint">` next to a form input,
+    pulling its copy from the `[Hint("<resource-key>")]` attribute on the
+    bound property. Copy strings are deferred per OQ-8: while no resx entry
+    exists for the key, the partial renders nothing (defensive — keeps the
+    form clean until the follow-up PR populates hint copy).
+
+    Usage from a Razor view:
+
+        @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(
+            typeof(MyViewModel), nameof(MyViewModel.ProductName)))
+
+    Or directly with a known key:
+
+        @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(
+            ResourceKeyOverride: "Item.ProductName.Hint"))
+
+    Wiring follow-up (NOT in this PR — OQ-8 deferred):
+      * Decorate viewmodel properties: `[Hint("Item.ProductName.Hint")]`
+      * Populate keys in `src/FundingPlatform.Web/Localization/021.es-CR.resx`
+      * Inject `IStringLocalizer<...>` and resolve `model.ResourceKey`
+*@
+
+@using System.Reflection
+@using FundingPlatform.Domain.Attributes
+@model FundingPlatform.Web.ViewModels.HintTooltipModel
+
+@functions {
+    static string? ResolveResourceKey(FundingPlatform.Web.ViewModels.HintTooltipModel m)
+    {
+        if (!string.IsNullOrWhiteSpace(m.ResourceKeyOverride))
+        {
+            return m.ResourceKeyOverride;
+        }
+        if (m.ContainerType is null || string.IsNullOrWhiteSpace(m.PropertyName))
+        {
+            return null;
+        }
+        var prop = m.ContainerType.GetProperty(
+            m.PropertyName!,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        var hint = prop?.GetCustomAttribute<HintAttribute>();
+        return hint?.ResourceKey;
+    }
+
+    static string? ResolveCopy(string? resourceKey)
+    {
+        // OQ-8 — copy authorship deferred. Until the resx catalog and a
+        // localizer service are wired into views (the project does not
+        // currently inject IStringLocalizer per Edit.cshtml / Review.cshtml
+        // notes), the partial intentionally renders nothing. Returning null
+        // here keeps the wire-up surface stable so the follow-up PR only
+        // needs to swap in the resolver without touching the partial body.
+        return null;
+    }
+}
+
+@{
+    var key = ResolveResourceKey(Model);
+    var copy = ResolveCopy(key);
+}
+
+@if (!string.IsNullOrWhiteSpace(copy))
+{
+    <span class="form-hint" data-hint-key="@key">@copy</span>
+}

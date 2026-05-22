@@ -134,6 +134,7 @@ public class ParticipatingAdminPredicateTests
         await ctx.SaveChangesAsync();
 
         var app = new Domain.Entities.Application(applicant.Id, "TestCo");
+        app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         app.AddVersionHistory(new Domain.Entities.VersionHistory(alice.Id, "ReviewItem",
             "Admin acted on item"));
         ctx.Applications.Add(app);

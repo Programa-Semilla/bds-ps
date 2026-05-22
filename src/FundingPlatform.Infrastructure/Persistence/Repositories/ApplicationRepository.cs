@@ -1,3 +1,4 @@
+using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -7,17 +8,40 @@ namespace FundingPlatform.Infrastructure.Persistence.Repositories;
 public class ApplicationRepository : IApplicationRepository
 {
     private readonly AppDbContext _context;
+    // Spec 021 / FR-021 / T152 / R-10 — every list / aggregate read path in this
+    // repository routes through ExcludeDeleted so soft-deleted rows never reach
+    // a dashboard surface. By-Id lookups + write helpers stay unfiltered (admin
+    // detail / write paths can legitimately touch a deleted row); see
+    // DashboardQueriesHonorSoftDeleteTests for the structural audit.
+    private readonly IApplicationQueryFilter _queryFilter;
 
-    public ApplicationRepository(AppDbContext context)
+    public ApplicationRepository(AppDbContext context, IApplicationQueryFilter queryFilter)
     {
         _context = context;
+        _queryFilter = queryFilter;
     }
 
+    /// <summary>
+    /// Spec 021 / T152 — back-compat ctor for integration-test setups that
+    /// construct the repository directly without going through DI. Equivalent
+    /// to passing a fresh <see cref="ApplicationQueryFilter"/> (the same
+    /// instance the DI registration would supply).
+    /// </summary>
+    public ApplicationRepository(AppDbContext context)
+        : this(context, new ApplicationQueryFilter())
+    {
+    }
+
+    // Spec 021 / FR-021 / T152 / R-10 — single-row by-Id lookup. Soft-delete
+    // filter intentionally NOT applied: admin "undo-delete" + write paths must
+    // still be able to load a soft-deleted aggregate; the dashboard-surface
+    // guard is the listing-side filter applied throughout this file.
     public async Task<AppEntity?> GetByIdAsync(int id)
     {
         return await _context.Applications.FindAsync(id);
     }
 
+    // Spec 020 — fast Item→Application lookup for AI comparison orchestrator.
     public async Task<int?> GetApplicationIdForItemAsync(int applicationItemId, CancellationToken ct)
     {
         return await _context.Items
@@ -27,6 +51,9 @@ public class ApplicationRepository : IApplicationRepository
             .FirstOrDefaultAsync(ct);
     }
 
+    // Spec 021 / FR-021 / T152 / R-10 — single-row by-Id detail load. Same
+    // rationale as GetByIdAsync — not a dashboard query; filter intentionally
+    // skipped so command handlers can mutate soft-deleted rows.
     public async Task<AppEntity?> GetByIdWithDetailsAsync(int id)
     {
         return await _context.Applications
@@ -41,13 +68,12 @@ public class ApplicationRepository : IApplicationRepository
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)
                     .ThenInclude(q => q.Document)
-            .Include(a => a.Items)
-                .ThenInclude(i => i.Impact)
-                    .ThenInclude(imp => imp!.ImpactTemplate)
-            .Include(a => a.Items)
-                .ThenInclude(i => i.Impact)
-                    .ThenInclude(imp => imp!.ParameterValues)
-                        .ThenInclude(pv => pv.ImpactTemplateParameter)
+            // Spec 021 / FR-005 — Impact relocated from Item to Application. The
+            // ImpactTemplate + ImpactParameterValues navigations live on the
+            // Application aggregate (configured in ApplicationConfiguration).
+            .Include(a => a.ImpactTemplate)
+            .Include(a => a.ImpactParameterValues)
+                .ThenInclude(pv => pv.ImpactTemplateParameter)
             .Include(a => a.Applicant)
             .Include(a => a.ApplicantResponses)
                 .ThenInclude(r => r.ItemResponses)
@@ -77,7 +103,10 @@ public class ApplicationRepository : IApplicationRepository
 
     public async Task<List<AppEntity>> GetByApplicantIdAsync(int applicantId)
     {
-        return await _context.Applications
+        // Spec 021 / FR-021 / T152 — applicant dashboard list source for
+        // Application/Index. Soft-deleted rows MUST NOT surface (SC-011).
+        var source = _queryFilter.ExcludeDeleted(_context.Applications);
+        return await source
             .Include(a => a.Items)
             .Where(a => a.ApplicantId == applicantId)
             .OrderByDescending(a => a.UpdatedAt)
@@ -86,7 +115,12 @@ public class ApplicationRepository : IApplicationRepository
 
     public async Task<List<AppEntity>> GetForApplicantDashboardAsync(int applicantId)
     {
-        return await _context.Applications
+        // Spec 021 / FR-021 / T152 / T153 — applicant home dashboard
+        // (ApplicantDashboardProjection) source. Drives the Solicitudes activas
+        // counter + the "borrador listo para enviar" awaiting-action prompt
+        // (FR-021 / SC-011 — the meeting-PDF defect path).
+        var source = _queryFilter.ExcludeDeleted(_context.Applications);
+        return await source
             .Include(a => a.Items)
             .Include(a => a.VersionHistory)
             .Include(a => a.Appeals)
@@ -99,7 +133,8 @@ public class ApplicationRepository : IApplicationRepository
     public async Task<(List<AppEntity> Items, int TotalCount)> GetByStatePagedAsync(
         Domain.Enums.ApplicationState state, int page, int pageSize)
     {
-        var query = _context.Applications
+        // Spec 021 / FR-021 / T152 — admin paged listing (state-keyed).
+        var query = _queryFilter.ExcludeDeleted(_context.Applications)
             .Include(a => a.Applicant)
             .Include(a => a.Items)
             .Where(a => a.State == state)
@@ -128,7 +163,9 @@ public class ApplicationRepository : IApplicationRepository
         int pageSize,
         string? searchTerm = null)
     {
-        IQueryable<AppEntity> query = _context.Applications
+        // Spec 021 / FR-021 / T152 — reviewer queue source. Soft-deleted rows
+        // must never appear on the reviewer's worklist (SC-011).
+        IQueryable<AppEntity> query = _queryFilter.ExcludeDeleted(_context.Applications)
             .Include(a => a.Applicant)
             .Include(a => a.Items)
             .Where(a => a.State == state);
@@ -179,8 +216,12 @@ public class ApplicationRepository : IApplicationRepository
     {
         if (reviewerGroupIds.Count == 0) return false;
         var groupIds = reviewerGroupIds.ToList();
+        // Spec 021 / FR-021 / T152 — reviewer detail-page authorization mirrors
+        // the listing predicate; a soft-deleted Application is not "shared" with
+        // any reviewer because it is no longer reachable via the queue.
+        var apps = _queryFilter.ExcludeDeleted(_context.Applications.AsNoTracking());
         return await (
-            from a in _context.Applications.AsNoTracking()
+            from a in apps
             where a.Id == applicationId
             from m in _context.UserGroupMemberships
             where m.UserId == a.Applicant!.UserId && groupIds.Contains(m.GroupId)
@@ -192,8 +233,10 @@ public class ApplicationRepository : IApplicationRepository
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 25;
 
-        var query = _context.Applications
-            .AsNoTracking()
+        // Spec 021 / FR-021 / T152 / T153 — Generate Agreement queue is a
+        // reviewer dashboard surface (Review/GenerateAgreement). Soft-deleted
+        // rows must never reach it.
+        var query = _queryFilter.ExcludeDeleted(_context.Applications.AsNoTracking())
             .Include(a => a.Applicant)
             .Include(a => a.ApplicantResponses)
             .Where(a => a.State == Domain.Enums.ApplicationState.ResponseFinalized

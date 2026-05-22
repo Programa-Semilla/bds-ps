@@ -27,7 +27,9 @@ public class Item
     public DateTime UpdatedAt { get; private set; }
 
     public Category Category { get; private set; } = null!;
-    public Impact? Impact { get; private set; }
+    // Spec 021 / FR-005 — Impact relocated from Item to Application; no
+    // per-Item Impact nav property remains. Read paths that historically
+    // joined Item → Impact now route through Application.Impact (R-6).
     public Supplier? SelectedSupplier { get; private set; }
 
     public IReadOnlyList<Quotation> Quotations => _quotations.AsReadOnly();
@@ -143,28 +145,11 @@ public class Item
     }
 
     /// <summary>
-    /// Sets the impact assessment for this item using the specified template and parameter values.
-    /// </summary>
-    public void SetImpact(ImpactTemplate template, List<ImpactParameterValue> parameterValues)
-    {
-        Impact = new Impact(template.Id, parameterValues);
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>
     /// Determines whether this item has at least the specified minimum number of quotations.
     /// </summary>
     public bool HasMinimumQuotations(int min)
     {
         return _quotations.Count >= min;
-    }
-
-    /// <summary>
-    /// Determines whether this item has a complete impact assessment with parameter values.
-    /// </summary>
-    public bool HasCompleteImpact()
-    {
-        return Impact is not null && Impact.ParameterValues.Count > 0;
     }
 
     /// <summary>

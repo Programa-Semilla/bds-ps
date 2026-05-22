@@ -7,8 +7,10 @@ namespace FundingPlatform.Tests.E2E.Tests.Admin;
 
 /// <summary>
 /// Spec 016 / Story 1 — admin manages the catalog of groups (FR-001..FR-003,
-/// FR-006). Drives the real user journey through the admin UI; no deep-link
-/// shortcuts to MVC routes the UI never exposes.
+/// FR-006). Spec 021 / FR-001 — Groups are now created from the Process detail
+/// page (the owning Process is implied by route context); the catalog index
+/// keeps rename / reparent / delete. Drives the real user journey through the
+/// admin UI; no deep-link shortcuts to MVC routes the UI never exposes.
 /// </summary>
 public class AdminGroupCrudTests : AuthenticatedTestBase
 {
@@ -22,6 +24,17 @@ public class AdminGroupCrudTests : AuthenticatedTestBase
         await LoginAsync(Page, adminEmail, AdminPassword);
     }
 
+    /// <summary>Creates an Active Process and opens its detail page. Returns the
+    /// Process name so the caller can assert the Groups-index Process column.</summary>
+    private async Task<string> CreateProcessAndOpenAsync(ProcessAdminPage procPage, string suffix)
+    {
+        var processName = $"Proc-{suffix}";
+        await procPage.GoToCreateAsync(BaseUrl);
+        await procPage.CreateProcessAsync(processName);
+        await procPage.OpenProcessDetailByNameAsync(BaseUrl, processName);
+        return processName;
+    }
+
     [Test]
     public async Task Admin_CreatesGroup_AppearsInListWithMemberCountZero()
     {
@@ -29,36 +42,36 @@ public class AdminGroupCrudTests : AuthenticatedTestBase
         await SignInAsAdminAsync(unique);
         var groupName = $"GA-{unique}";
 
+        var procPage = new ProcessAdminPage(Page);
+        var processName = await CreateProcessAndOpenAsync(procPage, unique);
+        await procPage.CreateGroupAsync(groupName);
+        await Expect(procPage.GroupRow(groupName)).ToBeVisibleAsync();
+
+        // The group surfaces on the standalone catalog with its owning Process.
         var page = new AdminGroupsPage(Page);
         await page.GoToIndexAsync(BaseUrl);
-        await page.GoToCreateAsync(BaseUrl);
-        await page.CreateGroupAsync(groupName);
-
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Groups(\\?.*)?$"));
         await Expect(page.RowFor(groupName)).ToBeVisibleAsync();
         await Expect(page.RowMemberCount(groupName)).ToHaveTextAsync("0");
+        await Expect(page.RowProcess(groupName)).ToHaveTextAsync(processName);
     }
 
     [Test]
-    public async Task Admin_CreatesGroup_DuplicateName_ShowsValidationError()
+    public async Task Admin_CreatesGroup_DuplicateName_ShowsErrorOnProcessDetail()
     {
         var unique = Guid.NewGuid().ToString("N")[..6];
         await SignInAsAdminAsync(unique);
         var groupName = $"GB-{unique}";
 
-        var page = new AdminGroupsPage(Page);
-        await page.GoToCreateAsync(BaseUrl);
-        await page.CreateGroupAsync(groupName);
+        var procPage = new ProcessAdminPage(Page);
+        await CreateProcessAndOpenAsync(procPage, unique);
+        await procPage.CreateGroupAsync(groupName);
+        await Expect(procPage.GroupRow(groupName)).ToBeVisibleAsync();
 
         // Second creation with the same name (case- and accent-insensitive
-        // match per FR-001) — the form re-renders with an inline validation
-        // error and no second row appears.
-        await page.GoToCreateAsync(BaseUrl);
-        await page.CreateGroupAsync(groupName.ToLowerInvariant());
-
-        await Expect(page.NameError).ToContainTextAsync(new Regex("[Yy]a existe"));
-        // The form is still on Create — the redirect to Index is the success indicator.
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Groups/Create"));
+        // match per FR-001) — the Process detail re-renders with a flash error
+        // and no second row appears.
+        await procPage.CreateGroupAsync(groupName.ToLowerInvariant());
+        await Expect(procPage.FlashError).ToContainTextAsync(new Regex("[Yy]a existe"));
     }
 
     [Test]
@@ -69,10 +82,13 @@ public class AdminGroupCrudTests : AuthenticatedTestBase
         var original = $"GC-{unique}";
         var renamed = $"GC2-{unique}";
 
-        var page = new AdminGroupsPage(Page);
-        await page.GoToCreateAsync(BaseUrl);
-        await page.CreateGroupAsync(original);
+        var procPage = new ProcessAdminPage(Page);
+        await CreateProcessAndOpenAsync(procPage, unique);
+        await procPage.CreateGroupAsync(original);
+        await Expect(procPage.GroupRow(original)).ToBeVisibleAsync();
 
+        var page = new AdminGroupsPage(Page);
+        await page.GoToIndexAsync(BaseUrl);
         await page.RowEditButton(original).ClickAsync();
         await page.RenameGroupAsync(renamed);
 

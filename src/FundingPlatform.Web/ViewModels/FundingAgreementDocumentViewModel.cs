@@ -14,6 +14,15 @@ public class FundingAgreementDocumentViewModel
     // Cover page (FR-005, FR-006)
     public string CompanyName { get; set; } = string.Empty;
     public string ApplicantRepresentativeName { get; set; } = string.Empty;
+    /// <summary>
+    /// Spec 021 / FR-008 / OQ-4 — opaque <c>Application.PublicCode</c> (e.g.
+    /// <c>A7K2-9XF</c>) surfaced on the Funding Agreement PDF cover. Replaces
+    /// the legacy <c>Solicitud N.º {Id}</c> token (template field swap, not a
+    /// footnote — see research.md OQ-4). Empty string when an Application has
+    /// not yet been stamped (defensive fallback; production flow always stamps
+    /// before the agreement is rendered).
+    /// </summary>
+    public string PublicCode { get; set; } = string.Empty;
     public DateTime GeneratedAtUtc { get; set; }
     /// <summary>es-CR long form, e.g. "8 de mayo de 2026".</summary>
     public string GenerationDateLong { get; set; } = string.Empty;

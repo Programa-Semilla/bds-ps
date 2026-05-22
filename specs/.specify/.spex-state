@@ -1,0 +1,12 @@
+{
+  "mode": "ship",
+  "stage": "review-code",
+  "stage_index": 7,
+  "total_stages": 9,
+  "ask": "smart",
+  "started_at": "2026-05-14T04:12:10Z",
+  "retries": 0,
+  "status": "running",
+  "brainstorm_file": "brainstorm/18-feedback-session-may13.md",
+  "feature_branch": "021-feedback-session-may13"
+}

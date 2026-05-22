@@ -43,6 +43,15 @@ public class GroupDeletionCascadeTests
         return user;
     }
 
+    /// <summary>Spec 021 / FR-001 — Groups require an owning Process.</summary>
+    private static async Task<int> SeedProcessAsync(AppDbContext ctx)
+    {
+        var process = Process.Create("Crocus 2025");
+        ctx.Processes.Add(process);
+        await ctx.SaveChangesAsync();
+        return process.Id;
+    }
+
     /// <summary>
     /// Story 4 acceptance scenario 1 — Norte has 3 members, Sur has 2 (one
     /// shared). Deleting Norte removes all 3 Norte memberships, leaves Sur
@@ -54,8 +63,9 @@ public class GroupDeletionCascadeTests
         using var ctx = CreateContext($"cascade-1-{Guid.NewGuid():N}");
         var sut = BuildService(ctx);
 
-        var norte = await sut.CreateAsync("Norte", ActorAdminId, CancellationToken.None);
-        var sur = await sut.CreateAsync("Sur", ActorAdminId, CancellationToken.None);
+        var processId = await SeedProcessAsync(ctx);
+        var norte = await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None);
+        var sur = await sut.CreateAsync("Sur", processId, ActorAdminId, CancellationToken.None);
 
         var u1 = await SeedUserAsync(ctx, "u1@example.com");
         var u2 = await SeedUserAsync(ctx, "u2@example.com");
@@ -123,7 +133,8 @@ public class GroupDeletionCascadeTests
         using var ctx = CreateContext($"cascade-2-{Guid.NewGuid():N}");
         var sut = BuildService(ctx);
 
-        var norte = await sut.CreateAsync("Norte", ActorAdminId, CancellationToken.None);
+        var processId = await SeedProcessAsync(ctx);
+        var norte = await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None);
         var rev = await SeedUserAsync(ctx, "rev@example.com");
         ctx.UserGroupMemberships.Add(new UserGroupMembership(rev.Id, norte));
         await ctx.SaveChangesAsync();

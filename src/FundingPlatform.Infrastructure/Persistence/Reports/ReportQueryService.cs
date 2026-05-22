@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Admin.Reports.DTOs;
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Domain.Entities;
@@ -15,11 +16,24 @@ namespace FundingPlatform.Infrastructure.Persistence.Reports;
 public sealed class ReportQueryService : IReportQueryService
 {
     private readonly AppDbContext _db;
+    // Spec 021 / FR-021 / T152 / R-10 — every Applications read in this service
+    // is an admin Reports / dashboard surface. Source the table through this
+    // helper so soft-deleted rows never inflate counters or appear on a list.
+    private readonly IApplicationQueryFilter _queryFilter;
 
-    public ReportQueryService(AppDbContext db)
+    public ReportQueryService(AppDbContext db, IApplicationQueryFilter queryFilter)
     {
         _db = db;
+        _queryFilter = queryFilter;
     }
+
+    /// <summary>
+    /// Spec 021 / FR-021 / T152 — base Applications source for every admin
+    /// Reports read. Equivalent to <c>_db.Applications.AsNoTracking()</c> with
+    /// the soft-delete predicate applied.
+    /// </summary>
+    private IQueryable<ApplicationEntity> ActiveApplications() =>
+        _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking());
 
     public Task<int> CountApplicationsAsync(ListApplicationsRequest req, CancellationToken ct = default)
         => BuildApplicationsBaseQuery(req).CountAsync(ct);
@@ -98,7 +112,7 @@ public sealed class ReportQueryService : IReportQueryService
         var rows = await (
             from i in _db.Items.AsNoTracking()
             where i.ReviewStatus == ItemReviewStatus.Approved && i.SelectedSupplierId != null
-            join a in _db.Applications.AsNoTracking() on i.ApplicationId equals a.Id
+            join a in ActiveApplications() on i.ApplicationId equals a.Id
             where applicantIds.Contains(a.ApplicantId)
             join q in _db.Quotations.AsNoTracking()
                 on new { ItemId = i.Id, SupplierId = i.SelectedSupplierId!.Value }
@@ -131,7 +145,7 @@ public sealed class ReportQueryService : IReportQueryService
         var rows = await (
             from i in _db.Items.AsNoTracking()
             where i.ReviewStatus == ItemReviewStatus.Approved && i.SelectedSupplierId != null
-            join a in _db.Applications.AsNoTracking() on i.ApplicationId equals a.Id
+            join a in ActiveApplications() on i.ApplicationId equals a.Id
             where applicantIds.Contains(a.ApplicantId)
                   && a.State == ApplicationState.AgreementExecuted
             join q in _db.Quotations.AsNoTracking()
@@ -221,7 +235,7 @@ public sealed class ReportQueryService : IReportQueryService
 
         var rows =
             from i in items
-            join a in _db.Applications.AsNoTracking() on i.ApplicationId equals a.Id
+            join a in ActiveApplications() on i.ApplicationId equals a.Id
             join q in _db.Quotations.AsNoTracking()
                 on new { ItemId = i.Id, SupplierId = i.SelectedSupplierId!.Value }
                 equals new { ItemId = q.ItemId, SupplierId = q.SupplierId }
@@ -302,7 +316,7 @@ public sealed class ReportQueryService : IReportQueryService
         var nowUtc = DateTime.UtcNow;
         var thresholdCutoff = nowUtc.AddDays(-threshold);
 
-        var q = _db.Applications.AsNoTracking()
+        var q = ActiveApplications()
             .Where(a => states.Contains(a.State))
             .Where(a => a.UpdatedAt <= thresholdCutoff);
 
@@ -351,8 +365,7 @@ public sealed class ReportQueryService : IReportQueryService
         var fromUtc = range.From.ToDateTime(TimeOnly.MinValue);
         var toUtc = range.To.ToDateTime(TimeOnly.MaxValue);
 
-        var pipelineRaw = await _db.Applications
-            .AsNoTracking()
+        var pipelineRaw = await ActiveApplications()
             .Where(a => a.State != ApplicationState.Draft)
             .GroupBy(a => a.State)
             .Select(g => new { State = g.Key, Count = g.Count() })
@@ -367,7 +380,7 @@ public sealed class ReportQueryService : IReportQueryService
             .AsNoTracking()
             .Where(i => i.ReviewStatus == ItemReviewStatus.Approved
                      && i.SelectedSupplierId != null)
-            .Join(_db.Applications.AsNoTracking(),
+            .Join(ActiveApplications(),
                 i => i.ApplicationId,
                 a => a.Id,
                 (i, a) => new { Item = i, App = a })
@@ -453,7 +466,7 @@ public sealed class ReportQueryService : IReportQueryService
 
     private IQueryable<ApplicationEntity> BuildApplicationsBaseQuery(ListApplicationsRequest req)
     {
-        var q = _db.Applications.AsNoTracking().AsQueryable();
+        var q = ActiveApplications().AsQueryable();
 
         if (req.States is { Count: > 0 } states)
         {

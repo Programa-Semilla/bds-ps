@@ -1,13 +1,34 @@
+using Microsoft.AspNetCore.Mvc.Rendering;
+
 namespace FundingPlatform.Web.ViewModels;
 
 public class ApplicationViewModel
 {
     public int Id { get; set; }
+    /// <summary>Spec 021 / FR-008 — opaque PublicCode (e.g. <c>A7K2-9XF3</c>).</summary>
+    public string? PublicCode { get; set; }
+    public string? CompanyName { get; set; }
     public string State { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
     public List<ItemViewModel> Items { get; set; } = new();
+
+    /// <summary>Spec 021 / FR-005 — true once the applicant has completed the
+    /// Impact step. Drives the Impact card state and the submit gate.</summary>
+    public bool ImpactSet { get; set; }
+
+    /// <summary>Spec 021 / FR-005 — chosen ImpactTemplate name, for the Edit-page
+    /// Impact summary card. Null until the Impact step is completed.</summary>
+    public string? ImpactTemplateName { get; set; }
+
+    /// <summary>Spec 021 / FR-005 — label/value pairs of the captured Impact
+    /// parameters, rendered read-only on the Edit-page Impact summary.</summary>
+    public List<ImpactParameterDisplayViewModel> ImpactParameters { get; set; } = new();
+
+    /// <summary>Spec 021 / FR-005 — active categories for the inline add-item
+    /// form embedded in the draft editor.</summary>
+    public List<SelectListItem> Categories { get; set; } = new();
 
     /// <summary>
     /// Spec 015 / T413 — application-summary computed total in CRC. Sums each
@@ -55,4 +76,15 @@ public class QuotationSummaryViewModel
     public string? SnapshotRateType { get; set; }
     public DateTime? SnapshotEffectiveAtUtc { get; set; }
     public bool LegacyNeedsReview { get; set; }
+
+    // Spec 023 — surfaced so the Application/Edit view can render the per-row
+    // affordance (Editar) and any subsequent vigencia summary without re-querying.
+    public int SupplierBranchId { get; set; }
+    public DateOnly ValidUntil { get; set; }
+
+    // Spec 023 / FR-013 (evolution) — surfaced so the Application/Edit and
+    // Application/Details views can build the Descargar link without an extra
+    // EF round-trip for the Document row.
+    public int DocumentId { get; set; }
+    public string? DocumentFileName { get; set; }
 }

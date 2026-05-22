@@ -44,7 +44,11 @@ public class ReviewerScopeNextRequestTests
         AppEntity app;
         using (var ctx = CreateContext(dbName))
         {
-            norte = Group.Create("Norte");
+            // Spec 021 / FR-001 — every Group belongs to exactly one Process.
+            var process = Process.Create("Crocus 2025");
+            ctx.Processes.Add(process);
+            await ctx.SaveChangesAsync();
+            norte = Group.Create("Norte", process.Id);
             ctx.Groups.Add(norte);
             await ctx.SaveChangesAsync();
 
@@ -62,6 +66,7 @@ public class ReviewerScopeNextRequestTests
             await ctx.SaveChangesAsync();
 
             app = new AppEntity(applicantId: applicant.Id, companyName: "Test Company");
+            app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);
             ctx.Applications.Add(app);
             await ctx.SaveChangesAsync();

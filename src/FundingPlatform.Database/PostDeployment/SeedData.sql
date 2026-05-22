@@ -186,34 +186,34 @@ END;
 -- Impact Templates
 -- =============================================================================
 
--- Template: Increase Production Capacity
-IF NOT EXISTS (SELECT 1 FROM [dbo].[ImpactTemplates] WHERE [Name] = N'Increase Production Capacity')
+-- Plantilla de impacto: Aumento de capacidad productiva
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ImpactTemplates] WHERE [Name] = N'Aumento de capacidad productiva')
 BEGIN
     INSERT INTO [dbo].[ImpactTemplates] ([Name], [Description], [IsActive], [UpdatedAt])
-    VALUES (N'Increase Production Capacity', N'Measures the expected increase in production capacity resulting from the funded item', 1, GETUTCDATE());
+    VALUES (N'Aumento de capacidad productiva', N'Mide el aumento esperado en la capacidad productiva como resultado del bien adquirido', 1, GETUTCDATE());
 
     DECLARE @IncreaseCapacityId INT = SCOPE_IDENTITY();
 
     INSERT INTO [dbo].[ImpactTemplateParameters] ([ImpactTemplateId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
     VALUES
-        (@IncreaseCapacityId, N'CurrentCapacity',    N'Current Capacity',     1, 1, 1),
-        (@IncreaseCapacityId, N'ProjectedCapacity',   N'Projected Capacity',   1, 1, 2),
-        (@IncreaseCapacityId, N'TimeframeInMonths',   N'Timeframe in Months',  2, 1, 3);
+        (@IncreaseCapacityId, N'CurrentCapacity',    N'Capacidad actual',      1, 1, 1),
+        (@IncreaseCapacityId, N'ProjectedCapacity',   N'Capacidad proyectada',  1, 1, 2),
+        (@IncreaseCapacityId, N'TimeframeInMonths',   N'Plazo en meses',        2, 1, 3);
 END;
 
--- Template: Job Creation
-IF NOT EXISTS (SELECT 1 FROM [dbo].[ImpactTemplates] WHERE [Name] = N'Job Creation')
+-- Plantilla de impacto: Generación de empleo
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ImpactTemplates] WHERE [Name] = N'Generación de empleo')
 BEGIN
     INSERT INTO [dbo].[ImpactTemplates] ([Name], [Description], [IsActive], [UpdatedAt])
-    VALUES (N'Job Creation', N'Measures the expected number of new jobs created as a result of the funded item', 1, GETUTCDATE());
+    VALUES (N'Generación de empleo', N'Mide la cantidad esperada de nuevos empleos generados como resultado del bien adquirido', 1, GETUTCDATE());
 
     DECLARE @JobCreationId INT = SCOPE_IDENTITY();
 
     INSERT INTO [dbo].[ImpactTemplateParameters] ([ImpactTemplateId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
     VALUES
-        (@JobCreationId, N'CurrentEmployees',   N'Current Employees',    2, 1, 1),
-        (@JobCreationId, N'ProjectedNewJobs',    N'Projected New Jobs',   2, 1, 2),
-        (@JobCreationId, N'JobType',             N'Job Type',             0, 1, 3);
+        (@JobCreationId, N'CurrentEmployees',   N'Personas empleadas actuales', 2, 1, 1),
+        (@JobCreationId, N'ProjectedNewJobs',    N'Nuevos empleos proyectados',  2, 1, 2),
+        (@JobCreationId, N'JobType',             N'Tipo de empleo',              0, 1, 3);
 END;
 GO
 
@@ -307,4 +307,63 @@ ON tgt.[Name] = src.[Name]
 WHEN NOT MATCHED THEN
     INSERT ([Name], [CreatedAt], [UpdatedAt])
     VALUES (src.[Name], SYSUTCDATETIME(), SYSUTCDATETIME());
+GO
+
+-- =============================================================================
+-- Spec 021: Feedback Session May-13. Idempotent forward-only.
+-- Microsoft.Build.Sql 2.1.0 supports a single PostDeploy script; the three
+-- spec-021 seed files (Provinces/Cantones, "Migración inicial" Process +
+-- Groups FK, SupplierAdmin role) are included via SqlCmd :r directives so each
+-- step remains a standalone, reviewable script in the repo.
+--
+-- Order matters:
+--   1. Provinces + Cantones catalog (no other table depends on it at seed time).
+--   2. "Migración inicial" Process + reconcile Groups.ProcessId + add FK.
+--      Runs AFTER the Norte/Sur/Centro seed above so all rows are reconciled
+--      together.
+--   3. SupplierAdmin Identity role.
+--   4. Spec-021 SystemConfiguration rows (stage windows + public landing slot keys).
+-- =============================================================================
+
+:r .\01_SeedProvincesCantons.sql
+:r .\02_SeedMigracionInicialProcess.sql
+:r .\03_SeedSupplierAdminRole.sql
+
+-- =============================================================================
+-- Spec 021 / data-model.md — SystemConfiguration rows for stage windows and the
+-- public-landing slot StorageKeys (admins upload via the AdminPublicLandingFiles
+-- surface; the keys land NULL initially and the public landing renders the
+-- "Próximamente" placeholder until populated).
+-- =============================================================================
+IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'Stage.Solicitud.WindowDays')
+    INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])
+    VALUES (N'Stage.Solicitud.WindowDays', N'14',
+            N'Spec 021 — default Solicitud stage window in days; per-Process override on Processes.SolicitudWindowDays.',
+            SYSUTCDATETIME());
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'Stage.Revision.WindowDays')
+    INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])
+    VALUES (N'Stage.Revision.WindowDays', N'10',
+            N'Spec 021 — default Revisión stage window in days; per-Process override on Processes.RevisionWindowDays.',
+            SYSUTCDATETIME());
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'Stage.Facturacion.WindowDays')
+    INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])
+    VALUES (N'Stage.Facturacion.WindowDays', N'30',
+            N'Spec 021 — default Facturación stage window in days; per-Process override on Processes.FacturacionWindowDays.',
+            SYSUTCDATETIME());
+
+-- Public landing slots — the Value column is NOT NULL on the table, so seed an
+-- empty string sentinel; the admin upload flow rewrites it with a real storage key.
+IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'Public.Landing.Reglamento.StorageKey')
+    INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])
+    VALUES (N'Public.Landing.Reglamento.StorageKey', N'',
+            N'Spec 021 — IObjectStorage key for the Reglamento PDF on the public landing slot. Empty until admin uploads.',
+            SYSUTCDATETIME());
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'Public.Landing.Ejemplo.StorageKey')
+    INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])
+    VALUES (N'Public.Landing.Ejemplo.StorageKey', N'',
+            N'Spec 021 — IObjectStorage key for the supplier-quotation example on the public landing slot. Empty until admin uploads.',
+            SYSUTCDATETIME());
 GO

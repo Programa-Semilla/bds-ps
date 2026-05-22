@@ -34,6 +34,15 @@ public class SystemConfigurationRepository : ISystemConfigurationRepository
         return Task.CompletedTask;
     }
 
+    public async Task AddAsync(SystemConfiguration configuration)
+    {
+        // Spec 021 / US7 / T145 — used by the public-landing admin upload
+        // surface (and any future caller that needs to lazily provision a
+        // pointer row). Falls back to the EF add path so the new entity gets
+        // a freshly assigned identity column rather than going through Update.
+        await _context.SystemConfigurations.AddAsync(configuration);
+    }
+
     public async Task SaveChangesAsync()
     {
         await _context.SaveChangesAsync();

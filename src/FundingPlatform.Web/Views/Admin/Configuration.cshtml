@@ -49,7 +49,12 @@ else
                                     <strong>@Model.Configurations[i].Key</strong>
                                 </td>
                                 <td>
-                                    <input name="Configurations[@i].Value" value="@Model.Configurations[i].Value" class="form-control" required />
+                                    @* Value is intentionally not `required`: spec-021 seeds
+                                       Public.Landing.*.StorageKey rows with an empty-string
+                                       sentinel until the admin upload flow rewrites them. A
+                                       `required` attribute blocked the whole form from
+                                       submitting whenever any such row was present. *@
+                                    <input name="Configurations[@i].Value" value="@Model.Configurations[i].Value" class="form-control" />
                                 </td>
                                 <td class="text-secondary">@(Model.Configurations[i].Description ?? "-")</td>
                             </tr>

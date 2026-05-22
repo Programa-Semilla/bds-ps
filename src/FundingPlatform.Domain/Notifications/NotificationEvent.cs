@@ -21,6 +21,13 @@ public enum NotificationEvent
     ResubmittedByApplicant        = 4,
     ApplicationApproved           = 5,
     ApplicationRejected           = 6,
+
+    /// <summary>
+    /// Spec 021 / US9 / FR-040 — an applicant withdrew an <c>UnderReview</c>
+    /// Application. Notifies the same stage-group reviewer pool as
+    /// <see cref="ApplicationSubmittedReviewer"/>.
+    /// </summary>
+    WithdrawnByApplicant          = 7,
 }
 
 /// <summary>
@@ -44,6 +51,7 @@ public static class NotificationEventExtensions
         NotificationEvent.ResubmittedByApplicant        => "RESUBMITTED_BY_APPLICANT",
         NotificationEvent.ApplicationApproved           => "APPLICATION_APPROVED",
         NotificationEvent.ApplicationRejected           => "APPLICATION_REJECTED",
+        NotificationEvent.WithdrawnByApplicant          => "APPLICATION_WITHDRAWN_BY_APPLICANT",
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown NotificationEvent")
     };
 
@@ -60,6 +68,7 @@ public static class NotificationEventExtensions
         "RESUBMITTED_BY_APPLICANT"        => NotificationEvent.ResubmittedByApplicant,
         "APPLICATION_APPROVED"            => NotificationEvent.ApplicationApproved,
         "APPLICATION_REJECTED"            => NotificationEvent.ApplicationRejected,
+        "APPLICATION_WITHDRAWN_BY_APPLICANT" => NotificationEvent.WithdrawnByApplicant,
         _ => throw new ArgumentOutOfRangeException(nameof(storage), storage,
             "Unknown NotificationEvent storage code")
     };

@@ -9,7 +9,7 @@ namespace FundingPlatform.Web.ViewModels;
 /// gone (admin-only per FR-040). The single POST endpoint dispatches on which
 /// of SelectedBranchId / NewBranch / NewSupplier is populated.
 /// </summary>
-public class AddSupplierViewModel
+public class AddSupplierViewModel : IQuoteFieldsModel
 {
     public int ApplicationId { get; set; }
     public int ItemId { get; set; }

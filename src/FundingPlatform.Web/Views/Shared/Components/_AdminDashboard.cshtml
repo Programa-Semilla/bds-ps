@@ -46,6 +46,41 @@
         </div>
     </div>
 
+    @* Spec 021 / US6 / T137 / FR-032 / SC-010 — narrative KPI strip:
+       Personas activas + Fondos entregados. Rendered as a second row below
+       the four action KPIs so the existing layout (spec 017) is preserved.
+       Pending-quotation tile lives on the reviewer dashboard now (FR-033). *@
+    <div class="row row-cards mt-3" data-testid="admin-narrative-kpi-strip">
+        <div class="col-sm-6 col-lg-6">
+            @await Html.PartialAsync("Components/_KpiTile",
+                new KpiTileViewModel(
+                    Label: "Personas activas",
+                    NumericValue: Model.Kpis.PersonasActivas,
+                    Stack: null,
+                    Href: null,
+                    Slug: "personas-activas"))
+        </div>
+        <div class="col-sm-6 col-lg-6">
+            @{
+                // Fondos entregados is a currency total — KpiTile renders as
+                // an integer count by default, so we render the formatted CRC
+                // amount inline (es-CR, no decimals) while reusing the tile chrome.
+                var fondosFormatted = Model.Kpis.FondosEntregados.ToString(
+                    "C0", new System.Globalization.CultureInfo("es-CR"));
+            }
+            <div class="card fl-kpi-tile h-100"
+                 data-testid="admin-kpi-fondos-entregados"
+                 data-kpi-label="Fondos entregados">
+                <div class="card-body">
+                    <div class="fl-kpi-label" data-testid="kpi-tile-label">Fondos entregados</div>
+                    <div class="fl-kpi-value mb-0"
+                         data-testid="kpi-tile-currency"
+                         data-fondos-entregados-raw="@Model.Kpis.FondosEntregados.ToString(System.Globalization.CultureInfo.InvariantCulture)">@fondosFormatted</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @foreach (var sec in Model.Sections)
     {
         <div class="mt-4" role="region" aria-labelledby="admin-section-heading-@sec.HeaderSlug" data-testid="admin-section-@sec.HeaderSlug">

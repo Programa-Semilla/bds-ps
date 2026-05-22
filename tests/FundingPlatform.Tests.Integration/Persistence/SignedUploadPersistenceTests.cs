@@ -143,6 +143,7 @@ public class SignedUploadPersistenceTests
         ctx.SaveChanges();
 
         var application = new AppEntity(applicant.Id, "Test Company");
+        application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         application.AddItem(new Item("Laptop", category.Id, "specs"));
         typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Resolved);
         ctx.Applications.Add(application);

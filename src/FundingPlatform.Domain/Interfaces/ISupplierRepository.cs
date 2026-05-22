@@ -22,7 +22,30 @@ public interface ISupplierRepository
     // Spec 013: batch-load helper used by ApplicationService.SubmitAsync to avoid
     // N+1 round-trips when flipping multiple Draft suppliers to PendingReview.
     Task<IReadOnlyList<Supplier>> ListByIdsWithBranchesAsync(IReadOnlyCollection<int> supplierIds);
+
+    // Spec 021 / US3 / T108 / FR-011 — supplier-admin list with default sort
+    // by LastUsedAt DESC (derived from MAX(Quotation.CreatedAt) across the
+    // supplier's quotations) and an optional Process filter (matches
+    // suppliers used by Applications whose Applicant's Group sits under the
+    // given Process). Returns the supplier core fields + computed LastUsedAt.
+    Task<(IReadOnlyList<SupplierAdminLastUsedRow> Items, int Total)> ListForSupplierAdminAsync(
+        SupplierAdminFilter filter, int page, int pageSize);
 }
+
+/// <summary>
+/// Spec 021 / T108 / FR-011 — flat row used on the supplier-admin list. Carries
+/// the computed <see cref="LastUsedAt"/> (most-recent Quotation.CreatedAt) so
+/// the view can render and sort by it without further repo calls.
+/// </summary>
+public sealed record SupplierAdminLastUsedRow(
+    int Id,
+    string LegalId,
+    string Name,
+    SupplierVerificationStatus Status,
+    int BranchCount,
+    bool HasIncompleteCompliance,
+    DateTime UpdatedAt,
+    DateTime? LastUsedAt);
 
 /// <summary>
 /// Filter for the admin Suppliers queue. All fields are optional; when null/blank
@@ -34,4 +57,18 @@ public sealed class SupplierAdminFilter
     public string? LegalIdContains { get; init; }
     public string? NameContains { get; init; }
     public bool? HasIncompleteCompliance { get; init; }
+
+    /// <summary>
+    /// Spec 021 / US3 / T108 / FR-011 — restrict the list to suppliers
+    /// referenced by Applications whose Applicant's Group belongs to the
+    /// given Process. When null, the filter is omitted.
+    /// </summary>
+    public int? ProcessId { get; init; }
+
+    /// <summary>
+    /// Spec 021 / FR-009 — single search term applied to both Name and
+    /// CédulaJurídica (legalId). When set, supersedes the legacy
+    /// <see cref="LegalIdContains"/> + <see cref="NameContains"/> pair.
+    /// </summary>
+    public string? SearchTerm { get; init; }
 }

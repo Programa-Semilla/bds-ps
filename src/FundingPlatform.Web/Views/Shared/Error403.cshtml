@@ -1,0 +1,29 @@
+@{
+    // Spec 021 / US3 / T112 / FR-007 — Tabler-styled 403 page rendered when a
+    // SupplierAdmin-only user reaches a non-Suppliers admin route (or, more
+    // generally, any time SupplierAdminDenied/SupplierAdminOnly short-circuits).
+    //
+    // Links back to /Admin/Suppliers (the SupplierAdmin's allowed surface)
+    // when the caller holds the SupplierAdmin role; otherwise to / so an
+    // authenticated non-admin lands on the public landing.
+    ViewData["Title"] = "Acceso denegado";
+    var goBackUrl = User?.IsInRole("SupplierAdmin") == true
+        ? Url.Action("Index", "AdminSuppliers") ?? "/Admin/Suppliers"
+        : Url.Action("Index", "Home") ?? "/";
+}
+
+<div class="empty" data-testid="error-403-page">
+    <div class="empty-icon text-warning">
+        <i class="ti ti-lock-off icon-empty-state"></i>
+    </div>
+    <p class="empty-title">Acceso denegado</p>
+    <p class="empty-subtitle text-secondary">
+        No tiene permiso para acceder a esta sección. Si cree que es un error,
+        contacte al administrador del sistema.
+    </p>
+    <div class="empty-action">
+        <a href="@goBackUrl" class="btn btn-primary" data-testid="error-403-back-link">
+            <i class="ti ti-arrow-left me-1"></i> Volver
+        </a>
+    </div>
+</div>

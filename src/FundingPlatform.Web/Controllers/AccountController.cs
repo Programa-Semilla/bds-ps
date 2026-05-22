@@ -1,3 +1,5 @@
+using FundingPlatform.Application.Abstractions;
+using FundingPlatform.Application.Identity;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.ViewModels;
@@ -14,17 +16,32 @@ public class AccountController : Controller
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly AppDbContext _dbContext;
     private readonly IWebHostEnvironment _environment;
+    private readonly IIssuePasswordResetTokenHandler _issuePasswordResetTokenHandler;
+    private readonly IConsumePasswordResetTokenHandler _consumePasswordResetTokenHandler;
+    private readonly IUpdateProfileHandler _updateProfileHandler;
+    private readonly IEmailSender _emailSender;
+    private readonly Infrastructure.Email.ForgotPasswordEmailFactory _forgotPasswordEmailFactory;
 
     public AccountController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         AppDbContext dbContext,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        IIssuePasswordResetTokenHandler issuePasswordResetTokenHandler,
+        IConsumePasswordResetTokenHandler consumePasswordResetTokenHandler,
+        IUpdateProfileHandler updateProfileHandler,
+        IEmailSender emailSender,
+        Infrastructure.Email.ForgotPasswordEmailFactory forgotPasswordEmailFactory)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _dbContext = dbContext;
         _environment = environment;
+        _issuePasswordResetTokenHandler = issuePasswordResetTokenHandler;
+        _consumePasswordResetTokenHandler = consumePasswordResetTokenHandler;
+        _updateProfileHandler = updateProfileHandler;
+        _emailSender = emailSender;
+        _forgotPasswordEmailFactory = forgotPasswordEmailFactory;
     }
 
     [HttpGet]
@@ -168,6 +185,297 @@ public class AccountController : Controller
         return RedirectToAction("Index", "Home");
     }
 
+    // -----------------------------------------------------------------------
+    // Spec 021 / US5 / T127 / FR-028 — Forgot-password flow.
+    // The POST always returns the same neutral view regardless of whether the
+    // email is on file (no enumeration). When the email is known, an email is
+    // dispatched out-of-band; when unknown, no email is sent. Both branches
+    // render the same view, set the same TempData success banner, and return
+    // 200 — the response is indistinguishable to the client.
+    // -----------------------------------------------------------------------
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ForgotPassword()
+    {
+        return View(new ForgotPasswordViewModel());
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var result = await _issuePasswordResetTokenHandler.HandleAsync(
+            new IssuePasswordResetTokenCommand(model.Email), ct);
+
+        if (result.UserFound && !string.IsNullOrEmpty(result.RawToken) && !string.IsNullOrEmpty(result.UserId))
+        {
+            // Compose absolute reset link. Token is opaque base-64 from
+            // DataProtectorTokenProvider — URL-encode it so '+', '/', '=' survive.
+            var resetLink = Url.Action(
+                action: nameof(ResetPassword),
+                controller: "Account",
+                values: new { userId = result.UserId, token = result.RawToken },
+                protocol: Request.Scheme,
+                host: Request.Host.Value);
+
+            if (!string.IsNullOrEmpty(resetLink))
+            {
+                var expiresAt = DateTimeOffset.UtcNow.Add(PasswordResetToken.DefaultLifetime);
+                var envelope = _forgotPasswordEmailFactory.Build(
+                    toAddress: result.Email!,
+                    applicantFirstName: result.FirstName,
+                    resetLink: resetLink,
+                    expiresAt: expiresAt);
+                try
+                {
+                    await _emailSender.SendAsync(envelope, ct);
+                }
+                catch (Exception ex)
+                {
+                    // Swallow transport errors here — the neutral response is
+                    // required by FR-028 (no enumeration). The error is logged
+                    // by the sender; we MUST NOT surface it to the client.
+                    HttpContext.RequestServices
+                        .GetRequiredService<ILogger<AccountController>>()
+                        .LogWarning(ex, "Failed to send password-reset email; rendering neutral response anyway.");
+                }
+            }
+        }
+
+        // Neutral response for BOTH branches.
+        TempData["SuccessMessage"] =
+            "Si la dirección está registrada, le enviaremos instrucciones para restablecer su contraseña.";
+        return View(new ForgotPasswordViewModel { Email = model.Email });
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword(string? userId, string? token)
+    {
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(token))
+        {
+            ViewData["InvalidLink"] = true;
+            return View(new ResetPasswordViewModel());
+        }
+
+        // Soft existence check — the heavy verification happens on POST. We
+        // only need the user to exist; if they don't, render the invalid-link
+        // view so the form isn't presented.
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            ViewData["InvalidLink"] = true;
+            return View(new ResetPasswordViewModel());
+        }
+
+        return View(new ResetPasswordViewModel
+        {
+            UserId = userId,
+            Token = token,
+        });
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var result = await _consumePasswordResetTokenHandler.HandleAsync(
+            new ConsumePasswordResetTokenCommand(model.UserId, model.Token, model.NewPassword), ct);
+        if (!result.Success)
+        {
+            foreach (var msg in result.ErrorMessages)
+            {
+                ModelState.AddModelError(string.Empty, msg);
+            }
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = "Contraseña actualizada. Inicie sesión con su nueva contraseña.";
+        return RedirectToAction(nameof(Login));
+    }
+
+    // -----------------------------------------------------------------------
+    // Spec 021 / US5 / T127 / FR-018 — Self-service profile.
+    // FirstName / LastName / Phone / Address are editable. Email / Role /
+    // Group / CodigoPersonal render as read-only "administrado" fields and
+    // are rebuilt server-side on every request, so smuggled form fields
+    // cannot reach UpdateProfileCommand.
+    // -----------------------------------------------------------------------
+
+    [Authorize]
+    [HttpGet]
+    [Route("Profile")]
+    public async Task<IActionResult> Profile()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        var vm = await BuildProfileViewModelAsync(user);
+        return View(vm);
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("Profile/Update")]
+    public async Task<IActionResult> ProfileUpdate(ProfileViewModel model, CancellationToken ct)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        // Re-validate just the four self-editable fields; do not rely on the
+        // view-model's read-only properties (they are admin-managed).
+        ModelState.Remove(nameof(ProfileViewModel.Email));
+        ModelState.Remove(nameof(ProfileViewModel.Role));
+        ModelState.Remove(nameof(ProfileViewModel.Group));
+        ModelState.Remove(nameof(ProfileViewModel.CodigoPersonal));
+        ModelState.Remove($"{nameof(ProfileViewModel.ChangePassword)}.{nameof(ChangePasswordViewModel.OldPassword)}");
+        ModelState.Remove($"{nameof(ProfileViewModel.ChangePassword)}.{nameof(ChangePasswordViewModel.NewPassword)}");
+        ModelState.Remove($"{nameof(ProfileViewModel.ChangePassword)}.{nameof(ChangePasswordViewModel.ConfirmPassword)}");
+
+        if (!ModelState.IsValid)
+        {
+            var rebuilt = await BuildProfileViewModelAsync(user);
+            rebuilt.FirstName = model.FirstName;
+            rebuilt.LastName = model.LastName;
+            rebuilt.Phone = model.Phone;
+            rebuilt.Address = model.Address;
+            return View("Profile", rebuilt);
+        }
+
+        var result = await _updateProfileHandler.HandleAsync(
+            new UpdateProfileCommand(user.Id, model.FirstName, model.LastName, model.Phone, model.Address), ct);
+        if (!result.Success)
+        {
+            foreach (var msg in result.ErrorMessages)
+            {
+                ModelState.AddModelError(string.Empty, msg);
+            }
+            var rebuilt = await BuildProfileViewModelAsync(user);
+            rebuilt.FirstName = model.FirstName;
+            rebuilt.LastName = model.LastName;
+            rebuilt.Phone = model.Phone;
+            rebuilt.Address = model.Address;
+            return View("Profile", rebuilt);
+        }
+
+        TempData["SuccessMessage"] = "Perfil actualizado.";
+        return RedirectToAction(nameof(Profile));
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("Profile/ChangePassword")]
+    public async Task<IActionResult> ProfileChangePassword(ProfileViewModel model, CancellationToken ct)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        // Validate just the password section; profile-edit fields stay put.
+        ModelState.Remove(nameof(ProfileViewModel.FirstName));
+        ModelState.Remove(nameof(ProfileViewModel.LastName));
+        ModelState.Remove(nameof(ProfileViewModel.Phone));
+        ModelState.Remove(nameof(ProfileViewModel.Address));
+        ModelState.Remove(nameof(ProfileViewModel.Email));
+        ModelState.Remove(nameof(ProfileViewModel.Role));
+        ModelState.Remove(nameof(ProfileViewModel.Group));
+        ModelState.Remove(nameof(ProfileViewModel.CodigoPersonal));
+
+        if (!ModelState.IsValid)
+        {
+            var rebuilt = await BuildProfileViewModelAsync(user);
+            rebuilt.ChangePassword = model.ChangePassword;
+            return View("Profile", rebuilt);
+        }
+
+        var result = await _userManager.ChangePasswordAsync(
+            user, model.ChangePassword.OldPassword, model.ChangePassword.NewPassword);
+        if (!result.Succeeded)
+        {
+            foreach (var err in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, err.Description);
+            }
+            var rebuilt = await BuildProfileViewModelAsync(user);
+            rebuilt.ChangePassword = model.ChangePassword;
+            return View("Profile", rebuilt);
+        }
+
+        user.MustChangePassword = false;
+        await _userManager.UpdateAsync(user);
+        await _userManager.UpdateSecurityStampAsync(user);
+
+        // Force re-login per spec (security-stamp refresh invalidates the
+        // cookie anyway; doing the sign-out makes the redirect target obvious).
+        await _signInManager.SignOutAsync();
+        TempData["SuccessMessage"] = "Contraseña actualizada. Inicie sesión con su nueva contraseña.";
+        return RedirectToAction(nameof(Login));
+    }
+
+    private async Task<ProfileViewModel> BuildProfileViewModelAsync(ApplicationUser user)
+    {
+        var roles = await _userManager.GetRolesAsync(user);
+        // Highest-rank role first — Admin > Reviewer > SupplierAdmin > Applicant.
+        string DisplayRole(string r) => r switch
+        {
+            "Admin" => "Administrador",
+            "Reviewer" => "Revisor",
+            "SupplierAdmin" => "Administrador de proveedores",
+            "Applicant" => "Solicitante",
+            _ => r,
+        };
+        var rolePriority = new[] { "Admin", "Reviewer", "SupplierAdmin", "Applicant" };
+        var roleLabel = rolePriority.FirstOrDefault(roles.Contains);
+
+        // Pull groups via the same query that AdminUsersController uses.
+        var groups = await _dbContext.UserGroupMemberships
+            .AsNoTracking()
+            .Where(m => m.UserId == user.Id)
+            .Join(_dbContext.Groups.AsNoTracking(), m => m.GroupId, g => g.Id, (m, g) => g.Name)
+            .OrderBy(n => n)
+            .ToListAsync();
+        var groupLabel = groups.Count == 0 ? "—" : string.Join(", ", groups);
+
+        // Address is stored as a user-claim (see UpdateProfileHandler).
+        var claims = await _userManager.GetClaimsAsync(user);
+        var address = claims.FirstOrDefault(c => c.Type == "profile.address")?.Value;
+
+        return new ProfileViewModel
+        {
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Phone = user.PhoneNumber,
+            Address = address,
+            Email = user.Email ?? "",
+            Role = roleLabel is null ? "—" : DisplayRole(roleLabel),
+            Group = groupLabel,
+            CodigoPersonal = user.CodigoPersonal,
+        };
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> PromoteToAdmin(string email)
@@ -223,7 +531,10 @@ public class AccountController : Controller
             return NotFound();
         }
 
-        string[] allowedRoles = ["Admin", "Reviewer"];
+        // Spec 021 / US3 / T103 — E2E provisioning supports the new
+        // SupplierAdmin role so US3 can drive a real "role assigned" path
+        // through the admin UI it would normally use in prod.
+        string[] allowedRoles = ["Admin", "Reviewer", "SupplierAdmin"];
         if (!allowedRoles.Contains(role))
         {
             return BadRequest("Invalid role.");
@@ -341,12 +652,24 @@ public class AccountController : Controller
         await _dbContext.Database.ExecuteSqlRawAsync(
             "UPDATE dbo.Quotations SET LegacyNeedsReview = 0 WHERE LegacyNeedsReview = 1;");
         // UserGroupMemberships → Groups: ON DELETE CASCADE wipes memberships.
+        // Spec 021-feedback-session-may13 — Groups carry a NOT NULL FK to
+        // Processes. Deleting Groups does not touch Processes (child→parent),
+        // so the existing DELETE is safe. We leave the "Migración inicial"
+        // Process and any Plantillas in place; SeedAdminFixture re-attaches
+        // the demo groups to it on the next teardown call.
         await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.Groups;");
-        // ImpactTemplates referenced by Impacts (NO ACTION) and ImpactParameterValues
-        // via ImpactTemplateParameters (NO ACTION); CASCADE only covers the
-        // template-to-parameter direction.
+        // Spec 021-feedback-session-may13 — dbo.Impacts table dropped (FR-005;
+        // Impact relocated from Item to Application as a value object). The
+        // dependent ImpactParameterValues now reference Applications, not
+        // Impacts, and survive the template reset.
         await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.ImpactParameterValues;");
-        await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.Impacts;");
+        // Spec 021-feedback-session-may13 — new NO-ACTION FKs into
+        // ImpactTemplates: Applications.ImpactTemplateId (nullable) and
+        // PlantillaImpactTemplates.ImpactTemplateId. Null the Applications ref
+        // and wipe the join rows before deleting templates.
+        await _dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE dbo.Applications SET ImpactTemplateId = NULL WHERE ImpactTemplateId IS NOT NULL;");
+        await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.PlantillaImpactTemplates;");
         await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.ImpactTemplates;");
 
         return Ok("Admin fixture reset.");
@@ -369,41 +692,150 @@ public class AccountController : Controller
             return NotFound();
         }
 
+        // Spec 021-feedback-session-may13 / data-model — Groups.ProcessId is
+        // NOT NULL with a real FK to dbo.Processes. The 02_SeedMigracionInicial
+        // post-deploy script provides the bootstrap row; resolve it here and
+        // attach the demo groups to it so the insert satisfies the FK.
         await _dbContext.Database.ExecuteSqlRawAsync(@"
+DECLARE @ProcessId INT = (
+    SELECT [Id] FROM [dbo].[Processes] WHERE [Name] = N'Migración inicial'
+);
+IF @ProcessId IS NULL
+BEGIN
+    INSERT INTO [dbo].[Processes] ([Name], [Status]) VALUES (N'Migración inicial', 0);
+    SET @ProcessId = SCOPE_IDENTITY();
+END;
 MERGE INTO dbo.Groups AS tgt
 USING (VALUES (N'Norte'), (N'Sur'), (N'Centro')) AS src ([Name])
 ON tgt.[Name] = src.[Name]
-WHEN NOT MATCHED THEN INSERT ([Name], [CreatedAt], [UpdatedAt])
-    VALUES (src.[Name], SYSUTCDATETIME(), SYSUTCDATETIME());");
+WHEN NOT MATCHED THEN INSERT ([Name], [ProcessId], [CreatedAt], [UpdatedAt])
+    VALUES (src.[Name], @ProcessId, SYSUTCDATETIME(), SYSUTCDATETIME());");
 
         await _dbContext.Database.ExecuteSqlRawAsync(@"
-IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Increase Production Capacity')
+IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Aumento de capacidad productiva')
 BEGIN
     INSERT INTO dbo.ImpactTemplates ([Name], [Description], [IsActive], [UpdatedAt])
-    VALUES (N'Increase Production Capacity',
-            N'Measures the expected increase in production capacity resulting from the funded item',
+    VALUES (N'Aumento de capacidad productiva',
+            N'Mide el aumento esperado en la capacidad productiva como resultado del bien adquirido',
             1, GETUTCDATE());
     DECLARE @cap INT = SCOPE_IDENTITY();
     INSERT INTO dbo.ImpactTemplateParameters ([ImpactTemplateId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
     VALUES
-        (@cap, N'CurrentCapacity',    N'Current Capacity',    1, 1, 1),
-        (@cap, N'ProjectedCapacity',  N'Projected Capacity',  1, 1, 2),
-        (@cap, N'TimeframeInMonths',  N'Timeframe in Months', 2, 1, 3);
+        (@cap, N'CurrentCapacity',    N'Capacidad actual',     1, 1, 1),
+        (@cap, N'ProjectedCapacity',  N'Capacidad proyectada', 1, 1, 2),
+        (@cap, N'TimeframeInMonths',  N'Plazo en meses',       2, 1, 3);
 END;
-IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Job Creation')
+IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Generación de empleo')
 BEGIN
     INSERT INTO dbo.ImpactTemplates ([Name], [Description], [IsActive], [UpdatedAt])
-    VALUES (N'Job Creation',
-            N'Measures the expected number of new jobs created as a result of the funded item',
+    VALUES (N'Generación de empleo',
+            N'Mide la cantidad esperada de nuevos empleos generados como resultado del bien adquirido',
             1, GETUTCDATE());
     DECLARE @job INT = SCOPE_IDENTITY();
     INSERT INTO dbo.ImpactTemplateParameters ([ImpactTemplateId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
     VALUES
-        (@job, N'CurrentEmployees',  N'Current Employees',   2, 1, 1),
-        (@job, N'ProjectedNewJobs',  N'Projected New Jobs',  2, 1, 2),
-        (@job, N'JobType',           N'Job Type',            0, 1, 3);
+        (@job, N'CurrentEmployees',  N'Personas empleadas actuales', 2, 1, 1),
+        (@job, N'ProjectedNewJobs',  N'Nuevos empleos proyectados',  2, 1, 2),
+        (@job, N'JobType',           N'Tipo de empleo',              0, 1, 3);
 END;");
 
         return Ok("Admin fixture re-seeded.");
+    }
+
+    /// <summary>
+    /// Spec 021 / T124 / US5 — dev-only helper for the forgot-password E2E
+    /// test. Returns the latest *unconsumed* password-reset link for the user
+    /// matching <paramref name="email"/>. Returns 404 outside development.
+    /// The link is composed exactly the way the controller's email path
+    /// composes it, so the E2E test can follow it like a real user would.
+    /// </summary>
+    [HttpGet]
+    [Route("Account/LatestPasswordResetLink")]
+    public async Task<IActionResult> LatestPasswordResetLink(string email)
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return BadRequest("email is required.");
+        }
+
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var rawToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        await _dbContext.Set<PasswordResetToken>().AddAsync(
+            PasswordResetToken.Issue(
+                user.Id,
+                System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(rawToken)),
+                DateTimeOffset.UtcNow,
+                PasswordResetToken.DefaultLifetime));
+        await _dbContext.SaveChangesAsync();
+
+        var link = Url.Action(
+            action: nameof(ResetPassword),
+            controller: "Account",
+            values: new { userId = user.Id, token = rawToken },
+            protocol: Request.Scheme,
+            host: Request.Host.Value);
+
+        return Ok(link);
+    }
+
+    /// <summary>
+    /// Spec 021 / T114 / US4 — dev-only helper for the stage-expiry E2E test.
+    /// Backdates <c>Applications.StageEnteredAt</c> by the supplied
+    /// <paramref name="daysAgo"/> so the test can drive an Application into the
+    /// "Vencido" bucket without waiting for real time to pass. Idempotent;
+    /// production environments return 404.
+    /// </summary>
+    [HttpGet]
+    [Route("Account/BackdateStageEntered")]
+    public async Task<IActionResult> BackdateStageEntered(int applicationId, int daysAgo)
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+        if (daysAgo <= 0) return BadRequest("daysAgo must be positive.");
+
+        var newInstant = DateTimeOffset.UtcNow.AddDays(-daysAgo);
+        var rows = await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE dbo.Applications SET StageEnteredAt = {newInstant} WHERE Id = {applicationId};");
+        return Ok($"Backdated Application {applicationId} StageEnteredAt by {daysAgo} day(s); rows={rows}.");
+    }
+
+    /// <summary>
+    /// Spec 021 / T151 / T154 / US8 / FR-021 — dev-only helper for the
+    /// soft-delete E2E regression. Loads the Application, invokes the domain
+    /// <see cref="Domain.Entities.Application.SoftDelete"/> method, and saves.
+    /// Mirrors what the admin <c>POST /Admin/Applications/{id}/SoftDelete</c>
+    /// route does so the E2E can drive it without antiforgery / admin-cookie
+    /// plumbing. Production environments return 404.
+    /// </summary>
+    [HttpGet]
+    [Route("Account/SoftDeleteApplication")]
+    public async Task<IActionResult> SoftDeleteApplication(int applicationId)
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+
+        var entity = await _dbContext.Applications
+            .FirstOrDefaultAsync(a => a.Id == applicationId);
+        if (entity is null)
+        {
+            return NotFound($"Application {applicationId} not found.");
+        }
+
+        entity.SoftDelete();
+        await _dbContext.SaveChangesAsync();
+        return Ok($"Soft-deleted Application {applicationId}; DeletedAt={entity.DeletedAt:o}.");
     }
 }

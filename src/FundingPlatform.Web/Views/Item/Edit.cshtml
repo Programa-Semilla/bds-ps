@@ -10,7 +10,7 @@
         Breadcrumbs: new[]
         {
             new BreadcrumbItem("Mis solicitudes", Url.Action("Index", "Application")),
-            new BreadcrumbItem($"Solicitud N.º {Model.ApplicationId}", Url.Action("Details", "Application", new { id = Model.ApplicationId })),
+            new BreadcrumbItem($"Solicitud {Model.ApplicationId}", Url.Action("Details", "Application", new { id = Model.ApplicationId })),
             new BreadcrumbItem("Editar ítem"),
         }))
 

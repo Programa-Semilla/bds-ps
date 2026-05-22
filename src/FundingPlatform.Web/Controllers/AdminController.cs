@@ -1,5 +1,6 @@
 using FundingPlatform.Application.Admin.Commands;
 using FundingPlatform.Application.Services;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
@@ -7,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FundingPlatform.Web.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SupplierAdmin")]
+[SupplierAdminDenied]
 public class AdminController : Controller
 {
     private readonly AdminService _adminService;
@@ -165,7 +167,7 @@ public class AdminController : Controller
         }
 
         var command = new UpdateSystemConfigurationCommand(
-            model.Configurations.Select(c => new ConfigurationUpdate(c.Id, c.Value)).ToList());
+            model.Configurations.Select(c => new ConfigurationUpdate(c.Id, c.Value ?? string.Empty)).ToList());
 
         await _adminService.UpdateSystemConfigurationAsync(command);
 

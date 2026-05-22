@@ -1,9 +1,15 @@
 @using FundingPlatform.Domain.Enums
 @model FundingPlatform.Web.ViewModels.SigningStagePanelViewModel
 
+@* Spec 021 / US7 / T149 / FR-029 — this partial is included on both the
+   applicant Application/Details page (in scope for the sweep) AND the
+   FundingAgreement/Details surface (legal carve-out). To keep the partial
+   safe on the applicant surface, the header drops the word "financiamiento".
+   The Funding Agreement PDF still renders the full legal name (separate view
+   FundingAgreement/Document.cshtml). *@
 <div class="card mb-4" id="funding-agreement-panel" data-application-id="@Model.ApplicationId">
     <div class="card-header">
-        <strong>Convenio de financiamiento</strong>
+        <strong>Convenio</strong>
     </div>
     <div class="card-body">
         @if (TempData["FundingAgreementError"] is string errorMessage)

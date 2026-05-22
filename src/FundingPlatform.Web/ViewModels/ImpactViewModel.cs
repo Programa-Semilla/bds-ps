@@ -1,10 +1,22 @@
 namespace FundingPlatform.Web.ViewModels;
 
+/// <summary>
+/// Spec 021 / FR-005 — the Impact step. Impact is a per-Application concern
+/// captured upfront; this view model is no longer Item-shaped.
+/// </summary>
 public class ImpactViewModel
 {
     public int ApplicationId { get; set; }
-    public int ItemId { get; set; }
-    public string ItemProductName { get; set; } = string.Empty;
+    public string? PublicCode { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Where to land after saving Impact: <c>"edit"</c> returns to the draft
+    /// editor (the US2 impact-first flow); anything else returns to Details
+    /// (the surface the legacy item-row "Impacto" link is reached from).
+    /// </summary>
+    public string? ReturnTo { get; set; }
+
     public int? SelectedTemplateId { get; set; }
     public List<ImpactTemplateOptionViewModel> Templates { get; set; } = new();
     public List<ImpactParameterInputViewModel> Parameters { get; set; } = new();

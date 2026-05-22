@@ -1,5 +1,23 @@
 @using FundingPlatform.Application.DTOs
+@using FundingPlatform.Web.ViewModels
 @model ReviewerQueueRowDto
+@{
+    // Spec 021 / T119 / FR-024 — per-row stage countdown badge. Controller
+    // stashes a Dictionary<int, StageCountdownBannerViewModel> in
+    // ViewData["StageBanners"] keyed by the numeric Application.Id encoded in
+    // ApplicationNumber ("APP-{Id:D5}").
+    StageCountdownBannerViewModel? stageBanner = null;
+    if (ViewData["StageBanners"] is Dictionary<int, StageCountdownBannerViewModel> bannersMap
+        && !string.IsNullOrEmpty(Model.ApplicationNumber))
+    {
+        var dashIdx = Model.ApplicationNumber.LastIndexOf('-');
+        if (dashIdx >= 0 && int.TryParse(Model.ApplicationNumber.AsSpan(dashIdx + 1), out var parsedId)
+            && bannersMap.TryGetValue(parsedId, out var entry))
+        {
+            stageBanner = entry;
+        }
+    }
+}
 <tr class="fl-queue-row"
     data-testid="reviewer-queue-row"
     data-application-number="@Model.ApplicationNumber"
@@ -7,6 +25,27 @@
     <td class="fl-pad-2">
         <div class="fl-app-card-mono fl-type-meta" data-testid="row-application-number">@Model.ApplicationNumber</div>
         <div class="fl-type-meta fw-semibold" data-testid="row-project-name">@Model.ProjectName</div>
+        @if (stageBanner is not null)
+        {
+            var remaining = stageBanner.Remaining;
+            var stageClass = stageBanner.Closed || stageBanner.IsDanger ? "badge bg-danger-lt" : "badge bg-warning-lt";
+            <div class="mt-1" data-testid="stage-countdown-badge" data-stage-closed="@(stageBanner.Closed ? "true" : "false")">
+                <span class="@stageClass" data-testid="stage-countdown-text">
+                    @if (stageBanner.Closed)
+                    {
+                        <text>Vencido (@stageBanner.ClosesAt.ToString("dd/MM/yyyy"))</text>
+                    }
+                    else if (remaining < TimeSpan.FromHours(24))
+                    {
+                        <text>Cierra en @remaining.Hours h @remaining.Minutes m</text>
+                    }
+                    else
+                    {
+                        <text>Cierra en @((int)remaining.TotalDays) d @remaining.Hours h</text>
+                    }
+                </span>
+            </div>
+        }
         @if (Model.TotalConvertedCrc.HasValue)
         {
             @* Spec 015 / T414 — converted-CRC total inline to keep the column count stable. *@

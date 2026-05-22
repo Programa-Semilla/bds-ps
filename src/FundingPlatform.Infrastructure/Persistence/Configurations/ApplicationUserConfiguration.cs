@@ -19,6 +19,10 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
             .HasForeignKey(m => m.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Spec 021 / FR-018 / FR-019 — admin-set free-text personal code,
+        // read-only to the user on /profile, visible on admin reports.
+        builder.Property(u => u.CodigoPersonal).HasMaxLength(40);
+
         builder.Metadata
             .FindNavigation(nameof(ApplicationUser.Memberships))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);

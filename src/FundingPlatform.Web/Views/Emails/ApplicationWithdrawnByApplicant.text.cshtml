@@ -1,0 +1,18 @@
+@{
+    ViewData["DisableLayout"] = true;
+}Solicitud retirada por el solicitante: @Model.Payload.ApplicantDisplayName
+
+Hola @Model.Recipient.DisplayName,
+
+@Model.Payload.ApplicantDisplayName retiró su solicitud (#@Model.Payload.ApplicationId) mientras estaba en revisión. Ya no aparece en tu cola de revisión y no requiere ninguna acción de tu parte.
+
+Ver la cola de revisión:
+@Model.CtaUrl
+
+Saludos cordiales,
+Programa Semilla
+Sistema de Banca para el Desarrollo
+
+—
+Para soporte: soporte@@programa-semilla.cr
+Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.

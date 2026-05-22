@@ -1,0 +1,105 @@
+@*
+    Spec 021 / US1 / T083 — admin Process catalog index.
+    Routes per contracts/admin-routes.md (Processes section).
+*@
+@using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.Models
+@model FundingPlatform.Web.ViewModels.Admin.AdminProcessesIndexViewModel
+@{
+    ViewData["Title"] = "Procesos";
+    string StatusLabel(ProcessStatus s) => s switch
+    {
+        ProcessStatus.Active => "Activo",
+        ProcessStatus.Closed => "Cerrado",
+        _ => s.ToString(),
+    };
+}
+
+<div data-testid="admin-processes-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: "Procesos",
+            Subtitle: "Administre los ciclos anuales del programa.",
+            PrimaryActions: new[]
+            {
+                new ActionItem(
+                    Label: "Crear proceso",
+                    Class: ActionClass.Primary,
+                    Url: Url.Action("Create", "AdminProcesses"),
+                    Icon: "ti ti-plus")
+            }))
+
+    @if (TempData["SuccessMessage"] is string flash && !string.IsNullOrEmpty(flash))
+    {
+        <div class="alert alert-success" data-testid="admin-processes-flash">@flash</div>
+    }
+
+    <form method="get" asp-action="Index" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-processes-filter-form">
+        <select name="statusFilter" class="form-select" data-testid="admin-processes-status-filter" style="max-width: 200px;">
+            <option value="">Todos los estados</option>
+            <option value="@ProcessStatus.Active" selected="@(Model.StatusFilter == ProcessStatus.Active)">@StatusLabel(ProcessStatus.Active)</option>
+            <option value="@ProcessStatus.Closed" selected="@(Model.StatusFilter == ProcessStatus.Closed)">@StatusLabel(ProcessStatus.Closed)</option>
+        </select>
+        <button type="submit" class="btn btn-secondary" data-testid="admin-processes-filter-submit">Aplicar</button>
+    </form>
+
+    @if (Model.Rows.Count == 0)
+    {
+        <div data-testid="admin-processes-empty">
+            @await Html.PartialAsync("Components/_EmptyState",
+                new EmptyStateViewModel(
+                    Headline: "Aún no hay procesos. Cree el primero.",
+                    Body: "Cree un ciclo de programa (p. ej. *Crocus 2025*) para empezar a administrar grupos y solicitudes.",
+                    Icon: "ti ti-calendar-event",
+                    IllustrationSceneKey: "folders-stack",
+                    PrimaryAction: new ActionItem(
+                        Label: "Crear proceso",
+                        Class: ActionClass.Primary,
+                        Url: Url.Action("Create", "AdminProcesses"),
+                        Icon: "ti ti-plus")))
+        </div>
+    }
+    else
+    {
+        <div class="card" data-testid="admin-processes-table">
+            <div class="table-responsive">
+                <table class="fl-table" data-density="reviewer">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th>Plantilla asignada</th>
+                            <th class="w-1">Grupos</th>
+                            <th>Creado</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr data-testid="admin-process-row-@row.Id">
+                                <td data-testid="admin-process-name">@row.Name</td>
+                                <td>
+                                    <span class="badge bg-@(row.Status == ProcessStatus.Active ? "green-lt" : "secondary")"
+                                          data-testid="admin-process-status">@StatusLabel(row.Status)</span>
+                                </td>
+                                <td data-testid="admin-process-plantilla">
+                                    @(row.PlantillaName ?? "—")
+                                </td>
+                                <td data-testid="admin-process-group-count">@row.GroupCount</td>
+                                <td>@row.CreatedAt.ToString("yyyy-MM-dd")</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-secondary"
+                                       data-testid="admin-process-details"
+                                       href="@Url.Action("Details", "AdminProcesses", new { id = row.Id })">
+                                        <i class="ti ti-eye"></i> Ver
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

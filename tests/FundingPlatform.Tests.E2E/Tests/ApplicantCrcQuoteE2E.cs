@@ -87,10 +87,14 @@ public class ApplicantCrcQuoteE2E : AuthenticatedTestBase
         await supplierPage.QuotationFileInput.SetInputFilesAsync(_testFilePath);
         await supplierPage.SubmitAsync();
 
-        // Saved → redirected back to Application Details.
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        // Saved → redirected back to the draft editor.
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
-        // Detail page shows only the CRC amount + CRC currency. No USD/converted block.
+        // Quotation rows render on the read-only Details summary.
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
+        await Page.GotoAsync($"{BaseUrl}/Application/Details/{appId}");
+
+        // The summary shows only the CRC amount + CRC currency. No USD/converted block.
         // Note: Intl/CultureInfo es-CR uses U+00A0 (non-breaking space) as the
         // thousands separator; \s in .NET regex matches it, plain ' ' does not.
         var quotationRow = Page.Locator("[data-testid=quotation-row]").First;
@@ -118,13 +122,13 @@ public class ApplicantCrcQuoteE2E : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
         Assert.That(appIdMatch.Success, Is.True);
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "CRC Test Item", 0, "Specs", BaseUrl);
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
     }
 
     private async Task ClickAddSupplierOnItemRowAsync()

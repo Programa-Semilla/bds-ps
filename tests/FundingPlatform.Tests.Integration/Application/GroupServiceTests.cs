@@ -9,12 +9,15 @@ using Microsoft.EntityFrameworkCore;
 namespace FundingPlatform.Tests.Integration.Application;
 
 /// <summary>
-/// Spec 016 — DB-backed service tests for <see cref="GroupService"/>.
+/// Spec 016 / 021 — DB-backed service tests for <see cref="GroupService"/>.
 /// SCOPE LIMITATION: uses the EF InMemory provider for parity with the rest of
 /// this project (see <c>ExchangeRateRepositoryTests</c>). The real SQL unique
 /// index, case/accent-insensitive collation, and ON DELETE CASCADE are
 /// exercised by the E2E suite (T029, T050) against the Aspire-orchestrated
 /// SQL container.
+///
+/// Spec 021 / FR-001 — every Group belongs to exactly one Process; the create
+/// path requires a Process id and there is no Process-less fallback.
 /// </summary>
 [TestFixture]
 public class GroupServiceTests
@@ -43,15 +46,25 @@ public class GroupServiceTests
         return user;
     }
 
+    /// <summary>Spec 021 / FR-001 — seeds an Active Process and returns its id.</summary>
+    private static async Task<int> SeedProcessAsync(AppDbContext ctx, string name = "Crocus 2025")
+    {
+        var process = Process.Create(name);
+        ctx.Processes.Add(process);
+        await ctx.SaveChangesAsync();
+        return process.Id;
+    }
+
     [Test]
     public async Task Create_PersistsGroup_AndWritesAuditRow()
     {
         var dbName = $"groups-create-{Guid.NewGuid():N}";
         using var ctx = CreateContext(dbName);
         await SeedUserAsync(ctx, "admin@example.com");
+        var processId = await SeedProcessAsync(ctx);
         var sut = BuildService(ctx);
 
-        var id = await sut.CreateAsync("Norte", ActorAdminId, CancellationToken.None);
+        var id = await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None);
 
         Assert.That(id, Is.GreaterThan(0));
         var group = await ctx.Groups.SingleAsync(g => g.Id == id);
@@ -67,23 +80,128 @@ public class GroupServiceTests
     }
 
     [Test]
+    public async Task Create_AttachesGroupToGivenProcess_AndAuditCarriesProcessId()
+    {
+        // Spec 021 / FR-001 — the created Group belongs to exactly the Process
+        // the caller supplied (no "Migración inicial" fallback).
+        var dbName = $"groups-create-process-{Guid.NewGuid():N}";
+        using var ctx = CreateContext(dbName);
+        var processId = await SeedProcessAsync(ctx, "Crocus 2025");
+        var sut = BuildService(ctx);
+
+        var id = await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None);
+
+        var group = await ctx.Groups.SingleAsync(g => g.Id == id);
+        Assert.That(group.ProcessId, Is.EqualTo(processId));
+
+        var audit = await ctx.AdminAuditEvents
+            .SingleAsync(e => e.Action == AdminAuditEvent.ActionGroupCreate);
+        Assert.That(audit.PayloadJson, Does.Contain($"\"processId\":{processId}"));
+    }
+
+    [Test]
+    public async Task Create_UnknownProcess_ThrowsKeyNotFound()
+    {
+        var dbName = $"groups-create-noproc-{Guid.NewGuid():N}";
+        using var ctx = CreateContext(dbName);
+        var sut = BuildService(ctx);
+
+        Assert.ThrowsAsync<KeyNotFoundException>(
+            async () => await sut.CreateAsync("Norte", 99999, ActorAdminId, CancellationToken.None));
+    }
+
+    [Test]
+    public async Task Create_ClosedProcess_ThrowsInvalidOperation()
+    {
+        var dbName = $"groups-create-closed-{Guid.NewGuid():N}";
+        using var ctx = CreateContext(dbName);
+        var process = Process.Create("Crocus 2024");
+        process.Close();
+        ctx.Processes.Add(process);
+        await ctx.SaveChangesAsync();
+        var sut = BuildService(ctx);
+
+        Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await sut.CreateAsync("Norte", process.Id, ActorAdminId, CancellationToken.None));
+    }
+
+    [Test]
     public async Task Create_DuplicateName_ThrowsDuplicateGroupNameException()
     {
         var dbName = $"groups-dupe-{Guid.NewGuid():N}";
         using var ctx = CreateContext(dbName);
         await SeedUserAsync(ctx, "admin@example.com");
+        var processId = await SeedProcessAsync(ctx);
         var sut = BuildService(ctx);
 
-        await sut.CreateAsync("Norte", ActorAdminId, CancellationToken.None);
+        await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None);
 
         Assert.ThrowsAsync<DuplicateGroupNameException>(
-            async () => await sut.CreateAsync("Norte", ActorAdminId, CancellationToken.None));
+            async () => await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None));
         // Pre-check uses the case-sensitive InMemory provider; the real SQL
         // unique index (case- and accent-insensitive collation) is verified by
         // the E2E suite. Test the trim path here — equally trimmed name still
         // collides via the exact-match pre-check.
         Assert.ThrowsAsync<DuplicateGroupNameException>(
-            async () => await sut.CreateAsync("  Norte  ", ActorAdminId, CancellationToken.None));
+            async () => await sut.CreateAsync("  Norte  ", processId, ActorAdminId, CancellationToken.None));
+    }
+
+    [Test]
+    public async Task MoveToProcess_ReparentsGroup_AndWritesAuditRow()
+    {
+        // Spec 021 / FR-001 — admin reparents a Group to a different Process.
+        var dbName = $"groups-move-{Guid.NewGuid():N}";
+        using var ctx = CreateContext(dbName);
+        var fromProcess = await SeedProcessAsync(ctx, "Crocus 2025");
+        var toProcess = await SeedProcessAsync(ctx, "Nexo 2026");
+        var sut = BuildService(ctx);
+
+        var id = await sut.CreateAsync("Norte", fromProcess, ActorAdminId, CancellationToken.None);
+
+        await sut.MoveToProcessAsync(id, toProcess, ActorAdminId, CancellationToken.None);
+
+        var group = await ctx.Groups.SingleAsync(g => g.Id == id);
+        Assert.That(group.ProcessId, Is.EqualTo(toProcess));
+
+        var audit = await ctx.AdminAuditEvents
+            .SingleAsync(e => e.Action == AdminAuditEvent.ActionGroupMoveProcess);
+        Assert.That(audit.TargetId, Is.EqualTo(id.ToString()));
+        Assert.That(audit.PayloadJson, Does.Contain($"\"fromProcessId\":{fromProcess}"));
+        Assert.That(audit.PayloadJson, Does.Contain($"\"toProcessId\":{toProcess}"));
+    }
+
+    [Test]
+    public async Task MoveToProcess_SameProcess_IsNoOp_WritesNoAuditRow()
+    {
+        var dbName = $"groups-move-noop-{Guid.NewGuid():N}";
+        using var ctx = CreateContext(dbName);
+        var processId = await SeedProcessAsync(ctx);
+        var sut = BuildService(ctx);
+
+        var id = await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None);
+        await sut.MoveToProcessAsync(id, processId, ActorAdminId, CancellationToken.None);
+
+        var moveAudits = await ctx.AdminAuditEvents
+            .CountAsync(e => e.Action == AdminAuditEvent.ActionGroupMoveProcess);
+        Assert.That(moveAudits, Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task MoveToProcess_ClosedTarget_ThrowsInvalidOperation()
+    {
+        var dbName = $"groups-move-closed-{Guid.NewGuid():N}";
+        using var ctx = CreateContext(dbName);
+        var fromProcess = await SeedProcessAsync(ctx, "Crocus 2025");
+        var closed = Process.Create("Crocus 2024");
+        closed.Close();
+        ctx.Processes.Add(closed);
+        await ctx.SaveChangesAsync();
+        var sut = BuildService(ctx);
+
+        var id = await sut.CreateAsync("Norte", fromProcess, ActorAdminId, CancellationToken.None);
+
+        Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await sut.MoveToProcessAsync(id, closed.Id, ActorAdminId, CancellationToken.None));
     }
 
     [Test]
@@ -92,9 +210,10 @@ public class GroupServiceTests
         var dbName = $"groups-rename-{Guid.NewGuid():N}";
         using var ctx = CreateContext(dbName);
         var user = await SeedUserAsync(ctx, "alice@example.com");
+        var processId = await SeedProcessAsync(ctx);
         var sut = BuildService(ctx);
 
-        var id = await sut.CreateAsync("Norte", ActorAdminId, CancellationToken.None);
+        var id = await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None);
         ctx.UserGroupMemberships.Add(new UserGroupMembership(user.Id, id));
         await ctx.SaveChangesAsync();
 
@@ -120,10 +239,11 @@ public class GroupServiceTests
         var dbName = $"groups-rename-dupe-{Guid.NewGuid():N}";
         using var ctx = CreateContext(dbName);
         await SeedUserAsync(ctx, "admin@example.com");
+        var processId = await SeedProcessAsync(ctx);
         var sut = BuildService(ctx);
 
-        var id1 = await sut.CreateAsync("Norte", ActorAdminId, CancellationToken.None);
-        await sut.CreateAsync("Sur", ActorAdminId, CancellationToken.None);
+        var id1 = await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None);
+        await sut.CreateAsync("Sur", processId, ActorAdminId, CancellationToken.None);
 
         Assert.ThrowsAsync<DuplicateGroupNameException>(
             async () => await sut.RenameAsync(id1, "Sur", ActorAdminId, CancellationToken.None));
@@ -135,9 +255,10 @@ public class GroupServiceTests
         var dbName = $"groups-delete-{Guid.NewGuid():N}";
         using var ctx = CreateContext(dbName);
         var user = await SeedUserAsync(ctx, "alice@example.com");
+        var processId = await SeedProcessAsync(ctx);
         var sut = BuildService(ctx);
 
-        var id = await sut.CreateAsync("Norte", ActorAdminId, CancellationToken.None);
+        var id = await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None);
         ctx.UserGroupMemberships.Add(new UserGroupMembership(user.Id, id));
         await ctx.SaveChangesAsync();
 
@@ -159,16 +280,17 @@ public class GroupServiceTests
     }
 
     [Test]
-    public async Task List_ProjectsMemberCount()
+    public async Task List_ProjectsMemberCount_AndOwningProcessName()
     {
         var dbName = $"groups-list-{Guid.NewGuid():N}";
         using var ctx = CreateContext(dbName);
         var u1 = await SeedUserAsync(ctx, "u1@example.com");
         var u2 = await SeedUserAsync(ctx, "u2@example.com");
+        var processId = await SeedProcessAsync(ctx, "Crocus 2025");
         var sut = BuildService(ctx);
 
-        var norteId = await sut.CreateAsync("Norte", ActorAdminId, CancellationToken.None);
-        var surId = await sut.CreateAsync("Sur", ActorAdminId, CancellationToken.None);
+        var norteId = await sut.CreateAsync("Norte", processId, ActorAdminId, CancellationToken.None);
+        var surId = await sut.CreateAsync("Sur", processId, ActorAdminId, CancellationToken.None);
 
         ctx.UserGroupMemberships.Add(new UserGroupMembership(u1.Id, norteId));
         ctx.UserGroupMemberships.Add(new UserGroupMembership(u2.Id, norteId));
@@ -181,7 +303,10 @@ public class GroupServiceTests
         // Sorted by name asc: "Norte", "Sur" (alphabetical).
         Assert.That(rows[0].Name, Is.EqualTo("Norte"));
         Assert.That(rows[0].MemberCount, Is.EqualTo(2));
+        Assert.That(rows[0].ProcessId, Is.EqualTo(processId));
+        Assert.That(rows[0].ProcessName, Is.EqualTo("Crocus 2025"));
         Assert.That(rows[1].Name, Is.EqualTo("Sur"));
         Assert.That(rows[1].MemberCount, Is.EqualTo(1));
+        Assert.That(rows[1].ProcessName, Is.EqualTo("Crocus 2025"));
     }
 }

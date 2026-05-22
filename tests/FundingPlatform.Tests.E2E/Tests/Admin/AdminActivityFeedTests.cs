@@ -59,10 +59,13 @@ public class AdminActivityFeedTests : AuthenticatedTestBase
 
         // Create a group → emits AdminAuditEvent("group.create") which the
         // projection picks up as a FeedVisible=true entry on the next reload.
-        await Page.GotoAsync($"{BaseUrl}/Admin/Groups/Create");
-        await Page.Locator("[data-testid=admin-group-name-input]").FillAsync($"FeedTestGroup-{uniqueId}");
-        await Page.Locator("[data-testid=admin-group-create-submit]").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Groups(\\?.*)?$"));
+        // Spec 021 / FR-001 — Groups are created from the Process detail page.
+        var procPage = new ProcessAdminPage(Page);
+        await procPage.GoToCreateAsync(BaseUrl);
+        await procPage.CreateProcessAsync($"FeedProc-{uniqueId}");
+        await procPage.OpenProcessDetailByNameAsync(BaseUrl, $"FeedProc-{uniqueId}");
+        await procPage.CreateGroupAsync($"FeedTestGroup-{uniqueId}");
+        await Expect(procPage.GroupRow($"FeedTestGroup-{uniqueId}")).ToBeVisibleAsync();
 
         var dashboard = new AdminDashboardPage(Page);
         await dashboard.GotoAsync(BaseUrl);

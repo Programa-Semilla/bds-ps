@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-14
+Last updated: 2026-05-21
 
 ## Sessions
 
@@ -24,7 +24,10 @@ Last updated: 2026-05-14
 | 16 | 2026-05-08 | pdf-template-lift | spec-created | 018 |
 | 17 | 2026-05-09 | programa-semilla-brand | spec-created | 019 |
 | 18 | 2026-05-11 | ai-quote-comparison | spec-created | 020 |
-| 19 | 2026-05-11 | email-notifications | spec-created | 021 |
+| 19 | 2026-05-11 | email-notifications | spec-created | 021-email-notifications |
+| 20 | 2026-05-13 | feedback-session-may13 | spec-created | 021-feedback-session-may13 |
+| 21 | 2026-05-20 | quotation-edit | spec-created | 023 |
+| 22 | 2026-05-21 | applicant-delete-withdrawal | spec-created | 021-feedback-session-may13 |
 
 ## Open Threads
 
@@ -170,11 +173,33 @@ Last updated: 2026-05-14
 - `NotificationOutbox` retention — 90 days for `Done`, 1 year for `DeadLetter` recommended (from #19)
 - Future multi-replica worker scaling — correctness covered today (FR-004 + FR-020 + EC-008); throughput tuning deferred (from #19)
 - Brand-grep gate scope for new email templates: source-`.cshtml` layer (recommended) vs render-time scan (from #19)
-- Future in-app notifications / bell icon / SignalR / push / SMS / Slack — spec 021 ships email-only; in-app channel still pending (carries forward from #08 / #11; spec 021 closes the email subset only)
-- Future stage-granular notification events (`STAGE_APPROVED`, `REVIEWER_ASSIGNED`, `REVIEWER_UNASSIGNED`, `COMMENT_ADDED`) — out of scope for 021; eligible for v2 if reviewer churn proves a real signal (from #19)
-- Future signing-stage notification events (`AGREEMENT_GENERATED`, `SIGNED_PDF_UPLOADED`) — out of scope for 021; eligible for a follow-up once 005 / 006 traffic patterns are observed (from #19)
+- Future in-app notifications / bell icon / SignalR / push / SMS / Slack — spec 021-email-notifications ships email-only; in-app channel still pending (carries forward from #08 / #11)
+- Future stage-granular notification events (`STAGE_APPROVED`, `REVIEWER_ASSIGNED`, `REVIEWER_UNASSIGNED`, `COMMENT_ADDED`) — out of scope for 021-email-notifications; eligible for v2 if reviewer churn proves a real signal (from #19)
+- Future signing-stage notification events (`AGREEMENT_GENERATED`, `SIGNED_PDF_UPLOADED`) — out of scope for 021-email-notifications; eligible for a follow-up once 005 / 006 traffic patterns are observed (from #19)
 - Future user-facing notification-preferences UI / opt-out flow — deferred; OQ-001 may force a static unsubscribe-mailto footer in the interim (from #19)
 - Future Mailgun bounce-webhook ingestion + suppression-list sync — deferred until Mailgun delivery telemetry justifies the loop (from #19)
+- Plantilla cardinality per Process — one-to-one (default) vs many-to-one; pin in `/speckit-plan` (from #20, OQ-1)
+- Process closure freeze semantics on `FundingAgreement` (default = freeze) (from #20, OQ-2)
+- Stage-expiry override granularity — per-Process only (default) vs also per-Plantilla (from #20, OQ-3)
+- PublicCode rendering on legacy Funding Agreement PDF template (spec 018) — template field swap vs footnote (from #20, OQ-4)
+- Reglamento + ejemplo file content ownership and authoring source — admin team vs Programa Semilla operations (from #20, OQ-5)
+- Email-reminder cadence (T-72h / T-24h / expiry) — fixed (default) vs admin-configurable (from #20, OQ-6)
+- SupplierAdmin scope — full CRUD on suppliers (default) vs validate-only-existing (from #20, OQ-7)
+- Hint copy authorship for FR-020's initial set — designer / copywriter delivery pending (from #20, OQ-8)
+- Process audit-event coverage extends `AdminAuditEvent` (spec 016 pattern) — pin in plan (from #20, OQ-9)
+- Provincia *"Otro/Extranjero"* handling — block in UI (default) vs catalog row; revisit if foreign suppliers surface (from #20, OQ-10)
+- Admin-override path for expired stage-windows — whether the HTTP 422 hard-block should be overridable from the admin panel (from #20)
+- BCCR exchange-rate auto-fetch + Tropic AI quotation extraction — research-only in 021-feedback-session-may13; needs future brainstorm / spec to productize (from #20)
+- Single-spec scope vs. architectural / UX split — stakeholder picked single-shot; reviewer brief flags this for stakeholder pushback (from #20)
+- Include "Replace file" affordance on the Quotation/Edit page (one-stop editing) vs keep Replace on the Application/Edit row — default: keep on row (from #21, OQ-1)
+- Emit `AdminAuditEvent` for applicant-initiated quotation edits vs stay silent like Item/Edit — default: silent for v1 (from #21, OQ-2)
+- Deep-link the `RETURNED_TO_APPLICANT` email CTA to `Quotation/{id}/Edit` — defer to spec 021 email-template touch-up (from #21, OQ-3)
+- Constitution OC-gate posture on Quotation Edit — single-actor / two-tabs-same-user; justify last-write-wins in `plan.md` Complexity Tracking or add a rowversion token (from #21, R-1)
+- Shared partial file name for the extracted quote-fields fragment — `_QuotationFieldsForm.cshtml` working name; pin during planning (from #21)
+- AI-cache invalidation race window with in-flight `ComparisonJob` for the same Item — pin during planning (from #21)
+- Withdrawal reviewer-notification trigger — `UnderReview`-only (default) vs also still-pending `Submitted` vs never; confirm with stakeholders (from #22, OQ-11)
+- Idempotency-key shape for `APPLICATION_WITHDRAWN_BY_APPLICANT` so it's distinct from other reviewer-bucket events for the same Application — pin during planning (from #22)
+- Whether withdrawal should leave an applicant-visible "Retirada" trace vs. silently vanishing like a soft-delete — parked (from #22)
 
 ## Closed Threads
 

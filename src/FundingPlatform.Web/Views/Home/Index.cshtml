@@ -1,43 +1,91 @@
+@using FundingPlatform.Web.ViewModels.Public
+@model PublicLandingViewModel
 @{
-    ViewData["Title"] = "Inicio";
+    // Spec 021 / US7 / T144 / FR-031 — anonymous public landing.
+    //   * Hero CTA copy: `Public.Hero.Cta` resx key (¿Listo para acelerar tu negocio?)
+    //   * Button copy : `Public.Hero.Button` resx key (Iniciar acompañamiento)
+    //   * Three slot regions: Reglamento, Ejemplo de cotización, Sponsor strip.
+    //   * Slots without uploaded files render `PublicLanding.PlaceholderProximamente`
+    //     (Próximamente) so the page composes even before an admin uploads files.
+    //
+    // The project does not wire IStringLocalizer into views yet — the resx
+    // keys are mirrored as inline literals (see Views/Application/Review.cshtml
+    // for the same pattern). The resx is the authority; this view stays in
+    // lockstep with it.
+    ViewData["Title"] = "Programa Semilla";
+
+    // Resx-mirrored constants. Keep in lockstep with `Localization/021.es-CR.resx`.
+    const string HeroCta = "¿Listo para acelerar tu negocio?";
+    const string HeroButton = "Iniciar acompañamiento";
+    const string Proximamente = "Próximamente";
 }
 
-<div class="empty">
-    <div class="empty-icon">
-        <i class="ti ti-coin icon-empty-state"></i>
+<section class="container py-5" data-testid="public-landing">
+    <div class="text-center mb-5" data-testid="public-landing-hero">
+        <h1 class="fl-font-display fl-type-display mb-3" data-testid="public-landing-cta">@HeroCta</h1>
+        <p class="fl-text-secondary fl-type-body mb-4">
+            Programa Semilla acompaña a empresarios de Costa Rica con asesoría, conexiones y herramientas
+            para acelerar su negocio.
+        </p>
+        <a asp-controller="Account" asp-action="Register" class="btn btn-primary btn-lg"
+           data-testid="public-landing-cta-button">
+            <i class="ti ti-rocket me-2"></i>@HeroButton
+        </a>
     </div>
-    <p class="empty-title">Plataforma de solicitudes de financiamiento</p>
-    <p class="empty-subtitle text-secondary">Envíe y administre sus solicitudes de financiamiento.</p>
-    <div class="empty-action">
-        @if (User.Identity?.IsAuthenticated != true)
-        {
-            <a asp-controller="Account" asp-action="Register" class="btn btn-primary me-2">
-                <i class="ti ti-user-plus me-1"></i>Crear cuenta
-            </a>
-            <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary">
-                <i class="ti ti-login me-1"></i>Iniciar sesión
-            </a>
-        }
-        else if (User.IsInRole("Admin"))
-        {
-            <a asp-controller="Admin" asp-action="Index" class="btn btn-primary me-2">
-                <i class="ti ti-settings me-1"></i>Panel de administración
-            </a>
-            <a asp-controller="Review" asp-action="Index" class="btn btn-outline-primary">
-                <i class="ti ti-clipboard-check me-1"></i>Cola de revisión
-            </a>
-        }
-        else if (User.IsInRole("Reviewer"))
-        {
-            <a asp-controller="Review" asp-action="Index" class="btn btn-primary">
-                <i class="ti ti-clipboard-check me-1"></i>Cola de revisión
-            </a>
-        }
-        else
-        {
-            <a asp-controller="Application" asp-action="Index" class="btn btn-primary">
-                <i class="ti ti-files me-1"></i>Mis solicitudes
-            </a>
-        }
+
+    <div class="row g-3" data-testid="public-landing-slots">
+        <div class="col-12 col-md-6">
+            <article class="card h-100" data-testid="public-landing-slot-reglamento">
+                <div class="card-body d-flex flex-column">
+                    <h3 class="card-title fl-font-display">Reglamento</h3>
+                    <p class="card-text fl-text-secondary flex-grow-1">
+                        Descargue el reglamento vigente del Programa Semilla.
+                    </p>
+                    @if (Model.ReglamentoAvailable)
+                    {
+                        <a class="btn btn-outline-primary"
+                           href="/files/public-landing/reglamento"
+                           data-testid="public-landing-reglamento-link">
+                            <i class="ti ti-download me-1"></i>Descargar
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary align-self-start"
+                              data-testid="public-landing-reglamento-placeholder">@Proximamente</span>
+                    }
+                </div>
+            </article>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <article class="card h-100" data-testid="public-landing-slot-ejemplo">
+                <div class="card-body d-flex flex-column">
+                    <h3 class="card-title fl-font-display">Ejemplo de cotización</h3>
+                    <p class="card-text fl-text-secondary flex-grow-1">
+                        Revise un ejemplo de cotización aceptado por el programa.
+                    </p>
+                    @if (Model.EjemploAvailable)
+                    {
+                        <a class="btn btn-outline-primary"
+                           href="/files/public-landing/ejemplo"
+                           data-testid="public-landing-ejemplo-link">
+                            <i class="ti ti-download me-1"></i>Descargar
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary align-self-start"
+                              data-testid="public-landing-ejemplo-placeholder">@Proximamente</span>
+                    }
+                </div>
+            </article>
+        </div>
     </div>
-</div>
+
+    @* Spec 019 FR-003 — sponsor partner-logo strip. The shared _Layout.cshtml
+       already renders _SponsorStrip in its page-wrapper footer, so the strip
+       is present on every page (including anonymous /). We do NOT re-render
+       it here to avoid duplicate strips; the test still asserts visibility
+       via [data-testid="sponsor-strip"] which is owned by the layout. *@
+</section>

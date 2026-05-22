@@ -1,0 +1,110 @@
+@*
+    Spec 021 / US1 / T083 — Plantilla catalog index.
+*@
+@using FundingPlatform.Web.Models
+@model FundingPlatform.Web.ViewModels.Admin.AdminPlantillasIndexViewModel
+@{
+    ViewData["Title"] = "Plantillas";
+}
+
+<div data-testid="admin-plantillas-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: "Plantillas",
+            Subtitle: "Plantillas reutilizables que definen mínimo de cotizaciones, plantillas de impacto y campos requeridos.",
+            PrimaryActions: new[]
+            {
+                new ActionItem(
+                    Label: "Crear plantilla",
+                    Class: ActionClass.Primary,
+                    Url: Url.Action("Create", "AdminPlantillas"),
+                    Icon: "ti ti-plus")
+            }))
+
+    @if (TempData["SuccessMessage"] is string flash && !string.IsNullOrEmpty(flash))
+    {
+        <div class="alert alert-success" data-testid="admin-plantillas-flash">@flash</div>
+    }
+    @if (TempData["ErrorMessage"] is string err && !string.IsNullOrEmpty(err))
+    {
+        <div class="alert alert-danger" data-testid="admin-plantillas-error">@err</div>
+    }
+
+    @if (Model.Rows.Count == 0)
+    {
+        <div data-testid="admin-plantillas-empty">
+            @await Html.PartialAsync("Components/_EmptyState",
+                new EmptyStateViewModel(
+                    Headline: "Aún no hay plantillas. Cree la primera.",
+                    Body: "Cree una plantilla base para luego asignarla a un proceso.",
+                    Icon: "ti ti-template",
+                    IllustrationSceneKey: "folders-stack",
+                    PrimaryAction: new ActionItem(
+                        Label: "Crear plantilla",
+                        Class: ActionClass.Primary,
+                        Url: Url.Action("Create", "AdminPlantillas"),
+                        Icon: "ti ti-plus")))
+        </div>
+    }
+    else
+    {
+        <div class="card" data-testid="admin-plantillas-table">
+            <div class="table-responsive">
+                <table class="fl-table" data-density="reviewer">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th class="w-1">Mín. cotiz.</th>
+                            <th class="w-1">Plantillas de impacto</th>
+                            <th class="w-1">Procesos asignados</th>
+                            <th>Estado</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr data-testid="admin-plantilla-row-@row.Id">
+                                <td data-testid="admin-plantilla-name">@row.Name</td>
+                                <td>@row.MinimumQuotationsPerItem</td>
+                                <td>@row.ImpactTemplateCount</td>
+                                <td>@row.AssignedProcessCount</td>
+                                <td>
+                                    @if (row.IsArchived)
+                                    {
+                                        <span class="badge bg-secondary">Archivada</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-green-lt">Activa</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-list justify-content-end">
+                                        <a class="btn btn-sm btn-outline-secondary"
+                                           data-testid="admin-plantilla-edit"
+                                           href="@Url.Action("Edit", "AdminPlantillas", new { id = row.Id })">
+                                            <i class="ti ti-edit"></i> Editar
+                                        </a>
+                                        @if (!row.IsArchived && row.AssignedProcessCount == 0)
+                                        {
+                                            <form method="post" asp-action="Archive" asp-controller="AdminPlantillas"
+                                                  asp-route-id="@row.Id" class="d-inline"
+                                                  onsubmit="return confirm('¿Archivar la plantilla?');">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-outline-warning"
+                                                        data-testid="admin-plantilla-archive">
+                                                    <i class="ti ti-archive"></i> Archivar
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

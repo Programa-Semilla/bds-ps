@@ -45,10 +45,9 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
             .HasForeignKey(i => i.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(i => i.Impact)
-            .WithOne(imp => imp.Item)
-            .HasForeignKey<Impact>(imp => imp.ItemId)
-            .OnDelete(DeleteBehavior.Cascade);
+        // Spec 021 / FR-005 — per-Item Impact navigation removed; the
+        // per-Application Impact value object lives on the Application
+        // aggregate and is configured in ApplicationConfiguration.
 
         builder.HasMany(i => i.Quotations)
             .WithOne()

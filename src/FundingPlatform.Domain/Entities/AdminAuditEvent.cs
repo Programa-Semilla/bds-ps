@@ -11,11 +11,32 @@ public class AdminAuditEvent
     public const string ActionGroupCreate = "group.create";
     public const string ActionGroupRename = "group.rename";
     public const string ActionGroupDelete = "group.delete";
+    /// <summary>Spec 021 / FR-001 — admin reparented a Group to a different Process.</summary>
+    public const string ActionGroupMoveProcess = "group.move_process";
     /// <summary>User membership-update action key.</summary>
     public const string ActionUserMembershipsUpdate = "user.memberships.update";
 
     public const string TargetTypeGroup = "group";
     public const string TargetTypeUser = "user";
+
+    // ---------- Spec 021 event-kind discriminators (OQ-9). ----------
+    /// <summary>Spec 021 — admin created a Process row.</summary>
+    public const string ProcessCreated = "process.created";
+    /// <summary>Spec 021 — admin closed a Process (Status → Closed).</summary>
+    public const string ProcessClosed = "process.closed";
+    /// <summary>Spec 021 — admin set or cleared a per-Process stage-window override.</summary>
+    public const string ProcessStageWindowOverridden = "process.stage_window.overridden";
+    /// <summary>Spec 021 — admin attached a Plantilla to a Process (snapshot created).</summary>
+    public const string PlantillaAssignedToProcess = "plantilla.assigned_to_process";
+    /// <summary>Spec 021 — admin force-detached a Plantilla from a Process with a reason.</summary>
+    public const string PlantillaForceDetached = "plantilla.force_detached";
+    /// <summary>Spec 021 / FR-007 — SupplierAdmin attempted to reach a restricted admin route.</summary>
+    public const string SupplierAdminDeniedAccess = "supplier_admin.denied_access";
+
+    /// <summary>Spec 021 — target-type discriminators for the new event kinds.</summary>
+    public const string TargetTypeProcess = "process";
+    public const string TargetTypePlantilla = "plantilla";
+    public const string TargetTypeAdminRoute = "admin_route";
 
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }

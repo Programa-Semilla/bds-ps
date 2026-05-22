@@ -1,8 +1,14 @@
 @using FundingPlatform.Web.Localization
 @model FundingPlatform.Web.ViewModels.FundingAgreementDetailsViewModel
 
+@* Spec 021 / US7 / T149 / FR-029 — "Convenio de financiamiento" is the legal
+   entity name of the Funding Agreement document. FR-029 carves out the
+   Funding Agreement PDF for the legal term; this Details surface is the HTML
+   counterpart of that PDF and lives under /FundingAgreement/* — the
+   ForbiddenStringsCrawler exempts that URL prefix in US7, so the legal name
+   is preserved here intentionally. *@
 @{
-    ViewData["Title"] = $"Convenio de financiamiento — Solicitud N.º {Model.Panel.ApplicationId}";
+    ViewData["Title"] = $"Convenio de financiamiento — Solicitud {Model.Panel.ApplicationId}";
     var preview = Model.Preview;
     var culture = EsCrCultureFactory.Build();
     string Money(decimal value) => $"₡{value.ToString("N2", culture)}";
@@ -10,7 +16,7 @@
 
 @await Html.PartialAsync("Components/_PageHeader",
     new PageHeaderViewModel(
-        Title: $"Solicitud N.º {Model.Panel.ApplicationId} — Convenio de financiamiento",
+        Title: $"Solicitud {Model.Panel.ApplicationId} — Convenio de financiamiento",
         Breadcrumbs: new[]
         {
             new BreadcrumbItem("Inicio", Url.Action("Index", "Home")),

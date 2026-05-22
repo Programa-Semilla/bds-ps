@@ -65,9 +65,13 @@ public class UserAdministrationGroupsTests
 
     private static async Task<int[]> SeedGroupsAsync(AppDbContext ctx, params string[] names)
     {
+        // Spec 021 / FR-001 — every Group belongs to exactly one Process.
+        var process = Process.Create("Crocus 2025");
+        ctx.Processes.Add(process);
+        await ctx.SaveChangesAsync();
         foreach (var n in names)
         {
-            ctx.Groups.Add(Group.Create(n));
+            ctx.Groups.Add(Group.Create(n, process.Id));
         }
         await ctx.SaveChangesAsync();
         return ctx.Groups.OrderBy(g => g.Id).Select(g => g.Id).ToArray();

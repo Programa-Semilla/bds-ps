@@ -26,25 +26,23 @@ public class AdminGroupsPage : AdminBasePage
     public ILocator RowMemberCount(string name) =>
         RowFor(name).Locator("[data-testid=\"admin-group-member-count\"]");
 
-    // Create / Edit form
+    /// <summary>Spec 021 / FR-001 — the owning-Process column on a Groups-index row.</summary>
+    public ILocator RowProcess(string name) =>
+        RowFor(name).Locator("[data-testid=\"admin-group-process\"]");
+
+    // Edit form. Spec 021 / FR-001 — Group *creation* moved to the Process
+    // detail page (see ProcessAdminPage.CreateGroupAsync); this POM keeps the
+    // rename / reparent / delete surface only.
     public ILocator NameInput => Page.Locator("[data-testid=\"admin-group-name-input\"]");
     public ILocator NameError => Page.Locator("[data-testid=\"admin-group-name-error\"]");
     public ILocator ValidationSummary => Page.Locator("[data-testid=\"admin-group-validation-summary\"]");
-    public ILocator CreateSubmit => Page.Locator("[data-testid=\"admin-group-create-submit\"]");
+    public ILocator ProcessSelect => Page.Locator("[data-testid=\"admin-group-process-select\"]");
+    public ILocator ProcessError => Page.Locator("[data-testid=\"admin-group-process-error\"]");
     public ILocator EditSubmit => Page.Locator("[data-testid=\"admin-group-edit-submit\"]");
     public ILocator DeleteSubmit => Page.Locator("[data-testid=\"admin-group-delete-submit\"]");
 
     public Task GoToIndexAsync(string baseUrl) =>
         Page.GotoAsync($"{baseUrl}/Admin/Groups");
-
-    public Task GoToCreateAsync(string baseUrl) =>
-        Page.GotoAsync($"{baseUrl}/Admin/Groups/Create");
-
-    public async Task CreateGroupAsync(string name)
-    {
-        await NameInput.FillAsync(name);
-        await CreateSubmit.ClickAsync();
-    }
 
     public async Task RenameGroupAsync(string newName)
     {

@@ -9,6 +9,17 @@
     <h1 class="cover-title">Informe de evaluación de solicitudes de desembolso</h1>
     <div class="teal-divider"></div>
 
+    @* Spec 021 / FR-008 / OQ-4 — opaque PublicCode replaces the legacy
+       "Solicitud N.º {Id}" token (template field swap; SC-005). The legal
+       term "financiamiento" elsewhere on this PDF stays per the FR-029
+       carve-out — only the identifier is changing. *@
+    @if (!string.IsNullOrWhiteSpace(Model.PublicCode))
+    {
+        <p class="cover-public-code" data-testid="cover-public-code">
+            <strong>Solicitud @Model.PublicCode</strong>
+        </p>
+    }
+
     <dl class="applicant-block">
         <dt><strong>Empresa solicitante:</strong></dt>
         <dd data-testid="cover-company-name">@Model.CompanyName</dd>

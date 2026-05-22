@@ -39,7 +39,7 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
 
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
@@ -61,8 +61,8 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
             isCompliantSICOP: false);
         await supplierPage.SubmitAsync();
 
-        // Should redirect back to application details
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
+        // Should redirect back to the draft editor
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
         // Verify the supplier was added
         var itemRow = Page.Locator("table tbody tr:has-text('Compliance Test Item')");
@@ -227,7 +227,7 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
 
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
@@ -261,23 +261,9 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
         await supplierPage.FillSupplierFormAsync($"SE3-{_uniqueId}", "Bare Minimum Supplier", 1000m, "2027-12-31", _testFilePath);
         await supplierPage.SubmitAsync();
 
-        // Set impact assessment
-        var impactButton = Page.Locator("a:has-text('Impacto')").First;
-        await impactButton.ClickAsync();
-        await PickFirstImpactTemplateAsync();
-        var paramInputs = Page.Locator(".parameter-field input.form-control");
-        var inputCount = await paramInputs.CountAsync();
-        for (int i = 0; i < inputCount; i++)
-        {
-            var input = paramInputs.Nth(i);
-            var inputType = await input.GetAttributeAsync("type");
-            await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "Test value");
-        }
-        await Page.Locator("button[type=submit]:has-text('Guardar impacto')").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
-
-        // Submit the application
-        await Page.Locator("button[type=submit]:has-text('Enviar solicitud')").ClickAsync();
+        // Set impact assessment + submit through the draft editor → /review.
+        await SetImpactFromEditAsync(appId);
+        await SubmitDraftViaReviewAsync(appId);
         await Expect(Page.Locator("[data-testid=status-pill]:has-text('Enviada')")).ToBeVisibleAsync();
 
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
@@ -298,7 +284,7 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
 
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
@@ -319,22 +305,9 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
             isCompliantCCSS: true, isCompliantHacienda: true, isCompliantSICOP: false);
         await supplierPage.SubmitAsync();
 
-        // Set impact and submit
-        var impactButton = Page.Locator("a:has-text('Impacto')").First;
-        await impactButton.ClickAsync();
-        await PickFirstImpactTemplateAsync();
-        var paramInputs = Page.Locator(".parameter-field input.form-control");
-        var inputCount = await paramInputs.CountAsync();
-        for (int i = 0; i < inputCount; i++)
-        {
-            var input = paramInputs.Nth(i);
-            var inputType = await input.GetAttributeAsync("type");
-            await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "Test value");
-        }
-        await Page.Locator("button[type=submit]:has-text('Guardar impacto')").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
-
-        await Page.Locator("button[type=submit]:has-text('Enviar solicitud')").ClickAsync();
+        // Set impact and submit through the draft editor → /review.
+        await SetImpactFromEditAsync(appId);
+        await SubmitDraftViaReviewAsync(appId);
         await Expect(Page.Locator("[data-testid=status-pill]:has-text('Enviada')")).ToBeVisibleAsync();
 
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
@@ -355,7 +328,7 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
 
         var url = Page.Url;
-        var appIdMatch = Regex.Match(url, @"/Application/Details/(\d+)");
+        var appIdMatch = Regex.Match(url, @"/Application/Edit/(\d+)");
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
@@ -375,22 +348,9 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
         await supplierPage.FillSupplierFormAsync($"SING2-{_uniqueId}", "Second Solo Supplier", 900m, "2027-12-31", _testFilePath);
         await supplierPage.SubmitAsync();
 
-        // Set impact and submit
-        var impactButton = Page.Locator("a:has-text('Impacto')").First;
-        await impactButton.ClickAsync();
-        await PickFirstImpactTemplateAsync();
-        var paramInputs = Page.Locator(".parameter-field input.form-control");
-        var inputCount = await paramInputs.CountAsync();
-        for (int i = 0; i < inputCount; i++)
-        {
-            var input = paramInputs.Nth(i);
-            var inputType = await input.GetAttributeAsync("type");
-            await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "Test value");
-        }
-        await Page.Locator("button[type=submit]:has-text('Guardar impacto')").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
-
-        await Page.Locator("button[type=submit]:has-text('Enviar solicitud')").ClickAsync();
+        // Set impact and submit through the draft editor → /review.
+        await SetImpactFromEditAsync(appId);
+        await SubmitDraftViaReviewAsync(appId);
         await Expect(Page.Locator("[data-testid=status-pill]:has-text('Enviada')")).ToBeVisibleAsync();
 
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();

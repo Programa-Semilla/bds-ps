@@ -1,4 +1,7 @@
 using FundingPlatform.Domain.Enums;
+using FundingPlatform.Domain.Exceptions;
+using FundingPlatform.Domain.ValueObjects;
+using DomainImpact = FundingPlatform.Domain.ValueObjects.Impact;
 
 namespace FundingPlatform.Domain.Entities;
 
@@ -8,6 +11,7 @@ public class Application
     private readonly List<VersionHistory> _versionHistory = [];
     private readonly List<ApplicantResponse> _applicantResponses = [];
     private readonly List<Appeal> _appeals = [];
+    private readonly List<ImpactParameterValue> _impactParameterValues = [];
     private FundingAgreement? _fundingAgreement;
 
     public int Id { get; private set; }
@@ -18,6 +22,66 @@ public class Application
     /// trimmed, ≤200 chars. Mutated via <see cref="SetCompanyName"/>.
     /// </summary>
     public string CompanyName { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Spec 021 / FR-008 — opaque, human-readable identifier surfaced on every
+    /// applicant-facing surface (dashboard, reviewer queue, signing inbox,
+    /// Funding Agreement PDF, notification emails). Immutable post-construction:
+    /// once the Infrastructure generator stamps it via <see cref="AssignPublicCode"/>,
+    /// the code stays for the life of the Application.
+    /// </summary>
+    public PublicCode? PublicCode { get; private set; }
+
+    /// <summary>
+    /// Spec 021 / FR-005 — the applicant's chosen ImpactTemplate (one per Application).
+    /// Nullable while the Application is in Draft; the <see cref="Submit"/> guard chain
+    /// requires it to be set before the state can advance to Submitted.
+    /// </summary>
+    public int? ImpactTemplateId { get; private set; }
+    public ImpactTemplate? ImpactTemplate { get; private set; }
+
+    /// <summary>
+    /// Spec 021 / FR-005 — re-parented parameter-value rows (was <c>Items.ImpactId →
+    /// Impacts → ImpactParameterValues</c>; now <c>Applications → ImpactParameterValues</c>).
+    /// Populated by <see cref="SetImpact"/>.
+    /// </summary>
+    public IReadOnlyList<ImpactParameterValue> ImpactParameterValues => _impactParameterValues.AsReadOnly();
+
+    /// <summary>
+    /// Spec 021 / FR-005 — typed projection used by reads + the autosave path.
+    /// Returns null until <see cref="SetImpact"/> has been called.
+    /// </summary>
+    public DomainImpact? Impact =>
+        ImpactTemplate is null
+            ? null
+            : new DomainImpact(ImpactTemplate, ImpactParameterValues);
+
+    /// <summary>
+    /// Spec 021 / FR-006 / R-2 — bitfield tracking which reminder emails have
+    /// already been sent for the active stage. Bits per <c>StageExpiryReminderService</c>:
+    /// 0x1 = T-72h, 0x2 = T-24h, 0x4 = expiry. Reset by <see cref="ResetStageState"/>
+    /// when the Application enters a new stage.
+    /// </summary>
+    public byte RemindersSentMask { get; private set; }
+
+    /// <summary>
+    /// Spec 021 / FR-006 — UTC instant at which the Application entered the current
+    /// stage. Combined with the (per-Process override or platform default) window
+    /// duration to compute the stage-closure timestamp consulted by the banner +
+    /// reminder service + Submit guard.
+    /// </summary>
+    public DateTimeOffset StageEnteredAt { get; private set; }
+
+    /// <summary>
+    /// Spec 021 / FR-021 — soft-delete column. Dashboard projections filter on
+    /// <c>DeletedAt IS NULL</c> via <c>IApplicationQueryFilter.ExcludeDeleted</c>;
+    /// rows are never hard-deleted.
+    /// </summary>
+    public DateTimeOffset? DeletedAt { get; private set; }
+
+    /// <summary>True when the row has been soft-deleted (FR-021).</summary>
+    public bool IsDeleted => DeletedAt is not null;
+
     public ApplicationState State { get; private set; } = ApplicationState.Draft;
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
@@ -40,7 +104,122 @@ public class Application
         State = ApplicationState.Draft;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+        StageEnteredAt = DateTimeOffset.UtcNow;
         SetCompanyName(companyName);
+    }
+
+    /// <summary>
+    /// Spec 021 / FR-008 — stamps the Infrastructure-generated PublicCode onto
+    /// the Application exactly once. Subsequent calls throw — the public code is
+    /// immutable for the life of the row.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">A PublicCode is already assigned.</exception>
+    public void AssignPublicCode(PublicCode code)
+    {
+        ArgumentNullException.ThrowIfNull(code);
+        if (PublicCode is not null)
+        {
+            throw new InvalidOperationException(
+                $"PublicCode is already assigned ({PublicCode}); it cannot be replaced.");
+        }
+        PublicCode = code;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 021 / FR-005 — replaces the applicant's Impact selection. Wipes any
+    /// existing parameter values, attaches the new template + values, and bumps
+    /// <see cref="UpdatedAt"/>. The Web/Application layer is responsible for
+    /// validating <paramref name="template"/>.Id ∈ ProcessPlantilla.ImpactTemplateIds()
+    /// before invoking (the snapshot lookup requires a repository so it stays out
+    /// of Domain).
+    /// </summary>
+    public void SetImpact(ImpactTemplate template, IEnumerable<ImpactParameterValue> values)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(values);
+
+        ImpactTemplate = template;
+        ImpactTemplateId = template.Id;
+        _impactParameterValues.Clear();
+        _impactParameterValues.AddRange(values);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 021 / FR-021 — admin soft-delete. Idempotent. Hard-delete is not used
+    /// in scope 021; the row remains for audit/history but every dashboard query
+    /// filters it out via <c>IApplicationQueryFilter.ExcludeDeleted</c>.
+    /// </summary>
+    public void SoftDelete()
+    {
+        if (IsDeleted) return;
+        DeletedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 021 / US9 / FR-035–FR-037, FR-040 — applicant-initiated removal. A
+    /// <c>Draft</c> is deleted; a <c>Submitted</c>/<c>UnderReview</c> Application is
+    /// withdrawn. Both reuse <see cref="SoftDelete"/> (no distinct Withdrawn state).
+    /// Reviewer notification is requested only for an <c>UnderReview</c> withdrawal.
+    /// Terminal states (<c>Resolved</c>, <c>AppealOpen</c>, <c>ResponseFinalized</c>,
+    /// <c>AgreementExecuted</c>) reject the operation. Idempotent: a repeat on an
+    /// already soft-deleted row is a no-op and never re-requests notification.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The Application is past the point an applicant may remove it.</exception>
+    public ApplicantRemovalOutcome RemoveByApplicant()
+    {
+        if (IsDeleted)
+        {
+            return new ApplicantRemovalOutcome(ApplicantRemovalKind.NoOp, NotifyReviewers: false, PriorState: State);
+        }
+
+        var priorState = State;
+        switch (State)
+        {
+            case ApplicationState.Draft:
+                SoftDelete();
+                return new ApplicantRemovalOutcome(ApplicantRemovalKind.DraftDeleted, NotifyReviewers: false, priorState);
+
+            case ApplicationState.Submitted:
+                SoftDelete();
+                return new ApplicantRemovalOutcome(ApplicantRemovalKind.Withdrawn, NotifyReviewers: false, priorState);
+
+            case ApplicationState.UnderReview:
+                SoftDelete();
+                return new ApplicantRemovalOutcome(ApplicantRemovalKind.Withdrawn, NotifyReviewers: true, priorState);
+
+            default:
+                throw new InvalidOperationException(
+                    $"Application in '{State}' state cannot be deleted or withdrawn by the applicant.");
+        }
+    }
+
+    /// <summary>
+    /// Spec 021 / FR-006 — reset reminder state and stamp <see cref="StageEnteredAt"/>
+    /// to now. Invoked on every transition that crosses a stage boundary
+    /// (Draft → Submitted, Submitted → UnderReview, Resolved → ResponseFinalized,
+    /// AppealOpen → Draft|UnderReview, …).
+    /// </summary>
+    private void ResetStageState()
+    {
+        StageEnteredAt = DateTimeOffset.UtcNow;
+        RemindersSentMask = 0;
+    }
+
+    /// <summary>
+    /// Spec 021 / R-2 — marks the given reminder bit (0x1 / 0x2 / 0x4) as sent so
+    /// the hourly hosted service does not double-fire on the same Application.
+    /// </summary>
+    public void MarkReminderSent(byte bit)
+    {
+        if (bit is not (0x1 or 0x2 or 0x4))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(bit), bit, "Bit must be 0x1 (T-72h), 0x2 (T-24h), or 0x4 (expiry).");
+        }
+        RemindersSentMask = (byte)(RemindersSentMask | bit);
     }
 
     /// <summary>
@@ -161,6 +340,59 @@ public class Application
         State = ApplicationState.Submitted;
         SubmittedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+        ResetStageState();
+    }
+
+    /// <summary>
+    /// Spec 021 / FR-006 / FR-017 — full Submit guard chain. Composes the legacy
+    /// item/impact validators with the new stage-window check.
+    ///
+    /// Guards (data-model.md state transitions, FR-017):
+    /// 1. <c>HasAtLeastOneItem</c>
+    /// 2. <c>EachItemHasMinimumQuotations</c> (uses snapshot's
+    ///    <c>MinimumQuotationsPerItem</c>)
+    /// 3. <c>HasImpact</c> — <see cref="ImpactTemplateId"/> populated
+    /// 4. <c>StageWindowOpen</c> — current instant &lt; <paramref name="stageClosesAt"/>;
+    ///    otherwise throws <see cref="StageWindowClosedException"/> which the Web
+    ///    layer maps to HTTP 422 (R-13).
+    ///
+    /// Required-field validation is enforced by the Application layer (it depends
+    /// on <c>ProcessPlantilla.RequiredFieldFlags</c> + a field-key map living
+    /// outside Domain). The legacy <c>HasCompleteImpact</c> per-Item check is
+    /// dropped in favour of the per-Application Impact (R-6).
+    /// </summary>
+    public void Submit(
+        int minQuotations,
+        StageKind currentStage,
+        DateTimeOffset stageClosesAt,
+        DateTimeOffset now)
+    {
+        // Stage-window guard fires FIRST so an expired window short-circuits
+        // before we enumerate the per-item validation list.
+        if (now >= stageClosesAt)
+        {
+            throw new StageWindowClosedException(currentStage, stageClosesAt);
+        }
+
+        // Enumerate every submit-blocker in one pass so the applicant sees all
+        // problems at once (FR-017 impact gate + per-item quotation counts).
+        // The impact failure leads the list but does not short-circuit the
+        // item/quotation enumeration.
+        var errors = Validate(minQuotations);
+        if (ImpactTemplateId is null)
+        {
+            errors.Insert(0, "Impact must be set before submission (FR-017).");
+        }
+        if (errors.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Cannot submit application: {string.Join("; ", errors)}");
+        }
+
+        State = ApplicationState.Submitted;
+        SubmittedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+        ResetStageState();
     }
 
     /// <summary>
@@ -173,8 +405,9 @@ public class Application
 
     /// <summary>
     /// Validates the application and returns a list of validation error messages.
-    /// Checks that the application has at least one item, each item meets the minimum
-    /// quotation requirement, and each item has a complete impact assessment.
+    /// Spec 021 / FR-005 — Impact is no longer per-Item; the per-Application
+    /// <see cref="Impact"/> is enforced by the <c>Submit(int, StageKind, …)</c>
+    /// overload. This method now only enumerates per-Item quotation-count failures.
     /// </summary>
     public List<string> Validate(int minQuotations)
     {
@@ -191,12 +424,6 @@ public class Application
             {
                 errors.Add(
                     $"Item '{item.ProductName}' must have at least {minQuotations} quotation(s).");
-            }
-
-            if (!item.HasCompleteImpact())
-            {
-                errors.Add(
-                    $"Item '{item.ProductName}' must have a complete impact assessment.");
             }
         }
 

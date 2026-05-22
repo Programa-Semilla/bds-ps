@@ -1,0 +1,33 @@
+@*
+    _AutosaveIndicator.cshtml — Spec 021 / T054 / R-5 / FR-016 autosave UX.
+
+    Renders the four states of the per-field autosave indicator:
+      - idle    : hidden
+      - saving  : "Guardando…"
+      - saved   : "✓ Guardado HH:MM"
+      - failed  : "⚠ No guardado — reintentar"
+
+    State is driven by the `data-autosave-state` attribute on the wrapper,
+    toggled by `autosave.js` on blur/response. All four state elements are
+    rendered up-front; CSS-style attribute selectors (via Tabler `d-none`
+    fallback class) hide the inactive ones. Vanilla JS — no framework binding.
+
+    Markup expectations:
+      - The wrapper element is targeted by `autosave.js` via the
+        `[data-autosave-indicator]` selector.
+      - The retry button carries `[data-autosave-retry]` so the script can rebind.
+*@
+<span class="fl-autosave-indicator" data-autosave-indicator data-autosave-state="idle" role="status" aria-live="polite">
+    <span class="autosave-idle text-muted d-none" data-state-for="idle"></span>
+    <span class="autosave-saving text-muted d-none" data-state-for="saving">Guardando…</span>
+    <span class="autosave-saved text-success d-none" data-state-for="saved">
+        <i class="ti ti-check me-1" aria-hidden="true"></i>
+        Guardado
+        <time data-saved-at></time>
+    </span>
+    <span class="autosave-failed text-danger d-none" data-state-for="failed">
+        <i class="ti ti-alert-triangle me-1" aria-hidden="true"></i>
+        No guardado &mdash;
+        <button type="button" class="btn btn-link btn-sm p-0 ms-1" data-autosave-retry>reintentar</button>
+    </span>
+</span>

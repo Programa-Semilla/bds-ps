@@ -1,6 +1,8 @@
+using FundingPlatform.Application.Processes.Queries;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -13,35 +15,64 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// FR-036 / FR-037: this controller intentionally exposes no Delete or Create
 /// actions in v1. Admin-only edit, verify, and reject flows on applicant-initiated
 /// suppliers only.
+///
+/// Spec 021 / US3 / T107 / FR-007 — opens this surface to the new
+/// <c>SupplierAdmin</c> role via <see cref="SupplierAdminOnlyAttribute"/>.
+/// The base <c>[Authorize]</c> still enforces authentication; the attribute
+/// substitutes role gating so Admin OR SupplierAdmin passes. Every other
+/// <c>/Admin/*</c> controller carries <see cref="SupplierAdminDeniedAttribute"/>
+/// — together they implement the FR-007 matrix.
 /// </summary>
-[Authorize(Roles = "Admin")]
+[Authorize]
+[SupplierAdminOnly]
 [Route("Admin/Suppliers")]
 public class AdminSuppliersController : Controller
 {
     private readonly ISupplierRepository _supplierRepository;
+    private readonly IProcessQueryService _processQuery;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public AdminSuppliersController(
         ISupplierRepository supplierRepository,
+        IProcessQueryService processQuery,
         UserManager<ApplicationUser> userManager)
     {
         _supplierRepository = supplierRepository;
+        _processQuery = processQuery;
         _userManager = userManager;
     }
 
+    /// <summary>
+    /// Spec 021 / US3 / T108 / FR-009 / FR-011 — supplier-admin list. Default
+    /// sort by <c>LastUsedAt DESC</c>; Process filter (FR-011); single search
+    /// term across Name + CédulaJurídica (FR-009). The legacy spec-013
+    /// status/legalId/name/incomplete filters remain functional for the Admin
+    /// caller path but are absent from the SupplierAdmin UI.
+    /// </summary>
     [HttpGet("")]
     public async Task<IActionResult> Index(
         SupplierVerificationStatus? status,
         string? legalId,
         string? name,
+        string? search,
+        int? processId,
         bool? hasIncompleteCompliance,
         int page = 1,
-        int pageSize = 25)
+        int pageSize = 25,
+        CancellationToken ct = default)
     {
-        // Spec 013 FR-030: default filter on entry is PendingReview.
+        // Spec 013 FR-030: legacy default filter on entry is PendingReview.
+        // Spec 021 / FR-011: SupplierAdmin path defaults to *no* status filter
+        // (all suppliers, sorted by LastUsedAt DESC). The default flips when
+        // either the search box, Process filter, or pageSize > default are
+        // present — both behaviours coexist via the explicit `status` query
+        // parameter test.
+        var supplierAdminPath = User.IsInRole("SupplierAdmin") && !User.IsInRole("Admin");
         var effectiveStatus = status ?? (Request.Query.ContainsKey(nameof(status))
             ? (SupplierVerificationStatus?)null
-            : SupplierVerificationStatus.PendingReview);
+            : supplierAdminPath
+                ? null
+                : SupplierVerificationStatus.PendingReview);
 
         var filter = new SupplierAdminFilter
         {
@@ -49,9 +80,13 @@ public class AdminSuppliersController : Controller
             LegalIdContains = legalId,
             NameContains = name,
             HasIncompleteCompliance = hasIncompleteCompliance,
+            ProcessId = processId,
+            SearchTerm = search,
         };
 
-        var (items, total) = await _supplierRepository.ListForAdminAsync(filter, page, pageSize);
+        var (items, total) = await _supplierRepository.ListForSupplierAdminAsync(filter, page, pageSize);
+
+        var processOptions = await _processQuery.ListAsync(null, ct);
 
         var vm = new AdminSupplierListViewModel
         {
@@ -59,10 +94,11 @@ public class AdminSuppliersController : Controller
                 s.Id,
                 s.LegalId,
                 s.Name,
-                s.VerificationStatus,
-                s.Branches.Count,
-                !s.IsCompliantCCSS || !s.IsCompliantHacienda || !s.IsCompliantSICOP || !s.HasElectronicInvoice,
-                s.UpdatedAt)).ToList(),
+                s.Status,
+                s.BranchCount,
+                s.HasIncompleteCompliance,
+                s.UpdatedAt,
+                s.LastUsedAt)).ToList(),
             TotalCount = total,
             Page = page,
             PageSize = pageSize,
@@ -70,6 +106,11 @@ public class AdminSuppliersController : Controller
             LegalIdFilter = legalId,
             NameFilter = name,
             HasIncompleteCompliance = hasIncompleteCompliance == true,
+            SearchTerm = search,
+            ProcessIdFilter = processId,
+            ProcessOptions = processOptions
+                .Select(p => (p.Id, p.Name))
+                .ToList(),
         };
 
         return View(vm);

@@ -5,23 +5,29 @@
     ViewData["Title"] = "Mis solicitudes";
     var headerActions = new[]
     {
-        new ActionItem("Crear nueva solicitud", ActionClass.Primary,
+        @* Spec 021 / FR-029 — CTA copy aligned with the public landing. *@
+        new ActionItem("Iniciar acompañamiento", ActionClass.Primary,
             Url: Url.Action("Create"),
             Icon: "ti ti-plus"),
     };
+    var greetingName = string.IsNullOrWhiteSpace(Model.GreetingName) ? "Vivi" : Model.GreetingName;
+    // Spec 021 / FR-030 — single greeting source ("Hola, {Nombre}") that
+    // replaces every "Bienvenido/a" on applicant-facing surfaces.
+    var greeting = $"Hola, {greetingName}";
 }
 
 @await Html.PartialAsync("Components/_PageHeader",
-    new PageHeaderViewModel("Mis solicitudes", PrimaryActions: headerActions))
+    new PageHeaderViewModel(greeting, PrimaryActions: headerActions))
 
 @if (Model.Applications.Count == 0)
 {
     @await Html.PartialAsync("Components/_EmptyState",
         new EmptyStateViewModel(
             Headline: "Aún no tiene solicitudes",
-            Body: "Cree su primera solicitud de financiamiento para empezar.",
+            @* Spec 021 / FR-029 — replaced "financiamiento" with "acompañamiento". *@
+            Body: "Cree su primera solicitud de acompañamiento para empezar.",
             Icon: "ti ti-files",
-            PrimaryAction: new ActionItem("Crear su primera solicitud", ActionClass.Primary,
+            PrimaryAction: new ActionItem("Iniciar acompañamiento", ActionClass.Primary,
                 Url: Url.Action("Create"),
                 Icon: "ti ti-plus")))
 }
@@ -29,10 +35,12 @@ else
 {
     <div class="fl-card">
         <div class="table-responsive">
-            <table class="fl-table" data-density="applicant">
+            <table class="fl-table" data-density="applicant" data-testid="applicant-applications-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        @* Spec 021 / FR-008 — column header is now the opaque PublicCode. *@
+                        <th>Código</th>
+                        <th>Empresa</th>
                         <th>Estado</th>
                         <th>Ítems</th>
                         <th>Creada</th>
@@ -45,7 +53,17 @@ else
                     @foreach (var app in Model.Applications)
                     {
                         <tr>
-                            <td>@app.Id</td>
+                            <td data-testid="application-public-code">
+                                @if (!string.IsNullOrWhiteSpace(app.PublicCode))
+                                {
+                                    <code class="fl-public-code">@app.PublicCode</code>
+                                }
+                                else
+                                {
+                                    <span class="fl-text-muted">—</span>
+                                }
+                            </td>
+                            <td>@app.CompanyName</td>
                             <td>
                                 @{
                                     var state = Enum.Parse<ApplicationState>(app.State);
@@ -66,10 +84,44 @@ else
                                 }
                             </td>
                             <td>
-                                <a asp-action="Details" asp-route-id="@app.Id" class="fl-btn" data-variant="secondary" data-size="sm">Ver</a>
+                                @* Spec 021 / US2 — a Draft opens in the editor; a sent
+                                   application opens its read-only summary. One action each. *@
                                 @if (app.State == nameof(ApplicationState.Draft))
                                 {
-                                    <a asp-action="Edit" asp-route-id="@app.Id" class="fl-btn" data-variant="secondary" data-size="sm">Editar</a>
+                                    <a asp-action="Edit" asp-route-id="@app.Id" class="fl-btn" data-variant="primary" data-size="sm">Editar</a>
+                                }
+                                else
+                                {
+                                    <a asp-action="Details" asp-route-id="@app.Id" class="fl-btn" data-variant="secondary" data-size="sm">Ver</a>
+                                }
+                                @* Spec 021 / US9 / FR-035–FR-039 — delete a Draft or withdraw a
+                                   Submitted/UnderReview application. Hidden for terminal states
+                                   (FR-037); destructive ⇒ explicit ConfirmDialog (FR-039). *@
+                                @{
+                                    var rowState = Enum.Parse<ApplicationState>(app.State);
+                                    var removable = rowState is ApplicationState.Draft or ApplicationState.Submitted or ApplicationState.UnderReview;
+                                    var isDraftRow = rowState == ApplicationState.Draft;
+                                    var dialogId = $"remove-confirm-{app.Id}";
+                                }
+                                @if (removable)
+                                {
+                                    <button type="button" class="fl-btn" data-variant="danger" data-size="sm"
+                                            data-bs-toggle="modal" data-bs-target="#@dialogId"
+                                            data-testid="application-row-remove">
+                                        @(isDraftRow ? "Eliminar borrador" : "Retirar solicitud")
+                                    </button>
+                                    @await Html.PartialAsync("Components/_ConfirmDialog", new ConfirmDialogViewModel(
+                                        Id: dialogId,
+                                        Title: isDraftRow ? "Eliminar borrador" : "Retirar solicitud",
+                                        IrreversibilityRationale: isDraftRow
+                                            ? "Esta acción elimina el borrador de forma permanente. No se puede deshacer."
+                                            : "Esta acción retira tu solicitud de forma permanente y no se puede deshacer. Si tu solicitud ya está en revisión, se notificará a las personas revisoras.",
+                                        ConfirmLabel: isDraftRow ? "Eliminar borrador" : "Retirar solicitud",
+                                        CancelLabel: "Cancelar",
+                                        ConfirmClass: ActionClass.Destructive,
+                                        FormController: "Application",
+                                        FormAction: "Remove",
+                                        FormRouteValues: new Dictionary<string, string> { ["id"] = app.Id.ToString() }))
                                 }
                             </td>
                         </tr>
@@ -78,4 +130,8 @@ else
             </table>
         </div>
     </div>
+}
+
+@section Scripts {
+    <script type="module" src="~/js/public-code-banner.js" defer></script>
 }

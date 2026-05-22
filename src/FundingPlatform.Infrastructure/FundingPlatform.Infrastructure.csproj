@@ -28,4 +28,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Spec 021 / US5 / T122 — exposes the test-only DbContext-typed
+         constructor on PasswordResetTokenStore to PasswordResetTokenStoreTests. -->
+    <InternalsVisibleTo Include="FundingPlatform.Tests.Integration" />
+  </ItemGroup>
+
 </Project>

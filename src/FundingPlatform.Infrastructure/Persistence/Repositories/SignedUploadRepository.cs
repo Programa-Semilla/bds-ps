@@ -1,3 +1,4 @@
+using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Domain.Entities;
@@ -9,10 +10,23 @@ namespace FundingPlatform.Infrastructure.Persistence.Repositories;
 public class SignedUploadRepository : ISignedUploadRepository
 {
     private readonly AppDbContext _context;
+    // Spec 021 / FR-021 / T152 / T153 / R-10 — signing inbox is a reviewer
+    // dashboard surface; soft-deleted Applications must not appear.
+    private readonly IApplicationQueryFilter _queryFilter;
 
-    public SignedUploadRepository(AppDbContext context)
+    public SignedUploadRepository(AppDbContext context, IApplicationQueryFilter queryFilter)
     {
         _context = context;
+        _queryFilter = queryFilter;
+    }
+
+    /// <summary>
+    /// Spec 021 / T152 — back-compat ctor for integration-test setups that
+    /// construct the repository directly without going through DI.
+    /// </summary>
+    public SignedUploadRepository(AppDbContext context)
+        : this(context, new ApplicationQueryFilter())
+    {
     }
 
     public async Task<SignedUpload?> GetByIdWithParentAsync(int signedUploadId)
@@ -42,11 +56,15 @@ public class SignedUploadRepository : ISignedUploadRepository
             return (Array.Empty<SigningInboxRowDto>(), 0);
         }
 
+        // Spec 021 / FR-021 / T152 / T153 — filter the Applications join source
+        // through ExcludeDeleted so soft-deleted Applications drop out of the
+        // signing inbox (FR-021 / SC-011).
+        var apps = _queryFilter.ExcludeDeleted(_context.Applications.AsNoTracking());
         var query =
             from upload in _context.SignedUploads.AsNoTracking()
             join agreement in _context.FundingAgreements.AsNoTracking()
                 on upload.FundingAgreementId equals agreement.Id
-            join app in _context.Applications.AsNoTracking()
+            join app in apps
                 on agreement.ApplicationId equals app.Id
             join applicant in _context.Applicants.AsNoTracking()
                 on app.ApplicantId equals applicant.Id

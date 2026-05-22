@@ -168,6 +168,10 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
     {
         NotificationEvent.ApplicationSubmittedReviewer => true,
         NotificationEvent.ResubmittedByApplicant       => true,
+        // Spec 021 / US9 / FR-040 — withdrawal notifies the same stage-group
+        // reviewer pool as APPLICATION_SUBMITTED_REVIEWER. Applicant bucket stays
+        // false (default); admin bucket stays true (default), mirroring submission.
+        NotificationEvent.WithdrawnByApplicant         => true,
         _ => false,
     };
 

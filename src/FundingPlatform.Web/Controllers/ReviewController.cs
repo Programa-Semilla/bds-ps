@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Abstractions.AiComparison;
 using FundingPlatform.Application.AiComparison;
 using FundingPlatform.Domain.Entities;
@@ -8,6 +9,7 @@ using FundingPlatform.Application.Routing;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Application.SignedUploads.Queries;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.ViewModels;
 using FundingPlatform.Web.ViewModels.Review;
@@ -26,6 +28,9 @@ public class ReviewController : Controller
     private readonly IUserFacingErrorTranslator _errorTranslator;
     private readonly IReviewerScopeProvider _scopeProvider;
     private readonly IApplicationRepository _applicationRepository;
+    private readonly AppDbContext _dbContext;
+    private readonly IStageExpiryEvaluator _stageExpiry;
+    private readonly IStageExpiryClock _stageExpiryClock;
     private readonly IComparisonOrchestrator _comparisonOrchestrator;
     private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
@@ -36,6 +41,9 @@ public class ReviewController : Controller
         IUserFacingErrorTranslator errorTranslator,
         IReviewerScopeProvider scopeProvider,
         IApplicationRepository applicationRepository,
+        AppDbContext dbContext,
+        IStageExpiryEvaluator stageExpiry,
+        IStageExpiryClock stageExpiryClock,
         IComparisonOrchestrator comparisonOrchestrator,
         Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
@@ -45,8 +53,54 @@ public class ReviewController : Controller
         _errorTranslator = errorTranslator;
         _scopeProvider = scopeProvider;
         _applicationRepository = applicationRepository;
+        _dbContext = dbContext;
+        _stageExpiry = stageExpiry;
+        _stageExpiryClock = stageExpiryClock;
         _comparisonOrchestrator = comparisonOrchestrator;
         _configuration = configuration;
+    }
+
+    /// <summary>
+    /// Spec 021 / T119 / FR-024 — builds a per-row stage countdown banner map
+    /// keyed by Application.Id. The reviewer queue + signing inbox views look
+    /// up entries by their row's ApplicationId so the partial can render
+    /// inline. Rows whose Application is in a terminal state get no entry
+    /// (the view conditionally renders).
+    /// </summary>
+    private async Task<Dictionary<int, StageCountdownBannerViewModel>> BuildStageBannersAsync(
+        IEnumerable<int> applicationIds, CancellationToken ct)
+    {
+        var ids = applicationIds.Distinct().ToList();
+        if (ids.Count == 0) return new();
+
+        var entities = await _dbContext.Applications
+            .AsNoTracking()
+            .Where(a => ids.Contains(a.Id))
+            .ToListAsync(ct);
+
+        var now = _stageExpiryClock.UtcNow;
+        var map = new Dictionary<int, StageCountdownBannerViewModel>();
+        foreach (var e in entities)
+        {
+            var (stage, enteredAt, closesAt) = await _stageExpiry.EvaluateForAsync(e, ct);
+            map[e.Id] = new StageCountdownBannerViewModel
+            {
+                StageKind = stage,
+                EnteredAt = enteredAt,
+                ClosesAt = closesAt,
+                Now = now,
+                Closed = now >= closesAt,
+            };
+        }
+        return map;
+    }
+
+    private static int ParseApplicationIdFromNumber(string applicationNumber)
+    {
+        if (string.IsNullOrEmpty(applicationNumber)) return 0;
+        var idx = applicationNumber.LastIndexOf('-');
+        if (idx < 0 || idx == applicationNumber.Length - 1) return 0;
+        return int.TryParse(applicationNumber.AsSpan(idx + 1), out var id) ? id : 0;
     }
 
     /// <summary>
@@ -90,6 +144,10 @@ public class ReviewController : Controller
         ViewData["SigningInbox.PageSize"] = pageSize;
         ViewData["SigningInbox.TotalCount"] = result.TotalCount;
 
+        // Spec 021 / T119 / FR-024 — per-row stage banners keyed by ApplicationId.
+        ViewData["StageBanners"] = await BuildStageBannersAsync(
+            rows.Select(r => r.ApplicationId), ct);
+
         return View(rows);
     }
 
@@ -132,6 +190,13 @@ public class ReviewController : Controller
         var scope = await GetScopeAsync(ct);
         var dto = await _queueProjection.GetForReviewerAsync(GetUserId(), firstName, filter, scope, search, ct);
         ViewData["ReviewQueue.Search"] = search;
+
+        // Spec 021 / T119 / FR-024 — per-row stage banner map keyed by the
+        // numeric Application.Id encoded in ApplicationNumber (APP-{id:D5}).
+        ViewData["StageBanners"] = await BuildStageBannersAsync(
+            dto.Rows.Select(r => ParseApplicationIdFromNumber(r.ApplicationNumber)).Where(id => id > 0),
+            ct);
+
         return View("QueueDashboard", dto);
     }
 
@@ -146,6 +211,10 @@ public class ReviewController : Controller
         // reviewer scope and the FR-014 search term.
         var scope = await GetScopeAsync(ct);
         var rows = await _queueProjection.GetRowsAsync(GetUserId(), filter, scope, search, ct);
+        // Spec 021 / T119 / FR-024 — per-row stage banner map for the chip-reflow fragment.
+        ViewData["StageBanners"] = await BuildStageBannersAsync(
+            rows.Select(r => ParseApplicationIdFromNumber(r.ApplicationNumber)).Where(id => id > 0),
+            ct);
         return PartialView("_ReviewerQueueRows", rows);
     }
 
@@ -389,6 +458,65 @@ public class ReviewController : Controller
             return Redirect(url.Url.ToString());
         if (handle is FundingPlatform.Application.Abstractions.Storage.BackendStreamHandle stream)
             return File(stream.Content, stream.ContentType ?? "application/octet-stream", doc.OriginalFileName);
+        return NotFound();
+    }
+
+    /// <summary>
+    /// Spec 023 / FR-014 (evolution 2026-05-20) — reviewer (group-scoped) and
+    /// Admin download the PDF attached to any quotation on an Application
+    /// they're authorized to view. Mirrors the auth + storage rails of the
+    /// spec-020 <see cref="Citation"/> endpoint but is keyed by
+    /// <c>quotationId</c> directly so the reviewer Review screen can build
+    /// the link without an extra DocumentId resolution step.
+    /// </summary>
+    [HttpGet]
+    [Route("Review/Quotation/{quotationId:int}/Download")]
+    public async Task<IActionResult> DownloadQuotation(
+        int quotationId,
+        CancellationToken ct)
+    {
+        var db = HttpContext.RequestServices.GetRequiredService<
+            FundingPlatform.Infrastructure.Persistence.AppDbContext>();
+        var quotation = await db.Quotations
+            .Include(q => q.Document)
+            .FirstOrDefaultAsync(q => q.Id == quotationId, ct);
+        if (quotation is null
+            || quotation.Document is null
+            || string.IsNullOrEmpty(quotation.Document.BlobKey))
+            return NotFound();
+
+        var parentApplicationId = await db.Items
+            .Where(i => i.Id == quotation.ItemId)
+            .Select(i => (int?)i.ApplicationId)
+            .FirstOrDefaultAsync(ct);
+        if (parentApplicationId is null) return NotFound();
+        var scope = await GetScopeAsync(ct);
+        if (!scope.IsAdmin)
+        {
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(
+                parentApplicationId.Value, scope.GroupIds, ct);
+            if (!allowed) return Forbid();
+        }
+
+        // Spec 023 / FR-014 (evolution) — same rationale as the applicant
+        // download path: force BackendStream so `Content-Disposition: attachment`
+        // is set on the response and the browser saves the file. Inline preview
+        // is intentionally not exposed on this endpoint.
+        var storage = HttpContext.RequestServices.GetRequiredService<
+            FundingPlatform.Application.Abstractions.Storage.IObjectStorage>();
+        var key = FundingPlatform.Application.Abstractions.Storage.ObjectKey.Parse(
+            quotation.Document.BlobKey);
+        var handle = await storage.ResolveServingHandleAsync(
+            FundingPlatform.Application.Abstractions.Storage.FileCategory.ApplicationAttachment,
+            key,
+            FundingPlatform.Application.Abstractions.Storage.ServingMode.BackendStream,
+            ct);
+
+        if (handle is FundingPlatform.Application.Abstractions.Storage.BackendStreamHandle stream)
+            return File(
+                stream.Content,
+                stream.ContentType ?? "application/octet-stream",
+                quotation.Document.OriginalFileName);
         return NotFound();
     }
 

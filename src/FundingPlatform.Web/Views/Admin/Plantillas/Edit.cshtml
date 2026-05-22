@@ -1,0 +1,101 @@
+@*
+    Spec 021 / US1 / T083 — Plantilla edit form. Banner per spec edge case
+    notes: "Las ediciones no afectan procesos ya asignados."
+*@
+@using FundingPlatform.Web.Models
+@model FundingPlatform.Web.ViewModels.Admin.AdminPlantillaEditViewModel
+@{
+    ViewData["Title"] = $"Editar plantilla: {Model.Name}";
+    var requiredFieldKinds = new (long Bit, string Label)[]
+    {
+        (1, "Nombre del responsable"),
+        (2, "Teléfono"),
+        (4, "Dirección"),
+        (8, "Detalle de impacto"),
+    };
+}
+
+<div data-testid="admin-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: $"Editar: {Model.Name}",
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem("Plantillas", Url.Action("Index", "AdminPlantillas")),
+                new BreadcrumbItem(Model.Name),
+            }))
+
+    @if (Model.AssignedProcessCount > 0)
+    {
+        <div class="alert alert-info" data-testid="admin-plantilla-snapshot-banner">
+            <i class="ti ti-info-circle"></i>
+            Esta plantilla está asignada a @Model.AssignedProcessCount proceso(s).
+            <strong>Las ediciones no afectan procesos ya asignados.</strong>
+        </div>
+    }
+
+    <form method="post" asp-action="Edit" asp-route-id="@Model.Id" data-testid="admin-plantilla-edit-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3" data-testid="admin-plantilla-validation-summary"></div>
+
+        <div class="row">
+            <div class="col-md-8 mb-3">
+                <label class="form-label" asp-for="Name">Nombre</label>
+                <input asp-for="Name" class="form-control" data-testid="admin-plantilla-name-input" />
+                <span asp-validation-for="Name" class="text-danger" data-testid="admin-plantilla-name-error"></span>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label" asp-for="MinimumQuotationsPerItem">Mín. cotizaciones por ítem</label>
+                <input asp-for="MinimumQuotationsPerItem" type="number" min="1" max="10" class="form-control"
+                       data-testid="admin-plantilla-min-quotations-input" />
+                <span asp-validation-for="MinimumQuotationsPerItem" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Plantillas de impacto disponibles</label>
+            <div class="row" data-testid="admin-plantilla-impact-templates">
+                @foreach (var opt in Model.AvailableImpactTemplates)
+                {
+                    var isChecked = Model.ImpactTemplateIds.Contains(opt.Id);
+                    <div class="col-md-6">
+                        <label class="form-check">
+                            <input type="checkbox" name="ImpactTemplateIds" value="@opt.Id"
+                                   class="form-check-input"
+                                   data-testid="admin-plantilla-impact-template-@opt.Id"
+                                   checked="@isChecked" />
+                            <span class="form-check-label">@opt.Name</span>
+                        </label>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Campos requeridos</label>
+            <div class="row" data-testid="admin-plantilla-required-flags">
+                @foreach (var kind in requiredFieldKinds)
+                {
+                    var isChecked = (Model.RequiredFieldFlags & kind.Bit) == kind.Bit;
+                    <div class="col-md-6">
+                        <label class="form-check">
+                            <input type="checkbox" name="RequiredFieldFlagBits" value="@kind.Bit"
+                                   class="form-check-input"
+                                   data-testid="admin-plantilla-required-@kind.Bit"
+                                   checked="@isChecked" />
+                            <span class="form-check-label">@kind.Label</span>
+                        </label>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-2">
+            <a class="btn btn-secondary" href="@Url.Action("Index", "AdminPlantillas")">Cancelar</a>
+            <button type="submit" class="btn btn-primary" data-testid="admin-plantilla-edit-submit">
+                Guardar cambios
+            </button>
+        </div>
+    </form>
+</div>

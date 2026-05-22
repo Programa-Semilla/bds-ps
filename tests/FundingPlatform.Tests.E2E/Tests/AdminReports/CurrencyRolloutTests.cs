@@ -41,8 +41,8 @@ public class CurrencyRolloutTests : AuthenticatedTestBase
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
 
-        var appIdMatch = Regex.Match(Page.Url, @"/Application/Details/(\d+)");
-        Assert.That(appIdMatch.Success, Is.True, "Application creation should land on details with an id.");
+        var appIdMatch = Regex.Match(Page.Url, @"/Application/Edit/(\d+)");
+        Assert.That(appIdMatch.Success, Is.True, "Application creation should land on the draft editor with an id.");
 
         var appId = int.Parse(appIdMatch.Groups[1].Value);
 
@@ -81,7 +81,7 @@ public class CurrencyRolloutTests : AuthenticatedTestBase
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
-        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Details/(\d+)").Groups[1].Value);
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
 
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "Currency Reject Item", 0, "Specs", BaseUrl);

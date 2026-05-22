@@ -59,6 +59,25 @@ public class NotificationTemplateBindingsTests
     }
 
     [Test]
+    public void WithdrawnByApplicant_maps_to_canonical_storage_string()
+    {
+        Assert.That(NotificationEvent.WithdrawnByApplicant.ToStorageString(),
+            Is.EqualTo("APPLICATION_WITHDRAWN_BY_APPLICANT"));
+        Assert.That(
+            NotificationEventExtensions.FromStorageString("APPLICATION_WITHDRAWN_BY_APPLICANT"),
+            Is.EqualTo(NotificationEvent.WithdrawnByApplicant));
+    }
+
+    [Test]
+    public void WithdrawnByApplicant_binding_targets_withdrawal_views()
+    {
+        var binding = NotificationTemplateBindings.For(NotificationEvent.WithdrawnByApplicant);
+        Assert.That(binding.HtmlViewName, Is.EqualTo("ApplicationWithdrawnByApplicant"));
+        Assert.That(binding.TextViewName, Is.EqualTo("ApplicationWithdrawnByApplicant.text"));
+        Assert.That(binding.SubjectTemplate, Does.Contain("{ApplicantName}"));
+    }
+
+    [Test]
     public void Storage_string_round_trip()
     {
         foreach (NotificationEvent ev in Enum.GetValues(typeof(NotificationEvent)))

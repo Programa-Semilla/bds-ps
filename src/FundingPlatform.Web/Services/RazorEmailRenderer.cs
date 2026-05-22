@@ -60,11 +60,8 @@ public sealed class RazorEmailRenderer : IEmailTemplateRenderer
             eventType, payload.ApplicantDisplayName, payload.ApplicationId);
 
         // FR-026 — composed deep link from Notifications:BaseUrl + role-specific route.
-        // Reviewer/admin → /Review/{id}; applicant → /Application/Details/{id}.
         var baseUrl = _config["Notifications:BaseUrl"] ?? string.Empty;
-        var ctaUrl = recipient.Bucket == RecipientBucket.Applicant
-            ? Combine(baseUrl, $"/Application/Details/{payload.ApplicationId}")
-            : Combine(baseUrl, $"/Review/{payload.ApplicationId}");
+        var ctaUrl = ComposeCtaUrl(eventType, recipient.Bucket, baseUrl, payload.ApplicationId);
 
         var senderName = _config["Notifications:Sender:Name"]
             ?? "Programa Semilla / Sistema de Banca para el Desarrollo";
@@ -136,6 +133,25 @@ public sealed class RazorEmailRenderer : IEmailTemplateRenderer
 
         await viewResult.View.RenderAsync(viewContext);
         return writer.ToString();
+    }
+
+    /// <summary>
+    /// Spec 021 / FR-026 / FR-040 — composes the CTA deep link.
+    /// Reviewer/admin → <c>/Review/{id}</c>; applicant → <c>/Application/Details/{id}</c>.
+    /// The withdrawal variant is special-cased to the reviewer queue (<c>/Review</c>)
+    /// because the Application is soft-deleted and <c>/Review/{id}</c> would 403/404.
+    /// </summary>
+    public static string ComposeCtaUrl(
+        NotificationEvent eventType, RecipientBucket bucket, string baseUrl, int applicationId)
+    {
+        if (eventType == NotificationEvent.WithdrawnByApplicant)
+        {
+            return Combine(baseUrl, "/Review");
+        }
+
+        return bucket == RecipientBucket.Applicant
+            ? Combine(baseUrl, $"/Application/Details/{applicationId}")
+            : Combine(baseUrl, $"/Review/{applicationId}");
     }
 
     private static string Combine(string baseUrl, string path)

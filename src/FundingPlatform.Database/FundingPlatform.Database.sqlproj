@@ -10,6 +10,18 @@
   <ItemGroup>
     <None Remove="PostDeployment\SeedData.sql" />
     <PostDeploy Include="PostDeployment\SeedData.sql" />
+    <!-- Spec 021 — additional post-deploy seed scripts included via SqlCmd :r
+         from SeedData.sql (the single PostDeploy script supported by
+         Microsoft.Build.Sql 2.1.0). Each file is removed from the default
+         Build glob (it is seed data, not schema), and re-added as a None item
+         so the dacpac packs it alongside SeedData.sql for the :r directive to
+         resolve at deploy time. -->
+    <Build Remove="PostDeployment\01_SeedProvincesCantons.sql" />
+    <Build Remove="PostDeployment\02_SeedMigracionInicialProcess.sql" />
+    <Build Remove="PostDeployment\03_SeedSupplierAdminRole.sql" />
+    <None Include="PostDeployment\01_SeedProvincesCantons.sql" />
+    <None Include="PostDeployment\02_SeedMigracionInicialProcess.sql" />
+    <None Include="PostDeployment\03_SeedSupplierAdminRole.sql" />
   </ItemGroup>
   <ItemGroup>
     <SqlCmdVariable Include="DefaultCurrency">

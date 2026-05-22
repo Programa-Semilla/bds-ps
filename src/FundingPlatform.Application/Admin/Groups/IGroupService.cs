@@ -12,9 +12,22 @@ public interface IGroupService
     /// <summary>Returns a single group's detail or null if missing.</summary>
     Task<GroupDetail?> GetAsync(int id, CancellationToken ct);
 
-    /// <summary>FR-001 — creates a group. Throws <see cref="DuplicateGroupNameException"/>
-    /// when the name collides (case- and accent-insensitive) with an existing group.</summary>
-    Task<int> CreateAsync(string name, string actorUserId, CancellationToken ct);
+    /// <summary>Spec 021 / FR-001 — creates a group attached to exactly one
+    /// <see cref="FundingPlatform.Domain.Entities.Process"/>. The owning Process
+    /// is supplied by the caller (the Process Details "Nuevo grupo" form passes
+    /// the route's id) — there is no Process-less create path. Throws
+    /// <see cref="DuplicateGroupNameException"/> when the name collides
+    /// (case- and accent-insensitive) with an existing group,
+    /// <see cref="KeyNotFoundException"/> when the Process does not exist, and
+    /// <see cref="InvalidOperationException"/> when the Process is closed.</summary>
+    Task<int> CreateAsync(string name, int processId, string actorUserId, CancellationToken ct);
+
+    /// <summary>Spec 021 / FR-001 — reparents a group to a different Process.
+    /// No-op when the group already belongs to <paramref name="newProcessId"/>.
+    /// Throws <see cref="KeyNotFoundException"/> when the group or the target
+    /// Process is missing, and <see cref="InvalidOperationException"/> when the
+    /// target Process is closed.</summary>
+    Task MoveToProcessAsync(int id, int newProcessId, string actorUserId, CancellationToken ct);
 
     /// <summary>FR-006 — renames a group; preserves every existing membership row.
     /// Throws <see cref="DuplicateGroupNameException"/> when the new name collides

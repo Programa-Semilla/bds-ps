@@ -17,7 +17,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<ImpactTemplate> ImpactTemplates => Set<ImpactTemplate>();
     public DbSet<ImpactTemplateParameter> ImpactTemplateParameters => Set<ImpactTemplateParameter>();
-    public DbSet<Impact> Impacts => Set<Impact>();
+    // Spec 021 / FR-005 / NFR-001 — legacy `dbo.Impacts` table dropped in
+    // Phase 2a; the Domain.Entities.Impact class remains as dead code referenced
+    // only by historical Application/Web call sites that will be rewritten in
+    // later phases. The class is NOT mapped — no DbSet, no IEntityTypeConfiguration.
     public DbSet<ImpactParameterValue> ImpactParameterValues => Set<ImpactParameterValue>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<SupplierBranch> SupplierBranches => Set<SupplierBranch>();
@@ -44,9 +47,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ComparisonArtifact> ComparisonArtifacts => Set<ComparisonArtifact>();
     public DbSet<ComparisonJob> ComparisonJobs => Set<ComparisonJob>();
 
-    // Spec 021 — transactional email-notification outbox + per-recipient delivery audit.
+    // Spec 021-email-notifications — transactional outbox + per-recipient delivery audit.
     public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+
+    // Spec 021-feedback-session-may13 — Process / Plantilla aggregates,
+    // Province/Cantón catalog, PasswordResetToken single-use marker.
+    public DbSet<Process> Processes => Set<Process>();
+    public DbSet<Plantilla> Plantillas => Set<Plantilla>();
+    public DbSet<ProcessPlantilla> ProcessPlantillas => Set<ProcessPlantilla>();
+    public DbSet<Province> Provinces => Set<Province>();
+    public DbSet<Canton> Cantons => Set<Canton>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

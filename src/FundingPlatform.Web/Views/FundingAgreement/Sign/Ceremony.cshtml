@@ -1,5 +1,10 @@
 @using FundingPlatform.Application.DTOs
 @model SigningCeremonyViewModel
+@* Spec 021 / US7 / T149 / FR-029 — Ceremony page title retains the legal
+   "Convenio de financiamiento" wording because this surface lives at
+   /FundingAgreement/Sign/* (the ceremony surface is part of the Funding
+   Agreement legal flow). The ForbiddenStringsCrawler exempts /FundingAgreement/*
+   URLs from the applicant-facing sweep. *@
 @{
     ViewData["Title"] = "Convenio de financiamiento firmado";
 }

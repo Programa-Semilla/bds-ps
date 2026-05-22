@@ -1,0 +1,35 @@
+@*
+    Spec 021 / T118 / FR-025 — Expired (window closed) stage email body.
+    See T72ReminderEmail.cshtml for the token-substitution contract.
+*@
+<!DOCTYPE html>
+<html lang="es-CR">
+<head>
+    <meta charset="utf-8" />
+    <title>La etapa de {{PublicCode}} cerró el {{ClosesAtLocal}}</title>
+</head>
+<body style="font-family: 'Inter', Arial, sans-serif; color: #232323; background: #F7F5F0; margin: 0; padding: 24px;">
+    <div style="max-width: 600px; margin: 0 auto; background: #FFFFFF; border-radius: 8px; padding: 32px; border: 1px solid #E5E1D8;">
+        <h2 style="color: #B00020; margin-top: 0;">La ventana de su solicitud cerró</h2>
+        <p>Hola {{ApplicantName}},</p>
+        <p>
+            La etapa <strong>{{StageName}}</strong> de la solicitud
+            <strong>{{PublicCode}}</strong> cerró el <strong>{{ClosesAtLocal}}</strong>.
+        </p>
+        <p>
+            A partir de este momento la solicitud no puede avanzar sin la
+            intervención del administrador del programa. Cualquier intento de
+            enviarla será rechazado con el mensaje
+            <em>"La etapa cerró el {{ClosesAtLocal}}. Contacte al administrador."</em>
+        </p>
+        <p>
+            Si necesita continuar, comuníquese con su administrador del programa
+            para evaluar la posibilidad de extender la ventana o reabrir la
+            solicitud.
+        </p>
+        <p style="color: #666; font-size: 0.85rem; margin-top: 32px;">
+            Programa Semilla — Sistema de Banca para el Desarrollo
+        </p>
+    </div>
+</body>
+</html>

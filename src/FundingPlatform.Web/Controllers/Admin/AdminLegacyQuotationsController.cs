@@ -1,6 +1,7 @@
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.ValueObjects;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -18,7 +19,8 @@ namespace FundingPlatform.Web.Controllers.Admin;
 ///
 /// Note on role naming: codebase uses "Admin" (see other admin controllers).
 /// </summary>
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SupplierAdmin")]
+[SupplierAdminDenied]
 [Route("Admin/LegacyQuotations")]
 public class AdminLegacyQuotationsController : Controller
 {

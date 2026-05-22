@@ -75,7 +75,7 @@ public class ItemController : Controller
         await _applicationService.AddItemAsync(command);
 
         TempData["SuccessMessage"] = "Ítem agregado con éxito.";
-        return RedirectToAction("Details", "Application", new { id = appId });
+        return RedirectToAction("Edit", "Application", new { id = appId });
     }
 
     [HttpGet("{itemId}/Edit")]
@@ -142,7 +142,7 @@ public class ItemController : Controller
         await _applicationService.UpdateItemAsync(command);
 
         TempData["SuccessMessage"] = "Ítem actualizado con éxito.";
-        return RedirectToAction("Details", "Application", new { id = appId });
+        return RedirectToAction("Edit", "Application", new { id = appId });
     }
 
     [HttpPost("{itemId}/Delete")]
@@ -155,131 +155,7 @@ public class ItemController : Controller
         await _applicationService.RemoveItemAsync(command);
 
         TempData["SuccessMessage"] = "Ítem eliminado con éxito.";
-        return RedirectToAction("Details", "Application", new { id = appId });
-    }
-
-    [HttpGet("{id}/Impact")]
-    public async Task<IActionResult> Impact(int appId, int id)
-    {
-        await VerifyOwnershipAsync(appId);
-
-        var application = await _applicationService.GetApplicationAsync(appId);
-        if (application is null)
-        {
-            return NotFound();
-        }
-
-        var item = application.Items.FirstOrDefault(i => i.Id == id);
-        if (item is null)
-        {
-            return NotFound();
-        }
-
-        var templates = await _applicationService.GetImpactTemplatesAsync();
-
-        var viewModel = new ImpactViewModel
-        {
-            ApplicationId = appId,
-            ItemId = id,
-            ItemProductName = item.ProductName,
-            SelectedTemplateId = item.Impact?.ImpactTemplateId,
-            Templates = templates.Select(t => new ImpactTemplateOptionViewModel
-            {
-                Id = t.Id,
-                Name = t.Name,
-                Description = t.Description
-            }).ToList()
-        };
-
-        // If there's an existing impact, populate parameter values
-        if (item.Impact is not null)
-        {
-            var selectedTemplate = templates.FirstOrDefault(t => t.Id == item.Impact.ImpactTemplateId);
-            if (selectedTemplate is not null)
-            {
-                viewModel.Parameters = selectedTemplate.Parameters.Select(p => new ImpactParameterInputViewModel
-                {
-                    ParameterId = p.Id,
-                    Name = p.Name,
-                    DisplayLabel = p.DisplayLabel,
-                    DataType = p.DataType,
-                    IsRequired = p.IsRequired,
-                    Value = item.Impact.ParameterValues
-                        .FirstOrDefault(pv => pv.ParameterId == p.Id)?.Value
-                }).ToList();
-            }
-        }
-
-        return View(viewModel);
-    }
-
-    [HttpPost("{id}/Impact")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Impact(int appId, int id, ImpactViewModel model)
-    {
-        await VerifyOwnershipAsync(appId);
-
-        if (!model.SelectedTemplateId.HasValue)
-        {
-            ModelState.AddModelError(nameof(model.SelectedTemplateId), "Seleccione una plantilla de impacto.");
-        }
-
-        if (!ModelState.IsValid || !model.SelectedTemplateId.HasValue)
-        {
-            var templates = await _applicationService.GetImpactTemplatesAsync();
-            model.Templates = templates.Select(t => new ImpactTemplateOptionViewModel
-            {
-                Id = t.Id,
-                Name = t.Name,
-                Description = t.Description
-            }).ToList();
-            model.ApplicationId = appId;
-            model.ItemId = id;
-            return View(model);
-        }
-
-        var parameterValues = new Dictionary<int, string?>();
-        if (model.Parameters is not null)
-        {
-            foreach (var param in model.Parameters)
-            {
-                parameterValues[param.ParameterId] = param.Value;
-            }
-        }
-
-        var command = new SetItemImpactCommand(
-            appId,
-            id,
-            model.SelectedTemplateId.Value,
-            parameterValues);
-
-        await _applicationService.SetItemImpactAsync(command);
-
-        TempData["SuccessMessage"] = "Evaluación de impacto guardada con éxito.";
-        return RedirectToAction("Details", "Application", new { id = appId });
-    }
-
-    [HttpGet("TemplateParameters/{templateId}")]
-    public async Task<IActionResult> GetTemplateParameters(int appId, int templateId)
-    {
-        var templates = await _applicationService.GetImpactTemplatesAsync();
-        var template = templates.FirstOrDefault(t => t.Id == templateId);
-
-        if (template is null)
-        {
-            return NotFound();
-        }
-
-        var parameters = template.Parameters.Select(p => new
-        {
-            id = p.Id,
-            name = p.Name,
-            displayLabel = p.DisplayLabel,
-            dataType = p.DataType,
-            isRequired = p.IsRequired
-        });
-
-        return Json(parameters);
+        return RedirectToAction("Edit", "Application", new { id = appId });
     }
 
     private async Task<int> GetCurrentApplicantIdAsync()

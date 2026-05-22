@@ -1,0 +1,38 @@
+@*
+    Spec 021 / US1 / T083 — Process Create form.
+*@
+@using FundingPlatform.Web.Models
+@model FundingPlatform.Web.ViewModels.Admin.AdminProcessCreateViewModel
+@{
+    ViewData["Title"] = "Crear proceso";
+}
+
+<div data-testid="admin-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: "Crear proceso",
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem("Procesos", Url.Action("Index", "AdminProcesses")),
+                new BreadcrumbItem("Crear"),
+            }))
+
+    <form method="post" asp-action="Create" class="row" data-testid="admin-process-create-form">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3" data-testid="admin-process-validation-summary"></div>
+
+        <div class="col-md-6 mb-3">
+            <label class="form-label" asp-for="Name">Nombre</label>
+            <input asp-for="Name" class="form-control" data-testid="admin-process-name-input" autofocus />
+            <span asp-validation-for="Name" class="text-danger" data-testid="admin-process-name-error"></span>
+            <small class="form-hint">Texto libre (p. ej. <em>Crocus 2025</em>, <em>Nexo 2026</em>).</small>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-2">
+            <a class="btn btn-secondary" href="@Url.Action("Index", "AdminProcesses")">Cancelar</a>
+            <button type="submit" class="btn btn-primary" data-testid="admin-process-create-submit">
+                Guardar
+            </button>
+        </div>
+    </form>
+</div>

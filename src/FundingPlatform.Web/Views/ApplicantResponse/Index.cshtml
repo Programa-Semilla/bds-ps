@@ -2,17 +2,17 @@
 @model FundingPlatform.Web.ViewModels.ApplicantResponseViewModel
 
 @{
-    ViewData["Title"] = $"Solicitud N.º {Model.ApplicationId} — Respuesta del solicitante";
+    ViewData["Title"] = $"Solicitud {Model.ApplicationId} — Respuesta del solicitante";
 }
 
 <div class="applicant-response-header">
     @await Html.PartialAsync("Components/_PageHeader",
         new PageHeaderViewModel(
-            Title: $"Solicitud N.º {Model.ApplicationId} — Respuesta del solicitante",
+            Title: $"Solicitud {Model.ApplicationId} — Respuesta del solicitante",
             Breadcrumbs: new[]
             {
                 new BreadcrumbItem("Mis solicitudes", Url.Action("Index", "Application")),
-                new BreadcrumbItem($"Solicitud N.º {Model.ApplicationId}", Url.Action("Details", "Application", new { id = Model.ApplicationId })),
+                new BreadcrumbItem($"Solicitud {Model.ApplicationId}", Url.Action("Details", "Application", new { id = Model.ApplicationId })),
                 new BreadcrumbItem("Respuesta"),
             }))
 </div>
@@ -34,16 +34,21 @@
     var isReadOnly = Model.IsSubmitted || Model.State == ApplicationState.AppealOpen;
 }
 
+@* Spec 021 / US7 / T149 / FR-029 — applicant-facing banner copy stripped of
+   the word "financiamiento". The legal entity name is preserved only on the
+   dedicated Funding Agreement surface (/FundingAgreement/*) per the FR-029
+   carve-out; this surface is the applicant response page, which is in scope
+   for the sweep. *@
 @if (Model.State == ApplicationState.AgreementExecuted)
 {
     <div class="alert alert-success" data-testid="signing-banner-executed">
-        Su convenio de financiamiento ha sido ejecutado.
+        Su convenio ha sido ejecutado.
     </div>
 }
 else if (Model.State == ApplicationState.ResponseFinalized && Model.HasFundingAgreement)
 {
     <div class="alert alert-primary" data-testid="signing-banner-ready">
-        Su convenio de financiamiento está listo para firmar a continuación.
+        Su convenio está listo para firmar a continuación.
     </div>
 }
 
@@ -151,8 +156,11 @@ else if (Model.State == ApplicationState.ResponseFinalized && Model.HasFundingAg
 }
 
 <div class="mt-3" id="funding-agreement-panel-container">
+    @* Spec 021 / US7 / T149 / FR-029 — loading placeholder scrubbed of
+       "financiamiento". The applicant response page is in scope for the sweep
+       and the legal entity name is retained only on /FundingAgreement/* surfaces. *@
     <div data-async-panel-url="@Url.RouteUrl(new { controller = "FundingAgreement", action = "Panel", applicationId = Model.ApplicationId })">
-        Cargando panel del convenio de financiamiento...
+        Cargando panel del convenio...
     </div>
 </div>
 

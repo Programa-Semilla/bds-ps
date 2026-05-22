@@ -1,0 +1,64 @@
+@model FundingPlatform.Web.ViewModels.ProvinceCantonCascadeViewModel
+@*
+    _ProvinceCantonCascade.cshtml — Spec 021 / T056 / R-4 / FR-013.
+
+    Renders two cascading <select> elements: Province → Cantón. The host
+    controller populates Provinces (always) and Cantones (only when a Province
+    is pre-selected — e.g. edit forms). On client `change` of the Province
+    select, `province-canton-cascade.js` fetches `/api/cantons?provinceId={id}`
+    and replaces the Cantón options.
+
+    Wiring contract:
+      - Province <select> carries `data-cascade-source="province"` and
+        `data-cascade-target="#canton-{CantonFieldName}"`.
+      - Cantón <select> id is `canton-{CantonFieldName}` so the cascade JS
+        can find it across host forms without name collisions.
+
+    Tabler form-select styling; no inline styles.
+*@
+@{
+    var cantonSelectId = $"canton-{Model.CantonFieldName}";
+}
+<div class="row g-2">
+    <div class="col-md-6">
+        <label class="form-label" for="province-@Model.ProvinceFieldName">Provincia</label>
+        <select id="province-@Model.ProvinceFieldName"
+                class="form-select"
+                name="@Model.ProvinceFieldName"
+                data-cascade-source="province"
+                data-cascade-target="#@cantonSelectId">
+            <option value="">Seleccione una provincia</option>
+            @foreach (var province in Model.Provinces)
+            {
+                if (Model.SelectedProvinceId.HasValue && province.Value == Model.SelectedProvinceId.Value.ToString())
+                {
+                    <option value="@province.Value" selected>@province.Text</option>
+                }
+                else
+                {
+                    <option value="@province.Value">@province.Text</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label" for="@cantonSelectId">Cantón</label>
+        <select id="@cantonSelectId"
+                class="form-select"
+                name="@Model.CantonFieldName"
+                data-cascade-current="@(Model.SelectedCantonId?.ToString() ?? string.Empty)">
+            <option value="">Seleccione un cantón</option>
+            @foreach (var canton in Model.Cantons)
+            {
+                if (Model.SelectedCantonId.HasValue && canton.Value == Model.SelectedCantonId.Value.ToString())
+                {
+                    <option value="@canton.Value" selected>@canton.Text</option>
+                }
+                else
+                {
+                    <option value="@canton.Value">@canton.Text</option>
+                }
+            }
+        </select>
+    </div>
+</div>

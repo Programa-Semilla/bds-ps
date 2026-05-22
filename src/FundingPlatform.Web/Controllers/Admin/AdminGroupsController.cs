@@ -1,5 +1,7 @@
 using FundingPlatform.Application.Admin.Groups;
+using FundingPlatform.Application.Processes.Queries;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.Resources;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
@@ -9,21 +11,32 @@ using Microsoft.AspNetCore.Mvc;
 namespace FundingPlatform.Web.Controllers.Admin;
 
 /// <summary>
-/// Spec 016 — admin-only catalog management for <see cref="Domain.Entities.Group"/>.
-/// `[Authorize(Roles = "Admin")]` covers FR-002 (non-admins → 403). The
-/// `[Authorize]` attribute also handles unauthenticated callers (redirect to
-/// login / 401), so no extra code path is needed for that case.
+/// Spec 016 / 021 — admin-only catalog management for
+/// <see cref="Domain.Entities.Group"/>. `[Authorize(Roles = "Admin,SupplierAdmin")]`
+/// covers FR-002 (non-admins → 403). The `[Authorize]` attribute also handles
+/// unauthenticated callers (redirect to login / 401).
+///
+/// Spec 021 / FR-001 — Group <em>creation</em> moved to the Process Details
+/// page (<c>AdminProcessesController.CreateGroup</c>) so the owning Process is
+/// implied by context. This controller keeps the catalog list, rename, the
+/// Process reparenting selector, and delete.
 /// </summary>
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SupplierAdmin")]
+[SupplierAdminDenied]
 [Route("Admin/Groups")]
 public class AdminGroupsController : Controller
 {
     private readonly IGroupService _groups;
+    private readonly IProcessQueryService _processQuery;
     private readonly UserManager<ApplicationUser> _userManager;
 
-    public AdminGroupsController(IGroupService groups, UserManager<ApplicationUser> userManager)
+    public AdminGroupsController(
+        IGroupService groups,
+        IProcessQueryService processQuery,
+        UserManager<ApplicationUser> userManager)
     {
         _groups = groups;
+        _processQuery = processQuery;
         _userManager = userManager;
     }
 
@@ -33,48 +46,11 @@ public class AdminGroupsController : Controller
         var rows = await _groups.ListAsync(ct);
         var vm = new AdminGroupsIndexViewModel
         {
-            Groups = rows.Select(g => new AdminGroupRow(g.Id, g.Name, g.MemberCount)).ToList(),
+            Groups = rows
+                .Select(g => new AdminGroupRow(g.Id, g.Name, g.MemberCount, g.ProcessName))
+                .ToList(),
         };
         return View(vm);
-    }
-
-    [HttpGet("Create")]
-    public IActionResult Create()
-    {
-        return View(new AdminGroupCreateViewModel());
-    }
-
-    [HttpPost("Create")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(AdminGroupCreateViewModel vm, CancellationToken ct)
-    {
-        if (!ModelState.IsValid)
-        {
-            return View(vm);
-        }
-
-        var actorId = _userManager.GetUserId(User) ?? "";
-        try
-        {
-            await _groups.CreateAsync(vm.Name, actorId, ct);
-        }
-        catch (DuplicateGroupNameException)
-        {
-            ModelState.AddModelError(nameof(vm.Name), AdminGroupsResources.NameAlreadyInUse);
-            return View(vm);
-        }
-        catch (ArgumentException)
-        {
-            // Domain validation surfaced from Group.Create — defensive, the model
-            // attributes already cover the empty/over-length cases. NFR-004 — render
-            // the localized resource message rather than the (English) domain
-            // exception message.
-            ModelState.AddModelError(nameof(vm.Name), AdminGroupsResources.NameRequired);
-            return View(vm);
-        }
-
-        TempData["SuccessMessage"] = AdminGroupsResources.FlashCreated;
-        return RedirectToAction(nameof(Index));
     }
 
     [HttpGet("{id:int}/Edit")]
@@ -89,7 +65,9 @@ public class AdminGroupsController : Controller
         {
             Id = detail.Id,
             Name = detail.Name,
+            ProcessId = detail.ProcessId,
             MemberCount = memberCount,
+            ProcessOptions = await LoadProcessOptionsAsync(ct),
         });
     }
 
@@ -103,13 +81,18 @@ public class AdminGroupsController : Controller
         }
         if (!ModelState.IsValid)
         {
+            vm.ProcessOptions = await LoadProcessOptionsAsync(ct);
             return View(vm);
         }
 
         var actorId = _userManager.GetUserId(User) ?? "";
         try
         {
+            // Rename + reparent. RenameAsync is idempotent when unchanged, and
+            // MoveToProcessAsync is a no-op when the Process did not change, so
+            // a plain rename does not write a spurious group.move_process row.
             await _groups.RenameAsync(id, vm.Name, actorId, ct);
+            await _groups.MoveToProcessAsync(id, vm.ProcessId, actorId, ct);
         }
         catch (KeyNotFoundException)
         {
@@ -118,12 +101,21 @@ public class AdminGroupsController : Controller
         catch (DuplicateGroupNameException)
         {
             ModelState.AddModelError(nameof(vm.Name), AdminGroupsResources.NameAlreadyInUse);
+            vm.ProcessOptions = await LoadProcessOptionsAsync(ct);
             return View(vm);
         }
         catch (ArgumentException)
         {
             // NFR-004 — localized fallback for the defensive domain-validation path.
             ModelState.AddModelError(nameof(vm.Name), AdminGroupsResources.NameRequired);
+            vm.ProcessOptions = await LoadProcessOptionsAsync(ct);
+            return View(vm);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Reparenting into a closed Process (Spec 021 / FR-001).
+            ModelState.AddModelError(nameof(vm.ProcessId), ex.Message);
+            vm.ProcessOptions = await LoadProcessOptionsAsync(ct);
             return View(vm);
         }
 
@@ -146,5 +138,14 @@ public class AdminGroupsController : Controller
         }
         TempData["SuccessMessage"] = AdminGroupsResources.FlashDeleted;
         return RedirectToAction(nameof(Index));
+    }
+
+    private async Task<IReadOnlyList<AdminGroupProcessOption>> LoadProcessOptionsAsync(CancellationToken ct)
+    {
+        var processes = await _processQuery.ListAsync(statusFilter: null, ct);
+        return processes
+            .OrderBy(p => p.Name, StringComparer.CurrentCulture)
+            .Select(p => new AdminGroupProcessOption(p.Id, p.Name))
+            .ToList();
     }
 }

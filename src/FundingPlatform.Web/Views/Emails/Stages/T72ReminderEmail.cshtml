@@ -1,0 +1,40 @@
+@*
+    Spec 021 / T118 / FR-025 — T-72h stage-expiry reminder email body.
+
+    This is a TEMPLATE FILE, not a Razor view: the hosted reminder service
+    reads the file as plain text and replaces `{{TOKEN}}` placeholders. Razor
+    rendering inside IHostedService would require an HttpContext shim that
+    the spec 021 NFR-005 budget does not permit.
+
+    Tokens substituted by StageReminderEmailFactory:
+      {{PublicCode}}     — Application.PublicCode (FR-008)
+      {{StageName}}      — es-CR stage label (Solicitud / Revisión / Facturación)
+      {{ClosesAtLocal}}  — close-at instant formatted dd/MM/yyyy HH:mm (es-CR)
+      {{ApplicantName}}  — applicant first name; "" if unknown
+*@
+<!DOCTYPE html>
+<html lang="es-CR">
+<head>
+    <meta charset="utf-8" />
+    <title>Su solicitud {{PublicCode}} cierra en 72 horas</title>
+</head>
+<body style="font-family: 'Inter', Arial, sans-serif; color: #232323; background: #F7F5F0; margin: 0; padding: 24px;">
+    <div style="max-width: 600px; margin: 0 auto; background: #FFFFFF; border-radius: 8px; padding: 32px; border: 1px solid #E5E1D8;">
+        <h2 style="color: #7B3F00; margin-top: 0;">Su solicitud cierra en 72 horas</h2>
+        <p>Hola {{ApplicantName}},</p>
+        <p>
+            Le recordamos que su solicitud <strong>{{PublicCode}}</strong> se encuentra
+            en la etapa <strong>{{StageName}}</strong> y la ventana de esta etapa
+            cierra el <strong>{{ClosesAtLocal}}</strong>.
+        </p>
+        <p>
+            Si requiere completar acciones pendientes, hágalo antes de esa fecha;
+            de lo contrario su solicitud quedará bloqueada hasta que un administrador
+            la revise.
+        </p>
+        <p style="color: #666; font-size: 0.85rem; margin-top: 32px;">
+            Programa Semilla — Sistema de Banca para el Desarrollo
+        </p>
+    </div>
+</body>
+</html>
