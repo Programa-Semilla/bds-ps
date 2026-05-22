@@ -138,6 +138,24 @@ An admin deletes Application *A7K2-9XF*. The Application immediately disappears 
 
 ---
 
+### User Story 9 — Applicant deletes a Draft or withdraws a Submitted Application (Priority: P2)
+
+An applicant who started an Application they no longer want can remove it themselves. On a *Borrador* they **delete** it; on a *Enviada* / *En revisión* Application they **retiran** (withdraw) it. Either action removes the Application from every dashboard surface via the existing soft-delete filter (FR-021). Withdrawing an Application that is already in review (`UnderReview`) notifies the reviewers of its stage group by email; withdrawing a still-pending `Submitted` Application notifies no one.
+
+**Why this priority**: Closes a real lifecycle gap — applicants currently have no exit for an Application they abandoned or no longer wish to pursue, leaving dead rows on their dashboard and stale work in the reviewer queue. P2: meaningful UX gap, low risk because it reuses the admin soft-delete path already in production.
+
+**Independent Test**: As an applicant, create a draft → delete it → confirm it leaves the dashboard and no email is sent. Separately, take an Application into `UnderReview` → withdraw it → confirm it leaves both the applicant dashboard and the reviewer queue and the stage-group reviewers receive the withdrawal email. Withdraw a still-pending `Submitted` Application → confirm no reviewer email is sent.
+
+**Acceptance Scenarios**:
+
+1. **Given** a *Borrador* Application owned by the applicant, **When** the applicant confirms *"Eliminar borrador"*, **Then** the Application is soft-deleted, disappears from the applicant dashboard, and no notification email is enqueued.
+2. **Given** an Application in `UnderReview` owned by the applicant, **When** the applicant confirms *"Retirar solicitud"*, **Then** the Application is soft-deleted, leaves the applicant dashboard and the reviewer queue, and an `APPLICATION_WITHDRAWN_BY_APPLICANT` email is enqueued to each Reviewer-role member of the Application's stage group.
+3. **Given** an Application in `Submitted` (not yet under review) owned by the applicant, **When** the applicant withdraws it, **Then** the Application is soft-deleted, leaves the applicant dashboard and the reviewer queue, and no reviewer notification is enqueued.
+4. **Given** an Application in `Resolved`, `AppealOpen`, `ResponseFinalized`, or `AgreementExecuted`, **When** the applicant views it, **Then** no delete/withdraw affordance is shown, and a direct POST to the delete/withdraw endpoint is rejected (HTTP 403 / redirect).
+5. **Given** an Application owned by another applicant, **When** a user POSTs the delete/withdraw endpoint for it, **Then** the request is rejected (ownership check fails) without mutating state.
+
+---
+
 ### Edge Cases
 
 - **First Process bootstrap.** Empty system has no Processes; empty-state on `/admin/processes` guides creation. Applicant onboarding flow blocks gracefully until at least one active Process exists.
@@ -158,6 +176,10 @@ An admin deletes Application *A7K2-9XF*. The Application immediately disappears 
 - **SupplierAdmin self-elevation attempt.** Direct URL access to admin-only routes returns 403 + audit event.
 - **Reminder-email send failure.** Failure does not block stage progression; retries with exponential backoff (max 5); final failure logged on the existing admin email-queue surface.
 - **No production data exists.** Schema cutover drops `Item.Impact` column outright; no migration of legacy per-item impact values is required.
+- **Withdraw of a `Submitted` Application not yet under review.** Soft-delete succeeds; no reviewer notification is sent (the withdrawal email fires only for `UnderReview`).
+- **Withdraw of an `UnderReview` Application whose stage group has no Reviewer-role members.** Soft-delete succeeds; the notification step no-ops (empty recipient pool). No email, no error.
+- **State change between page render and confirm.** Reviewer resolves the Application after the applicant loaded the page but before they confirm withdrawal: the server re-checks state at POST time and rejects with *"La solicitud ya no puede retirarse."*
+- **Repeat delete/withdraw.** `Application.SoftDelete()` is idempotent; a second confirmation (double-click, stale tab) no-ops and returns the applicant to the dashboard without error or duplicate email.
 
 ## Requirements *(mandatory)*
 
@@ -230,6 +252,16 @@ An admin deletes Application *A7K2-9XF*. The Application immediately disappears 
 - **FR-033**: Pending-quotation tile MUST move from the admin dashboard to the reviewer dashboard with the same data source.
 - **FR-034**: Admin user list group selector MUST be a two-level cascading filter *Process → Group* whose options follow FR-001.
 
+**Application lifecycle (applicant-initiated removal)**
+
+- **FR-035**: An applicant MUST be able to **delete** a `Draft` Application they own. The action MUST call `Application.SoftDelete()` so the row leaves every dashboard surface via the FR-021 `ExcludeDeleted` filter. No notification is sent.
+- **FR-036**: An applicant MUST be able to **withdraw** a `Submitted` or `UnderReview` Application they own. Withdrawal MUST use the same soft-delete path as FR-035; the Application MUST leave the applicant dashboard and the reviewer queue. No new domain state is introduced — withdrawal is modeled as soft-delete, not a distinct `Withdrawn` state.
+- **FR-037**: Delete/withdraw MUST NOT be available on Applications in `Resolved`, `AppealOpen`, `ResponseFinalized`, or `AgreementExecuted`. The affordance MUST be hidden in the UI for those states AND the server MUST reject a direct POST (HTTP 403 / redirect) — defense in depth.
+- **FR-038**: Both actions MUST be exposed as a state-and-ownership-gated affordance on the applicant dashboard (`Index`) and the Application detail page (`Details`). Labels: `Draft` → *"Eliminar borrador"*; `Submitted` / `UnderReview` → *"Retirar solicitud"*.
+- **FR-039**: Both actions MUST require an explicit confirmation step before executing (the operation is not self-reversible by the applicant). The withdrawal confirmation copy MUST warn the applicant that, if the Application is already under review, its reviewers will be notified.
+- **FR-040**: Withdrawing an Application in `UnderReview` MUST enqueue an `APPLICATION_WITHDRAWN_BY_APPLICANT` notification to the reviewer pool of the Application's current stage group — the same recipient set that `APPLICATION_SUBMITTED_REVIEWER` resolves (Reviewer-role members of the stage group, per `NotificationRecipientResolver`) — through the existing outbox subsystem (spec 021-email-notifications), with a new es-CR Razor template under `Views/Emails/`. Withdrawing an Application in `Submitted` (not yet `UnderReview`) MUST NOT send any reviewer notification. If the stage-group reviewer pool is empty, no email is sent (natural no-op). The notification MUST follow the existing allowlist + idempotency rules; the idempotency key MUST distinguish the withdrawal event from other reviewer-bucket events for the same Application.
+- **FR-041**: The server MUST verify the acting applicant owns the Application before any delete/withdraw mutation; an ownership mismatch MUST be rejected without mutating state.
+
 ### Non-Functional Requirements
 
 - **NFR-001**: No production data exists. Migration drops `Item.Impact` column outright. New tables `Process`, `Plantilla`, `ProcessPlantilla`, `Province`, `Canton` ship via dacpac.
@@ -274,6 +306,8 @@ An admin deletes Application *A7K2-9XF*. The Application immediately disappears 
 - **SC-014**: Required-field violations enumerate every missing field by name on submit; input masks reject malformed values inline.
 - **SC-015**: *"Hola, {{Nombre}}"* greeting renders on every active-user welcome surface; *"Bienvenido/a"* string is absent from the es-CR catalog.
 - **SC-016**: Full Playwright E2E suite is green before delivery (NFR-004).
+- **SC-017**: An applicant deletes a `Draft` → it disappears from their dashboard within the same request lifecycle and zero emails are captured in smtp4dev. An applicant withdraws an `UnderReview` Application → it leaves both the applicant dashboard and the reviewer queue and exactly one `APPLICATION_WITHDRAWN_BY_APPLICANT` email is captured per Reviewer-role member of its stage group. An applicant withdraws a `Submitted` (not-yet-under-review) Application → zero reviewer emails are captured.
+- **SC-018**: For every Application state in `{Resolved, AppealOpen, ResponseFinalized, AgreementExecuted}`, the delete/withdraw affordance is absent from rendered HTML AND a direct POST to the endpoint returns 403/redirect in 100 % of E2E permutations. A withdraw of a `Submitted` (not-yet-under-review) Application, and a withdraw of an `UnderReview` Application whose stage group has no Reviewer-role members, both send zero emails.
 
 ## Assumptions
 
@@ -291,8 +325,8 @@ An admin deletes Application *A7K2-9XF*. The Application immediately disappears 
 - Existing SMTP wiring is reused for forgot-password and reminder emails; no new email provider is introduced.
 - Hint copy authorship is deferred to designer / copywriter (OQ-8); FR-020 captures the slots, not the strings.
 - Process audit-event coverage extends `AdminAuditEvent` (spec 016 pattern) — pinned in plan (OQ-9).
-
-## Dependencies
+- Applicant-initiated delete/withdrawal reuses the spec 021-email-notifications outbox and the existing `APPLICATION_SUBMITTED_REVIEWER` recipient resolver (Reviewer-role members of the Application's stage group). There is no single-assignee model, so "notify reviewers" means the stage-group reviewer pool. The withdrawal email fires only when the Application is in `UnderReview`; a `Submitted` Application not yet under review notifies no reviewer, and an empty stage-group reviewer pool is a natural no-op (decided in brainstorm).
+- Withdrawal is modeled as the existing soft-delete (`Application.DeletedAt`), not a new domain state; there is no applicant-facing distinction between a deleted Draft and a withdrawn Submission beyond the label and the reviewer notification.
 
 - **Spec 016** (`user-groups`) — `Group`, `UserGroupMembership`, `AdminAuditEvent`. Process sits above Group; group-overlap predicates extend to Process scope.
 - **Spec 015** (`multi-currency-quotes`) — Currency catalog + ExchangeRate; FR-022 disclaimer attaches to CRC-converted USD surfaces.
@@ -317,6 +351,9 @@ An admin deletes Application *A7K2-9XF*. The Application immediately disappears 
 - Visual-regression tooling (recurring open thread from specs 008 / 011 / 017 / 019).
 - Audit log redesign for SupplierAdmin actions — extends `AdminAuditEvent`, no new entity.
 - Public marketing site beyond the FR-031 landing scaffold.
+- Applicant self-restore / undelete of a deleted or withdrawn Application — recovery stays an admin / DBA concern; no undelete path exists today.
+- A distinct `Withdrawn` domain state — withdrawal is modeled as soft-delete per FR-036.
+- Bulk delete/withdrawal of multiple Applications by the applicant.
 
 ## Open Questions
 
@@ -330,3 +367,4 @@ An admin deletes Application *A7K2-9XF*. The Application immediately disappears 
 - **OQ-8**: Hint copy authorship — strings for FR-020's initial set; designer / copywriter delivery pending.
 - **OQ-9**: Process audit-event coverage — extends `AdminAuditEvent` (spec 016 pattern)? Pin in plan.
 - **OQ-10**: Province *"Otro/Extranjero"* — block in UI (default) vs catalog row. Revisit if foreign suppliers surface.
+- **OQ-11**: Withdrawal reviewer notification trigger — fire only for `UnderReview` (default, decided in brainstorm) vs also for still-pending `Submitted` withdrawals vs never. Confirm with stakeholders.

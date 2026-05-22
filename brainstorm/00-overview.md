@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 
 ## Sessions
 
@@ -27,6 +27,7 @@ Last updated: 2026-05-20
 | 19 | 2026-05-11 | email-notifications | spec-created | 021-email-notifications |
 | 20 | 2026-05-13 | feedback-session-may13 | spec-created | 021-feedback-session-may13 |
 | 21 | 2026-05-20 | quotation-edit | spec-created | 023 |
+| 22 | 2026-05-21 | applicant-delete-withdrawal | spec-created | 021-feedback-session-may13 |
 
 ## Open Threads
 
@@ -196,6 +197,9 @@ Last updated: 2026-05-20
 - Constitution OC-gate posture on Quotation Edit — single-actor / two-tabs-same-user; justify last-write-wins in `plan.md` Complexity Tracking or add a rowversion token (from #21, R-1)
 - Shared partial file name for the extracted quote-fields fragment — `_QuotationFieldsForm.cshtml` working name; pin during planning (from #21)
 - AI-cache invalidation race window with in-flight `ComparisonJob` for the same Item — pin during planning (from #21)
+- Withdrawal reviewer-notification trigger — `UnderReview`-only (default) vs also still-pending `Submitted` vs never; confirm with stakeholders (from #22, OQ-11)
+- Idempotency-key shape for `APPLICATION_WITHDRAWN_BY_APPLICANT` so it's distinct from other reviewer-bucket events for the same Application — pin during planning (from #22)
+- Whether withdrawal should leave an applicant-visible "Retirada" trace vs. silently vanishing like a soft-delete — parked (from #22)
 
 ## Closed Threads
 

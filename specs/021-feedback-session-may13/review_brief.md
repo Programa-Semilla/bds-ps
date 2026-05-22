@@ -129,4 +129,28 @@ Consolidates the 26 refinements from the May-13 stakeholder feedback session int
 | Public `/` landing without content | Low | Slots show *"Próximamente"* placeholder; FR captures slot, not asset; content delivery is an admin operation. |
 
 ---
+
+## Addendum (2026-05-21): User Story 9 — applicant-initiated delete/withdrawal
+
+**Added:** US9 + FR-035–FR-041 + SC-017/SC-018. Closes the lifecycle gap where an applicant had no way to remove an Application they started.
+
+- **In scope:** Applicant **deletes** a `Draft` they own (soft-delete, no email) and **withdraws** a `Submitted`/`UnderReview` Application they own (same soft-delete; leaves applicant dashboard + reviewer queue). Affordances on dashboard `Index` + Application `Details`, state- and ownership-gated; explicit confirmation step. Withdrawing an `UnderReview` Application emails `APPLICATION_WITHDRAWN_BY_APPLICANT` to the stage-group reviewer pool. **No schema change** — reuses `Application.SoftDelete()` / `ExcludeDeleted` + the spec-021 outbox.
+- **Out of scope:** Applicant self-restore/undelete, a distinct `Withdrawn` domain state, bulk delete.
+
+### Critical decision: withdrawal modeled as soft-delete, notify the stage-group pool only when `UnderReview`
+- **Choice:** Withdrawal reuses the existing soft-delete (no new `Withdrawn` state). There is **no per-application assigned reviewer** in this codebase — reviewer access is spec-016 group overlap — so "notify the reviewer" resolves to the stage-group reviewer pool (the `APPLICATION_SUBMITTED_REVIEWER` recipient set). The withdrawal email fires **only for `UnderReview`**; a plain `Submitted` withdrawal notifies no one; an empty pool is a no-op.
+- **Trade-off:** Several reviewers may receive the email (no single assignee exists). Gating on `UnderReview` avoids notifying a pool about an Application nobody has picked up yet. Reuses the resolver verbatim vs. building any assignment concept.
+- **Why controversial:** The original brainstorm framing assumed a single "assigned reviewer" + skip-if-unassigned; that model does not exist. Reconciled with the user to the `UnderReview`-only pool notification.
+- **Seeking input on:** Confirm `UnderReview`-only is the right trigger (vs. notifying on any `Submitted` withdrawal, or never notifying).
+
+### Open question
+- [ ] OQ-11: Should withdrawal of a still-pending `Submitted` Application also notify the stage-group pool, or stay silent until `UnderReview` (current decision)?
+
+### Risk
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Withdrawal email fans out to a whole reviewer pool (no single assignee) | Low | Fires only for `UnderReview`; empty pool no-ops; reuses proven `APPLICATION_SUBMITTED_REVIEWER` resolver + allowlist + idempotency. |
+| Direct POST to delete/withdraw on a non-deletable state or another applicant's Application | Medium | FR-037 + FR-041 — server re-checks state + ownership; 403/redirect; covered by SC-018. |
+
+---
 *Share with reviewers before implementation.*

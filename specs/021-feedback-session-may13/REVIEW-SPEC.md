@@ -96,3 +96,49 @@ The spec is **sound** and ready for implementation planning. Scope is large but 
 1. Surface spec path to the user for review (brainstorm-skill user review gate).
 2. On user approval, generate `review_brief.md` for stakeholder reviewers.
 3. Commit `specs/021-feedback-session-may13/` and offer `/speckit-plan` as the next step.
+
+---
+
+## Addendum Review: User Story 9 — applicant-initiated delete/withdrawal
+
+**Date:** 2026-05-21
+**Reviewer:** Claude (speckit-spex-gates-review-spec)
+**Scope:** US9, FR-035–FR-041, SC-017/SC-018, 3 new edge cases, 2 new assumptions, 3 new out-of-scope items.
+
+**Status:** NEEDS WORK — one Important issue (terminology mismatch with the actual reviewer model). Everything else sound.
+
+### Completeness: 5/5
+US9 has Why/Independent-Test/5 acceptance scenarios; FR-035–041 cover delete, withdraw, state gating, placement, confirmation, notification, ownership; SC-017/SC-018 are measurable; edge cases cover no-reviewer, mid-flight state change, idempotent repeat. No placeholders.
+
+### Clarity: 4/5
+MUST/MUST NOT used throughout; labels, event name, and states pinned. One ambiguity — see Important issue below.
+
+### Implementability: 4/5
+Reuses production-proven soft-delete (`Application.SoftDelete()`, `ExcludeDeleted`) and the spec-021 outbox — no schema change. Blocked only by the recipient-resolution mismatch.
+
+### Testability: 5/5
+SC-017/SC-018 give absence assertions (zero emails, affordance absent from HTML), exact-count assertions (exactly one email), 403/redirect on direct POST, smtp4dev capture. Maps cleanly to E2E.
+
+### Important issue (must reconcile before plan)
+
+**I-1 — "assigned reviewer" is not a real concept.** FR-040, US9 scenarios 2–3, and SC-017 all hinge on an "assigned reviewer" and a "skip if no reviewer is assigned" branch. The codebase has **no per-application reviewer assignment**:
+- `Application` entity has no `AssignedReviewerId`/`ReviewerId` (`Application.cs`).
+- Reviewer access is spec-016 group-overlap: any Reviewer-role user in a group the applicant shares can open it (`ReviewController.cs:229-244`, `ApplicationRepository.ApplicantSharesAnyGroupAsync`).
+- `APPLICATION_SUBMITTED_REVIEWER` already resolves to the **whole reviewer pool of the application's stage group(s)**, not one assignee (`NotificationRecipientResolver.cs:76-121`).
+
+Consequence: there is no "unassigned" state to gate on. The only coherent recipient set for the withdrawal email is the same stage-group reviewer pool that submission notifies; the natural "skip" case is an **empty pool** (a stage group with zero Reviewer-role members). This **reverses the premise of brainstorm decision OQ-1** ("skip if unassigned" vs "notify the eligible group") — the eligible-group fan-out is in fact the *only* mechanism that exists. Requires a user decision, then a wording fix to FR-040 / scenarios 2–3 / SC-017.
+
+### Recommendations
+- **Important:** Resolve I-1 with the user, then reword FR-040, US9 scenarios 2–3, and SC-017 to target "the reviewer pool for the Application's current stage group (the same recipient set as `APPLICATION_SUBMITTED_REVIEWER`)", with skip = empty pool.
+- **Optional:** Add `APPLICATION_WITHDRAWN_BY_APPLICANT` to the `NotificationEvent` enum list reference (`NotificationEvent.cs`) during plan.
+- **Optional:** Confirm the withdrawal email uses the `RecipientBucket.Reviewer` variant + allowlist + idempotency key extended with the version/withdrawal discriminator.
+
+**Ready for implementation:** No — after I-1 reconciliation + re-review.
+
+### Re-review (2026-05-21, iteration 2)
+
+**Status:** SOUND.
+
+I-1 reconciled with the user. Decision: withdrawal notifies the **stage-group reviewer pool** (the `APPLICATION_SUBMITTED_REVIEWER` recipient set) **only when the Application is `UnderReview`**; a plain `Submitted` withdrawal notifies no reviewer; an empty pool is a natural no-op. The "assigned reviewer" language is gone. Updated: US9 narrative + Independent Test + scenarios 2–3, FR-039, FR-040, SC-017, SC-018, two edge cases, and the reviewer-resolver assumption. All now reference the real group-overlap model. No remaining inconsistencies; reuses production-proven soft-delete + outbox with no schema change.
+
+**Ready for implementation:** Yes — proceed to user review gate, then `/speckit-plan`.
