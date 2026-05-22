@@ -80,6 +80,17 @@ public static class NotificationTemplateBindings
                 HtmlViewName:    "ApplicationRejected",
                 TextViewName:    "ApplicationRejected.text",
                 TemplateVariantKey: "applicant-rejected"),
+
+            // Spec 021 / US9 / FR-040 — reviewer-bucket notification when an
+            // applicant withdraws an UnderReview Application. CTA links to the
+            // reviewer queue (/Review), NOT /Review/{id}: the Application is
+            // soft-deleted, so the detail route would 403/404.
+            [NotificationEvent.WithdrawnByApplicant] = new(
+                NotificationEvent.WithdrawnByApplicant,
+                SubjectTemplate: "Solicitud retirada por el solicitante: {ApplicantName}",
+                HtmlViewName:    "ApplicationWithdrawnByApplicant",
+                TextViewName:    "ApplicationWithdrawnByApplicant.text",
+                TemplateVariantKey: "reviewer-application-withdrawn"),
         };
 
     /// <summary>Lookup helper. Throws on unknown event (closed map invariant).</summary>

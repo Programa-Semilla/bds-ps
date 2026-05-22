@@ -159,6 +159,44 @@ public class Application
     }
 
     /// <summary>
+    /// Spec 021 / US9 / FR-035–FR-037, FR-040 — applicant-initiated removal. A
+    /// <c>Draft</c> is deleted; a <c>Submitted</c>/<c>UnderReview</c> Application is
+    /// withdrawn. Both reuse <see cref="SoftDelete"/> (no distinct Withdrawn state).
+    /// Reviewer notification is requested only for an <c>UnderReview</c> withdrawal.
+    /// Terminal states (<c>Resolved</c>, <c>AppealOpen</c>, <c>ResponseFinalized</c>,
+    /// <c>AgreementExecuted</c>) reject the operation. Idempotent: a repeat on an
+    /// already soft-deleted row is a no-op and never re-requests notification.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The Application is past the point an applicant may remove it.</exception>
+    public ApplicantRemovalOutcome RemoveByApplicant()
+    {
+        if (IsDeleted)
+        {
+            return new ApplicantRemovalOutcome(ApplicantRemovalKind.NoOp, NotifyReviewers: false, PriorState: State);
+        }
+
+        var priorState = State;
+        switch (State)
+        {
+            case ApplicationState.Draft:
+                SoftDelete();
+                return new ApplicantRemovalOutcome(ApplicantRemovalKind.DraftDeleted, NotifyReviewers: false, priorState);
+
+            case ApplicationState.Submitted:
+                SoftDelete();
+                return new ApplicantRemovalOutcome(ApplicantRemovalKind.Withdrawn, NotifyReviewers: false, priorState);
+
+            case ApplicationState.UnderReview:
+                SoftDelete();
+                return new ApplicantRemovalOutcome(ApplicantRemovalKind.Withdrawn, NotifyReviewers: true, priorState);
+
+            default:
+                throw new InvalidOperationException(
+                    $"Application in '{State}' state cannot be deleted or withdrawn by the applicant.");
+        }
+    }
+
+    /// <summary>
     /// Spec 021 / FR-006 — reset reminder state and stamp <see cref="StageEnteredAt"/>
     /// to now. Invoked on every transition that crosses a stage boundary
     /// (Draft → Submitted, Submitted → UnderReview, Resolved → ResponseFinalized,
