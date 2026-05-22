@@ -45,6 +45,11 @@
         new("currencies", "Monedas", "/Admin/Currencies", "ti ti-coin", new[] { "Admin" }),
         new("exchange-rates", "Tipos de Cambio", "/Admin/ExchangeRates", "ti ti-arrows-exchange", new[] { "Admin" }),
         new("legacy-quotations", "Cotizaciones Pendientes", "/Admin/LegacyQuotations", "ti ti-history", new[] { "Admin" }),
+        // Spec 021 / US11 / FR-043 — same US1-repivot gap as impact-templates:
+        // the /Admin/Configuration surface kept its dashboard card but lost its
+        // sidebar entry. Distinct icon from the "Administración" section header
+        // (ti-settings) so the child is not confused with its parent.
+        new("system-config", "Configuración del sistema", "/Admin/Configuration", "ti ti-adjustments", new[] { "Admin" }),
     };
 
     // Spec 021 / US3 / T111 — for the SupplierAdmin-only path we render a

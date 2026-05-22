@@ -3,7 +3,12 @@
 **Feature:** 021-feedback-session-may13 (increment on an already-shipped spec)
 **Spec scope:** User Story 11, FR-043, SC-020 (closes the OQ-12 Configuration clause)
 **Created:** 2026-05-22
-**Status:** Planned
+**Status:** Implemented (2026-05-22)
+
+> **Delivered.** Nav-only change. Full Playwright E2E suite personally executed and green:
+> 246 total / 241 passed / 0 failed / 5 skipped (pre-existing baseline). New tests
+> `Admin_ReachesSystemConfiguration_ViaSidebar` + `SupplierAdminOnly_SidebarLacksSystemConfigEntry`
+> pass; `AdminSidebarGroupingTests` extended with the `system-config` slug.
 
 > Sibling of US10 (`plan-impact-template-nav.md`) — identical root cause, identical fix shape.
 > That plan's Technical Context, Constitution Check, and design rationale apply verbatim; only the

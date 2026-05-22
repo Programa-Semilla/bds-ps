@@ -34,8 +34,8 @@ public class AdminSidebarGroupingTests : AuthenticatedTestBase
         Assert.That(href, Is.EqualTo("/Admin"),
             "FR-015 + R3 — section header navigates to /Admin.");
 
-        // All admin sub-entry slugs must be present (FR-016; +impact-templates per US10/FR-042).
-        var slugs = new[] { "impact-templates", "users", "groups", "suppliers", "reports", "currencies", "exchange-rates", "legacy-quotations" };
+        // All admin sub-entry slugs must be present (FR-016; +impact-templates per US10/FR-042; +system-config per US11/FR-043).
+        var slugs = new[] { "impact-templates", "users", "groups", "suppliers", "reports", "currencies", "exchange-rates", "legacy-quotations", "system-config" };
         foreach (var slug in slugs)
         {
             await Expect(Page.Locator($"[data-testid=sidebar-entry-{slug}]")).ToBeVisibleAsync();
@@ -56,7 +56,7 @@ public class AdminSidebarGroupingTests : AuthenticatedTestBase
             "FR-017 — Applicants see no admin section.");
 
         // None of the admin sub-entries should render.
-        foreach (var slug in new[] { "impact-templates", "users", "groups", "suppliers", "reports", "currencies", "exchange-rates", "legacy-quotations" })
+        foreach (var slug in new[] { "impact-templates", "users", "groups", "suppliers", "reports", "currencies", "exchange-rates", "legacy-quotations", "system-config" })
         {
             Assert.That(await Page.Locator($"[data-testid=sidebar-entry-{slug}]").CountAsync(),
                 Is.EqualTo(0),
