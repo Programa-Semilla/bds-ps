@@ -50,7 +50,7 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 - [X] T010 [US1] In `src/FundingPlatform.Web/Views/Shared/_AuthLayout.cshtml`, remove the `.fl-alert` banner blocks and include `_NotificationToasts`. (FR-002, SC-002)
 - [X] T011 [US1] Route `TempData["FundingAgreementSuccess"]/["FundingAgreementError"]` through `_NotificationToasts` (success/error toasts with `data-testid="funding-agreement-success"/"-error"`) and remove the in-panel `.alert` blocks in `src/FundingPlatform.Web/Views/Applications/_FundingAgreementPanel.cshtml` (lines 15–25). (FR-002)
 - [X] T012 [US1] Convert the `TempData["ValidationErrors"]` submit-blocking list in `src/FundingPlatform.Web/Views/Application/Details.cshtml` (line ~73) into a sticky error toast (`data-testid="validation-summary-toast"`) via the bridge; remove the in-place list alert. (FR-002)
-- [ ] T013 [P] [US1] E2E: `tests/FundingPlatform.Tests.E2E/Tests/Notifications/ToastNotificationTests.cs` + toast locators/helpers in `tests/FundingPlatform.Tests.E2E/PageObjects/BasePage.cs` — assert success toast appears & auto-dismisses, error toast appears & stays, across an applicant page, an admin page, and an auth page; assert no top-of-page banner; uses `data-testid="success-banner"/"error-banner"`. (SC-002, SC-003)
+- [X] T013 [P] [US1] E2E: `tests/FundingPlatform.Tests.E2E/Tests/Notifications/ToastNotificationTests.cs` + toast locators/helpers in `tests/FundingPlatform.Tests.E2E/PageObjects/BasePage.cs` — assert success toast appears & auto-dismisses, error toast appears & stays, across an applicant page, an admin page, and an auth page; assert no top-of-page banner; uses `data-testid="success-banner"/"error-banner"`. (SC-002, SC-003)
 
 **Checkpoint**: US1 independently testable and demoable.
 
@@ -72,7 +72,7 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 - [X] T021 [US2] Migrate the 2 sites in `src/FundingPlatform.Web/Views/Applications/_FundingAgreementPanel.cshtml` (lines 63 overwrite, 121 withdraw upload) to `data-confirm-*`.
 - [X] T022 [US2] Migrate the 2 row-level sites in `src/FundingPlatform.Web/Views/Application/Edit.cshtml` (lines 232 delete item, 330 delete quotation) to `data-confirm-*`, ensuring the originating per-row form is the one submitted on confirm.
 - [X] T023 [P] [US2] Migrate `src/FundingPlatform.Web/Views/Review/Review.cshtml:393` (return application) to `data-confirm-*`.
-- [ ] T024 [US2] E2E: `tests/FundingPlatform.Tests.E2E/Tests/Notifications/ConfirmDialogMigrationTests.cs` — for a representative subset (admin disable user, applicant delete item, reviewer return application): modal opens with es-CR copy; confirm executes; cancel + Esc abort with no side effect; reuses `data-testid="confirm-dialog"/"confirm-button"/"cancel-button"`. (SC-004)
+- [X] T024 [US2] E2E: `tests/FundingPlatform.Tests.E2E/Tests/Notifications/ConfirmDialogMigrationTests.cs` — for a representative subset (admin disable user, applicant delete item, reviewer return application): modal opens with es-CR copy; confirm executes; cancel + Esc abort with no side effect; reuses `data-testid="confirm-dialog"/"confirm-button"/"cancel-button"`. (SC-004)
 
 **Checkpoint**: US2 independently testable; SC-001 (no native confirm) achievable for these sites.
 
@@ -98,7 +98,7 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 **Independent Test**: Submit an invalid form → inline field errors AND exactly one "Corrige los campos marcados" toast.
 
 - [X] T027 [US4] Add a ModelState-invalid hook: in `_NotificationToasts.cshtml` (or a `_ValidationSummaryToast.cshtml` it includes), when `ViewContext.ViewData.ModelState.IsValid == false` on a full-page render, emit exactly one sticky error toast "Corrige los campos marcados" (`data-testid="validation-summary-toast"`), de-duplicated against an explicit `ValidationErrors` toast. (FR-008)
-- [ ] T028 [P] [US4] E2E: submit a form (e.g. Application/Edit) with an invalid required field → assert inline field error present AND exactly one summary toast; valid submit → no summary toast. (SC-005)
+- [X] T028 [P] [US4] E2E: submit a form (e.g. Application/Edit) with an invalid required field → assert inline field error present AND exactly one summary toast; valid submit → no summary toast. (SC-005)
 
 **Checkpoint**: US4 testable.
 
@@ -111,7 +111,7 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 **Independent Test**: Screen reader announces success (polite) and error (assertive); keyboard focus trapped in modal and restored on close.
 
 - [X] T029 [US5] Verify/adjust `aria-live` (polite success/info, assertive warning/error) + `role` on toasts in `_ToastContainer`/`notifications.js`; confirm `confirm-dialog.js` returns focus to the trigger on close and Esc cancels; verify toast overlay causes no layout shift. (FR-012, FR-013, NFR-003)
-- [ ] T030 [P] [US5] E2E: `Tests/Notifications/` accessibility checks — live-region attributes present on toasts; modal focus returns to trigger on cancel/close; integrate with existing `Brand/AxeContrastTests` patterns if useful. (SC-006)
+- [X] T030 [P] [US5] E2E: `Tests/Notifications/` accessibility checks — live-region attributes present on toasts; modal focus returns to trigger on cancel/close; integrate with existing `Brand/AxeContrastTests` patterns if useful. (SC-006)
 
 **Checkpoint**: US5 testable.
 
