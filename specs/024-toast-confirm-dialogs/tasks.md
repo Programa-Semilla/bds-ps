@@ -119,8 +119,8 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T031 [P] Coverage verification: grep confirms no `window.alert`/`window.confirm` remain in the affected flows (SC-001) and the banner `.alert` blocks are removed from both layouts (SC-002); confirm `_AutosaveIndicator`, `_StageCountdownBanner`, and `_LookupRejected` were NOT modified (FR-009); capture the result.
-- [ ] T032 [P] es-CR copy pass over all new toast/modal strings + `data-confirm-*` bodies — no English-only strings (FR-010).
+- [X] T031 [P] Coverage verification: grep confirms no `window.alert`/`window.confirm` remain in the affected flows (SC-001) and the banner `.alert` blocks are removed from both layouts (SC-002); confirm `_AutosaveIndicator`, `_StageCountdownBanner`, and `_LookupRejected` were NOT modified (FR-009); capture the result.
+- [X] T032 [P] es-CR copy pass over all new toast/modal strings + `data-confirm-*` bodies — no English-only strings (FR-010).
 - [X] T033 Update the lone class-based banner assertion `tests/FundingPlatform.Tests.E2E/Fixtures/AuthenticatedTestBase.cs:313` (`.alert-success`) to the toast `data-testid`, and sweep any other PageObject banner helpers that broke.
 - [ ] T034 Run the FULL E2E suite via AspireFixture and confirm it is green (Constitution III, SC-007) — personally executed; not a partial run.
 

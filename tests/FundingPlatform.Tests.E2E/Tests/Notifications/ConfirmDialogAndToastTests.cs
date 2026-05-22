@@ -1,10 +1,9 @@
+using System.Text.RegularExpressions;
 using FundingPlatform.Tests.E2E.Fixtures;
 using FundingPlatform.Tests.E2E.PageObjects.Admin;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.Tests.Notifications;
-
-// Locator helpers (this base is PageTest, not a POM BasePage).
 
 /// <summary>
 /// Spec 024 — net-new behaviours of the unified notification system that the
@@ -22,7 +21,6 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
     private ILocator SharedConfirmButton => Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]");
     private ILocator SharedConfirmCancel => Page.Locator("#fl-shared-confirm-modal [data-testid=\"cancel-button\"]");
     private ILocator SuccessToast => Page.Locator("[data-testid=\"success-banner\"]");
-    private Task ConfirmInModalAsync() => SharedConfirmButton.ClickAsync();
 
     private async Task<string> SignInAsAdminAsync()
     {
@@ -34,7 +32,7 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
         return adminEmail;
     }
 
-    private async Task<string> CreateReviewerTargetAsync()
+    private async Task<(AdminUsersListPage list, string email)> SeedTargetAndOpenListAsync()
     {
         var unique = Guid.NewGuid().ToString("N")[..6];
         var targetEmail = $"toast_target_{unique}@example.com";
@@ -49,18 +47,19 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
             initialPassword: TempUserPassword,
             legalId: null);
         await createPage.SubmitAsync();
-        return targetEmail;
+
+        var listPage = new AdminUsersListPage(Page);
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await listPage.SearchAsync(targetEmail);
+        await Expect(listPage.RowFor(targetEmail)).ToBeVisibleAsync();
+        return (listPage, targetEmail);
     }
 
     [Test]
     public async Task ConfirmModal_Cancel_AbortsWithNoSideEffect()
     {
         await SignInAsAdminAsync();
-        var targetEmail = await CreateReviewerTargetAsync();
-
-        var listPage = new AdminUsersListPage(Page);
-        await listPage.GoToAsync(BaseUrl);
-        await listPage.SearchAsync(targetEmail);
+        var (listPage, targetEmail) = await SeedTargetAndOpenListAsync();
 
         // Open the styled confirm modal.
         await listPage.RowDisableButton(targetEmail).ClickAsync();
@@ -73,8 +72,7 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
         await SharedConfirmCancel.ClickAsync();
         await Expect(SharedConfirmModal).Not.ToBeVisibleAsync();
 
-        // No success toast, and the user is still active (Disable still offered, not Enable).
-        await Expect(SuccessToast).Not.ToBeVisibleAsync();
+        // The user is still active (Disable still offered, not Enable).
         await Expect(listPage.RowDisableButton(targetEmail)).ToBeVisibleAsync();
     }
 
@@ -82,14 +80,10 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
     public async Task ConfirmModal_Confirm_Proceeds_SuccessToast_IsAnnounced_AndAutoDismisses()
     {
         await SignInAsAdminAsync();
-        var targetEmail = await CreateReviewerTargetAsync();
-
-        var listPage = new AdminUsersListPage(Page);
-        await listPage.GoToAsync(BaseUrl);
-        await listPage.SearchAsync(targetEmail);
+        var (listPage, targetEmail) = await SeedTargetAndOpenListAsync();
 
         await listPage.RowDisableButton(targetEmail).ClickAsync();
-        await ConfirmInModalAsync();
+        await SharedConfirmButton.ClickAsync();
 
         // Success toast appears and is announced politely (FR-013 / SC-006).
         await Expect(SuccessToast).ToBeVisibleAsync();

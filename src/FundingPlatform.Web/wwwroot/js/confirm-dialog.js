@@ -1,19 +1,24 @@
 // Spec 024 — styled confirmation modal for destructive actions (FR-006, FR-007, FR-012, NFR-004).
-// Intercepts elements carrying [data-confirm], opens the single shared modal
+//
+// Self-contained: Tabler bundles Bootstrap's data-API but does NOT expose the
+// `window.bootstrap` JS namespace, so we drive the modal ourselves (toggle the
+// `.show` class + a `.modal-backdrop`, trap focus, handle Esc). This reuses
+// Bootstrap's modal CSS without depending on its JS global.
+//
+// Intercepts [data-confirm] triggers, opens the single shared modal
 // (_SharedConfirmModal.cshtml), and submits the *originating* form only on confirm.
 //
 // Graceful degradation (NFR-004): a migrated trigger keeps its inline native
-// confirm() guard (e.g. <form onsubmit="return confirm(...)">). This script only
-// neutralises that native guard and installs the modal when bootstrap.Modal is
-// actually available — so if the JS/modal fails to load, the destructive action
-// is still guarded by the native confirm().
+// confirm() guard (onclick / form onsubmit). This script neutralises that guard
+// and installs the modal on load; if the script fails to load, the native
+// confirm() still guards the destructive action.
 (function () {
     'use strict';
 
     var MODAL_ID = 'fl-shared-confirm-modal';
 
     function confirmButtonClass(variant) {
-        switch (variant) {
+        switch ((variant || '').toLowerCase()) {
             case 'primary': return 'btn btn-primary';
             case 'secondary': return 'btn btn-outline-secondary';
             case 'statelocking': return 'btn btn-warning';
@@ -22,15 +27,7 @@
         }
     }
 
-    function bootstrapAvailable() {
-        return typeof window !== 'undefined' && window.bootstrap && window.bootstrap.Modal;
-    }
-
     function init() {
-        if (!bootstrapAvailable()) {
-            // Leave native confirm() guards intact — never strip the fallback.
-            return;
-        }
         var modalEl = document.getElementById(MODAL_ID);
         if (!modalEl) {
             return;
@@ -40,25 +37,27 @@
         var bodyEl = modalEl.querySelector('[data-testid="confirm-rationale"]');
         var confirmBtn = modalEl.querySelector('[data-testid="confirm-button"]');
         var cancelBtn = modalEl.querySelector('[data-testid="cancel-button"]');
-        var modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+        var closeBtn = modalEl.querySelector('.btn-close');
 
         var pendingForm = null;
         var pendingTrigger = null;
+        var returnFocusEl = null;
+        var isOpen = false;
 
-        function openFor(trigger) {
+        function open(trigger) {
             var form = trigger.closest('form');
             if (!form) {
-                return false;
+                return;
             }
-            // Surface native field validation (e.g. required inputs) before the modal,
-            // matching the original onsubmit-after-validation order.
+            // Surface native field validation (e.g. required inputs) before the modal.
             if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
-                return false;
+                return;
             }
             pendingForm = form;
             pendingTrigger = trigger;
+            returnFocusEl = trigger;
 
-            var variant = (trigger.getAttribute('data-confirm-variant') || 'destructive').toLowerCase();
+            var variant = (trigger.getAttribute('data-confirm-variant') || 'destructive');
             titleEl.textContent = trigger.getAttribute('data-confirm-title') || 'Confirmar acción';
             bodyEl.textContent = trigger.getAttribute('data-confirm-body')
                 || '¿Deseás continuar? Esta acción no se puede deshacer.';
@@ -66,36 +65,83 @@
             confirmBtn.className = confirmButtonClass(variant) + ' ms-auto';
             cancelBtn.textContent = trigger.getAttribute('data-confirm-cancel') || 'Cancelar';
 
-            modal.show();
-            return true;
+            modalEl.style.display = 'block';
+            modalEl.classList.add('show');
+            modalEl.removeAttribute('aria-hidden');
+            modalEl.setAttribute('aria-modal', 'true');
+            modalEl.setAttribute('role', 'dialog');
+            document.body.classList.add('modal-open');
+
+            if (!document.querySelector('.modal-backdrop[data-fl-confirm-backdrop]')) {
+                var backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop fade show';
+                backdrop.setAttribute('data-fl-confirm-backdrop', '');
+                backdrop.addEventListener('click', function () { close(); });
+                document.body.appendChild(backdrop);
+            }
+
+            isOpen = true;
+            confirmBtn.focus(); // FR-012 — move focus into the dialog.
         }
 
-        // Confirm → submit the originating form after the modal has closed,
-        // so focus has returned to the trigger (FR-012) before navigation.
-        confirmBtn.addEventListener('click', function () {
-            var form = pendingForm;
-            var trigger = pendingTrigger;
+        // Abort with no side effect (FR-006); restore focus to the trigger (FR-012).
+        function close() {
+            if (!isOpen) {
+                return;
+            }
+            isOpen = false;
             pendingForm = null;
             pendingTrigger = null;
-            modalEl.addEventListener('hidden.bs.modal', function once() {
-                modalEl.removeEventListener('hidden.bs.modal', once);
-                if (!form) {
-                    return;
-                }
-                // requestSubmit(trigger) preserves the submitter's formaction/formmethod
-                // (e.g. a Delete button using formaction in a multi-submit form).
-                if (typeof form.requestSubmit === 'function') {
-                    form.requestSubmit(trigger && trigger.type === 'submit' ? trigger : undefined);
-                } else {
-                    form.submit();
-                }
-            });
-            modal.hide();
-        });
+            modalEl.classList.remove('show');
+            modalEl.style.display = 'none';
+            modalEl.setAttribute('aria-hidden', 'true');
+            modalEl.removeAttribute('aria-modal');
+            document.body.classList.remove('modal-open');
+            var bd = document.querySelector('.modal-backdrop[data-fl-confirm-backdrop]');
+            if (bd) {
+                bd.parentNode.removeChild(bd);
+            }
+            if (returnFocusEl && typeof returnFocusEl.focus === 'function') {
+                returnFocusEl.focus();
+            }
+        }
 
-        // Cancel/Esc/backdrop → abort with no side effect (FR-006).
-        modalEl.addEventListener('hide.bs.modal', function () {
-            // pendingForm is cleared on confirm; if still set here, user cancelled.
+        function proceed() {
+            var form = pendingForm;
+            var trigger = pendingTrigger;
+            isOpen = false;
+            pendingForm = null;
+            pendingTrigger = null;
+            modalEl.classList.remove('show');
+            modalEl.style.display = 'none';
+            modalEl.setAttribute('aria-hidden', 'true');
+            modalEl.removeAttribute('aria-modal');
+            document.body.classList.remove('modal-open');
+            var bd = document.querySelector('.modal-backdrop[data-fl-confirm-backdrop]');
+            if (bd) {
+                bd.parentNode.removeChild(bd);
+            }
+            if (!form) {
+                return;
+            }
+            // requestSubmit(trigger) preserves the submitter's formaction/formmethod
+            // (e.g. a Delete button using formaction in a multi-submit form).
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit(trigger && trigger.type === 'submit' ? trigger : undefined);
+            } else {
+                form.submit();
+            }
+        }
+
+        confirmBtn.addEventListener('click', proceed);
+        cancelBtn.addEventListener('click', close);
+        if (closeBtn) {
+            closeBtn.addEventListener('click', close);
+        }
+        document.addEventListener('keydown', function (e) {
+            if (isOpen && (e.key === 'Escape' || e.key === 'Esc')) {
+                close();
+            }
         });
 
         var triggers = document.querySelectorAll('[data-confirm]');
@@ -117,7 +163,7 @@
 
                 trigger.addEventListener('click', function (e) {
                     e.preventDefault();
-                    openFor(trigger);
+                    open(trigger);
                 });
             })(triggers[i]);
         }

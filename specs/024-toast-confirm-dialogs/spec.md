@@ -143,7 +143,7 @@ A keyboard or screen-reader user receives the same feedback as a mouse user: toa
 
 ### Measurable Outcomes
 
-- **SC-001**: No `window.alert` or `window.confirm` invocations remain in the affected flows — the AJAX path and all ~16 confirmation call sites are migrated.
+- **SC-001**: In the JS-enabled path, no `window.alert` or native `window.confirm` dialog is shown — the AJAX path raises a toast and all 15 confirmation call sites open the styled modal. A native `confirm()` remains in the markup *only* as the no-JS fallback required by NFR-004 (it never fires when the wrapper script loads). *(Evolved during implementation: original wording "no window.confirm invocations remain" contradicted NFR-004; the fallback is intentional and safety-critical.)*
 - **SC-002**: TempData success/error/funding-agreement/validation messages render as toasts on every role's pages, and the top-of-page banner alert blocks are removed from both shared layouts.
 - **SC-003**: A toast looks and behaves identically (style, top-right placement, dismissal rules) regardless of page or role, verified across at least one applicant page, one reviewer page, one admin page, and one auth page.
 - **SC-004**: Every destructive action shows the styled confirmation modal and proceeds only on confirm; cancel aborts with no observable side effect.

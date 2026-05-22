@@ -1,6 +1,9 @@
 // Spec 024 — unified in-app toast notifications (FR-001..FR-005, FR-011, FR-013).
-// Built on Bootstrap Toast (bundled in Tabler; window.bootstrap.Toast is available,
-// same global that site.js uses for Tooltip). No new dependency, no CDN.
+//
+// Self-contained: Tabler bundles Bootstrap's data-API but does NOT expose the
+// `window.bootstrap` JS namespace, so we drive the toast lifecycle ourselves
+// (add/remove the `.show` class, own auto-dismiss timer, own close handler).
+// No new dependency, no CDN.
 //
 // Public API:
 //   window.Notify.toast({ variant, message, sticky? })
@@ -15,14 +18,13 @@
     var AUTO_DELAY = 5000; // FR-004 — success/info auto-dismiss interval.
 
     function isAssertive(variant) {
-        // FR-013 — errors/warnings interrupt (assertive); success/info are polite.
         return variant === 'error' || variant === 'warning';
     }
 
     function variantClass(variant) {
         // text-bg-* drives the visible style. The bare alert-* marker class is
-        // visually inert without an .alert base (it only sets unused CSS vars),
-        // but preserves legacy ".alert-success"/".alert-danger" E2E selectors.
+        // visually inert (no .alert base) but preserves legacy ".alert-success"
+        // / ".alert-danger" E2E selectors.
         switch (variant) {
             case 'success': return 'text-bg-success alert-success';
             case 'error': return 'text-bg-danger alert-danger';
@@ -32,8 +34,6 @@
         }
     }
 
-    // A light close button reads on the darker fills; warning (yellow, dark text)
-    // keeps the default dark close for contrast (SC-006 / Axe).
     function closeClass(variant) {
         return variant === 'warning' ? 'btn-close' : 'btn-close btn-close-white';
     }
@@ -41,8 +41,6 @@
     function getContainer() {
         var el = document.querySelector('[data-testid="toast-container"]');
         if (!el) {
-            // Defensive: layouts include _ToastContainer, but create one if missing
-            // so a client-side Notify call never silently no-ops on a stray page.
             el = document.createElement('div');
             el.className = 'toast-container position-fixed top-0 end-0 p-3';
             el.setAttribute('data-testid', 'toast-container');
@@ -50,6 +48,37 @@
             document.body.appendChild(el);
         }
         return el;
+    }
+
+    function dismiss(el) {
+        if (el._flDismissed) {
+            return;
+        }
+        el._flDismissed = true;
+        el.classList.remove('show');
+        // Brief delay lets the opacity transition run before removal (FR-005).
+        window.setTimeout(function () {
+            if (el.parentNode) {
+                el.parentNode.removeChild(el);
+            }
+        }, 200);
+    }
+
+    // Reveal a toast element (server-rendered or freshly built) and wire its
+    // close button + auto-dismiss timer.
+    function reveal(el, sticky) {
+        if (el._flRevealed) {
+            return;
+        }
+        el._flRevealed = true;
+        el.classList.add('show'); // .toast is display:none until .show.
+        var close = el.querySelector('[data-bs-dismiss="toast"], .btn-close');
+        if (close) {
+            close.addEventListener('click', function () { dismiss(el); });
+        }
+        if (!sticky) {
+            window.setTimeout(function () { dismiss(el); }, AUTO_DELAY);
+        }
     }
 
     function buildToastElement(opts) {
@@ -83,30 +112,13 @@
         return toast;
     }
 
-    function activate(el, sticky) {
-        if (typeof window === 'undefined' || !window.bootstrap || !window.bootstrap.Toast) {
-            return null; // No-op safe when Bootstrap is unavailable.
-        }
-        if (el._flToastInited) {
-            return null;
-        }
-        el._flToastInited = true;
-        var instance = new window.bootstrap.Toast(el, { autohide: !sticky, delay: AUTO_DELAY });
-        el.addEventListener('hidden.bs.toast', function () {
-            if (el.parentNode) {
-                el.parentNode.removeChild(el); // FR-005 — dismissed toasts leave the stack.
-            }
-        });
-        instance.show();
-        return instance;
-    }
-
     function show(opts) {
         var variant = opts.variant || 'info';
         var sticky = (typeof opts.sticky === 'boolean') ? opts.sticky : isAssertive(variant);
         var el = buildToastElement(opts);
         getContainer().appendChild(el);
-        return activate(el, sticky);
+        reveal(el, sticky);
+        return el;
     }
 
     window.Notify = {
@@ -123,7 +135,7 @@
         for (var i = 0; i < nodes.length; i++) {
             var el = nodes[i];
             var sticky = el.getAttribute('data-toast-sticky') === 'true';
-            activate(el, sticky);
+            reveal(el, sticky);
         }
     }
 

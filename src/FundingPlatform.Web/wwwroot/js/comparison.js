@@ -179,9 +179,10 @@
                 startPollingAll();
             } else {
                 return resp.json().then(function (payload) {
-                    // Spec 024 — surface AJAX failures as a toast instead of window.alert.
+                    // Spec 024 — surface AJAX failures as a toast (notifications.js is
+                    // loaded by the layout before this script, so Notify is present).
                     var msg = (payload && payload.code) || 'Error desconocido al encolar.';
-                    if (window.Notify) { window.Notify.error(msg); } else { alert(msg); }
+                    if (window.Notify) { window.Notify.error(msg); }
                 });
             }
         });
