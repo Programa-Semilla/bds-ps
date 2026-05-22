@@ -156,6 +156,22 @@ An applicant who started an Application they no longer want can remove it themse
 
 ---
 
+### User Story 10 — Admin reaches impact-template management from the sidebar (Priority: P2)
+
+Impact templates (the evaluation-parameter sets an applicant must pick and fill on every Application, per FR-005) already carry a full admin CRUD surface at `/Admin/ImpactTemplates` — list, create, edit, and soft-delete via the `IsActive` toggle inside the edit form — plus a *"Plantillas de impacto"* capability card on the `/Admin` dashboard (spec 017). But the persistent left **sidebar**, rebuilt around `Process` in US1 (FR-001), carries no entry for it: an admin navigating by menu cannot discover it. The only adjacent reachable surface, `/Admin/Plantillas`, lets the admin *attach* existing impact templates to a Plantilla but offers no path to create, edit, or deactivate them. This story restores sidebar parity — a direct, Admin-only nav entry to the impact-template list — matching how every other Catálogo surface (Proveedores, Monedas, Tipos de cambio) is reachable.
+
+**Why this priority**: The capability exists and works but is effectively undiscoverable from normal navigation — a P2 access-gap regression introduced by the US1 sidebar repivot, not a missing feature. Low risk: nav-only, no schema, no domain change.
+
+**Independent Test**: Log in as Admin → open the sidebar *Administración* section → confirm a *"Plantillas de impacto"* entry is present → click it → land on the impact-template list → create a template → confirm it appears in the list and is then offered when attaching impact templates to a Plantilla.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authenticated Admin, **When** the admin sidebar renders, **Then** it includes an entry labeled *"Plantillas de impacto"* linking to `/Admin/ImpactTemplates` with stable testid `sidebar-entry-impact-templates`.
+2. **Given** the new sidebar entry, **When** the admin clicks it, **Then** the impact-template list (`/Admin/ImpactTemplates`) loads with its *"Crear nueva plantilla"* affordance, reachable without typing a URL or routing through the dashboard card.
+3. **Given** a SupplierAdmin-only user (no Admin role), **When** their narrowed sidebar renders, **Then** the impact-template entry MUST NOT appear (parity with the existing `[SupplierAdminDenied]` guard on `AdminController`).
+
+---
+
 ### Edge Cases
 
 - **First Process bootstrap.** Empty system has no Processes; empty-state on `/admin/processes` guides creation. Applicant onboarding flow blocks gracefully until at least one active Process exists.
@@ -262,6 +278,10 @@ An applicant who started an Application they no longer want can remove it themse
 - **FR-040**: Withdrawing an Application in `UnderReview` MUST enqueue an `APPLICATION_WITHDRAWN_BY_APPLICANT` notification to the reviewer pool of the Application's current stage group — the same recipient set that `APPLICATION_SUBMITTED_REVIEWER` resolves (Reviewer-role members of the stage group, per `NotificationRecipientResolver`) — through the existing outbox subsystem (spec 021-email-notifications), with a new es-CR Razor template under `Views/Emails/`. Withdrawing an Application in `Submitted` (not yet `UnderReview`) MUST NOT send any reviewer notification. If the stage-group reviewer pool is empty, no email is sent (natural no-op). The notification MUST follow the existing allowlist + idempotency rules; the idempotency key MUST distinguish the withdrawal event from other reviewer-bucket events for the same Application.
 - **FR-041**: The server MUST verify the acting applicant owns the Application before any delete/withdraw mutation; an ownership mismatch MUST be rejected without mutating state.
 
+**Admin navigation**
+
+- **FR-042**: The admin sidebar MUST expose a direct, Admin-only navigation entry to the impact-template management surface (`/Admin/ImpactTemplates`), labeled *"Plantillas de impacto"*, with the stable English testid slug `impact-templates` (rendered as `data-testid="sidebar-entry-impact-templates"` per NFR-001). The entry MUST be absent from the SupplierAdmin-only sidebar variant (parity with the controller's `[SupplierAdminDenied]` guard). This restores the entry dropped when US1 (FR-001) repivoted the sidebar around `Process`; the existing `/Admin` dashboard capability card (spec 017) remains and is unaffected. No new admin route, controller action, view, or schema is introduced — the target surface already exists.
+
 ### Non-Functional Requirements
 
 - **NFR-001**: No production data exists. Migration drops `Item.Impact` column outright. New tables `Process`, `Plantilla`, `ProcessPlantilla`, `Province`, `Canton` ship via dacpac.
@@ -308,6 +328,7 @@ An applicant who started an Application they no longer want can remove it themse
 - **SC-016**: Full Playwright E2E suite is green before delivery (NFR-004).
 - **SC-017**: An applicant deletes a `Draft` → it disappears from their dashboard within the same request lifecycle and zero emails are captured in smtp4dev. An applicant withdraws an `UnderReview` Application → it leaves both the applicant dashboard and the reviewer queue and exactly one `APPLICATION_WITHDRAWN_BY_APPLICANT` email is captured per Reviewer-role member of its stage group. An applicant withdraws a `Submitted` (not-yet-under-review) Application → zero reviewer emails are captured.
 - **SC-018**: For every Application state in `{Resolved, AppealOpen, ResponseFinalized, AgreementExecuted}`, the delete/withdraw affordance is absent from rendered HTML AND a direct POST to the endpoint returns 403/redirect in 100 % of E2E permutations. A withdraw of a `Submitted` (not-yet-under-review) Application, and a withdraw of an `UnderReview` Application whose stage group has no Reviewer-role members, both send zero emails.
+- **SC-019**: From a logged-in Admin session, the impact-template list is reachable via the sidebar (*Administración* → *Plantillas de impacto*) with zero URL typing, asserted by an E2E test that drives the click path and then creates a template that appears in the list. The entry is absent for SupplierAdmin-only users.
 
 ## Assumptions
 
@@ -368,3 +389,4 @@ An applicant who started an Application they no longer want can remove it themse
 - **OQ-9**: Process audit-event coverage — extends `AdminAuditEvent` (spec 016 pattern)? Pin in plan.
 - **OQ-10**: Province *"Otro/Extranjero"* — block in UI (default) vs catalog row. Revisit if foreign suppliers surface.
 - **OQ-11**: Withdrawal reviewer notification trigger — fire only for `UnderReview` (default, decided in brainstorm) vs also for still-pending `Submitted` withdrawals vs never. Confirm with stakeholders.
+- **OQ-12**: Should the impact-template **list** gain an inline *Activar / Desactivar* (soft-delete) toggle per row, so deactivation is not buried inside the *Editar* form? Deferred — current CRUD is complete (deactivate lives in `EditTemplate` via the `IsActive` field); this is a discoverability refinement, not a capability gap. Parked for stakeholder confirm. **Related:** `/Admin/Configuration` (system-config) is likewise present on the dashboard card but absent from the sidebar (same US1 repivot root cause); a broader nav-parity sweep is out of scope for US10 but flagged here.
