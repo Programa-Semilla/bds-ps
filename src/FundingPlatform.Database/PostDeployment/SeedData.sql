@@ -186,34 +186,34 @@ END;
 -- Impact Templates
 -- =============================================================================
 
--- Template: Increase Production Capacity
-IF NOT EXISTS (SELECT 1 FROM [dbo].[ImpactTemplates] WHERE [Name] = N'Increase Production Capacity')
+-- Plantilla de impacto: Aumento de capacidad productiva
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ImpactTemplates] WHERE [Name] = N'Aumento de capacidad productiva')
 BEGIN
     INSERT INTO [dbo].[ImpactTemplates] ([Name], [Description], [IsActive], [UpdatedAt])
-    VALUES (N'Increase Production Capacity', N'Measures the expected increase in production capacity resulting from the funded item', 1, GETUTCDATE());
+    VALUES (N'Aumento de capacidad productiva', N'Mide el aumento esperado en la capacidad productiva como resultado del bien adquirido', 1, GETUTCDATE());
 
     DECLARE @IncreaseCapacityId INT = SCOPE_IDENTITY();
 
     INSERT INTO [dbo].[ImpactTemplateParameters] ([ImpactTemplateId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
     VALUES
-        (@IncreaseCapacityId, N'CurrentCapacity',    N'Current Capacity',     1, 1, 1),
-        (@IncreaseCapacityId, N'ProjectedCapacity',   N'Projected Capacity',   1, 1, 2),
-        (@IncreaseCapacityId, N'TimeframeInMonths',   N'Timeframe in Months',  2, 1, 3);
+        (@IncreaseCapacityId, N'CurrentCapacity',    N'Capacidad actual',      1, 1, 1),
+        (@IncreaseCapacityId, N'ProjectedCapacity',   N'Capacidad proyectada',  1, 1, 2),
+        (@IncreaseCapacityId, N'TimeframeInMonths',   N'Plazo en meses',        2, 1, 3);
 END;
 
--- Template: Job Creation
-IF NOT EXISTS (SELECT 1 FROM [dbo].[ImpactTemplates] WHERE [Name] = N'Job Creation')
+-- Plantilla de impacto: Generación de empleo
+IF NOT EXISTS (SELECT 1 FROM [dbo].[ImpactTemplates] WHERE [Name] = N'Generación de empleo')
 BEGIN
     INSERT INTO [dbo].[ImpactTemplates] ([Name], [Description], [IsActive], [UpdatedAt])
-    VALUES (N'Job Creation', N'Measures the expected number of new jobs created as a result of the funded item', 1, GETUTCDATE());
+    VALUES (N'Generación de empleo', N'Mide la cantidad esperada de nuevos empleos generados como resultado del bien adquirido', 1, GETUTCDATE());
 
     DECLARE @JobCreationId INT = SCOPE_IDENTITY();
 
     INSERT INTO [dbo].[ImpactTemplateParameters] ([ImpactTemplateId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
     VALUES
-        (@JobCreationId, N'CurrentEmployees',   N'Current Employees',    2, 1, 1),
-        (@JobCreationId, N'ProjectedNewJobs',    N'Projected New Jobs',   2, 1, 2),
-        (@JobCreationId, N'JobType',             N'Job Type',             0, 1, 3);
+        (@JobCreationId, N'CurrentEmployees',   N'Personas empleadas actuales', 2, 1, 1),
+        (@JobCreationId, N'ProjectedNewJobs',    N'Nuevos empleos proyectados',  2, 1, 2),
+        (@JobCreationId, N'JobType',             N'Tipo de empleo',              0, 1, 3);
 END;
 GO
 

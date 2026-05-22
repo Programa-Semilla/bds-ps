@@ -712,31 +712,31 @@ WHEN NOT MATCHED THEN INSERT ([Name], [ProcessId], [CreatedAt], [UpdatedAt])
     VALUES (src.[Name], @ProcessId, SYSUTCDATETIME(), SYSUTCDATETIME());");
 
         await _dbContext.Database.ExecuteSqlRawAsync(@"
-IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Increase Production Capacity')
+IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Aumento de capacidad productiva')
 BEGIN
     INSERT INTO dbo.ImpactTemplates ([Name], [Description], [IsActive], [UpdatedAt])
-    VALUES (N'Increase Production Capacity',
-            N'Measures the expected increase in production capacity resulting from the funded item',
+    VALUES (N'Aumento de capacidad productiva',
+            N'Mide el aumento esperado en la capacidad productiva como resultado del bien adquirido',
             1, GETUTCDATE());
     DECLARE @cap INT = SCOPE_IDENTITY();
     INSERT INTO dbo.ImpactTemplateParameters ([ImpactTemplateId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
     VALUES
-        (@cap, N'CurrentCapacity',    N'Current Capacity',    1, 1, 1),
-        (@cap, N'ProjectedCapacity',  N'Projected Capacity',  1, 1, 2),
-        (@cap, N'TimeframeInMonths',  N'Timeframe in Months', 2, 1, 3);
+        (@cap, N'CurrentCapacity',    N'Capacidad actual',     1, 1, 1),
+        (@cap, N'ProjectedCapacity',  N'Capacidad proyectada', 1, 1, 2),
+        (@cap, N'TimeframeInMonths',  N'Plazo en meses',       2, 1, 3);
 END;
-IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Job Creation')
+IF NOT EXISTS (SELECT 1 FROM dbo.ImpactTemplates WHERE [Name] = N'Generación de empleo')
 BEGIN
     INSERT INTO dbo.ImpactTemplates ([Name], [Description], [IsActive], [UpdatedAt])
-    VALUES (N'Job Creation',
-            N'Measures the expected number of new jobs created as a result of the funded item',
+    VALUES (N'Generación de empleo',
+            N'Mide la cantidad esperada de nuevos empleos generados como resultado del bien adquirido',
             1, GETUTCDATE());
     DECLARE @job INT = SCOPE_IDENTITY();
     INSERT INTO dbo.ImpactTemplateParameters ([ImpactTemplateId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
     VALUES
-        (@job, N'CurrentEmployees',  N'Current Employees',   2, 1, 1),
-        (@job, N'ProjectedNewJobs',  N'Projected New Jobs',  2, 1, 2),
-        (@job, N'JobType',           N'Job Type',            0, 1, 3);
+        (@job, N'CurrentEmployees',  N'Personas empleadas actuales', 2, 1, 1),
+        (@job, N'ProjectedNewJobs',  N'Nuevos empleos proyectados',  2, 1, 2),
+        (@job, N'JobType',           N'Tipo de empleo',              0, 1, 3);
 END;");
 
         return Ok("Admin fixture re-seeded.");
