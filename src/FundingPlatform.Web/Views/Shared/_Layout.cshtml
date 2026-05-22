@@ -33,6 +33,11 @@
         // since every other surface conceptually scopes by Process now.
         new("processes", "Procesos", "/Admin/Processes", "ti ti-calendar-event", new[] { "Admin" }),
         new("plantillas", "Plantillas", "/Admin/Plantillas", "ti ti-template", new[] { "Admin" }),
+        // Spec 021 / US10 / FR-042 — restore the impact-template entry the US1
+        // Process-pivot dropped from the sidebar. CRUD surface + dashboard card
+        // already exist; this is the missing direct nav link. Distinct icon from
+        // Plantillas to disambiguate the two related-but-different surfaces.
+        new("impact-templates", "Plantillas de impacto", "/Admin/ImpactTemplates", "ti ti-clipboard-data", new[] { "Admin" }),
         new("users", "Usuarios", "/Admin/Users", "ti ti-users", new[] { "Admin" }),
         new("groups", "Grupos", "/Admin/Groups", "ti ti-users-group", new[] { "Admin" }),
         new("suppliers", "Proveedores", "/Admin/Suppliers", "ti ti-building-store", new[] { "Admin" }),

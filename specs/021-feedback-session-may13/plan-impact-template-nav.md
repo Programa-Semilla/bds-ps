@@ -3,7 +3,12 @@
 **Feature:** 021-feedback-session-may13 (increment on an already-shipped spec)
 **Spec scope:** User Story 10, FR-042, SC-019, OQ-12
 **Created:** 2026-05-22
-**Status:** Planned
+**Status:** Implemented (2026-05-22)
+
+> **Delivered.** Nav-only change. Full Playwright E2E suite personally executed and green:
+> 244 total / 239 passed / 0 failed / 5 skipped (pre-existing baseline). New tests
+> `Admin_ReachesImpactTemplateList_ViaSidebar_AndCanCreate` + `SupplierAdminOnly_SidebarLacksImpactTemplateEntry`
+> pass; `AdminSidebarGroupingTests` extended with the `impact-templates` slug. No schema/domain/route change.
 
 > This plan covers ONLY the US10 increment. The US1–US9 artifacts (`plan.md`, `research.md`,
 > `data-model.md`, `contracts/`, `tasks.md`, `plan-us9-delete-withdrawal.md`) are shipped and MUST
