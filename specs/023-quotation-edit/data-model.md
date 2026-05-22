@@ -69,7 +69,7 @@ public enum EditQuotationOutcome
     Success,                // 303 See Other to Application/Edit/{id}
     NotFound,               // 404 — quotation/item missing (Edge Case 1)
     Forbidden,              // 403 — non-owner Applicant (FR-007)
-    StateChanged,           // 422 — Application not in Draft|ReturnedForChanges (FR-008)
+    StateChanged,           // 422 — Application not in Draft (FR-008)
     LegacyFlagged,          // 422 — LegacyNeedsReview = true (FR-011)
     ValidationFailed,       // 400 — FieldErrors populated (FR-005)
     MissingRate,            // 422 — translated by IUserFacingErrorTranslator (Edge Case currency)
@@ -81,7 +81,7 @@ public enum EditQuotationOutcome
 1. Load Quotation with `Item.Application`, `Supplier.Branches`, `Snapshot` (single query, `Include` chain).
 2. **403** if `Application.ApplicantId != command.ApplicantId`.
 3. **404** if Quotation/Item not found or soft-deleted.
-4. **422 StateChanged** if `Application.State ∉ {Draft, ReturnedForChanges}`.
+4. **422 StateChanged** if `Application.State != Draft` (reviewer `SendBack` returns to `Draft`; no separate `ReturnedForChanges` state — see spec FR-008).
 5. **422 LegacyFlagged** if `Quotation.LegacyNeedsReview == true`.
 6. Field validation → **400 ValidationFailed** with `FieldErrors`:
    - Price ≤ 0 → `"Price" → "El precio debe ser mayor a cero."`

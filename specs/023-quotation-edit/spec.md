@@ -3,7 +3,7 @@
 **Feature Branch**: `023-quotation-edit`
 **Created**: 2026-05-20
 **Status**: Draft
-**Input**: Per-quotation in-place edit for Application owners while the Application is `Draft` or `ReturnedForChanges`. Editable fields: Price, Currency, ValidUntil, SupplierBranch (same supplier only). Reuse the existing Supplier/Add quote form as a shared partial. Surfaced after the May-13 stakeholder session uncovered that `/Application/Edit/{id}` exposes no per-quotation edit affordance.
+**Input**: Per-quotation in-place edit for Application owners while the Application is `Draft`. Editable fields: Price, Currency, ValidUntil, SupplierBranch (same supplier only). Reuse the existing Supplier/Add quote form as a shared partial. Surfaced after the May-13 stakeholder session uncovered that `/Application/Edit/{id}` exposes no per-quotation edit affordance.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -30,15 +30,15 @@ An applicant has attached a supplier quotation to an Item on a Draft Application
 
 ### User Story 2 — Applicant applies a reviewer-requested correction (Priority: P1)
 
-A reviewer returns an application with feedback identifying an error on a specific quotation (wrong amount, wrong validity window, wrong supplier branch). The Application transitions to `ReturnedForChanges`. The applicant must be able to fix the offending quotation *without* deleting it (which would orphan the reviewer's notes that referenced it) and resubmit. With this feature, the Edit surface is available on `ReturnedForChanges` exactly as it is on `Draft`, so the correction is in-place.
+A reviewer returns an application with feedback identifying an error on a specific quotation (wrong amount, wrong validity window, wrong supplier branch). The reviewer `SendBack` path transitions the Application **back to `Draft`** (the codebase has no distinct `ReturnedForChanges` state — see the lifecycle note under FR-008). The applicant must be able to fix the offending quotation *without* deleting it (which would orphan the reviewer's notes that referenced it) and resubmit. With this feature, the Edit surface is available because the returned Application is once again in `Draft`, so the correction is in-place.
 
 **Why this priority**: The May-13 stakeholders explicitly called out this loop ("reviewer finds an error, we have no way to fix it without losing the quote"). This is the second-highest priority because corrections gate the resubmit path.
 
-**Independent Test**: Seed an Application in `ReturnedForChanges` with two quotations. Edit one quotation's branch to a different branch of the same supplier. Assert the change persists; assert the reviewer's existing feedback on that quotation is preserved (no soft-delete cycle).
+**Independent Test**: Seed an Application that a reviewer returned via `SendBack` (now back in `Draft`) with two quotations. Edit one quotation's branch to a different branch of the same supplier. Assert the change persists; assert the reviewer's existing feedback on that quotation is preserved (no soft-delete cycle).
 
 **Acceptance Scenarios**:
 
-1. **Given** my Application is `ReturnedForChanges`, **When** I open *Editar* on a quotation and change the SupplierBranch to a different branch of the **same** Supplier, **Then** the change persists and the quotation row reflects the new branch.
+1. **Given** my Application was returned by a reviewer and is now back in `Draft`, **When** I open *Editar* on a quotation and change the SupplierBranch to a different branch of the **same** Supplier, **Then** the change persists and the quotation row reflects the new branch.
 2. **Given** the same state, **When** I try to submit the Edit form with a branch belonging to a different Supplier, **Then** the server rejects with a generic *"Sucursal no válida para este proveedor."* validation error.
 3. **Given** the same state, **When** the reviewer's prior comments on this quotation exist, **Then** they remain attached after the edit.
 
@@ -63,7 +63,7 @@ A quotation was attached in CRC but the applicant realises the underlying suppli
 ### Edge Cases
 
 - The quotation was deleted (by the applicant in another tab) between rendering the Edit form and submitting — the POST resolves to a 404; the form re-renders with an es-CR notice.
-- The Application transitioned out of `{Draft, ReturnedForChanges}` (e.g., reviewer pulled it back under review) between GET and POST — the POST returns HTTP 422 with es-CR copy *"El estado de la solicitud cambió, recarga la página."*; no state mutation.
+- The Application transitioned out of `Draft` (e.g., the applicant submitted it, or a reviewer pulled it under review) between GET and POST — the POST returns HTTP 422 with es-CR copy *"El estado de la solicitud cambió, recarga la página."*; no state mutation.
 - Two browser tabs submit conflicting edits — last write wins. Optimistic concurrency is out of scope (matches existing Item/Edit behavior).
 - Currency change AND price change in the same POST — processed atomically: snapshot is reset to the fresh rate first, then the new price is applied against that snapshot.
 - The quotation is flagged `LegacyNeedsReview = true` (spec 015 legacy data) — the Edit affordance is hidden in the UI, and a direct POST is rejected with HTTP 422. The admin-fix path under spec 015 remains the only resolution.
@@ -84,11 +84,11 @@ A quotation was attached in CRC but the applicant realises the underlying suppli
   - Branch and ValidUntil persist independently with no exchange-rate side effects.
   - The attached PDF is never replaced via this surface — the existing file-Replace endpoint remains the only path for that.
 - **FR-007**: Only the Application owner (Applicant role) MAY edit. Non-owner requests MUST be rejected with HTTP 403.
-- **FR-008**: Edits are permitted iff the Application is in `Draft` or `ReturnedForChanges`. Any other state MUST reject the POST with HTTP 422 and an es-CR error message. The Edit affordance MUST NOT render in the UI when the Application is outside those two states.
+- **FR-008** *(evolution 2026-05-22 — state reconciliation)*: Edits are permitted iff the Application is in `Draft`. Any other state MUST reject the POST with HTTP 422 and an es-CR error message. The Edit affordance MUST NOT render in the UI when the Application is outside `Draft`. **Lifecycle note**: earlier drafts of this spec named a `ReturnedForChanges` state, but `ApplicationState` (`Draft, Submitted, UnderReview, Resolved, AppealOpen, ResponseFinalized, AgreementExecuted`) has no such member. The reviewer return path (`SendBack`) transitions the Application back to `Draft`, so the reviewer-return → applicant-fix loop (US2) is fully covered by the single `Draft` gate; the implementation gates on `application.State == ApplicationState.Draft`.
 - **FR-009**: Successful edits MUST invalidate the AI comparison cache (spec 020) keyed against this Item. No applicant-facing notice is shown; the reviewer's next *Generar todo* picks up the cache miss and regenerates.
 - **FR-010**: The live conversion-preview behavior already used on Supplier/Add MUST be available on the Edit form unchanged — on Currency / Amount blur, the server-computed preview updates the displayed CRC-equivalent.
 - **FR-011**: Quotations whose `LegacyNeedsReview` flag is set MUST NOT expose the Edit affordance, and the POST MUST reject with HTTP 422. (Spec 015 admin-only path remains the resolution.)
-- **FR-012** *(evolution 2026-05-20)*: The per-quotation row on `Application/Edit` MUST surface the existing `Replace` (Reemplazar) and `Delete` (Eliminar) affordances alongside the new `Edit` (Editar) button, with the same lifecycle gate (Application in `Draft` or — when present — `ReturnedForChanges`) and the same `LegacyNeedsReview` hiding rule. The endpoints themselves (`POST …/Quotation/{id}/Replace`, `POST …/Quotation/{id}/Delete`) are pre-existing; this requirement is solely about restoring the row-level UX that the prior in-place-edit rollout dropped.
+- **FR-012** *(evolution 2026-05-20)*: The per-quotation row on `Application/Edit` MUST surface the existing `Replace` (Reemplazar) and `Delete` (Eliminar) affordances alongside the new `Edit` (Editar) button, with the same lifecycle gate (Application in `Draft` — see FR-008) and the same `LegacyNeedsReview` hiding rule. The endpoints themselves (`POST …/Quotation/{id}/Replace`, `POST …/Quotation/{id}/Delete`) are pre-existing; this requirement is solely about restoring the row-level UX that the prior in-place-edit rollout dropped.
 - **FR-013** *(evolution 2026-05-20)*: The Application owner (Applicant role) MUST be able to download the PDF attached to any of their own quotations at any time, regardless of Application state. The Edit, Details, and (future) Review applicant-facing surfaces MUST each expose a `Descargar` affordance on every quotation row. The endpoint MUST reject non-owner Applicants with HTTP 403 and unknown quotations with HTTP 404. Downloads are routed through the existing spec-014 `IObjectStorage` resolver (signed URL when configured; backend stream fallback), and the returned filename MUST be the `Document.OriginalFileName`.
 - **FR-014** *(evolution 2026-05-20)*: A Reviewer scoped to the Application (per spec 016 group overlap) and an Admin user MUST be able to download the PDF attached to any quotation on that Application from the reviewer screen (`Review.cshtml`) at any time, irrespective of whether the AI comparison has run. The endpoint reuses the same spec-014 storage rails as FR-013 and the same group-overlap auth predicate as the spec-020 citation download. Non-scoped Reviewers MUST receive HTTP 403.
 
@@ -133,7 +133,7 @@ A quotation was attached in CRC but the applicant realises the underlying suppli
 - **Spec 013** — Supplier / SupplierBranch invariant (`branch.SupplierId == quotation.SupplierId`).
 - **Spec 015** — Multi-currency snapshot primitives (`EditAmount`, `ChangeCurrencyAsync`, `IConversionService`, `ExchangeRate.MarkUsed`).
 - **Spec 020** — `ComparisonArtifact` cache-key recompute hook (silent invalidate).
-- **Spec 021** — Lifecycle states (`Draft`, `ReturnedForChanges`) and the on-blur autosave + required-marker UI conventions.
+- **Spec 021** — Lifecycle state `Draft` (reviewer return via `SendBack` transitions back to `Draft`; no distinct `ReturnedForChanges` state exists — see FR-008) and the on-blur autosave + required-marker UI conventions.
 
 ## Out of Scope
 

@@ -30,10 +30,10 @@ Both routes require:
 
 | Code | When | Body |
 |---|---|---|
-| `200 OK` | Quotation found, application in `Draft` or `ReturnedForChanges`, quotation not `LegacyNeedsReview`, user owns application | `Edit.cshtml` rendered with `EditQuotationViewModel` populated |
+| `200 OK` | Quotation found, application in `Draft` (a reviewer-returned application is back in `Draft` — see spec FR-008), quotation not `LegacyNeedsReview`, user owns application | `Edit.cshtml` rendered with `EditQuotationViewModel` populated |
 | `403 Forbidden` | Acting user is not the application's owner Applicant | Standard `Error403` view (`UnauthorizedAccessException` from `VerifyOwnershipAsync`) |
 | `404 Not Found` | Quotation, Item, or Application missing or soft-deleted | Standard 404 |
-| `422 Unprocessable Entity` | Application state ∉ `{Draft, ReturnedForChanges}` OR `LegacyNeedsReview == true` | Redirect to `Application/Edit/{appId}` with `TempData["ErrorMessage"]` set to the appropriate es-CR copy |
+| `422 Unprocessable Entity` | Application state `!= Draft` OR `LegacyNeedsReview == true` | Redirect to `Application/Edit/{appId}` with `TempData["ErrorMessage"]` set to the appropriate es-CR copy |
 
 ### Response model (`EditQuotationViewModel`)
 
@@ -107,7 +107,7 @@ If `(Price, Currency, ValidUntil, SupplierBranchId)` exactly match the loaded en
 |---|---|---|
 | `QuotationEditPriceTests.EditsPriceOnDraft` | US1 golden | Landing → Login → Application/Index → Application/Edit/{appId} → click Editar on quotation row → GET form → POST 1500→1750 → 303 → row reflects 1750, `CreatedAt` unchanged |
 | `QuotationEditPriceTests.RejectsZeroPrice` | US1 error | Same path; POST with Price `0`; expect `400` re-render + es-CR field error |
-| `QuotationEditAfterReturnTests.SwapsBranchOnReturned` | US2 golden | Same path but Application starts `ReturnedForChanges`; swap branch → row reflects new branch |
+| `QuotationEditAfterReturnTests.SwapsBranchOnReturned` | US2 golden | Same path but Application was returned by a reviewer (now back in `Draft`); swap branch → row reflects new branch |
 | `QuotationEditAfterReturnTests.RejectsCrossSupplierBranch` | US2 error | Same path; POST with a `SupplierBranchId` belonging to a different supplier; expect `400` with *"Sucursal no válida para este proveedor."* |
 | `QuotationEditCurrencyTests.CrcToUsdSnapshot` | US3 golden | Same path; CRC quote → USD; verify fresh snapshot + `ExchangeRate.IsUsed = true` |
 | `QuotationEditCurrencyTests.InvalidatesComparisonCache` | US3 cache | Seed a `ComparisonArtifact` for the item; perform Edit; assert the row is gone (or stale) |

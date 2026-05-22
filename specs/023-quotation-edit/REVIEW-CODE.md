@@ -33,7 +33,7 @@
 
 **Severity:** **Documented — not a blocker.** The reviewer-return-then-applicant-fix loop (US2) ends with the Application in `Draft`, so the Edit affordance is correctly available on that surface. The spec-text divergence is a wording remnant from the brainstorm that should be reconciled via `/speckit-spex-evolve` if the team wants the spec to match the codebase verbatim.
 
-**Disposition:** Flag for spec evolution. The code is consistent with the codebase's state machine; the spec text is aspirational.
+**Disposition:** **RESOLVED via `/speckit-spex-evolve` 2026-05-22 (Option A — update spec).** The spec text was reconciled to the codebase: FR-008 now reads "permitted iff `Draft`" with an explicit lifecycle note, and the `ReturnedForChanges` references in spec.md / plan.md / data-model.md / quickstart.md / contracts were aligned. The code was correct and is unchanged.
 
 ---
 

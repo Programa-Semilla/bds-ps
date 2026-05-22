@@ -4,7 +4,7 @@
 
 ## What you're building
 
-A per-quotation in-place Edit form reachable from the quotation row on `Application/Edit`. The applicant can change Price, Currency, ValidUntil, or SupplierBranch (same supplier only) while the Application is `Draft` or `ReturnedForChanges`. No file replacement here — that stays on the existing `Replace` endpoint.
+A per-quotation in-place Edit form reachable from the quotation row on `Application/Edit`. The applicant can change Price, Currency, ValidUntil, or SupplierBranch (same supplier only) while the Application is `Draft` (a reviewer-returned application is back in `Draft` — see spec FR-008). No file replacement here — that stays on the existing `Replace` endpoint.
 
 ## Run locally
 
