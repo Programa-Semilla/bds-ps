@@ -3,7 +3,11 @@
 **Feature:** 021-feedback-session-may13 (increment on an already-shipped spec)
 **Spec scope:** User Story 9, FR-035–FR-041, SC-017/SC-018, OQ-11
 **Created:** 2026-05-21
-**Status:** Draft
+**Status:** Implemented (2026-05-21)
+
+> **Delivered.** All 8 tasks done via TDD. Unit 401 ✅ · Integration 286 ✅ ·
+> full Playwright E2E suite 237 passed / 0 failed / 5 skipped (8m29s) ✅. No
+> schema change. Commits: 76ec1a8 (T1–T3), 5bda2b2 (T4–T6), e90ae82 (T7 E2E).
 
 > This plan covers ONLY the US9 increment. The US1–US8 artifacts (`plan.md`, `research.md`,
 > `data-model.md`, `contracts/`, `tasks.md`) are shipped and MUST NOT be regenerated or altered.
