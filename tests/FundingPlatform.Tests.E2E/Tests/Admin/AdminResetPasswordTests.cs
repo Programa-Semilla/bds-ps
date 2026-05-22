@@ -51,9 +51,7 @@ public class AdminResetPasswordTests : AuthenticatedTestBase
         var (_, targetEmail) = await SeedAdminAndTargetAsync();
         await OpenResetPageAsync(targetEmail);
 
-        // The submit button is guarded by onclick="return confirm(...)".
-        Page.Dialog += async (_, dialog) => await dialog.AcceptAsync();
-
+        // Spec 024 — SubmitAsync clicks the shared confirm modal's confirm button.
         // "abcdef" — 6 chars, so it clears the view-model length rule, but it
         // has no uppercase / digit / symbol and is rejected by the Identity
         // complexity policy. This is the exact path that used to fail silently.
@@ -75,8 +73,6 @@ public class AdminResetPasswordTests : AuthenticatedTestBase
     {
         var (_, targetEmail) = await SeedAdminAndTargetAsync();
         await OpenResetPageAsync(targetEmail);
-
-        Page.Dialog += async (_, dialog) => await dialog.AcceptAsync();
 
         var resetPage = new AdminResetPasswordPage(Page);
         await resetPage.SubmitAsync("Temp9Pass!", "Temp9Pass!");

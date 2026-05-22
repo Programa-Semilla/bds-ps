@@ -85,7 +85,7 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 **Independent Test**: Force the "Generar todo" enqueue to fail → error toast via `Notify.error`, no `window.alert`.
 
 - [X] T025 [US3] Replace `alert(...)` at `src/FundingPlatform.Web/wwwroot/js/comparison.js:182` with `window.Notify.error(payload.code || 'Error desconocido al encolar.')`. (FR-003, SC-001)
-- [ ] T026 [P] [US3] E2E: extend reviewer comparison coverage (or add to `Tests/Notifications/`) to assert the enqueue-error path renders an error toast and no `window.alert` fires. (SC-001)
+- [X] T026 [P] [US3] E2E: extend reviewer comparison coverage (or add to `Tests/Notifications/`) to assert the enqueue-error path renders an error toast and no `window.alert` fires. (SC-001)
 
 **Checkpoint**: US3 testable; `window.alert` eliminated.
 
@@ -110,7 +110,7 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 
 **Independent Test**: Screen reader announces success (polite) and error (assertive); keyboard focus trapped in modal and restored on close.
 
-- [ ] T029 [US5] Verify/adjust `aria-live` (polite success/info, assertive warning/error) + `role` on toasts in `_ToastContainer`/`notifications.js`; confirm `confirm-dialog.js` returns focus to the trigger on close and Esc cancels; verify toast overlay causes no layout shift. (FR-012, FR-013, NFR-003)
+- [X] T029 [US5] Verify/adjust `aria-live` (polite success/info, assertive warning/error) + `role` on toasts in `_ToastContainer`/`notifications.js`; confirm `confirm-dialog.js` returns focus to the trigger on close and Esc cancels; verify toast overlay causes no layout shift. (FR-012, FR-013, NFR-003)
 - [ ] T030 [P] [US5] E2E: `Tests/Notifications/` accessibility checks — live-region attributes present on toasts; modal focus returns to trigger on cancel/close; integrate with existing `Brand/AxeContrastTests` patterns if useful. (SC-006)
 
 **Checkpoint**: US5 testable.
@@ -121,7 +121,7 @@ Web app — single MVC web project. All production code under `src/FundingPlatfo
 
 - [ ] T031 [P] Coverage verification: grep confirms no `window.alert`/`window.confirm` remain in the affected flows (SC-001) and the banner `.alert` blocks are removed from both layouts (SC-002); confirm `_AutosaveIndicator`, `_StageCountdownBanner`, and `_LookupRejected` were NOT modified (FR-009); capture the result.
 - [ ] T032 [P] es-CR copy pass over all new toast/modal strings + `data-confirm-*` bodies — no English-only strings (FR-010).
-- [ ] T033 Update the lone class-based banner assertion `tests/FundingPlatform.Tests.E2E/Fixtures/AuthenticatedTestBase.cs:313` (`.alert-success`) to the toast `data-testid`, and sweep any other PageObject banner helpers that broke.
+- [X] T033 Update the lone class-based banner assertion `tests/FundingPlatform.Tests.E2E/Fixtures/AuthenticatedTestBase.cs:313` (`.alert-success`) to the toast `data-testid`, and sweep any other PageObject banner helpers that broke.
 - [ ] T034 Run the FULL E2E suite via AspireFixture and confirm it is green (Constitution III, SC-007) — personally executed; not a partial run.
 
 ---

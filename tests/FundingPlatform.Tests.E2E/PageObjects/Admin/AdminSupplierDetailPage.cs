@@ -46,9 +46,9 @@ public class AdminSupplierDetailPage : AdminBasePage
 
     public async Task VerifyAsync()
     {
-        // Confirm the JS confirm dialog auto-accepts in Playwright since we don't override it.
-        Page.Dialog += async (_, dialog) => await dialog.AcceptAsync();
+        // Spec 024 — verify now opens the shared confirm modal; click confirm to proceed.
         await VerifyButton.ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
     }
 
     public async Task RejectAsync(string reason)

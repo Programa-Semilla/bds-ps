@@ -92,9 +92,9 @@ public class FundingAgreementTests : AuthenticatedTestBase
 
         Assert.That(await panel.HasDownloadLinkAsync(), Is.True);
 
-        // Regenerate — dialog auto-confirm via page.OnDialog
-        Page.Dialog += (_, dialog) => dialog.AcceptAsync();
+        // Spec 024 — regenerate now opens the shared confirm modal; click confirm.
         await panel.RegenerateButton.ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
 
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Applications/\d+/FundingAgreement"));
         Assert.That(await panel.HasDownloadLinkAsync(), Is.True);

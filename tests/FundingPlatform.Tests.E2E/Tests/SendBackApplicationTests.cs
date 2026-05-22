@@ -48,9 +48,9 @@ public class SendBackApplicationTests : AuthenticatedTestBase
         await reviewPage.SubmitDecisionWithTestLineCodeAsync(itemId);
         await Expect(Page.Locator(".alert-success")).ToBeVisibleAsync();
 
-        // Send back the application (accept the confirm dialog)
-        Page.Dialog += (_, dialog) => dialog.AcceptAsync();
+        // Spec 024 — send back now opens the shared confirm modal; click confirm.
         await Page.Locator("button:has-text('Devolver')").ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
 
         // Should redirect to queue with success message
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Review"));

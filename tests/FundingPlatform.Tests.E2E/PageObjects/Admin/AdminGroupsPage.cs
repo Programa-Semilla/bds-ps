@@ -14,7 +14,8 @@ public class AdminGroupsPage : AdminBasePage
     public ILocator Table => Page.Locator("[data-testid=\"admin-groups-table\"]");
     public ILocator Rows => Table.Locator("tbody tr");
     public new ILocator EmptyState => Page.Locator("[data-testid=\"admin-groups-empty\"]");
-    public ILocator FlashMessage => Page.Locator("[data-testid=\"admin-groups-flash\"]");
+    // Spec 024 — flash messages now surface as toasts (success-banner test id preserved).
+    public ILocator FlashMessage => Page.Locator("[data-testid=\"success-banner\"]");
 
     public ILocator RowFor(string name) =>
         Page.Locator("tr[data-testid^=\"admin-group-row-\"]")
@@ -52,9 +53,9 @@ public class AdminGroupsPage : AdminBasePage
 
     public async Task DeleteGroupAsync()
     {
-        // The Edit form's Delete button posts via formaction and a confirm()
-        // dialog. Auto-accept the dialog before clicking.
-        Page.Dialog += (_, dialog) => _ = dialog.AcceptAsync();
+        // Spec 024 — the Delete button (formaction) now opens the shared confirm modal;
+        // click confirm to submit. requestSubmit(trigger) preserves the formaction.
         await DeleteSubmit.ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
     }
 }

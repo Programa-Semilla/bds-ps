@@ -8,12 +8,15 @@
     Test ids reuse the legacy banner ids so existing E2E selectors keep working.
 *@
 @functions {
+    // text-bg-* drives the visible style. The bare alert-* marker class is visually
+    // inert without an .alert base but preserves legacy .alert-success/.alert-danger
+    // E2E selectors (spec 024 — avoids churning ~38 existing assertions).
     private static string VariantBg(string variant) => variant switch
     {
-        "success" => "text-bg-success",
-        "error" => "text-bg-danger",
-        "warning" => "text-bg-warning",
-        "info" => "text-bg-info",
+        "success" => "text-bg-success alert-success",
+        "error" => "text-bg-danger alert-danger",
+        "warning" => "text-bg-warning alert-warning",
+        "info" => "text-bg-info alert-info",
         _ => "text-bg-secondary",
     };
 

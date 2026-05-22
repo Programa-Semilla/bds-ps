@@ -20,11 +20,14 @@
     }
 
     function variantClass(variant) {
+        // text-bg-* drives the visible style. The bare alert-* marker class is
+        // visually inert without an .alert base (it only sets unused CSS vars),
+        // but preserves legacy ".alert-success"/".alert-danger" E2E selectors.
         switch (variant) {
-            case 'success': return 'text-bg-success';
-            case 'error': return 'text-bg-danger';
-            case 'warning': return 'text-bg-warning';
-            case 'info': return 'text-bg-info';
+            case 'success': return 'text-bg-success alert-success';
+            case 'error': return 'text-bg-danger alert-danger';
+            case 'warning': return 'text-bg-warning alert-warning';
+            case 'info': return 'text-bg-info alert-info';
             default: return 'text-bg-secondary';
         }
     }
