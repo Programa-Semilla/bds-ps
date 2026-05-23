@@ -58,6 +58,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ProcessPlantilla> ProcessPlantillas => Set<ProcessPlantilla>();
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Canton> Cantons => Set<Canton>();
+    // Spec 025 — distrito catalog (third tier of the supplier-branch location cascade).
+    public DbSet<District> Districts => Set<District>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)

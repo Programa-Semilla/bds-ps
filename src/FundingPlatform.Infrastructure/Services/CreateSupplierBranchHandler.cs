@@ -88,7 +88,10 @@ public sealed class CreateSupplierBranchHandler : ICreateSupplierBranchHandler
         }
 
         branch.SetContactPersonName(cmd.ContactPersonName);
-        branch.SetLocation(cmd.ProvinceId, cmd.CantonId, canton);
+        // Spec 025 — orphaned spec-021 inline path (no live UI): keeps the
+        // province+cantón pair, no distrito tier. Tracked deviation vs FR-006
+        // (plan Decision 6); revisit if this path is ever rebuilt with a UI.
+        branch.SetLocation(cmd.ProvinceId, cmd.CantonId, districtId: null, canton, district: null);
 
         await _db.SaveChangesAsync(ct);
         return new CreateSupplierBranchResult(supplier.Id, branch.Id);

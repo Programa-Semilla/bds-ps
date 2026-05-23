@@ -43,6 +43,14 @@ public class SupplierBranchConfiguration : IEntityTypeConfiguration<SupplierBran
             .HasForeignKey(b => b.CantonId)
             .OnDelete(DeleteBehavior.NoAction);
 
+        // Spec 025 — third cascade tier. Nullable FK; the district-belongs-to-cantón
+        // invariant is enforced in the domain (SupplierBranch.SetLocation), not here.
+        builder.Property(b => b.DistrictId);
+        builder.HasOne(b => b.DistrictRef)
+            .WithMany()
+            .HasForeignKey(b => b.DistrictId)
+            .OnDelete(DeleteBehavior.NoAction);
+
         builder.HasIndex(b => b.SupplierId);
 
         // Filtered unique index — exactly one default branch per supplier (FR-021).

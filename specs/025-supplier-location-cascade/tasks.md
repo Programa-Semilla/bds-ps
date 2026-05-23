@@ -18,7 +18,7 @@
 
 **Purpose**: De-risk the seed by pinning the authoritative distrito enumeration before any SQL is written.
 
-- [ ] T001 Compile + reconcile the authoritative distrito enumeration to the existing 84-cantón catalog and save it as an intermediate data file `specs/025-supplier-location-cascade/contracts/districts-seed-data.md` (or `.csv`): one row per distrito keyed `'PP_CC_DD'` with name + parent cantón code. Source per research.md Decision 5 (josuenoel gist for bulk + INEC/Wikipedia Anexo reconciliation). MUST satisfy per-province totals 123/116/51/47/61/60/30, Golfito `06_07`=3, Monteverde `06_12`=1, Puerto Jiménez `06_13`=1, and every `PP_CC` prefix must equal an existing cantón Code in `01_SeedProvincesCantons.sql`. No code.
+- [X] T001 Compile + reconcile the authoritative distrito enumeration to the existing 84-cantón catalog and save it as an intermediate data file `specs/025-supplier-location-cascade/contracts/districts-seed-data.md` (or `.csv`): one row per distrito keyed `'PP_CC_DD'` with name + parent cantón code. Source per research.md Decision 5 (josuenoel gist for bulk + INEC/Wikipedia Anexo reconciliation). MUST satisfy per-province totals 123/116/51/47/61/60/30, Golfito `06_07`=3, Monteverde `06_12`=1, Puerto Jiménez `06_13`=1, and every `PP_CC` prefix must equal an existing cantón Code in `01_SeedProvincesCantons.sql`. No code.
 
 ---
 
@@ -28,34 +28,34 @@
 
 ### Database (schema-first)
 
-- [ ] T002 [P] Create `src/FundingPlatform.Database/Tables/dbo.Districts.sql` mirroring `dbo.Cantons.sql`: `Id` identity PK, `CantonId INT NOT NULL`, `Code CHAR(8) NOT NULL`, `Name NVARCHAR(80) NOT NULL`, `UX_Districts_Code` unique, `FK_Districts_Cantons` (ON DELETE NO ACTION), `IX_Districts_CantonId`.
-- [ ] T003 Add `[DistrictId] INT NULL` column + `CONSTRAINT [FK_SupplierBranches_Districts] FOREIGN KEY ([DistrictId]) REFERENCES [dbo].[Districts]([Id]) ON DELETE NO ACTION` to `src/FundingPlatform.Database/Tables/dbo.SupplierBranches.sql`.
-- [ ] T004 Create `src/FundingPlatform.Database/PostDeployment/02_SeedDistricts.sql` — MERGE-idempotent (mirror `01_SeedProvincesCantons.sql` shape), ~488 rows from T001 data, resolving `CantonId` via cantón `Code` lookups (not identity).
-- [ ] T005 Add `:r .\02_SeedDistricts.sql` include to `src/FundingPlatform.Database/PostDeployment/Script.PostDeployment.sql` AFTER the cantones seed (verify ordering so cantón Codes exist).
+- [X] T002 [P] Create `src/FundingPlatform.Database/Tables/dbo.Districts.sql` mirroring `dbo.Cantons.sql`: `Id` identity PK, `CantonId INT NOT NULL`, `Code CHAR(8) NOT NULL`, `Name NVARCHAR(80) NOT NULL`, `UX_Districts_Code` unique, `FK_Districts_Cantons` (ON DELETE NO ACTION), `IX_Districts_CantonId`.
+- [X] T003 Add `[DistrictId] INT NULL` column + `CONSTRAINT [FK_SupplierBranches_Districts] FOREIGN KEY ([DistrictId]) REFERENCES [dbo].[Districts]([Id]) ON DELETE NO ACTION` to `src/FundingPlatform.Database/Tables/dbo.SupplierBranches.sql`.
+- [X] T004 Create `src/FundingPlatform.Database/PostDeployment/02_SeedDistricts.sql` — MERGE-idempotent (mirror `01_SeedProvincesCantons.sql` shape), ~488 rows from T001 data, resolving `CantonId` via cantón `Code` lookups (not identity).
+- [X] T005 Add `:r .\02_SeedDistricts.sql` include to `src/FundingPlatform.Database/PostDeployment/Script.PostDeployment.sql` AFTER the cantones seed (verify ordering so cantón Codes exist).
 
 ### Domain
 
-- [ ] T006 [P] Create `src/FundingPlatform.Domain/Entities/District.cs` mirroring `Canton.cs` (`Id`, `CantonId`, `Code`, `Name`, `Canton?` nav; ctor `District(int cantonId, string code, string name)` with guards).
-- [ ] T007 Extend `src/FundingPlatform.Domain/Entities/SupplierBranch.cs`: add `DistrictId` (`int?`) + `DistrictRef` (`District?`); extend `SetLocation` to `(int? provinceId, int? cantonId, int? districtId, Canton? canton, District? district)` per data-model.md (keep province+cantón both-or-neither; add district-consistent-if-set).
+- [X] T006 [P] Create `src/FundingPlatform.Domain/Entities/District.cs` mirroring `Canton.cs` (`Id`, `CantonId`, `Code`, `Name`, `Canton?` nav; ctor `District(int cantonId, string code, string name)` with guards).
+- [X] T007 Extend `src/FundingPlatform.Domain/Entities/SupplierBranch.cs`: add `DistrictId` (`int?`) + `DistrictRef` (`District?`); extend `SetLocation` to `(int? provinceId, int? cantonId, int? districtId, Canton? canton, District? district)` per data-model.md (keep province+cantón both-or-neither; add district-consistent-if-set).
 
 ### Infrastructure
 
-- [ ] T008 [P] Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/DistrictConfiguration.cs` mirroring `CantonConfiguration.cs` (`Code` `HasMaxLength(8).IsFixedLength()`, `Name` `HasMaxLength(80)`, `UX_Districts_Code`, `IX_Districts_CantonId`).
-- [ ] T009 Add to `src/FundingPlatform.Infrastructure/Persistence/Configurations/SupplierBranchConfiguration.cs`: `Property(b => b.DistrictId)` + `HasOne(b => b.DistrictRef).WithMany().HasForeignKey(b => b.DistrictId).OnDelete(DeleteBehavior.NoAction)`.
-- [ ] T010 Add `DbSet<District> Districts => Set<District>();` to `src/FundingPlatform.Infrastructure/Persistence/AppDbContext.cs`.
-- [ ] T011 [P] Create `ILocationCatalogReader` in `src/FundingPlatform.Application/Abstractions/Location/` (returns the district→cantón→province chain incl. entities, or null) + `LocationCatalogReader` impl in `src/FundingPlatform.Infrastructure/Location/` over `AppDbContext`; register in DI.
+- [X] T008 [P] Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/DistrictConfiguration.cs` mirroring `CantonConfiguration.cs` (`Code` `HasMaxLength(8).IsFixedLength()`, `Name` `HasMaxLength(80)`, `UX_Districts_Code`, `IX_Districts_CantonId`).
+- [X] T009 Add to `src/FundingPlatform.Infrastructure/Persistence/Configurations/SupplierBranchConfiguration.cs`: `Property(b => b.DistrictId)` + `HasOne(b => b.DistrictRef).WithMany().HasForeignKey(b => b.DistrictId).OnDelete(DeleteBehavior.NoAction)`.
+- [X] T010 Add `DbSet<District> Districts => Set<District>();` to `src/FundingPlatform.Infrastructure/Persistence/AppDbContext.cs`.
+- [X] T011 [P] Create `ILocationCatalogReader` in `src/FundingPlatform.Application/Abstractions/Location/` (returns the district→cantón→province chain incl. entities, or null) + `LocationCatalogReader` impl in `src/FundingPlatform.Infrastructure/Location/` over `AppDbContext`; register in DI.
 
 ### API + shared Web assets
 
-- [ ] T012 [P] Create `src/FundingPlatform.Web/Controllers/DistrictsApiController.cs` mirroring `CantonsApiController` — `GET /api/districts?cantonId={id}` → `[{id,name}]` ordered by name, `[AllowAnonymous]`, `Cache-Control: public, max-age=3600` (per contracts/districts-api.md).
-- [ ] T013 Generalize `src/FundingPlatform.Web/wwwroot/js/province-canton-cascade.js` into data-driven `location-cascade.js` (read `data-cascade-endpoint`/`data-cascade-param`/`data-cascade-placeholder`; chain bubbling `change` so province→cantón→distrito reset propagates); update the `<script>` reference(s); preserve province→cantón behavior exactly.
-- [ ] T014 Rename/extend `ProvinceCantonCascadeViewModel` → `LocationCascadeViewModel` (`src/FundingPlatform.Web/ViewModels/`) adding `DistrictFieldName`/`Districts`/`SelectedDistrictId`; rename/extend `Views/Shared/_ProvinceCantonCascade.cshtml` → `_LocationCascade.cshtml` with a third `<select>` (district select id derived from field name; cantón select gains `data-cascade-source="canton"` + endpoint/param/target attrs).
-- [ ] T015 [P] Add `int? ProvinceId / CantonId / DistrictId` to `AddBranchInput` in `src/FundingPlatform.Application/Applications/Commands/AddSupplierQuotationCommand.cs`.
-- [ ] T016 Update `CreateSupplierBranchHandler` (Infrastructure) to the new `SetLocation` signature (pass `districtId: null, district: null`) so it compiles — orphaned inline path, deviation per plan Decision 6.
+- [X] T012 [P] Create `src/FundingPlatform.Web/Controllers/DistrictsApiController.cs` mirroring `CantonsApiController` — `GET /api/districts?cantonId={id}` → `[{id,name}]` ordered by name, `[AllowAnonymous]`, `Cache-Control: public, max-age=3600` (per contracts/districts-api.md).
+- [X] T013 Generalize `src/FundingPlatform.Web/wwwroot/js/province-canton-cascade.js` into data-driven `location-cascade.js` (read `data-cascade-endpoint`/`data-cascade-param`/`data-cascade-placeholder`; chain bubbling `change` so province→cantón→distrito reset propagates); update the `<script>` reference(s); preserve province→cantón behavior exactly.
+- [X] T014 Rename/extend `ProvinceCantonCascadeViewModel` → `LocationCascadeViewModel` (`src/FundingPlatform.Web/ViewModels/`) adding `DistrictFieldName`/`Districts`/`SelectedDistrictId`; rename/extend `Views/Shared/_ProvinceCantonCascade.cshtml` → `_LocationCascade.cshtml` with a third `<select>` (district select id derived from field name; cantón select gains `data-cascade-source="canton"` + endpoint/param/target attrs).
+- [X] T015 [P] Add `int? ProvinceId / CantonId / DistrictId` to `AddBranchInput` in `src/FundingPlatform.Application/Applications/Commands/AddSupplierQuotationCommand.cs`.
+- [X] T016 Update `CreateSupplierBranchHandler` (Infrastructure) to the new `SetLocation` signature (pass `districtId: null, district: null`) so it compiles — orphaned inline path, deviation per plan Decision 6.
 
 ### Foundational tests
 
-- [ ] T017 [P] Unit tests in `tests/FundingPlatform.Tests.Unit` for `SetLocation` 3-tier: all-three-valid sets refs; district set without cantón throws; `district.CantonId != cantonId` throws; province+cantón without district allowed; all-null allowed.
+- [X] T017 [P] Unit tests in `tests/FundingPlatform.Tests.Unit` for `SetLocation` 3-tier: all-three-valid sets refs; district set without cantón throws; `district.CantonId != cantonId` throws; province+cantón without district allowed; all-null allowed.
 - [ ] T018 [P] Integration test in `tests/FundingPlatform.Tests.Integration` (real DB): `GET /api/districts?cantonId={id}` returns that cantón's distritos ordered by name with the public cache header; unknown id → empty array.
 - [ ] T019 [P] Integration test (real DB, the SC-007 oracle): every one of the 84 cantones has ≥1 district; per-province totals 123/116/51/47/61/60/30; Golfito `06_07`=3, Monteverde `06_12`=1, Puerto Jiménez `06_13`=1; every district `Code` is `'PP_CC_DD'` whose `PP_CC` prefix is an existing cantón Code.
 

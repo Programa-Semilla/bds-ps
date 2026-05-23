@@ -37,6 +37,13 @@ public class SupplierBranch
     public int? CantonId { get; private set; }
     public Canton? CantonRef { get; private set; }
 
+    /// <summary>Spec 025 / FR-001 — FK into the <see cref="Entities.District"/> catalog
+    /// (third cascade tier). Nullable: legacy rows carry NULL, and the domain permits a
+    /// province+cantón pair without a distrito. When set, <see cref="CantonId"/> must
+    /// also be set and the district's <see cref="District.CantonId"/> must equal it.</summary>
+    public int? DistrictId { get; private set; }
+    public District? DistrictRef { get; private set; }
+
     private SupplierBranch() { }
 
     internal SupplierBranch(
@@ -100,17 +107,29 @@ public class SupplierBranch
     }
 
     /// <summary>
-    /// Spec 021 / FR-014 — sets the Provincia + Cantón FK pair. Either both null
-    /// (catalog data not yet captured for this branch) or both non-null. When
-    /// both non-null, <see cref="CantonCatalogEntry.ProvinceId"/> MUST equal the
-    /// branch's <see cref="ProvinceId"/>; otherwise the spec Edge Case copy
-    /// applies (*"Solo proveedores con dirección en Costa Rica"*).
+    /// Spec 021 / FR-014 + Spec 025 / FR-006 — sets the Provincia → Cantón →
+    /// Distrito FK chain. Invariant (superset of the spec-021 version):
+    /// <list type="number">
+    ///   <item><paramref name="provinceId"/> and <paramref name="cantonId"/> are
+    ///   both null or both set (unchanged).</item>
+    ///   <item>When <paramref name="cantonId"/> is set, <paramref name="canton"/>
+    ///   is non-null, <c>canton.Id == cantonId</c>, and
+    ///   <c>canton.ProvinceId == provinceId</c> (unchanged).</item>
+    ///   <item><b>New:</b> when <paramref name="districtId"/> is set,
+    ///   <paramref name="cantonId"/> must be set, <paramref name="district"/> is
+    ///   non-null, <c>district.Id == districtId</c>, and
+    ///   <c>district.CantonId == cantonId</c>.</item>
+    /// </list>
+    /// A distrito-less province+cantón pair is permitted at the domain layer (the
+    /// orphaned spec-021 inline path still uses it); the all-three-required rule is
+    /// enforced at the form/controller layer for the three wired surfaces (plan
+    /// Decision 6 — tracked deviation vs FR-006).
     /// </summary>
     /// <exception cref="ArgumentException">
-    /// ProvinceId/CantonId arity mismatch, or canton's province does not match
-    /// the branch's province.
+    /// Province/Cantón arity mismatch; cantón's province mismatch; distrito set
+    /// without a cantón; or the entities do not match their id arguments.
     /// </exception>
-    public void SetLocation(int? provinceId, int? cantonId, Canton? canton)
+    public void SetLocation(int? provinceId, int? cantonId, int? districtId, Canton? canton, District? district)
     {
         if ((provinceId is null) != (cantonId is null))
         {
@@ -133,10 +152,32 @@ public class SupplierBranch
                     nameof(canton));
             }
         }
+        if (districtId is not null)
+        {
+            if (cantonId is null)
+            {
+                throw new ArgumentException(
+                    "DistrictId cannot be set without a CantonId.", nameof(districtId));
+            }
+            ArgumentNullException.ThrowIfNull(district);
+            if (district.Id != districtId.Value)
+            {
+                throw new ArgumentException(
+                    "District entity does not match districtId argument.", nameof(district));
+            }
+            if (district.CantonId != cantonId.Value)
+            {
+                throw new ArgumentException(
+                    "District.CantonId must equal the branch CantonId (FR-006).",
+                    nameof(district));
+            }
+        }
 
         ProvinceId = provinceId;
         CantonId = cantonId;
         CantonRef = canton;
+        DistrictId = districtId;
+        DistrictRef = district;
         UpdatedAt = DateTime.UtcNow;
     }
 }
