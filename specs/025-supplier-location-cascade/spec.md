@@ -110,7 +110,7 @@ An administrator editing a supplier branch on the admin supplier detail page set
 
 ## Assumptions
 
-- The existing 84-cantón catalog (the spec-021 version, predating the 2022 Puerto Jiménez cantón) is the version the Distrito catalog is matched to; the authoritative distrito list is selected to align exactly with those cantones (~488 distritos). The exact count and source revision are confirmed during planning from the authoritative reference, not from memory.
+- The existing 84-cantón catalog is the **full modern set** — verified during planning: its Puntarenas tail is `06_12 Monteverde` and `06_13 Puerto Jiménez` (the seed's header comment claiming otherwise is inaccurate; the rows are authoritative). The Distrito catalog is matched exactly to these 84 cantones (488 distritos), which means Golfito `06_07` has 3 distritos and Monteverde/Puerto Jiménez are 1-distrito cantones. The exact count is pinned during implementation from the authoritative enumeration (not memory) and asserted by an integration test. See `research.md` Decision 5.
 - Costa Rica's administrative model is exactly three levels for this purpose (Provincia → Cantón → Distrito); no further subdivision (barrio/poblado) is in scope.
 - The legacy free-text Provincia value on a branch is retained as a composed, human-readable display string written when a branch is saved through the cascade; the structured references are the source of truth.
 - The two existing applicant entry panels and the admin edit form are the only branch-location surfaces in scope. The separate inline branch-creation path referenced from the application edit screen is out of scope unless it is one of the wired forms.
