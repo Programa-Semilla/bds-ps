@@ -69,11 +69,11 @@
 
 **Independent Test**: As an applicant, trigger the Nuevo proveedor panel, pick Provincia→Cantón→Distrito (each narrows the next), submit → branch persisted with the three FKs + composed display string; incomplete location rejected.
 
-- [ ] T020 [US1] Add a provinces-SelectList loader + `LocationCascadeViewModel` builder helper; thread it through `SupplierController.Add` (GET) and `Search` so the `_LookupEmpty` partial receives provinces with field prefix `NewSupplier.FirstBranch.` (`src/FundingPlatform.Web/Controllers/SupplierController.cs`).
-- [ ] T021 [US1] Replace the Provincia text input in `src/FundingPlatform.Web/Views/Supplier/_LookupEmpty.cshtml` with the `_LocationCascade` partial; add `int? ProvinceId/CantonId/DistrictId` to `AddBranchInputViewModel` in `src/FundingPlatform.Web/ViewModels/AddSupplierViewModel.cs` (drop the free-text Province binding).
-- [ ] T022 [US1] In `SupplierController` POST new-supplier path: resolve+validate the submitted chain via `ILocationCatalogReader`, add aggregated `ModelState` errors for missing/inconsistent levels (es-CR copy per data-model.md), compose the `"Distrito, Cantón, Provincia"` display string, and pass location to the service.
-- [ ] T023 [US1] Extend `Supplier.CreateDraft` (`Domain/Entities/Supplier.cs`) + `SupplierCatalogService.CreateDraftWithBranchAsync` to accept the location (ids + Canton + District) and call `branch.SetLocation(...)`; pass the composed string as the legacy `province`.
-- [ ] T024 [US1] Add client-side required validation on the three selects in the new-supplier panel (no silent submit; aligns with server rules).
+- [X] T020 [US1] Add a provinces-SelectList loader + `LocationCascadeViewModel` builder helper; thread it through `SupplierController.Add` (GET) and `Search` so the `_LookupEmpty` partial receives provinces with field prefix `NewSupplier.FirstBranch.` (`src/FundingPlatform.Web/Controllers/SupplierController.cs`).
+- [X] T021 [US1] Replace the Provincia text input in `src/FundingPlatform.Web/Views/Supplier/_LookupEmpty.cshtml` with the `_LocationCascade` partial; add `int? ProvinceId/CantonId/DistrictId` to `AddBranchInputViewModel` in `src/FundingPlatform.Web/ViewModels/AddSupplierViewModel.cs` (drop the free-text Province binding).
+- [X] T022 [US1] In `SupplierController` POST new-supplier path: resolve+validate the submitted chain via `ILocationCatalogReader`, add aggregated `ModelState` errors for missing/inconsistent levels (es-CR copy per data-model.md), compose the `"Distrito, Cantón, Provincia"` display string, and pass location to the service.
+- [X] T023 [US1] Extend `Supplier.CreateDraft` (`Domain/Entities/Supplier.cs`) + `SupplierCatalogService.CreateDraftWithBranchAsync` to accept the location (ids + Canton + District) and call `branch.SetLocation(...)`; pass the composed string as the legacy `province`.
+- [X] T024 [US1] Add client-side required validation on the three selects in the new-supplier panel (no silent submit; aligns with server rules).
 - [ ] T025 [P] [US1] E2E in `tests/FundingPlatform.Tests.E2E` (Page Object): applicant journey — open Supplier/Add, force Nuevo proveedor, assert Cantón narrows on Provincia and Distrito narrows on Cantón, submit success + persistence; and the incomplete-location rejection path.
 
 **Checkpoint**: US1 fully functional and independently testable (MVP).
@@ -86,9 +86,9 @@
 
 **Independent Test**: Look up a Verified supplier, open Agregar nueva sucursal, complete the cascade, submit → new branch carries the location; incomplete rejected.
 
-- [ ] T026 [US2] Render the `_LocationCascade` partial in the new-branch panel of `src/FundingPlatform.Web/Views/Supplier/_BranchPicker.cshtml` with field prefix `NewBranch.` (replacing the Provincia text input); ensure the host supplies provinces (extend the `Search`/`Add` `_LookupHit`/branch-picker model path or a child-action render).
-- [ ] T027 [US2] In `SupplierController` POST new-branch path: resolve+validate+compose+pass location (reuse the helper from T022).
-- [ ] T028 [US2] Extend `Supplier.AddBranch` + `SupplierCatalogService.AddBranchUnderExistingSupplierAsync` to accept the location and call `SetLocation`; pass the composed string as legacy `province`.
+- [X] T026 [US2] Render the `_LocationCascade` partial in the new-branch panel of `src/FundingPlatform.Web/Views/Supplier/_BranchPicker.cshtml` with field prefix `NewBranch.` (replacing the Provincia text input); ensure the host supplies provinces (extend the `Search`/`Add` `_LookupHit`/branch-picker model path or a child-action render).
+- [X] T027 [US2] In `SupplierController` POST new-branch path: resolve+validate+compose+pass location (reuse the helper from T022).
+- [X] T028 [US2] Extend `Supplier.AddBranch` + `SupplierCatalogService.AddBranchUnderExistingSupplierAsync` to accept the location and call `SetLocation`; pass the composed string as legacy `province`.
 - [ ] T029 [P] [US2] E2E (Page Object): applicant add-branch-on-existing-supplier cascade journey (narrowing + persist + incomplete rejected).
 
 **Checkpoint**: US1 + US2 both independently functional.
@@ -101,9 +101,9 @@
 
 **Independent Test**: As admin, open a branch edit, see Provincia/Cantón/Distrito pre-selected (when set), change + save → branch reflects new location; incomplete rejected.
 
-- [ ] T030 [US3] Add `int? ProvinceId/CantonId/DistrictId` to `AdminEditBranchViewModel`; in `AdminSuppliersController.Detail` build a per-branch `LocationCascadeViewModel` including the pre-selected province + its cantones + the cantón's distritos (so the edit form renders selected) (`src/FundingPlatform.Web/Controllers/Admin/AdminSuppliersController.cs`).
-- [ ] T031 [US3] Replace the Provincia text input in the branch-edit form of `src/FundingPlatform.Web/Views/Admin/Suppliers/Detail.cshtml` with the `_LocationCascade` partial.
-- [ ] T032 [US3] In `AdminSuppliersController.EditBranch`: resolve+validate+compose+pass location; extend `Supplier.EditBranch` to accept the location and call `SetLocation`.
+- [X] T030 [US3] Add `int? ProvinceId/CantonId/DistrictId` to `AdminEditBranchViewModel`; in `AdminSuppliersController.Detail` build a per-branch `LocationCascadeViewModel` including the pre-selected province + its cantones + the cantón's distritos (so the edit form renders selected) (`src/FundingPlatform.Web/Controllers/Admin/AdminSuppliersController.cs`).
+- [X] T031 [US3] Replace the Provincia text input in the branch-edit form of `src/FundingPlatform.Web/Views/Admin/Suppliers/Detail.cshtml` with the `_LocationCascade` partial.
+- [X] T032 [US3] In `AdminSuppliersController.EditBranch`: resolve+validate+compose+pass location; extend `Supplier.EditBranch` to accept the location and call `SetLocation`.
 - [ ] T033 [P] [US3] E2E (Page Object): admin branch-edit cascade journey (pre-selected values, change, save, incomplete rejected).
 
 **Checkpoint**: All three surfaces independently functional.

@@ -109,7 +109,12 @@ public class SupplierCatalogService
             input.ShippingDetails,
             input.WarrantyInfo,
             createdByApplicantId,
-            isDefault: false);
+            isDefault: false,
+            provinceId: input.ProvinceId,
+            cantonId: input.CantonId,
+            districtId: input.DistrictId,
+            canton: input.Canton,
+            district: input.District);
 
         await _supplierRepository.UpdateAsync(supplier);
         await _supplierRepository.SaveChangesAsync();
@@ -140,7 +145,12 @@ public class SupplierCatalogService
             firstBranch.AddressLine,
             firstBranch.Province,
             firstBranch.ShippingDetails,
-            firstBranch.WarrantyInfo);
+            firstBranch.WarrantyInfo,
+            firstBranchProvinceId: firstBranch.ProvinceId,
+            firstBranchCantonId: firstBranch.CantonId,
+            firstBranchDistrictId: firstBranch.DistrictId,
+            firstBranchCanton: firstBranch.Canton,
+            firstBranchDistrict: firstBranch.District);
 
         try
         {

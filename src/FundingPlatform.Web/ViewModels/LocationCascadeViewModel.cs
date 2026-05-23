@@ -28,6 +28,15 @@ public sealed class LocationCascadeViewModel
     /// <c>data-cascade-target</c> selector for the cantón source.</summary>
     public string DistrictFieldName { get; init; } = "DistrictId";
 
+    /// <summary>
+    /// Prefix applied to the element <c>id</c>s (and cascade-target selectors) only —
+    /// NOT the binding <c>name</c>. Lets multiple cascades that bind to identically
+    /// named fields coexist on one page (admin Detail renders one branch-edit form per
+    /// branch, all binding <c>ProvinceId/CantonId/DistrictId</c>). Empty by default
+    /// (applicant surfaces already have unique prefixed field names).
+    /// </summary>
+    public string ElementIdPrefix { get; init; } = string.Empty;
+
     /// <summary>Provinces rendered as the source &lt;select&gt; options.</summary>
     public IReadOnlyList<SelectListItem> Provinces { get; init; } = Array.Empty<SelectListItem>();
 

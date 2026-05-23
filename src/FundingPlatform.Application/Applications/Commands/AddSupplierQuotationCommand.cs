@@ -1,3 +1,5 @@
+using FundingPlatform.Domain.Entities;
+
 namespace FundingPlatform.Application.Applications.Commands;
 
 /// <summary>
@@ -55,6 +57,12 @@ public class AddBranchInput
     public int? ProvinceId { get; set; }
     public int? CantonId { get; set; }
     public int? DistrictId { get; set; }
+
+    // Spec 025 — catalog entities resolved + validated by the controller via
+    // ILocationCatalogReader, threaded to the aggregate's SetLocation invariant
+    // (avoids a second DB round-trip in the write path).
+    public Canton? Canton { get; set; }
+    public District? District { get; set; }
 
     public string? ShippingDetails { get; set; }
     public string? WarrantyInfo { get; set; }

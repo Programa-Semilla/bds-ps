@@ -23,9 +23,9 @@
 *@
 @{
     static string Slug(string s) => s.Replace(".", "-").Replace("[", "-").Replace("]", string.Empty);
-    var provinceSelectId = $"province-{Slug(Model.ProvinceFieldName)}";
-    var cantonSelectId = $"canton-{Slug(Model.CantonFieldName)}";
-    var districtSelectId = $"district-{Slug(Model.DistrictFieldName)}";
+    var provinceSelectId = $"province-{Slug(Model.ElementIdPrefix + Model.ProvinceFieldName)}";
+    var cantonSelectId = $"canton-{Slug(Model.ElementIdPrefix + Model.CantonFieldName)}";
+    var districtSelectId = $"district-{Slug(Model.ElementIdPrefix + Model.DistrictFieldName)}";
 }
 <div class="row g-2">
     <div class="col-md-4">

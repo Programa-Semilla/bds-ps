@@ -51,7 +51,12 @@ public class Supplier
         string? firstBranchAddressLine,
         string? firstBranchProvince,
         string? firstBranchShippingDetails,
-        string? firstBranchWarrantyInfo)
+        string? firstBranchWarrantyInfo,
+        int? firstBranchProvinceId = null,
+        int? firstBranchCantonId = null,
+        int? firstBranchDistrictId = null,
+        Canton? firstBranchCanton = null,
+        District? firstBranchDistrict = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(legalId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -81,6 +86,14 @@ public class Supplier
             firstBranchWarrantyInfo,
             isDefault: true,
             createdByApplicantId: createdByApplicantId);
+        // Spec 025 — set the structured location chain on the aggregate when supplied
+        // by the cascade write path (province+cantón[+distrito]). All-null otherwise.
+        if (firstBranchProvinceId is not null || firstBranchCanton is not null)
+        {
+            defaultBranch.SetLocation(
+                firstBranchProvinceId, firstBranchCantonId, firstBranchDistrictId,
+                firstBranchCanton, firstBranchDistrict);
+        }
         s._branches.Add(defaultBranch);
         return s;
     }
@@ -191,13 +204,23 @@ public class Supplier
         string? shippingDetails,
         string? warrantyInfo,
         int? createdByApplicantId,
-        bool isDefault = false)
+        bool isDefault = false,
+        int? provinceId = null,
+        int? cantonId = null,
+        int? districtId = null,
+        Canton? canton = null,
+        District? district = null)
     {
         if (isDefault && _branches.Any(b => b.IsDefault))
             throw new InvalidOperationException("Supplier already has a default branch.");
         var branch = new SupplierBranch(
             branchName, contactName, email, phone, addressLine, province,
             shippingDetails, warrantyInfo, isDefault, createdByApplicantId);
+        // Spec 025 — structured location chain when supplied by the cascade write path.
+        if (provinceId is not null || canton is not null)
+        {
+            branch.SetLocation(provinceId, cantonId, districtId, canton, district);
+        }
         _branches.Add(branch);
         UpdatedAt = DateTime.UtcNow;
         return branch;
@@ -216,11 +239,22 @@ public class Supplier
         string? addressLine,
         string? province,
         string? shippingDetails,
-        string? warrantyInfo)
+        string? warrantyInfo,
+        int? provinceId = null,
+        int? cantonId = null,
+        int? districtId = null,
+        Canton? canton = null,
+        District? district = null)
     {
         var branch = _branches.FirstOrDefault(b => b.Id == branchId)
             ?? throw new InvalidOperationException($"Branch {branchId} not found on supplier {Id}.");
         branch.Edit(branchName, contactName, email, phone, addressLine, province, shippingDetails, warrantyInfo);
+        // Spec 025 — apply the structured location chain when supplied by the cascade
+        // write path (admin branch edit). Left untouched when no location is provided.
+        if (provinceId is not null || canton is not null)
+        {
+            branch.SetLocation(provinceId, cantonId, districtId, canton, district);
+        }
         UpdatedAt = DateTime.UtcNow;
     }
 }

@@ -93,9 +93,18 @@ public class AddBranchInputViewModel
     [MaxLength(500)]
     public string? AddressLine { get; set; }
 
+    // Spec 025 — Provincia → Cantón → Distrito cascade FK ids (replace the spec-013
+    // free-text Province input). All three required server-side on this surface; the
+    // composed "Distrito, Cantón, Provincia" display string is set by the controller,
+    // not posted.
     [Display(Name = "Provincia")]
-    [MaxLength(100)]
-    public string? Province { get; set; }
+    public int? ProvinceId { get; set; }
+
+    [Display(Name = "Cantón")]
+    public int? CantonId { get; set; }
+
+    [Display(Name = "Distrito")]
+    public int? DistrictId { get; set; }
 
     [Display(Name = "Detalles de envío")]
     [MaxLength(500)]

@@ -194,13 +194,13 @@
                                                     <label class="form-label">Teléfono</label>
                                                     <input class="form-control" type="tel" name="Phone" value="@b.Phone" maxlength="20" />
                                                 </div>
-                                                <div class="col-md-8 mb-2">
+                                                <div class="col-md-12 mb-2">
                                                     <label class="form-label">Dirección</label>
                                                     <input class="form-control" name="AddressLine" value="@b.AddressLine" maxlength="500" />
                                                 </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="form-label">Provincia</label>
-                                                    <input class="form-control" name="Province" value="@b.Province" maxlength="100" />
+                                                @* Spec 025 — Provincia → Cantón → Distrito cascade, pre-selected to current values. *@
+                                                <div class="col-md-12 mb-2" data-testid="admin-branch-location-@b.Id">
+                                                    <partial name="_LocationCascade" model="b.Location" />
                                                 </div>
                                                 <div class="col-md-12 mb-2">
                                                     <label class="form-label">Detalles de envío</label>
@@ -231,3 +231,8 @@
         </a>
     </div>
 </div>
+
+@section Scripts {
+    @* Spec 025 — Provincia → Cantón → Distrito cascade for the per-branch edit forms. *@
+    <script src="~/js/location-cascade.js" asp-append-version="true"></script>
+}
