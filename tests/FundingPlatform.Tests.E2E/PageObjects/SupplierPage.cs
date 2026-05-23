@@ -35,7 +35,8 @@ public class SupplierPage : BasePage
     public ILocator NewBranchEmailInput => Page.GetByTestId("new-branch-email");
     public ILocator NewBranchPhoneInput => Page.GetByTestId("new-branch-phone");
     public ILocator NewBranchAddressInput => Page.GetByTestId("new-branch-address");
-    public ILocator NewBranchProvinceInput => Page.GetByTestId("new-branch-province");
+    // Spec 025 — the new-branch Provincia text input is replaced by the 3-tier cascade.
+    public ILocator NewBranchLocation => Page.GetByTestId("new-branch-location");
 
     // Step 3c — new-supplier form (inside _LookupEmpty).
     public ILocator NewSupplierNameInput => Page.GetByTestId("new-supplier-name-input");
@@ -43,7 +44,8 @@ public class SupplierPage : BasePage
     public ILocator NewSupplierBranchContactInput => Page.GetByTestId("new-supplier-branch-contact");
     public ILocator NewSupplierBranchEmailInput => Page.GetByTestId("new-supplier-branch-email");
     public ILocator NewSupplierBranchPhoneInput => Page.GetByTestId("new-supplier-branch-phone");
-    public ILocator NewSupplierBranchProvinceInput => Page.GetByTestId("new-supplier-branch-province");
+    // Spec 025 — Provincia → Cantón → Distrito cascade (replaces the Provincia text input).
+    public ILocator NewSupplierLocation => Page.GetByTestId("new-supplier-location");
 
     // Quotation fields — always present.
     public ILocator PriceInput => Page.GetByTestId("quotation-price-input");
@@ -186,7 +188,10 @@ public class SupplierPage : BasePage
         if (contact is not null) await NewSupplierBranchContactInput.FillAsync(contact);
         if (email is not null) await NewSupplierBranchEmailInput.FillAsync(email);
         if (phone is not null) await NewSupplierBranchPhoneInput.FillAsync(phone);
-        if (province is not null) await NewSupplierBranchProvinceInput.FillAsync(province);
+        // Spec 025 — all three location tiers are now required; pick the first valid
+        // Provincia → Cantón → Distrito chain. (The legacy `province` string param is
+        // ignored: no caller asserts a specific province on a created branch.)
+        await SelectFirstLocationAsync(NewSupplierLocation);
     }
 
     public async Task OpenAddNewBranchPanelAsync()
@@ -203,7 +208,38 @@ public class SupplierPage : BasePage
         if (email is not null) await NewBranchEmailInput.FillAsync(email);
         if (phone is not null) await NewBranchPhoneInput.FillAsync(phone);
         if (address is not null) await NewBranchAddressInput.FillAsync(address);
-        if (province is not null) await NewBranchProvinceInput.FillAsync(province);
+        // Spec 025 — required 3-tier cascade replaces the Provincia text input.
+        await SelectFirstLocationAsync(NewBranchLocation);
+    }
+
+    /// <summary>
+    /// Spec 025 — drives a Provincia → Cantón → Distrito cascade inside the given
+    /// container by selecting the first real option at each tier and waiting for the
+    /// dependent &lt;select&gt; to populate (the cascade fetch is async). The three
+    /// &lt;select&gt;s render in document order: province, cantón, distrito.
+    /// </summary>
+    public async Task SelectFirstLocationAsync(ILocator container)
+    {
+        var province = container.Locator("select").Nth(0);
+        var canton = container.Locator("select").Nth(1);
+        var district = container.Locator("select").Nth(2);
+
+        // Wait on the actual cascade-fetch responses (deterministic) rather than a
+        // bare option-attach, which can race the in-flight fetch under shared-fixture
+        // load and leave a value that the fetch then wipes.
+        var cantonsResp = Page.WaitForResponseAsync(r => r.Url.Contains("/api/cantons"));
+        await province.SelectOptionAsync(new SelectOptionValue { Index = 1 });
+        await cantonsResp;
+        await canton.Locator("option").Nth(1)
+            .WaitForAsync(new() { State = WaitForSelectorState.Attached, Timeout = 10_000 });
+
+        var districtsResp = Page.WaitForResponseAsync(r => r.Url.Contains("/api/districts"));
+        await canton.SelectOptionAsync(new SelectOptionValue { Index = 1 });
+        await districtsResp;
+        await district.Locator("option").Nth(1)
+            .WaitForAsync(new() { State = WaitForSelectorState.Attached, Timeout = 10_000 });
+
+        await district.SelectOptionAsync(new SelectOptionValue { Index = 1 });
     }
 
     public async Task SubmitAsync()
