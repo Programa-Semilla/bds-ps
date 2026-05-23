@@ -114,9 +114,9 @@
 
 - [X] T034 Confirm display continuity: `_BranchPicker.cshtml` (~L45) and admin `Detail.cshtml` (~L160) render the composed location string with no change needed; fix if any surface reads a now-stale value.
 - [X] T035 Run Unit + Integration suites green (`dotnet test tests/FundingPlatform.Tests.Unit`, `...Tests.Integration`).
-- [ ] T036 Run the FULL E2E suite personally and confirm green (delivery bar, CLAUDE.md) — record passed/failed counts in the commit.
+- [X] T036 Run the FULL E2E suite personally and confirm green (delivery bar, CLAUDE.md) — record passed/failed counts in the commit.
 - [X] T037 Add the `SetLocation` arity deviation (province+cantón without distrito vs FR-006) to a REVIEW-CODE entry for the feature; confirm it is tracked for post-merge evolve.
-- [ ] T038 Run the STAMP/verify gate (tests, code hygiene, spec compliance, drift check).
+- [X] T038 Run the STAMP/verify gate (tests, code hygiene, spec compliance, drift check).
 
 ---
 
