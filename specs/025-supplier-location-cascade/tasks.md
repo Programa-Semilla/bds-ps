@@ -56,8 +56,8 @@
 ### Foundational tests
 
 - [X] T017 [P] Unit tests in `tests/FundingPlatform.Tests.Unit` for `SetLocation` 3-tier: all-three-valid sets refs; district set without cantón throws; `district.CantonId != cantonId` throws; province+cantón without district allowed; all-null allowed.
-- [ ] T018 [P] Integration test in `tests/FundingPlatform.Tests.Integration` (real DB): `GET /api/districts?cantonId={id}` returns that cantón's distritos ordered by name with the public cache header; unknown id → empty array.
-- [ ] T019 [P] Integration test (real DB, the SC-007 oracle): every one of the 84 cantones has ≥1 district; per-province totals 123/116/51/47/61/60/30; Golfito `06_07`=3, Monteverde `06_12`=1, Puerto Jiménez `06_13`=1; every district `Code` is `'PP_CC_DD'` whose `PP_CC` prefix is an existing cantón Code.
+- [X] T018 [P] Integration test in `tests/FundingPlatform.Tests.Integration` (real DB): `GET /api/districts?cantonId={id}` returns that cantón's distritos ordered by name with the public cache header; unknown id → empty array.
+- [X] T019 [P] Integration test (real DB, the SC-007 oracle): every one of the 84 cantones has ≥1 district; per-province totals 123/116/51/47/61/60/30; Golfito `06_07`=3, Monteverde `06_12`=1, Puerto Jiménez `06_13`=1; every district `Code` is `'PP_CC_DD'` whose `PP_CC` prefix is an existing cantón Code.
 
 **Checkpoint**: Catalog seeded + validated, domain invariant + API + cascade asset ready. Surfaces can now be wired in parallel.
 
@@ -74,7 +74,7 @@
 - [X] T022 [US1] In `SupplierController` POST new-supplier path: resolve+validate the submitted chain via `ILocationCatalogReader`, add aggregated `ModelState` errors for missing/inconsistent levels (es-CR copy per data-model.md), compose the `"Distrito, Cantón, Provincia"` display string, and pass location to the service.
 - [X] T023 [US1] Extend `Supplier.CreateDraft` (`Domain/Entities/Supplier.cs`) + `SupplierCatalogService.CreateDraftWithBranchAsync` to accept the location (ids + Canton + District) and call `branch.SetLocation(...)`; pass the composed string as the legacy `province`.
 - [X] T024 [US1] Add client-side required validation on the three selects in the new-supplier panel (no silent submit; aligns with server rules).
-- [ ] T025 [P] [US1] E2E in `tests/FundingPlatform.Tests.E2E` (Page Object): applicant journey — open Supplier/Add, force Nuevo proveedor, assert Cantón narrows on Provincia and Distrito narrows on Cantón, submit success + persistence; and the incomplete-location rejection path.
+- [X] T025 [P] [US1] E2E in `tests/FundingPlatform.Tests.E2E` (Page Object): applicant journey — open Supplier/Add, force Nuevo proveedor, assert Cantón narrows on Provincia and Distrito narrows on Cantón, submit success + persistence; and the incomplete-location rejection path.
 
 **Checkpoint**: US1 fully functional and independently testable (MVP).
 
@@ -89,7 +89,7 @@
 - [X] T026 [US2] Render the `_LocationCascade` partial in the new-branch panel of `src/FundingPlatform.Web/Views/Supplier/_BranchPicker.cshtml` with field prefix `NewBranch.` (replacing the Provincia text input); ensure the host supplies provinces (extend the `Search`/`Add` `_LookupHit`/branch-picker model path or a child-action render).
 - [X] T027 [US2] In `SupplierController` POST new-branch path: resolve+validate+compose+pass location (reuse the helper from T022).
 - [X] T028 [US2] Extend `Supplier.AddBranch` + `SupplierCatalogService.AddBranchUnderExistingSupplierAsync` to accept the location and call `SetLocation`; pass the composed string as legacy `province`.
-- [ ] T029 [P] [US2] E2E (Page Object): applicant add-branch-on-existing-supplier cascade journey (narrowing + persist + incomplete rejected).
+- [X] T029 [P] [US2] E2E (Page Object): applicant add-branch-on-existing-supplier cascade journey (narrowing + persist + incomplete rejected).
 
 **Checkpoint**: US1 + US2 both independently functional.
 
@@ -104,7 +104,7 @@
 - [X] T030 [US3] Add `int? ProvinceId/CantonId/DistrictId` to `AdminEditBranchViewModel`; in `AdminSuppliersController.Detail` build a per-branch `LocationCascadeViewModel` including the pre-selected province + its cantones + the cantón's distritos (so the edit form renders selected) (`src/FundingPlatform.Web/Controllers/Admin/AdminSuppliersController.cs`).
 - [X] T031 [US3] Replace the Provincia text input in the branch-edit form of `src/FundingPlatform.Web/Views/Admin/Suppliers/Detail.cshtml` with the `_LocationCascade` partial.
 - [X] T032 [US3] In `AdminSuppliersController.EditBranch`: resolve+validate+compose+pass location; extend `Supplier.EditBranch` to accept the location and call `SetLocation`.
-- [ ] T033 [P] [US3] E2E (Page Object): admin branch-edit cascade journey (pre-selected values, change, save, incomplete rejected).
+- [X] T033 [P] [US3] E2E (Page Object): admin branch-edit cascade journey (pre-selected values, change, save, incomplete rejected).
 
 **Checkpoint**: All three surfaces independently functional.
 
@@ -112,10 +112,10 @@
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T034 Confirm display continuity: `_BranchPicker.cshtml` (~L45) and admin `Detail.cshtml` (~L160) render the composed location string with no change needed; fix if any surface reads a now-stale value.
-- [ ] T035 Run Unit + Integration suites green (`dotnet test tests/FundingPlatform.Tests.Unit`, `...Tests.Integration`).
+- [X] T034 Confirm display continuity: `_BranchPicker.cshtml` (~L45) and admin `Detail.cshtml` (~L160) render the composed location string with no change needed; fix if any surface reads a now-stale value.
+- [X] T035 Run Unit + Integration suites green (`dotnet test tests/FundingPlatform.Tests.Unit`, `...Tests.Integration`).
 - [ ] T036 Run the FULL E2E suite personally and confirm green (delivery bar, CLAUDE.md) — record passed/failed counts in the commit.
-- [ ] T037 Add the `SetLocation` arity deviation (province+cantón without distrito vs FR-006) to a REVIEW-CODE entry for the feature; confirm it is tracked for post-merge evolve.
+- [X] T037 Add the `SetLocation` arity deviation (province+cantón without distrito vs FR-006) to a REVIEW-CODE entry for the feature; confirm it is tracked for post-merge evolve.
 - [ ] T038 Run the STAMP/verify gate (tests, code hygiene, spec compliance, drift check).
 
 ---

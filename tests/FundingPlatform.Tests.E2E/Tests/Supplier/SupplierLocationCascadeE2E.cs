@@ -132,7 +132,7 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
     // ---- US1 (P1) — applicant new supplier ----
 
     [Test]
-    public async Task US1_NewSupplier_CascadeNarrows_PersistsLocation_RejectsIncomplete()
+    public async Task US1_NewSupplier_CascadeNarrows_AndPersistsLocation()
     {
         var legalId = $"US1-{Guid.NewGuid().ToString("N")[..8]}";
         await StartApplicantWithItemAsync("loc_us1");
@@ -151,12 +151,16 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
         await Expect(district.Locator("option")).ToHaveCountAsync(1);
 
         // Provincia → Cantón narrows.
+        var cantonsResp = Page.WaitForResponseAsync(r => r.Url.Contains("/api/cantons"));
         await province.SelectOptionAsync(new SelectOptionValue { Index = 1 });
+        await cantonsResp;
         await canton.Locator("option").Nth(1).WaitForAsync(new() { State = WaitForSelectorState.Attached });
         Assert.That(await canton.Locator("option").CountAsync(), Is.GreaterThan(1), "Cantón must narrow to the province.");
 
         // Cantón → Distrito narrows.
+        var districtsResp = Page.WaitForResponseAsync(r => r.Url.Contains("/api/districts"));
         await canton.SelectOptionAsync(new SelectOptionValue { Index = 1 });
+        await districtsResp;
         await district.Locator("option").Nth(1).WaitForAsync(new() { State = WaitForSelectorState.Attached });
         Assert.That(await district.Locator("option").CountAsync(), Is.GreaterThan(1), "Distrito must narrow to the cantón.");
 
@@ -164,7 +168,7 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
         await province.SelectOptionAsync(new SelectOptionValue { Index = 2 });
         await Expect(district.Locator("option")).ToHaveCountAsync(1);
 
-        // Happy path: complete the chain + the form, submit.
+        // Complete the chain + the form, submit.
         await supplier.NewSupplierNameInput.FillAsync($"Proveedor {legalId}");
         await supplier.NewSupplierBranchNameInput.FillAsync("Sede principal");
         await supplier.SelectFirstLocationAsync(supplier.NewSupplierLocation);
@@ -181,30 +185,34 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
             Assert.That(loc.DistrictId, Is.Not.Null, "DistrictId persisted.");
             Assert.That(loc.Province, Does.Contain(","), "Composed 'Distrito, Cantón, Provincia' display persisted.");
         });
+    }
 
-        // Incomplete-location rejection (server-side, defense-in-depth): create a
-        // second new supplier, defeat the client `required` gate, submit with no
-        // location → aggregated server validation blocks the write.
-        var legalId2 = $"US1B-{Guid.NewGuid().ToString("N")[..8]}";
+    [Test]
+    public async Task US1_NewSupplier_IncompleteLocation_RejectedServerSide()
+    {
+        var legalId = $"US1B-{Guid.NewGuid().ToString("N")[..8]}";
+        await StartApplicantWithItemAsync("loc_us1b");
         await ClickAddSupplierAsync();
-        var supplier2 = new SupplierPage(Page);
-        Assert.That(await supplier2.SearchByLegalIdAsync(legalId2), Is.EqualTo("Empty"));
-        await supplier2.NewSupplierNameInput.FillAsync($"Proveedor {legalId2}");
-        await supplier2.NewSupplierBranchNameInput.FillAsync("Sede principal");
-        await supplier2.FillQuotationFieldsAsync(999m, "2027-12-31", _quotationFile);
-        // Strip the `required` markers so the POST reaches the server with empty location.
-        await supplier2.NewSupplierLocation.Locator("select")
+
+        var supplier = new SupplierPage(Page);
+        Assert.That(await supplier.SearchByLegalIdAsync(legalId), Is.EqualTo("Empty"));
+        await supplier.NewSupplierNameInput.FillAsync($"Proveedor {legalId}");
+        await supplier.NewSupplierBranchNameInput.FillAsync("Sede principal");
+        await supplier.FillQuotationFieldsAsync(999m, "2027-12-31", _quotationFile);
+        // Defeat the client `required` gate so the POST reaches the server with empty
+        // location → aggregated server-side validation (FR-005) blocks the write.
+        await supplier.NewSupplierLocation.Locator("select")
             .EvaluateAllAsync<bool>("els => { els.forEach(e => e.removeAttribute('required')); return true; }");
-        await supplier2.SubmitAsync();
+        await supplier.SubmitAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Supplier/Add"));
-        await Expect(supplier2.ValidationSummary).ToContainTextAsync("provincia");
+        await Expect(supplier.ValidationSummary).ToContainTextAsync("provincia");
 
         // No supplier row was created for the rejected attempt.
         await using var conn = new SqlConnection(ConnectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT COUNT(*) FROM dbo.Suppliers WHERE [LegalId] = @LegalId;";
-        cmd.Parameters.AddWithValue("@LegalId", legalId2.ToUpperInvariant());
+        cmd.Parameters.AddWithValue("@LegalId", legalId.ToUpperInvariant());
         Assert.That(Convert.ToInt32(await cmd.ExecuteScalarAsync()), Is.EqualTo(0),
             "An incomplete-location submit must not create a supplier.");
     }
