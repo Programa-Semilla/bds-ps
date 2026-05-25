@@ -1,12 +1,17 @@
+using FundingPlatform.Application.Abstractions.Location;
 using FundingPlatform.Application.Processes.Queries;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.Filters;
+using FundingPlatform.Web.ViewModels;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Web.Controllers.Admin;
 
@@ -31,15 +36,80 @@ public class AdminSuppliersController : Controller
     private readonly ISupplierRepository _supplierRepository;
     private readonly IProcessQueryService _processQuery;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly AppDbContext _dbContext;
+    private readonly ILocationCatalogReader _locationCatalog;
 
     public AdminSuppliersController(
         ISupplierRepository supplierRepository,
         IProcessQueryService processQuery,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        AppDbContext dbContext,
+        ILocationCatalogReader locationCatalog)
     {
         _supplierRepository = supplierRepository;
         _processQuery = processQuery;
         _userManager = userManager;
+        _dbContext = dbContext;
+        _locationCatalog = locationCatalog;
+    }
+
+    // ---- Spec 025 — admin branch-edit location cascade ----
+
+    /// <summary>
+    /// Builds a branch's Provincia → Cantón → Distrito cascade pre-selected to its
+    /// current values (provinces always; cantones for the branch's province; distritos
+    /// for its cantón). <c>ElementIdPrefix</c> keeps element ids unique across the
+    /// one-form-per-branch edit table.
+    /// </summary>
+    private async Task<LocationCascadeViewModel> BuildBranchLocationAsync(
+        int branchId, int? provinceId, int? cantonId, int? districtId)
+    {
+        var provinces = await _dbContext.Provinces
+            .OrderBy(p => p.Name)
+            .Select(p => new SelectListItem(p.Name, p.Id.ToString()))
+            .ToListAsync();
+
+        var cantons = provinceId is int pid
+            ? await _dbContext.Cantons.Where(c => c.ProvinceId == pid).OrderBy(c => c.Name)
+                .Select(c => new SelectListItem(c.Name, c.Id.ToString())).ToListAsync()
+            : new List<SelectListItem>();
+
+        var districts = cantonId is int cid
+            ? await _dbContext.Districts.Where(d => d.CantonId == cid).OrderBy(d => d.Name)
+                .Select(d => new SelectListItem(d.Name, d.Id.ToString())).ToListAsync()
+            : new List<SelectListItem>();
+
+        return new LocationCascadeViewModel
+        {
+            ElementIdPrefix = $"b{branchId}-",
+            SelectedProvinceId = provinceId,
+            SelectedCantonId = cantonId,
+            SelectedDistrictId = districtId,
+            Provinces = provinces,
+            Cantons = cantons,
+            Districts = districts,
+        };
+    }
+
+    /// <summary>
+    /// Resolves + validates a submitted location chain (FR-005). Returns the chain,
+    /// or an aggregated es-CR error message for TempData (admin surface uses the
+    /// redirect/TempData pattern rather than ModelState re-render).
+    /// </summary>
+    private async Task<(DistrictChain? Chain, string? Error)> ResolveBranchLocationAsync(
+        int? provinceId, int? cantonId, int? districtId)
+    {
+        var errors = new List<string>();
+        if (provinceId is null) errors.Add("La provincia es obligatoria.");
+        if (cantonId is null) errors.Add("El cantón es obligatorio.");
+        if (districtId is null) errors.Add("El distrito es obligatorio.");
+        if (errors.Count > 0) return (null, string.Join(" ", errors));
+
+        var chain = await _locationCatalog.GetDistrictChainAsync(districtId!.Value);
+        if (chain is null) return (null, "El distrito seleccionado no es válido.");
+        if (chain.CantonId != cantonId!.Value) return (null, "El distrito no corresponde al cantón.");
+        if (chain.ProvinceId != provinceId!.Value) return (null, "El cantón no corresponde a la provincia.");
+        return (chain, null);
     }
 
     /// <summary>
@@ -124,6 +194,20 @@ public class AdminSuppliersController : Controller
 
         var refCount = await _supplierRepository.CountReferencingApplicationsAsync(supplierId);
 
+        // Spec 025 — build each branch's pre-selected location cascade (one form per branch).
+        var orderedBranches = supplier.Branches
+            .OrderByDescending(b => b.IsDefault)
+            .ThenBy(b => b.BranchName)
+            .ToList();
+        var branchRows = new List<AdminSupplierBranchRowViewModel>(orderedBranches.Count);
+        foreach (var b in orderedBranches)
+        {
+            var location = await BuildBranchLocationAsync(b.Id, b.ProvinceId, b.CantonId, b.DistrictId);
+            branchRows.Add(new AdminSupplierBranchRowViewModel(
+                b.Id, b.BranchName, b.ContactName, b.Email, b.Phone,
+                b.AddressLine, b.Province, b.ShippingDetails, b.WarrantyInfo, b.IsDefault, location));
+        }
+
         var vm = new AdminSupplierDetailViewModel
         {
             Id = supplier.Id,
@@ -139,13 +223,7 @@ public class AdminSuppliersController : Controller
             RejectionReason = supplier.RejectionReason,
             CreatedByApplicantId = supplier.CreatedByApplicantId,
             ReferencingApplicationCount = refCount,
-            Branches = supplier.Branches
-                .OrderByDescending(b => b.IsDefault)
-                .ThenBy(b => b.BranchName)
-                .Select(b => new AdminSupplierBranchRowViewModel(
-                    b.Id, b.BranchName, b.ContactName, b.Email, b.Phone,
-                    b.AddressLine, b.Province, b.ShippingDetails, b.WarrantyInfo, b.IsDefault))
-                .ToList(),
+            Branches = branchRows,
         };
 
         return View(vm);
@@ -188,12 +266,24 @@ public class AdminSuppliersController : Controller
             return RedirectToAction(nameof(Detail), new { supplierId });
         }
 
+        // Spec 025 — resolve + validate the submitted Provincia → Cantón → Distrito chain
+        // server-side before any write; aggregated message surfaced on the Detail page.
+        var (chain, locationError) = await ResolveBranchLocationAsync(
+            model.ProvinceId, model.CantonId, model.DistrictId);
+        if (chain is null)
+        {
+            TempData["ErrorMessage"] = locationError;
+            return RedirectToAction(nameof(Detail), new { supplierId });
+        }
+
         var supplier = await _supplierRepository.GetByIdWithBranchesAsync(supplierId);
         if (supplier is null) return NotFound();
 
         supplier.EditBranch(branchId,
             model.BranchName, model.ContactName, model.Email, model.Phone,
-            model.AddressLine, model.Province, model.ShippingDetails, model.WarrantyInfo);
+            model.AddressLine, chain.ComposedDisplay, model.ShippingDetails, model.WarrantyInfo,
+            provinceId: chain.ProvinceId, cantonId: chain.CantonId, districtId: chain.DistrictId,
+            canton: chain.Canton, district: chain.District);
 
         await _supplierRepository.UpdateAsync(supplier);
         await _supplierRepository.SaveChangesAsync();

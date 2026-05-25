@@ -60,7 +60,10 @@ public sealed class CreateSupplierBranchHandler : ICreateSupplierBranchHandler
                 shippingDetails: null,
                 warrantyInfo: null,
                 createdByApplicantId: cmd.CurrentApplicantId,
-                isDefault: supplier.Branches.Count == 0);
+                isDefault: supplier.Branches.Count == 0,
+                provinceId: cmd.ProvinceId,
+                cantonId: cmd.CantonId,
+                canton: canton);
         }
         else
         {
@@ -82,13 +85,18 @@ public sealed class CreateSupplierBranchHandler : ICreateSupplierBranchHandler
                 firstBranchAddressLine: cmd.AddressLine,
                 firstBranchProvince: null,
                 firstBranchShippingDetails: null,
-                firstBranchWarrantyInfo: null);
+                firstBranchWarrantyInfo: null,
+                // Spec 025 — orphaned spec-021 inline path (no live UI): keeps the
+                // province+cantón pair, no distrito tier. Tracked deviation vs FR-006
+                // (plan Decision 6); revisit if this path is ever rebuilt with a UI.
+                firstBranchProvinceId: cmd.ProvinceId,
+                firstBranchCantonId: cmd.CantonId,
+                firstBranchCanton: canton);
             _db.Suppliers.Add(supplier);
             branch = supplier.Branches.First();
         }
 
         branch.SetContactPersonName(cmd.ContactPersonName);
-        branch.SetLocation(cmd.ProvinceId, cmd.CantonId, canton);
 
         await _db.SaveChangesAsync(ct);
         return new CreateSupplierBranchResult(supplier.Id, branch.Id);

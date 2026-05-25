@@ -329,6 +329,11 @@ GO
 :r .\02_SeedMigracionInicialProcess.sql
 :r .\03_SeedSupplierAdminRole.sql
 
+-- Spec 025 — distrito catalog (third cascade tier). MUST run after
+-- 01_SeedProvincesCantons.sql so the cantón Codes its CantonId lookup resolves
+-- against already exist. ~488 rows, idempotent MERGE.
+:r .\04_SeedDistricts.sql
+
 -- =============================================================================
 -- Spec 021 / data-model.md — SystemConfiguration rows for stage windows and the
 -- public-landing slot StorageKeys (admins upload via the AdminPublicLandingFiles

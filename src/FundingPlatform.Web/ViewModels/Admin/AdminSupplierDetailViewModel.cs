@@ -31,7 +31,11 @@ public record AdminSupplierBranchRowViewModel(
     string? Province,
     string? ShippingDetails,
     string? WarrantyInfo,
-    bool IsDefault);
+    bool IsDefault,
+    // Spec 025 — per-branch Provincia → Cantón → Distrito cascade (pre-selected to
+    // current values). ElementIdPrefix keeps ids unique across the one-form-per-branch
+    // edit table.
+    LocationCascadeViewModel Location);
 
 public class AdminEditSupplierViewModel
 {
@@ -60,7 +64,14 @@ public class AdminEditBranchViewModel
     [System.ComponentModel.DataAnnotations.EmailAddress, System.ComponentModel.DataAnnotations.MaxLength(256)] public string? Email { get; set; }
     [System.ComponentModel.DataAnnotations.Phone, System.ComponentModel.DataAnnotations.MaxLength(20)] public string? Phone { get; set; }
     [System.ComponentModel.DataAnnotations.MaxLength(500)] public string? AddressLine { get; set; }
-    [System.ComponentModel.DataAnnotations.MaxLength(100)] public string? Province { get; set; }
+
+    // Spec 025 — Provincia → Cantón → Distrito cascade FK ids (replace the free-text
+    // Province input). All three required server-side; composed display string is set
+    // by the controller.
+    public int? ProvinceId { get; set; }
+    public int? CantonId { get; set; }
+    public int? DistrictId { get; set; }
+
     [System.ComponentModel.DataAnnotations.MaxLength(500)] public string? ShippingDetails { get; set; }
     [System.ComponentModel.DataAnnotations.MaxLength(500)] public string? WarrantyInfo { get; set; }
 }

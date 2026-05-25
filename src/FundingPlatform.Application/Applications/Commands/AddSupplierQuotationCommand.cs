@@ -1,3 +1,5 @@
+using FundingPlatform.Domain.Entities;
+
 namespace FundingPlatform.Application.Applications.Commands;
 
 /// <summary>
@@ -42,7 +44,26 @@ public class AddBranchInput
     public string? Email { get; set; }
     public string? Phone { get; set; }
     public string? AddressLine { get; set; }
+
+    /// <summary>
+    /// Legacy free-text / composed display value written to
+    /// <c>SupplierBranch.Province</c>. Spec 025: for cascade-sourced branches the
+    /// write path overwrites this with the composed
+    /// <c>"{Distrito}, {Cantón}, {Provincia}"</c> string before it reaches the aggregate.
+    /// </summary>
     public string? Province { get; set; }
+
+    // Spec 025 — structured location FK ids posted by the 3-tier cascade.
+    public int? ProvinceId { get; set; }
+    public int? CantonId { get; set; }
+    public int? DistrictId { get; set; }
+
+    // Spec 025 — catalog entities resolved + validated by the controller via
+    // ILocationCatalogReader, threaded to the aggregate's SetLocation invariant
+    // (avoids a second DB round-trip in the write path).
+    public Canton? Canton { get; set; }
+    public District? District { get; set; }
+
     public string? ShippingDetails { get; set; }
     public string? WarrantyInfo { get; set; }
 }

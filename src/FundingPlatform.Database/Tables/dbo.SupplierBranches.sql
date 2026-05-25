@@ -19,6 +19,10 @@ CREATE TABLE [dbo].[SupplierBranches]
     -- (SupplierBranch.SetLocation) and the persistence guard.
     [ProvinceId]             INT             NULL,
     [CantonId]               INT             NULL,
+    -- Spec 025 / data-model.md — third cascade tier. Nullable (legacy rows +
+    -- the domain both-or-neither pair rule). The district-belongs-to-cantón
+    -- invariant is enforced by the domain (SupplierBranch.SetLocation).
+    [DistrictId]             INT             NULL,
     [ShippingDetails]        NVARCHAR(500)   NULL,
     [WarrantyInfo]           NVARCHAR(500)   NULL,
     [IsDefault]              BIT             NOT NULL CONSTRAINT [DF_SupplierBranches_IsDefault] DEFAULT (0),
@@ -30,7 +34,8 @@ CREATE TABLE [dbo].[SupplierBranches]
     CONSTRAINT [FK_SupplierBranches_Suppliers] FOREIGN KEY ([SupplierId]) REFERENCES [dbo].[Suppliers] ([Id]) ON DELETE CASCADE,
     CONSTRAINT [FK_SupplierBranches_Applicants] FOREIGN KEY ([CreatedByApplicantId]) REFERENCES [dbo].[Applicants] ([Id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_SupplierBranches_Provinces] FOREIGN KEY ([ProvinceId]) REFERENCES [dbo].[Provinces] ([Id]) ON DELETE NO ACTION,
-    CONSTRAINT [FK_SupplierBranches_Cantons]   FOREIGN KEY ([CantonId])   REFERENCES [dbo].[Cantons] ([Id])   ON DELETE NO ACTION
+    CONSTRAINT [FK_SupplierBranches_Cantons]   FOREIGN KEY ([CantonId])   REFERENCES [dbo].[Cantons] ([Id])   ON DELETE NO ACTION,
+    CONSTRAINT [FK_SupplierBranches_Districts] FOREIGN KEY ([DistrictId]) REFERENCES [dbo].[Districts] ([Id]) ON DELETE NO ACTION
 );
 GO
 

@@ -76,13 +76,19 @@
                     <label class="form-label">Teléfono</label>
                     <input name="NewBranch.Phone" type="tel" class="form-control" data-testid="new-branch-phone" />
                 </div>
-                <div class="col-md-8 mb-2">
+                <div class="col-md-12 mb-2">
                     <label class="form-label">Dirección</label>
                     <input name="NewBranch.AddressLine" class="form-control" data-testid="new-branch-address" />
                 </div>
-                <div class="col-md-4 mb-2">
-                    <label class="form-label">Provincia</label>
-                    <input name="NewBranch.Province" class="form-control" data-testid="new-branch-province" />
+                @* Spec 025 — Provincia → Cantón → Distrito cascade (replaces the free-text Provincia). *@
+                <div class="col-md-12 mb-2" data-testid="new-branch-location">
+                    @{
+                        var newBranchLocation = ViewData["NewBranchLocation"] as FundingPlatform.Web.ViewModels.LocationCascadeViewModel;
+                    }
+                    @if (newBranchLocation is not null)
+                    {
+                        <partial name="_LocationCascade" model="newBranchLocation" />
+                    }
                 </div>
                 <div class="col-md-12 mb-2">
                     <label class="form-label">Detalles de envío</label>

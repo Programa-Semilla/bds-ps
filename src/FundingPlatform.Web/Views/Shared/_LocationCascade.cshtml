@@ -1,0 +1,103 @@
+@model FundingPlatform.Web.ViewModels.LocationCascadeViewModel
+@*
+    _LocationCascade.cshtml — Spec 025 / FR-002 (was _ProvinceCantonCascade, spec 021).
+
+    Renders three cascading <select> elements: Provincia → Cantón → Distrito. The
+    host controller populates Provinces (always) and the lower tiers only when a
+    value is pre-selected (edit forms). On client `change`, `location-cascade.js`
+    fetches the next tier and a bubbling change chains province → cantón → distrito
+    (a province change resets both lower tiers).
+
+    Wiring contract (data-driven cascade):
+      - Provincia <select>: data-cascade-source="province",
+        endpoint /api/cantons, param provinceId, target the cantón select.
+      - Cantón <select>: data-cascade-source="canton",
+        endpoint /api/districts, param cantonId, target the distrito select.
+
+    Element ids slug dots/brackets out of the field name (so prefixed names like
+    `NewSupplier.FirstBranch.CantonId` yield valid CSS `#id` selectors); the
+    `name` attributes keep the dotted field names for model binding.
+
+    All three are `required` → client-side gating (no silent blank submit, FR-006);
+    the controller re-validates + aggregates server-side. Tabler form-select styling.
+*@
+@{
+    static string Slug(string s) => s.Replace(".", "-").Replace("[", "-").Replace("]", string.Empty);
+    var provinceSelectId = $"province-{Slug(Model.ElementIdPrefix + Model.ProvinceFieldName)}";
+    var cantonSelectId = $"canton-{Slug(Model.ElementIdPrefix + Model.CantonFieldName)}";
+    var districtSelectId = $"district-{Slug(Model.ElementIdPrefix + Model.DistrictFieldName)}";
+}
+<div class="row g-2">
+    <div class="col-md-4">
+        <label class="form-label required" for="@provinceSelectId">Provincia</label>
+        <select id="@provinceSelectId"
+                class="form-select"
+                name="@Model.ProvinceFieldName"
+                required
+                data-cascade-source="province"
+                data-cascade-endpoint="/api/cantons"
+                data-cascade-param="provinceId"
+                data-cascade-target="#@cantonSelectId"
+                data-cascade-placeholder="Seleccione un cantón">
+            <option value="">Seleccione una provincia</option>
+            @foreach (var province in Model.Provinces)
+            {
+                if (Model.SelectedProvinceId.HasValue && province.Value == Model.SelectedProvinceId.Value.ToString())
+                {
+                    <option value="@province.Value" selected>@province.Text</option>
+                }
+                else
+                {
+                    <option value="@province.Value">@province.Text</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label required" for="@cantonSelectId">Cantón</label>
+        <select id="@cantonSelectId"
+                class="form-select"
+                name="@Model.CantonFieldName"
+                required
+                data-cascade-source="canton"
+                data-cascade-endpoint="/api/districts"
+                data-cascade-param="cantonId"
+                data-cascade-target="#@districtSelectId"
+                data-cascade-placeholder="Seleccione un distrito"
+                data-cascade-current="@(Model.SelectedCantonId?.ToString() ?? string.Empty)">
+            <option value="">Seleccione un cantón</option>
+            @foreach (var canton in Model.Cantons)
+            {
+                if (Model.SelectedCantonId.HasValue && canton.Value == Model.SelectedCantonId.Value.ToString())
+                {
+                    <option value="@canton.Value" selected>@canton.Text</option>
+                }
+                else
+                {
+                    <option value="@canton.Value">@canton.Text</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label required" for="@districtSelectId">Distrito</label>
+        <select id="@districtSelectId"
+                class="form-select"
+                name="@Model.DistrictFieldName"
+                required
+                data-cascade-current="@(Model.SelectedDistrictId?.ToString() ?? string.Empty)">
+            <option value="">Seleccione un distrito</option>
+            @foreach (var district in Model.Districts)
+            {
+                if (Model.SelectedDistrictId.HasValue && district.Value == Model.SelectedDistrictId.Value.ToString())
+                {
+                    <option value="@district.Value" selected>@district.Text</option>
+                }
+                else
+                {
+                    <option value="@district.Value">@district.Text</option>
+                }
+            }
+        </select>
+    </div>
+</div>

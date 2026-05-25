@@ -144,6 +144,11 @@ public static class DependencyInjection
         services.AddScoped<Application.Suppliers.ISearchSuppliersHandler, Services.SearchSuppliersHandler>();
         services.AddScoped<Application.Suppliers.ICreateSupplierBranchHandler, Services.CreateSupplierBranchHandler>();
 
+        // Spec 025 — location-chain resolver (distrito → cantón → provincia) used by
+        // both supplier-branch write paths for server-side hierarchy validation +
+        // composed-display-string construction.
+        services.AddScoped<Application.Abstractions.Location.ILocationCatalogReader, Location.LocationCatalogReader>();
+
         // Spec 021 / US3 / T110 — admin-side supplier autocomplete (Admin OR
         // SupplierAdmin). Wired to GET /api/suppliers/search via
         // SuppliersApiController (T109).
