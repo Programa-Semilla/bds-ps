@@ -30,7 +30,7 @@ All identification errors are added to `ModelState` and surfaced **together** wi
 
 ## Reusable attribute
 
-`IdentificationFormatAttribute` (Web/Validation) resolves the sibling `IdentificationType` property on the ViewModel and returns invalid when `!Identification.IsValid(type, value)` for a present value. Combined with the controller-level presence check (mirroring the existing "Cédula obligatoria para Solicitante" check) it covers FR-014 + FR-015.
+`IdentificationFormatAttribute` (Web/Validation) takes the sibling type-property name as a ctor arg (default `"IdentificationType"`; supplier VM passes `nameof(SupplierIdentificationType)`), resolves that property on the ViewModel, and returns invalid when `!Identification.IsValid(type, value)` for a present value. Combined with the controller-level presence check (mirroring the existing "Cédula obligatoria para Solicitante" check) it covers FR-014 + FR-015.
 
 ## Supplier lookup normalization (FR-013)
 
