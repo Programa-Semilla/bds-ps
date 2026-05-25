@@ -93,10 +93,10 @@ Email and Costa Rica phone fields are masked/validated everywhere they appear �
 
 **Person identification**
 
-- **FR-008**: The system MUST persist an identification **type** for a person alongside the identification value, supporting the values Cédula física, DIMEX, NITE, and Pasaporte.
-- **FR-009**: A labeled identification-type selector MUST precede the identification field on the applicant Register form, the admin user create form, the admin user edit form, and the user Profile.
+- **FR-008**: The system MUST persist an identification **type** for a person alongside the identification value (the person's legal ID is held on the applicant record, not the authentication user), supporting the values Cédula física, DIMEX, NITE, and Pasaporte.
+- **FR-009**: A labeled, editable identification-type selector MUST precede the identification field on the applicant Register form, the admin user create form, and the admin user edit form. On the user Profile, the identification type and value MUST be shown **read-only** (with the existing "administrado" badge, consistent with Email/Role) — identity is admin-managed and not self-editable.
 - **FR-010**: Selecting an identification type MUST rebind the field to that type's mask and re-validate the current value against the new type.
-- **FR-011**: On editing an existing record, the persisted identification type MUST be restored in the selector and the stored value MUST render through that type's mask.
+- **FR-011**: On editing an existing record, the persisted identification type MUST be restored in the selector (Register/admin) or shown as the read-only label (Profile), and the stored value MUST render through that type's mask.
 
 **Supplier identification**
 
@@ -118,7 +118,7 @@ Email and Costa Rica phone fields are masked/validated everywhere they appear �
 
 ### Key Entities
 
-- **Identification Type**: An enumeration distinguishing the kind of legal identification a person or organization holds. Person context: Cédula física, DIMEX, NITE, Pasaporte. Supplier context: Cédula jurídica, NITE. Persisted alongside the identification value on the user/applicant record and on the supplier record.
+- **Identification Type**: An enumeration distinguishing the kind of legal identification a person or organization holds. Person context: Cédula física, DIMEX, NITE, Pasaporte. Supplier context: Cédula jurídica, NITE. Persisted alongside the identification value on the applicant record and on the supplier record (the person's legal ID is carried by the applicant record, not the authentication user).
 - **Identification Value**: The legal identification string for a person or supplier, stored in canonical form, meaningful only in combination with its Identification Type.
 
 ## Success Criteria *(mandatory)*
@@ -148,7 +148,7 @@ Email and Costa Rica phone fields are masked/validated everywhere they appear �
 
 - The existing in-repo masking script and the existing validation styling classes.
 - The model-binding / validation pipeline for server-side identification checks.
-- A schema change adding a nullable identification-type column to the user record and to the supplier record (managed through the project's schema source of truth).
+- A schema change adding a nullable identification-type column to the applicant record (`dbo.Applicants`) and to the supplier record (`dbo.Suppliers`), managed through the project's schema source of truth (dacpac).
 - A new identification-type enumeration in the domain.
 
 ## Out of Scope
