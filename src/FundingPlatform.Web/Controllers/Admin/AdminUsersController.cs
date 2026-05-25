@@ -147,7 +147,12 @@ public class AdminUsersController : Controller
     {
         if (string.Equals(vm.Role, "Applicant", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(vm.LegalId))
         {
-            ModelState.AddModelError(nameof(vm.LegalId), "La cédula es obligatoria para el rol Solicitante.");
+            ModelState.AddModelError(nameof(vm.LegalId), "La identificación es obligatoria para el rol Solicitante.");
+        }
+        // Spec 026 — type required (with the value) when Role=Applicant.
+        if (string.Equals(vm.Role, "Applicant", StringComparison.Ordinal) && vm.IdentificationType is null)
+        {
+            ModelState.AddModelError(nameof(vm.IdentificationType), "Seleccione el tipo de identificación.");
         }
         // Spec 016 / FR-007 — required-group check at the controller boundary.
         // Admin role bypasses this (FR-009).
@@ -169,7 +174,8 @@ public class AdminUsersController : Controller
                 new CreateUserRequest(
                     vm.FirstName, vm.LastName, vm.Email, vm.Phone, vm.Role,
                     vm.InitialPassword, vm.LegalId,
-                    GroupIds: vm.GroupIds ?? Array.Empty<int>()),
+                    GroupIds: vm.GroupIds ?? Array.Empty<int>(),
+                    IdentificationType: vm.IdentificationType),
                 actorId, ct);
             if (!result.Succeeded)
             {
@@ -214,6 +220,7 @@ public class AdminUsersController : Controller
             Phone = detail.Phone,
             Role = detail.Role,
             LegalId = detail.LegalId,
+            IdentificationType = detail.IdentificationType,
             GroupIds = detail.GroupIds.ToArray(),
             ConcurrencyStamp = detail.ConcurrencyStamp,
             AvailableGroups = await LoadGroupOptionsAsync(ct),
@@ -231,7 +238,12 @@ public class AdminUsersController : Controller
         }
         if (string.Equals(vm.Role, "Applicant", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(vm.LegalId))
         {
-            ModelState.AddModelError(nameof(vm.LegalId), "La cédula es obligatoria para el rol Solicitante.");
+            ModelState.AddModelError(nameof(vm.LegalId), "La identificación es obligatoria para el rol Solicitante.");
+        }
+        // Spec 026 — type required (with the value) when Role=Applicant.
+        if (string.Equals(vm.Role, "Applicant", StringComparison.Ordinal) && vm.IdentificationType is null)
+        {
+            ModelState.AddModelError(nameof(vm.IdentificationType), "Seleccione el tipo de identificación.");
         }
         // Spec 016 / FR-008 — required-group check at the controller boundary.
         if (!string.Equals(vm.Role, "Admin", StringComparison.Ordinal)
@@ -252,7 +264,8 @@ public class AdminUsersController : Controller
                 new UpdateUserRequest(
                     vm.UserId, vm.FirstName, vm.LastName, vm.Email, vm.Phone, vm.Role, vm.LegalId,
                     GroupIds: vm.GroupIds ?? Array.Empty<int>(),
-                    ConcurrencyStamp: vm.ConcurrencyStamp),
+                    ConcurrencyStamp: vm.ConcurrencyStamp,
+                    IdentificationType: vm.IdentificationType),
                 actorId, ct);
             if (!result.Succeeded)
             {

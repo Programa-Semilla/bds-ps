@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Azure.Storage.Blobs;
 using FundingPlatform.Tests.E2E.Constants;
 using FundingPlatform.Tests.E2E.PageObjects;
+using FundingPlatform.Tests.E2E.Support;
 using Microsoft.Playwright;
 using Microsoft.Playwright.NUnit;
 
@@ -150,6 +151,13 @@ public class AuthenticatedTestBase : PageTest
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Details/\d+"));
     }
 
+    /// <summary>
+    /// Registers an applicant. Spec 026 — the Register form is now type-aware and
+    /// strictly masked, so <paramref name="legalId"/> is treated as a unique SEED:
+    /// it is deterministically converted to a valid canonical cédula física (and
+    /// the Cédula física type is selected) so existing callers that passed
+    /// free-form ids (e.g. "SAPP-1234") keep working with collision-safe values.
+    /// </summary>
     protected async Task RegisterUserAsync(IPage page, string email, string password, string firstName, string lastName, string legalId)
     {
         await page.GotoAsync($"{BaseUrl}/Account/Register");
@@ -158,7 +166,8 @@ public class AuthenticatedTestBase : PageTest
         await page.FillAsync("[name=ConfirmPassword]", password);
         await page.FillAsync("[name=FirstName]", firstName);
         await page.FillAsync("[name=LastName]", lastName);
-        await page.FillAsync("[name=LegalId]", legalId);
+        await page.SelectOptionAsync("[name=IdentificationType]", "CedulaFisica");
+        await page.FillAsync("[name=LegalId]", IdentificationData.CedulaFisica(legalId));
         await page.Locator("form[action*='Account/Register'] button[type=submit]").ClickAsync();
 
         // Spec 016 — every reviewer-driven E2E surface (queue, signing inbox,
@@ -282,12 +291,12 @@ public class AuthenticatedTestBase : PageTest
         var supplierPage = new SupplierPage(Page);
         var addSupplierLink = Page.Locator($"a:has-text('{UiCopy.AddSupplier}')").First;
         await addSupplierLink.ClickAsync();
-        await supplierPage.FillSupplierFormAsync($"SQ1-{uniqueId}", "Supplier Alpha", 900m, "2027-12-31", quotationFilePath);
+        await supplierPage.FillSupplierFormAsync(IdentificationData.CedulaJuridica($"SQ1-{uniqueId}"), "Supplier Alpha", 900m, "2027-12-31", quotationFilePath);
         await supplierPage.SubmitAsync();
 
         addSupplierLink = Page.Locator($"a:has-text('{UiCopy.AddSupplier}')").First;
         await addSupplierLink.ClickAsync();
-        await supplierPage.FillSupplierFormAsync($"SQ2-{uniqueId}", "Supplier Beta", 1100m, "2027-12-31", quotationFilePath);
+        await supplierPage.FillSupplierFormAsync(IdentificationData.CedulaJuridica($"SQ2-{uniqueId}"), "Supplier Beta", 1100m, "2027-12-31", quotationFilePath);
         await supplierPage.SubmitAsync();
 
         await SetImpactFromEditAsync(appId);

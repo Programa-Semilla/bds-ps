@@ -1,4 +1,6 @@
+using System.Text.RegularExpressions;
 using FundingPlatform.Domain.Enums;
+using FundingPlatform.Domain.ValueObjects;
 
 namespace FundingPlatform.Domain.Entities;
 
@@ -7,12 +9,16 @@ namespace FundingPlatform.Domain.Entities;
 /// lifecycle (Draft -> PendingReview -> Verified | Rejected) and a 1:N
 /// collection of branches. All branch CRUD goes through this aggregate.
 /// </summary>
-public class Supplier
+public partial class Supplier
 {
     private readonly List<SupplierBranch> _branches = [];
 
     public int Id { get; private set; }
     public string LegalId { get; private set; } = string.Empty;
+
+    /// <summary>Spec 026 — kind of legal ID (Cédula jurídica / NITE). Nullable for legacy rows.</summary>
+    public IdentificationType? IdentificationType { get; private set; }
+
     public string Name { get; private set; } = string.Empty;
 
     // Admin-only flags (FR-040). Applicants never see these on a form.
@@ -56,14 +62,23 @@ public class Supplier
         int? firstBranchCantonId = null,
         int? firstBranchDistrictId = null,
         Canton? firstBranchCanton = null,
-        District? firstBranchDistrict = null)
+        District? firstBranchDistrict = null,
+        IdentificationType? identificationType = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(legalId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
+        // Spec 026 — when a type is supplied, route the legal ID through the VO so the
+        // stored value is canonical; the type-agnostic NormalizeLegalId yields the same
+        // 1-3-6 shape for the 10-digit jurídica/NITE forms, keeping lookup consistent.
+        var canonicalLegalId = identificationType is { } type
+            ? Identification.From(type, legalId).Value
+            : NormalizeLegalId(legalId);
+
         var s = new Supplier
         {
-            LegalId = NormalizeLegalId(legalId),
+            LegalId = canonicalLegalId,
+            IdentificationType = identificationType,
             Name = name.Trim(),
             CreatedByApplicantId = createdByApplicantId,
             VerificationStatus = SupplierVerificationStatus.Draft,
@@ -99,14 +114,29 @@ public class Supplier
     }
 
     /// <summary>
-    /// Normalizes a legal ID for canonical comparison: trims whitespace and
-    /// uppercases (FR-001, FR-005). Use on every read and write of a legal ID.
+    /// Normalizes a legal ID for canonical comparison (FR-001, FR-005). Strips
+    /// non-alphanumerics and uppercases; a bare 10-digit value (cédula jurídica /
+    /// NITE) is regrouped to the canonical <c>1-3-6</c> hyphenated form so that a
+    /// query typed with, without, or with arbitrary separators all converge on the
+    /// stored value (spec 026 FR-013). Type-agnostic — both supplier ID kinds share
+    /// the 10-digit shape. Use on every read and write of a legal ID.
     /// </summary>
     public static string NormalizeLegalId(string legalId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(legalId);
-        return legalId.Trim().ToUpperInvariant();
+        var stripped = NonAlnum().Replace(legalId, string.Empty).ToUpperInvariant();
+        if (stripped.Length == 10 && AllDigits().IsMatch(stripped))
+        {
+            return $"{stripped[0]}-{stripped.Substring(1, 3)}-{stripped.Substring(4, 6)}";
+        }
+        return stripped;
     }
+
+    [GeneratedRegex(@"[^A-Za-z0-9]", RegexOptions.CultureInvariant)]
+    private static partial Regex NonAlnum();
+
+    [GeneratedRegex(@"^\d+$", RegexOptions.CultureInvariant)]
+    private static partial Regex AllDigits();
 
     // ----------- Lifecycle methods (Constitution II: rich domain model) -----------
 

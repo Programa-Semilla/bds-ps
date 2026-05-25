@@ -1,6 +1,10 @@
+@using FundingPlatform.Web.ViewModels
 @model FundingPlatform.Web.ViewModels.ProfileViewModel
 @{
     ViewData["Title"] = "Mi perfil";
+    var identificationTypeLabel = Model.IdentificationType is { } idType
+        ? LegalIdFieldModel.Label(idType)
+        : "—";
     // Spec 021 / US5 / T128 / FR-018 — self-service profile surface.
     // FirstName / LastName / Phone / Address are editable. Email / Role /
     // Group / CodigoPersonal render as read-only with an "administrado" badge.
@@ -48,6 +52,7 @@
                         <label asp-for="Phone" class="form-label"></label>
                         <input asp-for="Phone" class="form-control"
                                data-testid="profile-phone"
+                               data-mask="phone-cr"
                                autocomplete="tel" />
                         <span asp-validation-for="Phone" class="text-danger"></span>
                     </div>
@@ -103,6 +108,32 @@
                         <input class="form-control" value="@(Model.CodigoPersonal ?? "—")"
                                data-testid="profile-codigopersonal"
                                disabled readonly />
+                    </div>
+
+                    @* Spec 026 — identification is admin-managed: read-only here. *@
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="mb-3" data-testid="form-section" data-field="IdentificationType">
+                                <label class="form-label">
+                                    Tipo de identificación
+                                    <span class="badge bg-secondary ms-1" data-testid="administrado-badge">administrado</span>
+                                </label>
+                                <input class="form-control" value="@identificationTypeLabel"
+                                       data-testid="profile-identification-type"
+                                       disabled readonly />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3" data-testid="form-section" data-field="LegalId">
+                                <label class="form-label">
+                                    Identificación
+                                    <span class="badge bg-secondary ms-1" data-testid="administrado-badge">administrado</span>
+                                </label>
+                                <input class="form-control" value="@(Model.LegalId ?? "—")"
+                                       data-testid="profile-legalid"
+                                       disabled readonly />
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-end">
@@ -182,4 +213,5 @@
 @section Scripts {
     <script type="module" src="~/js/password-eye-toggle.js" asp-append-version="true" defer></script>
     <script type="module" src="~/js/password-strength-legend.js" asp-append-version="true" defer></script>
+    <script src="~/js/input-masks.js" asp-append-version="true" defer></script>
 }

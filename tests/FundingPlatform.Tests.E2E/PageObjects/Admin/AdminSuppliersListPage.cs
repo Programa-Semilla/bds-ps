@@ -1,3 +1,4 @@
+using FundingPlatform.Tests.E2E.PageObjects;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.PageObjects.Admin;
@@ -27,7 +28,9 @@ public class AdminSuppliersListPage : AdminBasePage
 
     public async Task SearchByLegalIdAsync(string text)
     {
-        await LegalIdFilter.FillAsync(text);
+        // Spec 026 — map the seed the same way SupplierPage does so the admin-list
+        // filter matches the canonical value stored when the supplier was created.
+        await LegalIdFilter.FillAsync(SupplierPage.CanonicalSupplierLegalId(text));
         await FilterForm.Locator("button[type=submit]").ClickAsync();
     }
 

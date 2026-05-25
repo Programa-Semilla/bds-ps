@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using FundingPlatform.Application.Suppliers.DTOs;
+using FundingPlatform.Domain.Enums;
+using FundingPlatform.Web.Validation;
 using Microsoft.AspNetCore.Http;
 
 namespace FundingPlatform.Web.ViewModels;
@@ -14,9 +16,16 @@ public class AddSupplierViewModel : IQuoteFieldsModel
     public int ApplicationId { get; set; }
     public int ItemId { get; set; }
 
-    [Required(ErrorMessage = "La cédula jurídica del proveedor es obligatoria.")]
-    [Display(Name = "Cédula jurídica del proveedor")]
-    [MaxLength(50, ErrorMessage = "La cédula jurídica debe tener máximo {1} caracteres.")]
+    // Spec 026 — supplier identification kind (Cédula jurídica or NITE). The
+    // sibling-property name is passed explicitly to [IdentificationFormat] since it
+    // differs from the attribute's default "IdentificationType".
+    [Display(Name = "Tipo de identificación")]
+    public IdentificationType? SupplierIdentificationType { get; set; } = IdentificationType.CedulaJuridica;
+
+    [Required(ErrorMessage = "La identificación del proveedor es obligatoria.")]
+    [Display(Name = "Identificación del proveedor")]
+    [MaxLength(50, ErrorMessage = "La identificación debe tener máximo {1} caracteres.")]
+    [IdentificationFormat(nameof(SupplierIdentificationType))]
     public string SupplierLegalId { get; set; } = string.Empty;
 
     /// <summary>

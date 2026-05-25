@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using FundingPlatform.Tests.E2E.Fixtures;
 using FundingPlatform.Tests.E2E.PageObjects.Admin;
+using FundingPlatform.Tests.E2E.Support;
 
 namespace FundingPlatform.Tests.E2E.Tests.Admin;
 
@@ -93,7 +94,7 @@ public class AdminUserGroupAssignmentTests : AuthenticatedTestBase
             phone: null,
             role: "Applicant",
             initialPassword: TempUserPassword,
-            legalId: $"LAS-{unique}");
+            legalId: IdentificationData.CedulaFisica($"LAS-{unique}"));
 
         var formPage = new AdminUserFormPage(Page);
         await formPage.SelectGroupsAsync($"AS-{unique}-A", $"AS-{unique}-B");

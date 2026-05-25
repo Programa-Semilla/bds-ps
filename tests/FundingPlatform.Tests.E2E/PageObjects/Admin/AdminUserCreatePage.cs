@@ -15,6 +15,8 @@ public class AdminUserCreatePage : AdminBasePage
     public ILocator Phone => Page.Locator("input[name=\"Phone\"]");
     public ILocator Role => Page.Locator("select[name=\"Role\"]");
     public ILocator InitialPassword => Page.Locator("input[name=\"InitialPassword\"]");
+    // Spec 026 — identification type selector + masked value input.
+    public ILocator IdentificationTypeSelect => Page.Locator("select[name=\"IdentificationType\"]");
     public ILocator LegalId => Page.Locator("input[name=\"LegalId\"]");
     public ILocator LegalIdField => Page.Locator("[data-testid=\"legalid-field\"]");
     public ILocator SubmitButton => Page.Locator("[data-testid=\"admin-user-create-submit\"]");
@@ -30,7 +32,8 @@ public class AdminUserCreatePage : AdminBasePage
         string? phone,
         string role,
         string initialPassword,
-        string? legalId)
+        string? legalId,
+        string identificationType = "CedulaFisica")
     {
         await FirstName.FillAsync(firstName);
         await LastName.FillAsync(lastName);
@@ -43,6 +46,8 @@ public class AdminUserCreatePage : AdminBasePage
         await InitialPassword.FillAsync(initialPassword);
         if (legalId is not null)
         {
+            // Spec 026 — select the type then fill the masked value.
+            await IdentificationTypeSelect.SelectOptionAsync(identificationType);
             await LegalId.FillAsync(legalId);
         }
 

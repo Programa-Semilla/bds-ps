@@ -1,6 +1,7 @@
 using FundingPlatform.Tests.E2E.Fixtures;
 using FundingPlatform.Tests.E2E.PageObjects;
 using FundingPlatform.Tests.E2E.PageObjects.Admin;
+using FundingPlatform.Tests.E2E.Support;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.Tests.Admin;
@@ -77,7 +78,7 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
 
         var unique = Guid.NewGuid().ToString("N")[..6];
         var applicantEmail = $"lifecycle_app_{unique}@example.com";
-        var legalId = $"LCAP-{unique}";
+        var legalId = IdentificationData.CedulaFisica($"LCAP-{unique}");
 
         var createPage = new AdminUserCreatePage(Page);
         await createPage.GoToAsync(BaseUrl);
@@ -244,7 +245,7 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
             phone: null,
             role: "Applicant",
             initialPassword: TempUserPassword,
-            legalId: $"DMT-{unique}");
+            legalId: IdentificationData.CedulaFisica($"DMT-{unique}"));
         await createPage.SubmitAsync();
 
         var listPage = new AdminUsersListPage(Page);

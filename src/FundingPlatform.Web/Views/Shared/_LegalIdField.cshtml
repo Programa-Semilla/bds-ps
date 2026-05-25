@@ -1,0 +1,38 @@
+@using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.ViewModels
+@model LegalIdFieldModel
+@{
+    var initialType = Model.SelectedType
+        ?? (Model.AllowedTypes.Count > 0 ? Model.AllowedTypes[0] : IdentificationType.CedulaFisica);
+    var initialMask = LegalIdFieldModel.MaskName(initialType);
+    var inputId = Model.InputId ?? Model.GroupId + "-input";
+    var typeId = Model.GroupId + "-type";
+    // Keep the test id aligned with an explicit InputId (supplier lookup expects
+    // data-testid="supplier-legal-id-input"); otherwise derive from the field name.
+    var inputTestId = Model.InputId ?? Model.ValueFieldName + "-input";
+}
+@* Spec 026 — type-aware masked identification field. The <select> drives the
+   masked <input>'s active mask via input-masks.js (data-mask-controller ↔
+   data-mask-group). Field names are passed in so the values bind to the parent
+   model. *@
+<div data-testid="legal-id-field">
+    <label class="form-label fl-type-meta" for="@typeId">@Model.TypeLabel</label>
+    <select id="@typeId" name="@Model.TypeFieldName"
+            class="@Model.SelectCssClass mb-2"
+            data-mask-controller="@Model.GroupId"
+            data-testid="@(Model.ValueFieldName)-type">
+        @foreach (var t in Model.AllowedTypes)
+        {
+            <option value="@t" data-mask-for="@LegalIdFieldModel.MaskName(t)" selected="@(t == initialType)">@LegalIdFieldModel.Label(t)</option>
+        }
+    </select>
+    @Html.ValidationMessage(Model.TypeFieldName, new { @class = Model.ValidationCssClass + " d-block" })
+
+    <label class="form-label fl-type-meta" for="@inputId">@Model.ValueLabel</label>
+    <input id="@inputId" name="@Model.ValueFieldName" value="@Model.Value"
+           class="@Model.InputCssClass"
+           data-mask-group="@Model.GroupId" data-mask="@initialMask"
+           autocomplete="@(Model.ValueAutocomplete ?? "off")"
+           data-testid="@inputTestId" />
+    @Html.ValidationMessage(Model.ValueFieldName, new { @class = Model.ValidationCssClass + " d-block" })
+</div>

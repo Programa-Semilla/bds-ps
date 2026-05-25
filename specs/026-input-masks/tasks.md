@@ -16,7 +16,7 @@
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 [P] Add a CR-identification test-data helper (valid + invalid cédula física / cédula jurídica / DIMEX / NITE / passport generators derived from a per-test seed, producing canonical hyphenated values) in `tests/FundingPlatform.Tests.E2E/Support/IdentificationData.cs` — shared by US1 + US2 E2E.
+- [X] T001 [P] Add a CR-identification test-data helper (valid + invalid cédula física / cédula jurídica / DIMEX / NITE / passport generators derived from a per-test seed, producing canonical hyphenated values) in `tests/FundingPlatform.Tests.E2E/Support/IdentificationData.cs` — shared by US1 + US2 E2E.
 
 ---
 
@@ -24,15 +24,15 @@
 
 **⚠️ No user-story work begins until this phase is complete.**
 
-- [ ] T002 [P] Create `IdentificationType` enum (`: byte`, members `CedulaFisica=1, CedulaJuridica=2, Dimex=3, Nite=4, Pasaporte=5`) with es-CR `[Display(Name=...)]` labels in `src/FundingPlatform.Domain/Enums/IdentificationType.cs`.
-- [ ] T003 Create `Identification` value object (sealed partial record; per-type `[GeneratedRegex]`; `Canonicalize(type, raw)`, ctor validates canonical value, `From` / `TryFrom` / `IsValid`) in `src/FundingPlatform.Domain/ValueObjects/Identification.cs` — mirrors `CurrencyCode`/`PublicCode`. (dep: T002)
-- [ ] T004 [P] Unit tests for `Identification`: each type valid + invalid + canonicalization (e.g. `3101123456` → `3-101-123456`) + idempotence + jurídica/NITE same-shape, in `tests/FundingPlatform.Tests.Unit/Domain/IdentificationTests.cs`. (dep: T003)
-- [ ] T005 [P] Add `[IdentificationType] TINYINT NULL` to `src/FundingPlatform.Database/Tables/dbo.Applicants.sql` and `src/FundingPlatform.Database/Tables/dbo.Suppliers.sql`.
-- [ ] T006 Extend domain entities: `Applicant` (+`IdentificationType?`, `SetIdentification(type, rawValue)`, ctor + `UpdateProfile` accept the type/VO) and `Supplier` (+`IdentificationType?`, `CreateDraft` accepts the type, `NormalizeLegalId` → canonical reformat strip→`1-3-6` for 10 digits) in `src/FundingPlatform.Domain/Entities/Applicant.cs` + `Supplier.cs`. (dep: T002, T003)
-- [ ] T007 [P] Map `IdentificationType` (nullable byte enum) in `src/FundingPlatform.Infrastructure/Persistence/Configurations/ApplicantConfiguration.cs` + `SupplierConfiguration.cs`. (dep: T002, T005, T006)
-- [ ] T008 [P] Rewrite `src/FundingPlatform.Web/wwwroot/js/input-masks.js` into a `MASKS` registry (entries: `mode`, `maxLength`, `format`, `validate`) per `contracts/mask-registry.md`; event-delegated `input`/`blur` on `document`; `MutationObserver` to format server-rendered/injected values once; identification type-selector controller (`data-mask-controller` ↔ `data-mask-group`, options carry `data-mask-for`); masks `email`, `phone-cr`, `cedula`, `cedula-jur`, `dimex`, `nite`, `pasaporte`.
-- [ ] T009 [P] Create `IdentificationFormatAttribute` taking the **sibling type-property name** as a ctor arg (e.g. `[IdentificationFormat(nameof(SupplierIdentificationType))]`, default `"IdentificationType"`), resolving that property via `ValidationContext`, delegating to `Identification.IsValid(type, value)`, es-CR message "La identificación no tiene el formato de {tipo}." — in `src/FundingPlatform.Web/Validation/IdentificationFormatAttribute.cs`. (dep: T003)
-- [ ] T010 [P] Create shared `_LegalIdField.cshtml` partial (labeled type `<select data-mask-controller>` with allowed-types param + masked `<input data-mask-group>`, asp-for names passed in) in `src/FundingPlatform.Web/Views/Shared/_LegalIdField.cshtml`. (dep: T008)
+- [X] T002 [P] Create `IdentificationType` enum (`: byte`, members `CedulaFisica=1, CedulaJuridica=2, Dimex=3, Nite=4, Pasaporte=5`) with es-CR `[Display(Name=...)]` labels in `src/FundingPlatform.Domain/Enums/IdentificationType.cs`.
+- [X] T003 Create `Identification` value object (sealed partial record; per-type `[GeneratedRegex]`; `Canonicalize(type, raw)`, ctor validates canonical value, `From` / `TryFrom` / `IsValid`) in `src/FundingPlatform.Domain/ValueObjects/Identification.cs` — mirrors `CurrencyCode`/`PublicCode`. (dep: T002)
+- [X] T004 [P] Unit tests for `Identification`: each type valid + invalid + canonicalization (e.g. `3101123456` → `3-101-123456`) + idempotence + jurídica/NITE same-shape, in `tests/FundingPlatform.Tests.Unit/Domain/IdentificationTests.cs`. (dep: T003)
+- [X] T005 [P] Add `[IdentificationType] TINYINT NULL` to `src/FundingPlatform.Database/Tables/dbo.Applicants.sql` and `src/FundingPlatform.Database/Tables/dbo.Suppliers.sql`.
+- [X] T006 Extend domain entities: `Applicant` (+`IdentificationType?`, `SetIdentification(type, rawValue)`, ctor + `UpdateProfile` accept the type/VO) and `Supplier` (+`IdentificationType?`, `CreateDraft` accepts the type, `NormalizeLegalId` → canonical reformat strip→`1-3-6` for 10 digits) in `src/FundingPlatform.Domain/Entities/Applicant.cs` + `Supplier.cs`. (dep: T002, T003)
+- [X] T007 [P] Map `IdentificationType` (nullable byte enum) in `src/FundingPlatform.Infrastructure/Persistence/Configurations/ApplicantConfiguration.cs` + `SupplierConfiguration.cs`. (dep: T002, T005, T006)
+- [X] T008 [P] Rewrite `src/FundingPlatform.Web/wwwroot/js/input-masks.js` into a `MASKS` registry (entries: `mode`, `maxLength`, `format`, `validate`) per `contracts/mask-registry.md`; event-delegated `input`/`blur` on `document`; `MutationObserver` to format server-rendered/injected values once; identification type-selector controller (`data-mask-controller` ↔ `data-mask-group`, options carry `data-mask-for`); masks `email`, `phone-cr`, `cedula`, `cedula-jur`, `dimex`, `nite`, `pasaporte`.
+- [X] T009 [P] Create `IdentificationFormatAttribute` taking the **sibling type-property name** as a ctor arg (e.g. `[IdentificationFormat(nameof(SupplierIdentificationType))]`, default `"IdentificationType"`), resolving that property via `ValidationContext`, delegating to `Identification.IsValid(type, value)`, es-CR message "La identificación no tiene el formato de {tipo}." — in `src/FundingPlatform.Web/Validation/IdentificationFormatAttribute.cs`. (dep: T003)
+- [X] T010 [P] Create shared `_LegalIdField.cshtml` partial (labeled type `<select data-mask-controller>` with allowed-types param + masked `<input data-mask-group>`, asp-for names passed in) in `src/FundingPlatform.Web/Views/Shared/_LegalIdField.cshtml`. (dep: T008)
 
 **Checkpoint**: domain rule, schema, mask engine, validation attr + shared partial ready.
 
@@ -44,19 +44,19 @@
 
 **Independent Test**: Register choosing each type → field masks; submit valid; admin-edit shows saved type + masked value; malformed submit (client bypassed) → server rejects.
 
-- [ ] T011 [P] [US1] `RegisterViewModel`: add `IdentificationType` (Required, es-CR) + `[IdentificationFormat]` on `LegalId` in `src/FundingPlatform.Web/ViewModels/RegisterViewModel.cs`. (dep: T009)
-- [ ] T012 [P] [US1] `AdminUserCreateViewModel` + `AdminUserEditViewModel`: add `IdentificationType?` + `[IdentificationFormat]` on `LegalId` (required only when Role=Applicant) in `src/FundingPlatform.Web/ViewModels/Admin/AdminUserCreateViewModel.cs` + `AdminUserEditViewModel.cs`. (dep: T009)
-- [ ] T013 [P] [US1] `ProfileViewModel`: add read-only `IdentificationType?` + `LegalId` (init-only, server-rebuilt) in `src/FundingPlatform.Web/ViewModels/ProfileViewModel.cs`.
-- [ ] T014 [US1] `Account/Register.cshtml`: replace plain `LegalId` input with `_LegalIdField` (person types) + `@section Scripts` loading `input-masks.js` in `src/FundingPlatform.Web/Views/Account/Register.cshtml`. (dep: T010, T011)
-- [ ] T015 [US1] `Admin/Users/Create.cshtml` + `Edit.cshtml`: render `_LegalIdField` inside the existing `#legalIdField` block (so role-visibility JS still hides the whole block when Role≠Applicant); load `input-masks.js` in `src/FundingPlatform.Web/Views/Admin/Users/Create.cshtml` + `Edit.cshtml`. (dep: T010, T012)
-- [ ] T016 [US1] `Account/Profile.cshtml`: add read-only identification type + masked value rows with the "administrado" badge (pattern of the Email row) in `src/FundingPlatform.Web/Views/Account/Profile.cshtml`. (dep: T013)
-- [ ] T017 [US1] `AccountController.Register` POST: construct `Applicant` via `SetIdentification(model.IdentificationType, model.LegalId)` (VO normalizes/validates) in `src/FundingPlatform.Web/Controllers/AccountController.cs`. (dep: T006, T011)
-- [ ] T018 [US1] Admin user create/edit: thread `IdentificationType` through `CreateUserRequest` / update request and `IUserAdministrationService`, set the `Applicant` via the VO, and add the es-CR presence check ("Seleccione el tipo de identificación." / "La identificación es obligatoria.") when Role=Applicant, in `src/FundingPlatform.Web/Controllers/Admin/AdminUsersController.cs` + `src/FundingPlatform.Application/Users/*`. (dep: T006, T012)
-- [ ] T019 [US1] `AccountController.Profile` GET (`BuildProfileViewModelAsync`): populate read-only `IdentificationType` + canonical `LegalId` from the applicant row in `src/FundingPlatform.Web/Controllers/AccountController.cs`. (dep: T013)
-- [ ] T020 [US1] Seeds: change demo applicants to valid distinct cédulas (`1-0001-0001/-0002/-0003`) + `IdentificationType.CedulaFisica` in `src/FundingPlatform.Infrastructure/Identity/IdentityConfiguration.cs`. (dep: T006)
-- [ ] T021 [P] [US1] Integration test: applicant `IdentificationType` + canonical `LegalId` persist and round-trip via the real DB in `tests/FundingPlatform.Tests.Integration/`. (dep: T006, T007)
-- [ ] T022 [US1] E2E page objects + fixture: add type-selector handling to `RegisterPage`, `Admin/AdminUserCreatePage`, `Admin/AdminUserEditPage`, and update `AuthenticatedTestBase.RegisterUserAsync` to select a type + use a valid cédula (via T001 helper) in `tests/FundingPlatform.Tests.E2E/PageObjects/*` + `Fixtures/AuthenticatedTestBase.cs`. (dep: T014, T015, T001)
-- [ ] T023 [US1] E2E tests: update `AuthenticationTests` + `Admin/AdminUserLifecycleTests` to valid values + type, and add `Tests/InputMaskIdentificationTests`: each type formats as typed, letters rejected on numeric types, admin-edit round-trip shows saved type+value, malformed value (client validation removed) rejected server-side with es-CR error, in `tests/FundingPlatform.Tests.E2E/Tests/*`. (dep: T022)
+- [X] T011 [P] [US1] `RegisterViewModel`: add `IdentificationType` (Required, es-CR) + `[IdentificationFormat]` on `LegalId` in `src/FundingPlatform.Web/ViewModels/RegisterViewModel.cs`. (dep: T009)
+- [X] T012 [P] [US1] `AdminUserCreateViewModel` + `AdminUserEditViewModel`: add `IdentificationType?` + `[IdentificationFormat]` on `LegalId` (required only when Role=Applicant) in `src/FundingPlatform.Web/ViewModels/Admin/AdminUserCreateViewModel.cs` + `AdminUserEditViewModel.cs`. (dep: T009)
+- [X] T013 [P] [US1] `ProfileViewModel`: add read-only `IdentificationType?` + `LegalId` (init-only, server-rebuilt) in `src/FundingPlatform.Web/ViewModels/ProfileViewModel.cs`.
+- [X] T014 [US1] `Account/Register.cshtml`: replace plain `LegalId` input with `_LegalIdField` (person types) + `@section Scripts` loading `input-masks.js` in `src/FundingPlatform.Web/Views/Account/Register.cshtml`. (dep: T010, T011)
+- [X] T015 [US1] `Admin/Users/Create.cshtml` + `Edit.cshtml`: render `_LegalIdField` inside the existing `#legalIdField` block (so role-visibility JS still hides the whole block when Role≠Applicant); load `input-masks.js` in `src/FundingPlatform.Web/Views/Admin/Users/Create.cshtml` + `Edit.cshtml`. (dep: T010, T012)
+- [X] T016 [US1] `Account/Profile.cshtml`: add read-only identification type + masked value rows with the "administrado" badge (pattern of the Email row) in `src/FundingPlatform.Web/Views/Account/Profile.cshtml`. (dep: T013)
+- [X] T017 [US1] `AccountController.Register` POST: construct `Applicant` via `SetIdentification(model.IdentificationType, model.LegalId)` (VO normalizes/validates) in `src/FundingPlatform.Web/Controllers/AccountController.cs`. (dep: T006, T011)
+- [X] T018 [US1] Admin user create/edit: thread `IdentificationType` through `CreateUserRequest` / update request and `IUserAdministrationService`, set the `Applicant` via the VO, and add the es-CR presence check ("Seleccione el tipo de identificación." / "La identificación es obligatoria.") when Role=Applicant, in `src/FundingPlatform.Web/Controllers/Admin/AdminUsersController.cs` + `src/FundingPlatform.Application/Users/*`. (dep: T006, T012)
+- [X] T019 [US1] `AccountController.Profile` GET (`BuildProfileViewModelAsync`): populate read-only `IdentificationType` + canonical `LegalId` from the applicant row in `src/FundingPlatform.Web/Controllers/AccountController.cs`. (dep: T013)
+- [X] T020 [US1] Seeds: change demo applicants to valid distinct cédulas (`1-0001-0001/-0002/-0003`) + `IdentificationType.CedulaFisica` in `src/FundingPlatform.Infrastructure/Identity/IdentityConfiguration.cs`. (dep: T006)
+- [X] T021 [P] [US1] Integration test: applicant `IdentificationType` + canonical `LegalId` persist and round-trip via the real DB in `tests/FundingPlatform.Tests.Integration/`. (dep: T006, T007)
+- [X] T022 [US1] E2E page objects + fixture: add type-selector handling to `RegisterPage`, `Admin/AdminUserCreatePage`, `Admin/AdminUserEditPage`, and update `AuthenticatedTestBase.RegisterUserAsync` to select a type + use a valid cédula (via T001 helper) in `tests/FundingPlatform.Tests.E2E/PageObjects/*` + `Fixtures/AuthenticatedTestBase.cs`. (dep: T014, T015, T001)
+- [X] T023 [US1] E2E tests: update `AuthenticationTests` + `Admin/AdminUserLifecycleTests` to valid values + type, and add `Tests/InputMaskIdentificationTests`: each type formats as typed, letters rejected on numeric types, admin-edit round-trip shows saved type+value, malformed value (client validation removed) rejected server-side with es-CR error, in `tests/FundingPlatform.Tests.E2E/Tests/*`. (dep: T022)
 
 **Checkpoint**: US1 independently testable — MVP deliverable.
 
@@ -68,11 +68,11 @@
 
 **Independent Test**: Supplier add → choose jurídica/NITE → field masks; type a known ID with and without hyphens → same lookup hit; new NITE supplier persists + round-trips.
 
-- [ ] T024 [P] [US2] `AddSupplierViewModel`: add `SupplierIdentificationType` (jurídica/NITE) + `[IdentificationFormat(nameof(SupplierIdentificationType))]` on `SupplierLegalId` (pass the sibling type-property name explicitly, since it differs from the default `IdentificationType`) in `src/FundingPlatform.Web/ViewModels/AddSupplierViewModel.cs`. (dep: T009)
-- [ ] T025 [US2] `Supplier/Add.cshtml`: add the supplier type selector (jurídica/NITE) + `data-mask` on `#supplier-legal-id-input` (driven by the selector), keep the 250 ms debounce lookup, load `input-masks.js` in `src/FundingPlatform.Web/Views/Supplier/Add.cshtml`. (dep: T010, T024)
-- [ ] T026 [US2] `SupplierController.Add` POST: pass `SupplierIdentificationType` to `Supplier.CreateDraft`; validate identification via the VO (translate the domain throw to a ModelState es-CR error in the existing try/catch) in `src/FundingPlatform.Web/Controllers/SupplierController.cs`. (dep: T006, T024)
-- [ ] T027 [P] [US2] Integration test: store a supplier as `3-101-123456`, then `SearchByLegalIdAsync("3101123456")` / `"3-101-123456"` / `"3 101 123456"` all return the same Hit (normalization), in `tests/FundingPlatform.Tests.Integration/`. (dep: T006)
-- [ ] T028 [US2] E2E: add the type selector to `SupplierPage`; update `SupplierQuotationTests` to valid jurídica + type; add `Tests/SupplierIdentificationLookupTests`: hyphenated vs bare-digit query → same supplier hit; new NITE supplier persists + round-trips, in `tests/FundingPlatform.Tests.E2E/*`. (dep: T025, T022)
+- [X] T024 [P] [US2] `AddSupplierViewModel`: add `SupplierIdentificationType` (jurídica/NITE) + `[IdentificationFormat(nameof(SupplierIdentificationType))]` on `SupplierLegalId` (pass the sibling type-property name explicitly, since it differs from the default `IdentificationType`) in `src/FundingPlatform.Web/ViewModels/AddSupplierViewModel.cs`. (dep: T009)
+- [X] T025 [US2] `Supplier/Add.cshtml`: add the supplier type selector (jurídica/NITE) + `data-mask` on `#supplier-legal-id-input` (driven by the selector), keep the 250 ms debounce lookup, load `input-masks.js` in `src/FundingPlatform.Web/Views/Supplier/Add.cshtml`. (dep: T010, T024)
+- [X] T026 [US2] `SupplierController.Add` POST: pass `SupplierIdentificationType` to `Supplier.CreateDraft`; validate identification via the VO (translate the domain throw to a ModelState es-CR error in the existing try/catch) in `src/FundingPlatform.Web/Controllers/SupplierController.cs`. (dep: T006, T024)
+- [X] T027 [P] [US2] Integration test: store a supplier as `3-101-123456`, then `SearchByLegalIdAsync("3101123456")` / `"3-101-123456"` / `"3 101 123456"` all return the same Hit (normalization), in `tests/FundingPlatform.Tests.Integration/`. (dep: T006)
+- [X] T028 [US2] E2E: add the type selector to `SupplierPage`; update `SupplierQuotationTests` to valid jurídica + type; add `Tests/SupplierIdentificationLookupTests`: hyphenated vs bare-digit query → same supplier hit; new NITE supplier persists + round-trips, in `tests/FundingPlatform.Tests.E2E/*`. (dep: T025, T022)
 
 **Checkpoint**: US2 independently testable.
 
@@ -84,8 +84,8 @@
 
 **Independent Test**: On every form with email/phone, invalid email flags on blur; phone formats to `8888-8888`.
 
-- [ ] T029 [P] [US3] Add `data-mask="email"` / `data-mask="phone-cr"` to all email/phone inputs and ensure `input-masks.js` loads on: `Account/Profile.cshtml` (phone), `Admin/Users/Create.cshtml` + `Edit.cshtml` (email+phone), `Supplier/_BranchPicker.cshtml` + `_LookupEmpty.cshtml` (email+phone — masked via delegation from `Supplier/Add.cshtml`), and the admin branch-edit `Admin/Suppliers/Detail.cshtml` if it renders email/phone, in `src/FundingPlatform.Web/Views/*`. (dep: T008)
-- [ ] T030 [US3] E2E: assert email blur → "Ingrese un correo electrónico válido." and phone formats to `8888-8888` on representative forms; verify every form rendering email/phone has the mask active, in `tests/FundingPlatform.Tests.E2E/Tests/InputMaskEmailPhoneTests.cs`. (dep: T029)
+- [X] T029 [P] [US3] Add `data-mask="email"` / `data-mask="phone-cr"` to all email/phone inputs and ensure `input-masks.js` loads on: `Account/Profile.cshtml` (phone), `Admin/Users/Create.cshtml` + `Edit.cshtml` (email+phone), `Supplier/_BranchPicker.cshtml` + `_LookupEmpty.cshtml` (email+phone — masked via delegation from `Supplier/Add.cshtml`), and the admin branch-edit `Admin/Suppliers/Detail.cshtml` if it renders email/phone, in `src/FundingPlatform.Web/Views/*`. (dep: T008)
+- [X] T030 [US3] E2E: assert email blur → "Ingrese un correo electrónico válido." and phone formats to `8888-8888` on representative forms; verify every form rendering email/phone has the mask active, in `tests/FundingPlatform.Tests.E2E/Tests/InputMaskEmailPhoneTests.cs`. (dep: T029)
 
 **Checkpoint**: US3 independently testable.
 
@@ -93,9 +93,9 @@
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T031 [P] Accessibility: confirm `aria-invalid` toggles on invalid masked inputs and every type selector + masked input is labeled, across all touched views (`src/FundingPlatform.Web/Views/*`, `wwwroot/js/input-masks.js`).
+- [X] T031 [P] Accessibility: confirm `aria-invalid` toggles on invalid masked inputs and every type selector + masked input is labeled, across all touched views (`src/FundingPlatform.Web/Views/*`, `wwwroot/js/input-masks.js`).
 - [ ] T032 Run the FULL Playwright E2E suite, confirm green, fix any fallout (delivery bar SC-008) — `tests/FundingPlatform.Tests.E2E`.
-- [ ] T033 [P] Final data sweep: any remaining fixtures/seeds/sample legal IDs moved to canonical form; remove dead/orphaned mask code; verify no `data-mask` typos against the registry — repo-wide.
+- [X] T033 [P] Final data sweep: any remaining fixtures/seeds/sample legal IDs moved to canonical form; remove dead/orphaned mask code; verify no `data-mask` typos against the registry — repo-wide.
 
 ---
 

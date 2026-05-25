@@ -403,7 +403,8 @@ public class SupplierController : Controller
                 };
 
                 var result = await _supplierCatalogService.CreateDraftWithBranchAsync(
-                    model.SupplierLegalId, model.NewSupplier.Name, firstBranch, applicantId);
+                    model.SupplierLegalId, model.NewSupplier.Name, firstBranch, applicantId,
+                    model.SupplierIdentificationType);
 
                 if (result.Outcome == CreateDraftOutcome.RetryWithExisting)
                 {

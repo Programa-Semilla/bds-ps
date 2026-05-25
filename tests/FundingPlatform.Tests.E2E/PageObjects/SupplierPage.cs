@@ -1,3 +1,5 @@
+using System.Linq;
+using FundingPlatform.Tests.E2E.Support;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.PageObjects;
@@ -16,6 +18,14 @@ public class SupplierPage : BasePage
 
     // Step 1 — legal ID input.
     public ILocator SupplierLegalIdInput => Page.GetByTestId("supplier-legal-id-input");
+    // Spec 026 — supplier identification type selector (Cédula jurídica / NITE).
+    public ILocator SupplierTypeSelect => Page.Locator("select[name=\"SupplierIdentificationType\"]");
+
+    /// <summary>Spec 026 — selects the supplier identification type (enum member name: CedulaJuridica / Nite).</summary>
+    public async Task SelectSupplierTypeAsync(string identificationType)
+    {
+        await SupplierTypeSelect.SelectOptionAsync(identificationType);
+    }
 
     // Step 2 — lookup result regions (server-rendered partials).
     public ILocator LookupResultRegion => Page.GetByTestId("lookup-result-region");
@@ -73,13 +83,32 @@ public class SupplierPage : BasePage
     /// in the lookup-result region. Returns the discriminator (Hit/Empty/Rejected)
     /// based on which partial card became visible.
     /// </summary>
+    /// <summary>
+    /// Spec 026 — supplier identification is now strictly masked (Cédula jurídica /
+    /// NITE). Legacy tests pass free-form seeds ("SUP1-1234"); a value that already
+    /// looks like a 10-digit jurídica/NITE id (hyphenated, spaced, or bare) is used
+    /// verbatim so hyphenation-tolerance and SQL-seeded ids work, otherwise the seed
+    /// is deterministically mapped to a valid canonical jurídica.
+    /// </summary>
+    public static string CanonicalSupplierLegalId(string seed)
+    {
+        var raw = seed ?? string.Empty;
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        var alnum = new string(raw.Where(char.IsLetterOrDigit).ToArray());
+        if (digits.Length == 10 && digits.Length == alnum.Length)
+        {
+            return raw; // already a jurídica/NITE-shaped value (any separators)
+        }
+        return IdentificationData.CedulaJuridica(raw);
+    }
+
     public async Task<string> SearchByLegalIdAsync(string legalId)
     {
         // Make sure the page's JS has had a chance to wire up the input listener.
         await Page.WaitForLoadStateAsync(Microsoft.Playwright.LoadState.DOMContentLoaded);
         await SupplierLegalIdInput.WaitForAsync(new() { State = WaitForSelectorState.Visible });
 
-        await SupplierLegalIdInput.FillAsync(legalId);
+        await SupplierLegalIdInput.FillAsync(CanonicalSupplierLegalId(legalId));
         // Race the debounce + Search endpoint and the partial swap. Wait up to 10s
         // because under shared-fixture load the round-trip can spike.
         await Page.WaitForFunctionAsync(

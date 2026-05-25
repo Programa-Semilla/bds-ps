@@ -15,6 +15,9 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(s => s.LegalId).IsRequired().HasMaxLength(50);
         builder.HasIndex(s => s.LegalId).IsUnique().HasDatabaseName("UX_Suppliers_LegalId");
 
+        // Spec 026 — nullable byte-enum stored as TINYINT.
+        builder.Property(s => s.IdentificationType).HasConversion<byte?>();
+
         builder.Property(s => s.Name).IsRequired().HasMaxLength(300);
 
         builder.Property(s => s.HasElectronicInvoice).IsRequired();
