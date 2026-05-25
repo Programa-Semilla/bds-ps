@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using FundingPlatform.Tests.E2E.Fixtures;
 using FundingPlatform.Tests.E2E.PageObjects;
 using FundingPlatform.Tests.E2E.PageObjects.Admin;
+using FundingPlatform.Tests.E2E.Support;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.Tests.Admin;
@@ -64,7 +65,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var applicantEmail = $"sc_app_{unique}@example.com";
         var createPage = new AdminUserCreatePage(Page);
         await createPage.GoToAsync(BaseUrl);
-        await createPage.FillAsync("App", "Sub", applicantEmail, null, "Applicant", TempPwd, $"SCAPP-{unique}");
+        await createPage.FillAsync("App", "Sub", applicantEmail, null, "Applicant", TempPwd, IdentificationData.CedulaFisica($"SCAPP-{unique}"));
         var formPage = new AdminUserFormPage(Page);
         await formPage.SelectGroupsAsync($"SC-{unique}-A");
         await createPage.SubmitAsync();
@@ -195,7 +196,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var createPage = new AdminUserCreatePage(Page);
         await createPage.GoToAsync(BaseUrl);
         await createPage.FillAsync("Sur", "Applicant", surApplicantEmail, null,
-            "Applicant", TempPwd, $"SURAPP-{unique}");
+            "Applicant", TempPwd, IdentificationData.CedulaFisica($"SURAPP-{unique}"));
         var formPage = new AdminUserFormPage(Page);
         await formPage.SelectGroupsAsync(surName);
         await createPage.SubmitAsync();
@@ -284,7 +285,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var createPage = new AdminUserCreatePage(Page);
         await createPage.GoToAsync(BaseUrl);
         await createPage.FillAsync("Sur", "ApplicantSI", surApplicantEmail, null,
-            "Applicant", TempPwd, $"SISA-{unique}");
+            "Applicant", TempPwd, IdentificationData.CedulaFisica($"SISA-{unique}"));
         var formPage = new AdminUserFormPage(Page);
         await formPage.SelectGroupsAsync(surName);
         await createPage.SubmitAsync();
@@ -379,7 +380,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
             var createPage = new AdminUserCreatePage(Page);
             await createPage.GoToAsync(BaseUrl);
             await createPage.FillAsync(firstName, lastName, email, null,
-                "Applicant", TempPwd, $"{legalIdPrefix}-{unique}");
+                "Applicant", TempPwd, IdentificationData.CedulaFisica($"{legalIdPrefix}-{unique}"));
             var formPage = new AdminUserFormPage(Page);
             await formPage.SelectGroupsAsync(groupName);
             await createPage.SubmitAsync();

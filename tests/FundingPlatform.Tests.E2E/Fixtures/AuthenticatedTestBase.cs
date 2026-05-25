@@ -42,13 +42,10 @@ public class AuthenticatedTestBase : PageTest
     [OneTimeSetUp]
     public async Task OneTimeSetup()
     {
-        // Playwright's default Expect timeout is 5s. The applicant impact-picker JS
-        // (Views/Item/Impact.cshtml) fetches /Item/TemplateParameters/{id} on dropdown
-        // change and renders .parameter-field after the response. Under shared-fixture
-        // load (one Aspire container, ~20 test classes back-to-back), that fetch can
-        // tip past 5s and time the assertion out before .parameter-field is rendered.
-        // 15s gives enough headroom for transient slowness without masking real bugs.
-        Assertions.SetDefaultExpectTimeout(15_000);
+        // Fail fast: no UI operation should take longer than ~10s. A longer wait means
+        // the app is unresponsive (a real problem), not a transient render — surfacing
+        // it in 10s instead of Playwright's default 30s keeps feedback tight.
+        Assertions.SetDefaultExpectTimeout(10_000);
 
         await _initLock.WaitAsync();
         try
@@ -63,6 +60,18 @@ public class AuthenticatedTestBase : PageTest
         {
             _initLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Per-test: cap Playwright's default action + navigation timeout at 10s (down
+    /// from the 30s default) so a hung page load / element wait fails fast instead of
+    /// stalling the suite. Runs after PageTest's own setup creates the Page.
+    /// </summary>
+    [SetUp]
+    public void ConfigureFastTimeouts()
+    {
+        Page.SetDefaultTimeout(10_000);
+        Page.SetDefaultNavigationTimeout(10_000);
     }
 
     /// <summary>

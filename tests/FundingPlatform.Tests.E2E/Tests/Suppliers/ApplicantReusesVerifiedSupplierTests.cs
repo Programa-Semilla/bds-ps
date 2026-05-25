@@ -1,8 +1,10 @@
+using System.Linq;
 using System.Text.RegularExpressions;
 using FundingPlatform.Tests.E2E.Constants;
 using FundingPlatform.Tests.E2E.Fixtures;
 using FundingPlatform.Tests.E2E.PageObjects;
 using FundingPlatform.Tests.E2E.PageObjects.Admin;
+using FundingPlatform.Tests.E2E.Support;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.Tests.Suppliers;
@@ -82,18 +84,21 @@ public class ApplicantReusesVerifiedSupplierTests : AuthenticatedTestBase
     [Test]
     public async Task AS03_WhitespaceAndCase_NormalizedToSameSupplier()
     {
-        var legalId = $"3-101-{_uniqueId.ToUpper()}";
+        // Spec 026 — supplier ids are strictly jurídica (digits) now, so use a valid
+        // canonical jurídica; the lookup must still tolerate surrounding whitespace.
+        var legalId = IdentificationData.CedulaJuridica($"AS03-{_uniqueId}");
         var supplierName = $"Norm Co {_uniqueId}";
         await SeedVerifiedSupplierAsync(legalId, supplierName);
 
-        // A second applicant types the legal ID with surrounding whitespace and
-        // mixed casing. NormalizeLegalId strips whitespace and uppercases — so the
-        // server MUST resolve this to the same supplier as the canonical form.
+        // A second applicant types the legal ID with NO separators (bare digits).
+        // The client mask reformats it and the server NormalizeLegalId canonicalises,
+        // so it MUST resolve to the same supplier as the hyphenated canonical form
+        // (FR-006 / spec 026 FR-013 hyphenation tolerance).
         var (_, supplier) = await SetupAnotherApplicantAndOpenAddSupplierAsync("reuse3");
-        var noisy = "  " + legalId.ToLowerInvariant() + "  ";
-        var outcome = await supplier.SearchByLegalIdAsync(noisy);
+        var bareDigits = new string(legalId.Where(char.IsDigit).ToArray());
+        var outcome = await supplier.SearchByLegalIdAsync(bareDigits);
         Assert.That(outcome, Is.EqualTo("Hit"),
-            "Whitespace + case differences MUST normalize to the same Hit (FR-006).");
+            "Separator differences MUST normalize to the same Hit (FR-006).");
         await Expect(supplier.LookupHitCard).ToContainTextAsync(supplierName);
     }
 

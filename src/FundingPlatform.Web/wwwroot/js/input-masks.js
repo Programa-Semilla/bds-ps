@@ -237,20 +237,24 @@
 
     function init() {
         scan(document);
-        // Cover server-rendered + AJAX-injected nodes added after load.
-        if (typeof MutationObserver === 'function') {
+        // Server-rendered masked fields are handled by the scan above. The ONLY
+        // place masked fields are injected after load is the supplier-lookup result
+        // region (AJAX partials _LookupEmpty / _BranchPicker). Scope the observer to
+        // that region so no other page pays a per-mutation cost (KPI tickers,
+        // confetti, AJAX tables, etc. — perf: "no impact" per the spec).
+        var lookupRegion = document.getElementById('lookup-result-region');
+        if (lookupRegion && typeof MutationObserver === 'function') {
             var observer = new MutationObserver(function (mutations) {
                 for (var i = 0; i < mutations.length; i++) {
                     var added = mutations[i].addedNodes;
                     for (var j = 0; j < added.length; j++) {
-                        var node = added[j];
-                        if (node.nodeType === 1) { // element
-                            scan(node);
+                        if (added[j].nodeType === 1) { // element
+                            scan(added[j]);
                         }
                     }
                 }
             });
-            observer.observe(document.body, { childList: true, subtree: true });
+            observer.observe(lookupRegion, { childList: true, subtree: true });
         }
     }
 

@@ -47,7 +47,9 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult Register()
     {
-        return View();
+        // Spec 026 — the view dereferences the model (identification partial), so a
+        // non-null instance is required (GET previously returned View() with null).
+        return View(new RegisterViewModel());
     }
 
     [HttpPost]
