@@ -95,7 +95,8 @@ public class SupplierRepositoryTests
                 new SupplierAdminFilter { Status = SupplierVerificationStatus.PendingReview }, 1, 25);
 
             Assert.That(pending.Count, Is.EqualTo(1));
-            Assert.That(pending.First().LegalId, Does.Contain("P-1"));
+            // Spec 026 — NormalizeLegalId strips non-alphanumerics, so "3-101-P-1" → "3101P1".
+            Assert.That(pending.First().LegalId, Does.Contain("P1"));
         }
     }
 
@@ -146,7 +147,8 @@ public class SupplierRepositoryTests
                 new SupplierAdminFilter { HasIncompleteCompliance = true }, 1, 25);
 
             Assert.That(results.Count, Is.EqualTo(1));
-            Assert.That(results.First().LegalId, Does.Contain("C-2"));
+            // Spec 026 — NormalizeLegalId strips non-alphanumerics, so "3-101-C-2" → "3101C2".
+            Assert.That(results.First().LegalId, Does.Contain("C2"));
         }
     }
 
