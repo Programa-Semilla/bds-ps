@@ -50,4 +50,53 @@ public static class ApplicationCurrencyTotal
         }
         return (total, hasNonCrc);
     }
+
+    /// <summary>
+    /// Spec 021 / FR-022 — pre-selection CRC estimate for the applicant
+    /// <c>/Applications/{publicCode}/Review</c> page, which renders before any
+    /// reviewer has selected a supplier per item (so <see cref="Compute"/>
+    /// would return null).
+    ///
+    /// Rule: each Item carries multiple <em>competing</em> quotations (alternative
+    /// supplier offers for the same product, ≥ <c>MinimumQuotationsPerItem</c>),
+    /// only one of which is ever funded. Summing them all double-counts the item.
+    /// Instead, take the <strong>cheapest</strong> converted-CRC quote of each
+    /// item and sum those — a lower-bound estimate of the eventual cost.
+    /// Legacy-flagged quotes (no converted amount) are excluded, mirroring
+    /// <see cref="Compute"/>.
+    /// </summary>
+    /// <returns>
+    /// (total, hasNonCrc): sum of the minimum <c>ConvertedCrcAmount</c> per item
+    /// (null when no item has a quotation with a converted amount); hasNonCrc is
+    /// true when at least one quotation on the application is non-CRC.
+    /// </returns>
+    public static (decimal? Total, bool HasNonCrc) ComputeCheapestEstimate(AppEntity application)
+    {
+        decimal? total = null;
+        var hasNonCrc = false;
+        foreach (var item in application.Items)
+        {
+            decimal? itemCheapest = null;
+            foreach (var q in item.Quotations)
+            {
+                if (!string.IsNullOrEmpty(q.Currency)
+                    && !string.Equals(q.Currency, "CRC", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasNonCrc = true;
+                }
+
+                if (q.LegacyNeedsReview) continue;
+                if (q.ConvertedCrcAmount is { } amt)
+                {
+                    itemCheapest = itemCheapest is { } current ? Math.Min(current, amt) : amt;
+                }
+            }
+
+            if (itemCheapest is { } cheapest)
+            {
+                total = (total ?? 0m) + cheapest;
+            }
+        }
+        return (total, hasNonCrc);
+    }
 }

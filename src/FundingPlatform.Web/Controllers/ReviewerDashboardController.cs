@@ -31,7 +31,7 @@ public class ReviewerDashboardController : Controller
         // Spec 021 / FR-033 — the only KPI on this surface today. Future
         // additions (reviewer-aging count, signing-inbox backlog, etc.) are
         // welcome but out of scope for US6.
-        var pending = await _projection.CountPendingQuotationsAsync(ct);
+        var pending = await _projection.CountPendingApplicationsAsync(ct);
         ViewData["Title"] = "Panel del revisor";
         return View(pending);
     }

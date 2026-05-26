@@ -23,6 +23,16 @@ public interface IUserFacingErrorTranslator
 
     /// <summary>Convenience overload for when only a code is on hand (no Detail).</summary>
     string Translate(UserFacingErrorCode code);
+
+    /// <summary>
+    /// Spec 021 / FR-014 — render the funding-agreement panel
+    /// <c>DisabledReason</c> in es-CR. The Application layer builds this string
+    /// from English domain preconditions (<c>CanGenerate/CanRegenerateFundingAgreement</c>),
+    /// which must not reach the applicant surface (NFR-001 + acompañamiento copy
+    /// pivot — no "financiamiento"). Returns null for null/blank input; falls
+    /// back to a generic Spanish phrase for any unmapped domain string.
+    /// </summary>
+    string? TranslateAgreementDisabledReason(string? englishReason);
 }
 
 /// <inheritdoc />
@@ -146,4 +156,32 @@ public sealed class UserFacingErrorTranslator : IUserFacingErrorTranslator
 
         _ => "La operación no se pudo completar. Inténtelo nuevamente o contacte al soporte.",
     };
+
+    public string? TranslateAgreementDisabledReason(string? englishReason)
+    {
+        if (string.IsNullOrWhiteSpace(englishReason))
+        {
+            return null;
+        }
+
+        // Closed set of English precondition strings emitted by
+        // Application.CanGenerateFundingAgreement / CanRegenerateFundingAgreement.
+        // Spanish targets avoid "financiamiento" (applicant-surface copy pivot).
+        return englishReason.Trim() switch
+        {
+            "An appeal is currently open on this application." =>
+                "Hay una apelación abierta en esta solicitud.",
+            "Review is still in progress." =>
+                "La revisión aún está en curso.",
+            "Applicant has not yet responded to every approved item." =>
+                "Aún no se ha respondido a todos los ítems aprobados.",
+            "Nothing to fund: all items were rejected." =>
+                "No hay ítems aprobados para incluir en el convenio.",
+            "No Funding Agreement exists to regenerate." =>
+                "No existe un convenio para regenerar.",
+            "Agreement is locked: a signed upload has been submitted." =>
+                "El convenio está bloqueado: ya se cargó un documento firmado.",
+            _ => "Aún no se cumplen las condiciones para generar el convenio.",
+        };
+    }
 }

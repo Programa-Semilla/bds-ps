@@ -99,7 +99,7 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
                 : _journey.Project(a, JourneyVariant.Mini);
             var stageMapping = mini.Mainline.FirstOrDefault(n => n.State == JourneyNodeState.Current)?.Label
                 ?? mini.Mainline.LastOrDefault(n => n.State == JourneyNodeState.Completed)?.Label
-                ?? "Draft";
+                ?? "Borrador";
             // Spec 015 / T414 — surface the per-application converted-CRC total + a
             // non-CRC presence flag so the dashboard card can hint at multi-currency
             // composition.
@@ -120,8 +120,8 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
         var recent = apps
             .SelectMany(a => a.VersionHistory.Select(v => new ActivityEvent(
                 Occurred: new DateTimeOffset(v.Timestamp, TimeSpan.Zero),
-                Title: PrettyAction(v.Action),
-                ActorName: v.UserId,
+                Title: ActivityActionCopy.Title(v.Action),
+                ActorName: ResolveActor(v.UserId, a),
                 DeepLinkHref: $"/Application/Details/{a.Id}#event-{v.Id}",
                 IconKey: "ti ti-point")))
             .OrderByDescending(e => e.Occurred)
@@ -136,6 +136,20 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
             RecentActivity: recent,
             HasMoreActivity: apps.SelectMany(a => a.VersionHistory).Count() > recent.Count,
             HasMoreApplications: ordered.Count > CardLimit);
+    }
+
+    /// <summary>
+    /// es-CR timeline actor. The applicant's own actions read "usted"; every
+    /// other actor (reviewer / admin) reads a neutral program label so the raw
+    /// Identity user id never leaks and reviewer identities are not exposed.
+    /// </summary>
+    private static string ResolveActor(string actorUserId, AppEntity a)
+    {
+        var ownUserId = a.Applicant?.UserId;
+        return !string.IsNullOrEmpty(ownUserId)
+            && string.Equals(actorUserId, ownUserId, StringComparison.Ordinal)
+            ? "usted"
+            : "Equipo del programa";
     }
 
     private static bool NeedsApplicantAction(AppEntity a)
@@ -175,15 +189,4 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
     private static string AgreementDetailsUrl(int applicationId)
         => $"/Applications/{applicationId}/FundingAgreement";
 
-    private static string PrettyAction(string action) => action switch
-    {
-        "Created"            => "Application created",
-        "Submitted"          => "Application sent",
-        "StartReview"        => "Review started",
-        "SendBack"           => "Sent back for more details",
-        "Finalize"           => "Decision recorded",
-        "AgreementGenerated" => "Agreement generated",
-        "AgreementExecuted"  => "Agreement signed",
-        _                    => action,
-    };
 }

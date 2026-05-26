@@ -125,6 +125,9 @@ public class ApplicationRepository : IApplicationRepository
             .Include(a => a.VersionHistory)
             .Include(a => a.Appeals)
             .Include(a => a.FundingAgreement)
+            // Applicant.UserId lets the projection resolve the timeline actor
+            // ("usted" vs others) instead of leaking the raw Identity GUID.
+            .Include(a => a.Applicant)
             .Where(a => a.ApplicantId == applicantId)
             .OrderByDescending(a => a.UpdatedAt)
             .ToListAsync();

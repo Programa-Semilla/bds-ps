@@ -60,9 +60,11 @@ public class AdminReportsDashboardTests : AuthenticatedTestBase
         var dashboard = new AdminReportsDashboardPage(Page);
         await dashboard.GoToAsync(BaseUrl);
 
-        // Submitted is one of the always-rendered pipeline states. Even on an empty
-        // seed it should render a numeric "0" in the tile body.
-        var value = await dashboard.ReadKpiNumericAsync("Submitted");
-        Assert.That(value, Is.Not.Null, "Submitted pipeline tile must render a numeric value.");
+        // "Enviada" (es-CR for Submitted) is one of the always-rendered pipeline
+        // states. Even on an empty seed it should render a numeric "0" in the tile
+        // body. The pipeline tile label is now localized (StatusVisualMap), so the
+        // tile is keyed by its Spanish label.
+        var value = await dashboard.ReadKpiNumericAsync("Enviada");
+        Assert.That(value, Is.Not.Null, "Enviada pipeline tile must render a numeric value.");
     }
 }

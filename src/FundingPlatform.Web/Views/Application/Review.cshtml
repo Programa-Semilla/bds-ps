@@ -146,7 +146,10 @@
     <div class="card mb-4">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-baseline">
-                <strong>Total estimado (CRC)</strong>
+                <div>
+                    <strong>Total estimado (CRC)</strong>
+                    <div class="text-secondary small">menor cotización por ítem</div>
+                </div>
                 <span data-testid="review-total-crc">
                     @Model.TotalCrc.Value.ToString("C0", cultureCrc)
                 </span>

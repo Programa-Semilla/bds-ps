@@ -79,7 +79,11 @@ public class ApplicantDashboardTimelineTests
             Assert.That(current, Is.Not.Null, "mini journey must have a current node");
             Assert.That(current!.Stage, Is.EqualTo(JourneyStage.Submitted),
                 "current stage should reflect VersionHistory; bug pins it to Draft");
-            Assert.That(card.CurrentStageLabel, Is.EqualTo("Submitted"));
+            // es-CR: the stage pill + mini-journey labels must render in Spanish
+            // (default culture). The English catalogue ("Submitted") leaked onto
+            // the applicant dashboard before this fix.
+            Assert.That(card.CurrentStageLabel, Is.EqualTo("Enviada"));
+            Assert.That(current.Label, Is.EqualTo("Enviada"));
         }
     }
 
@@ -113,6 +117,9 @@ public class ApplicantDashboardTimelineTests
             typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Submitted);
             application.AddVersionHistory(new VersionHistory(applicant.UserId, "Created", null));
             application.AddVersionHistory(new VersionHistory(applicant.UserId, "Submitted", null));
+            // A reviewer (different Identity UserId) acts on the application; the
+            // applicant timeline must NOT render the raw reviewer GUID as the actor.
+            application.AddVersionHistory(new VersionHistory($"reviewer-{Guid.NewGuid():N}", "StartReview", null));
 
             ctx.Applications.Add(application);
             await ctx.SaveChangesAsync();
@@ -129,8 +136,33 @@ public class ApplicantDashboardTimelineTests
 
             var dto = await projection.GetForUserAsync(applicantId, "Grace", CancellationToken.None);
 
-            Assert.That(dto.RecentActivity, Has.Count.EqualTo(2),
+            Assert.That(dto.RecentActivity, Has.Count.EqualTo(3),
                 "Recent activity must surface VersionHistory entries; bug leaves it empty.");
+
+            // es-CR: "Actividad reciente" titles must be Spanish — the English
+            // PrettyAction map ("Application created" / "Application sent") leaked
+            // onto the applicant dashboard before this fix.
+            var titles = dto.RecentActivity.Select(a => a.Title).ToList();
+            Assert.That(titles, Is.EquivalentTo(new[] { "Solicitud creada", "Solicitud enviada", "Revisión iniciada" }));
+            foreach (var t in titles)
+            {
+                Assert.That(t, Does.Not.Contain("Application"));
+                Assert.That(t, Does.Not.Contain("created"));
+                Assert.That(t, Does.Not.Contain("sent"));
+            }
+
+            // Actor must be human-readable, never a raw Identity GUID. The
+            // applicant's own actions read "usted"; others read a neutral label.
+            var actors = dto.RecentActivity.Select(a => a.ActorName).ToList();
+            Assert.That(actors, Does.Not.Contain("reviewer"));
+            foreach (var actor in actors)
+            {
+                Assert.That(actor, Does.Not.Match("^[0-9a-fA-F-]{20,}$"),
+                    "Actor must not be a raw Identity user id.");
+            }
+            // Two own actions → "usted"; one reviewer action → neutral label.
+            Assert.That(actors.Count(a => a == "usted"), Is.EqualTo(2));
+            Assert.That(actors, Has.Some.EqualTo("Equipo del programa"));
         }
     }
 }

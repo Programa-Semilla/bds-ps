@@ -634,6 +634,12 @@ public class ApplicationController : Controller
                 QuotationCount = i.Quotations.Count,
                 HasImpact = i.Impact is not null,
                 ReviewComment = i.ReviewComment,
+                // OR in the legacy English sentinel: pre-fix rows (and rows whose
+                // flag was reset while the comment was preserved) still carry it in
+                // ReviewComment. Forcing the flag makes the view render the es-CR
+                // message and skip the raw English comment branch.
+                IsNotTechnicallyEquivalent = i.IsNotTechnicallyEquivalent
+                    || FundingPlatform.Web.Helpers.ReviewCommentDisplay.IsLegacyNotEquivalentComment(i.ReviewComment),
                 SelectedSupplierId = i.SelectedSupplierId,
                 Quotations = i.Quotations.Select(q => new QuotationSummaryViewModel
                 {

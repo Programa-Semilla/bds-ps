@@ -204,7 +204,10 @@ public class Item
     {
         IsNotTechnicallyEquivalent = true;
         ReviewStatus = ItemReviewStatus.Rejected;
-        ReviewComment = "Rejected: quotations are not technically equivalent";
+        // The not-equivalent state is carried by IsNotTechnicallyEquivalent; views
+        // render the localized message from that flag. Do NOT persist an English
+        // sentence here — it leaked onto the applicant Details page (es-CR).
+        ReviewComment = null;
         SelectedSupplierId = null;
         UpdatedAt = DateTime.UtcNow;
     }

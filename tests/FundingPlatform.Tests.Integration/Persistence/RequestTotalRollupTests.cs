@@ -170,6 +170,164 @@ public class RequestTotalRollupTests
     }
 
     [Test]
+    public async Task CheapestEstimate_SumsMinimumConvertedCrcPerItem_WithoutAnySupplierSelection()
+    {
+        // The applicant /review page (spec 021) renders BEFORE any reviewer
+        // selects a supplier per item, so the selected-supplier rollup
+        // (ApplicationCurrencyTotal.Compute) would be null. The pre-selection
+        // estimate takes the CHEAPEST converted-CRC quote per item and sums
+        // them — never adds the competing quotes of the same item together.
+        var dbName = $"cheapest-{Guid.NewGuid():N}";
+
+        // Arrange:
+        //   Item 1: two CRC quotes 600,000 + 700,000 → contributes min 600,000
+        //   Item 2: CRC 550,000 + USD 1000 @ buy 520 (=520,000) → contributes 520,000; HasNonCrc
+        //   Item 3: a single LEGACY-flagged USD quote (no converted amount) → contributes nothing
+        //   Item 4: no quotations → contributes nothing
+        //   No Item has a selected supplier.
+        // Expected total = 600,000 + 520,000 = 1,120,000. HasNonCrc = true.
+        using (var ctx = CreateContext(dbName))
+        {
+            var applicant = new Applicant(
+                userId: $"user-{Guid.NewGuid():N}",
+                legalId: "CHEAP-1",
+                firstName: "Cheap", lastName: "Test",
+                email: "cheap@example.com", phone: null, performanceScore: null);
+            ctx.Applicants.Add(applicant);
+            await ctx.SaveChangesAsync();
+
+            var category = new Category("Equipment", "desc", isActive: true);
+            ctx.Categories.Add(category);
+            await ctx.SaveChangesAsync();
+
+            ctx.Currencies.Add(new Currency(CurrencyCode.Crc, "₡", "Costa Rican colón", 2, true, true, 1));
+            ctx.Currencies.Add(new Currency(CurrencyCode.Usd, "$", "US dollar", 2, true, false, 2));
+            ctx.ExchangeRates.Add(new ExchangeRate(CurrencyCode.Usd, CurrencyCode.Crc, 520m, 525m, Past(10), "admin"));
+            await ctx.SaveChangesAsync();
+
+            var application = new AppEntity(applicant.Id, "Test Company");
+            application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
+            application.AddItem(new Item("ItemTwoCrc", category.Id, "specs1"));
+            application.AddItem(new Item("ItemMixed", category.Id, "specs2"));
+            application.AddItem(new Item("ItemLegacyOnly", category.Id, "specs3"));
+            application.AddItem(new Item("ItemNoQuotes", category.Id, "specs4"));
+            ctx.Applications.Add(application);
+            await ctx.SaveChangesAsync();
+
+            var suppliers = Enumerable.Range(1, 5).Select(i =>
+                Supplier.CreateDraft(
+                    legalId: $"CHEAP-S{i}",
+                    name: $"Supplier {i}",
+                    createdByApplicantId: applicant.Id,
+                    firstBranchName: "Sede principal",
+                    firstBranchContactName: null,
+                    firstBranchEmail: null,
+                    firstBranchPhone: null,
+                    firstBranchAddressLine: null,
+                    firstBranchProvince: "San Jose",
+                    firstBranchShippingDetails: null,
+                    firstBranchWarrantyInfo: null)).ToList();
+            ctx.Suppliers.AddRange(suppliers);
+            await ctx.SaveChangesAsync();
+
+            DateOnly validUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1));
+
+            // Item 1 — two CRC quotes; cheaper one is 600,000.
+            var doc1a = new Document("1a.pdf", "k1a", 1L, "application/pdf");
+            var doc1b = new Document("1b.pdf", "k1b", 1L, "application/pdf");
+            ctx.Documents.AddRange(doc1a, doc1b);
+            await ctx.SaveChangesAsync();
+            application.Items[0].AddQuotation(suppliers[0], suppliers[0].Branches.First(), doc1a, 700_000m, validUntil, "CRC");
+            application.Items[0].AddQuotation(suppliers[1], suppliers[1].Branches.First(), doc1b, 600_000m, validUntil, "CRC");
+            await ctx.SaveChangesAsync();
+
+            // Item 2 — CRC 550,000 plus a USD 1000 @520 (=520,000); cheaper is the USD one.
+            var doc2crc = new Document("2crc.pdf", "k2crc", 1L, "application/pdf");
+            var doc2usd = new Document("2usd.pdf", "k2usd", 1L, "application/pdf");
+            ctx.Documents.AddRange(doc2crc, doc2usd);
+            await ctx.SaveChangesAsync();
+            application.Items[1].AddQuotation(suppliers[2], suppliers[2].Branches.First(), doc2crc, 550_000m, validUntil, "CRC");
+            var conversion = new ConversionService(new ExchangeRateRepository(ctx));
+            var qUsd = new Quotation(suppliers[3].Id, suppliers[3].Branches.First().Id, doc2usd.Id, 1m, validUntil, "CRC");
+            await qUsd.SetCurrencyAndAmountAsync(CurrencyCode.Usd, 1000m, conversion);
+            application.Items[1].AttachQuotation(suppliers[3], suppliers[3].Branches.First(), qUsd);
+            await ctx.SaveChangesAsync();
+
+            // Item 3 — single LEGACY-flagged USD quote, no converted amount.
+            var doc3 = new Document("3.pdf", "k3", 1L, "application/pdf");
+            ctx.Documents.Add(doc3);
+            await ctx.SaveChangesAsync();
+            application.Items[2].AddQuotation(suppliers[4], suppliers[4].Branches.First(), doc3, 2000m, validUntil, "USD");
+            var qLegacy = application.Items[2].Quotations.Single(q => q.SupplierId == suppliers[4].Id);
+            typeof(Quotation).GetMethod("MarkLegacyNeedsReview",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .Invoke(qLegacy, null);
+            await ctx.SaveChangesAsync();
+
+            // Item 4 — left with no quotations.
+        }
+
+        using (var ctx = CreateContext(dbName))
+        {
+            var app = await ctx.Applications
+                .Include(a => a.Items)
+                    .ThenInclude(i => i.Quotations)
+                .SingleAsync();
+
+            // Sanity: no supplier selected, so the post-selection rollup is null.
+            Assert.That(ApplicationCurrencyTotal.Compute(app).Total, Is.Null,
+                "Pre-selection: the selected-supplier rollup must be null on this fixture.");
+
+            var (total, hasNonCrc) = ApplicationCurrencyTotal.ComputeCheapestEstimate(app);
+
+            Assert.That(total, Is.EqualTo(600_000m + 520_000m),
+                "Estimate must sum the CHEAPEST converted-CRC quote per item, never the competing quotes of one item together.");
+            Assert.That(hasNonCrc, Is.True,
+                "HasNonCrc must reflect that at least one quotation on the application is non-CRC.");
+        }
+    }
+
+    [Test]
+    public async Task CheapestEstimate_ReturnsNull_WhenNoQuotationHasAConvertedAmount()
+    {
+        var dbName = $"cheapest-empty-{Guid.NewGuid():N}";
+
+        using (var ctx = CreateContext(dbName))
+        {
+            var applicant = new Applicant(
+                userId: $"user-{Guid.NewGuid():N}",
+                legalId: "CHEAP-EMPTY",
+                firstName: "Empty", lastName: "Test",
+                email: "cheap-empty@example.com", phone: null, performanceScore: null);
+            ctx.Applicants.Add(applicant);
+            await ctx.SaveChangesAsync();
+
+            var category = new Category("Equipment", "desc", isActive: true);
+            ctx.Categories.Add(category);
+            await ctx.SaveChangesAsync();
+
+            var application = new AppEntity(applicant.Id, "Test Company");
+            application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
+            application.AddItem(new Item("ItemA", category.Id, "specsA"));
+            ctx.Applications.Add(application);
+            await ctx.SaveChangesAsync();
+        }
+
+        using (var ctx = CreateContext(dbName))
+        {
+            var app = await ctx.Applications
+                .Include(a => a.Items)
+                    .ThenInclude(i => i.Quotations)
+                .SingleAsync();
+
+            var (total, hasNonCrc) = ApplicationCurrencyTotal.ComputeCheapestEstimate(app);
+            Assert.That(total, Is.Null,
+                "When no item has a quotation with a converted CRC amount, the estimate must be null.");
+            Assert.That(hasNonCrc, Is.False);
+        }
+    }
+
+    [Test]
     public async Task RollupReturnsNull_WhenNoItemHasASelectedSupplier()
     {
         var dbName = $"rollup-empty-{Guid.NewGuid():N}";

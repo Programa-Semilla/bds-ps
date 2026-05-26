@@ -668,6 +668,22 @@ code, pre, .mono, [data-mono] {
 }
 .fl-table[data-density="reviewer"] thead th { padding-top: var(--space-3); padding-bottom: var(--space-3); }
 
+/* Documento column — long file names must not blow the reviewer table past the
+   page. The download control caps its width and the file name truncates with an
+   ellipsis; the full name stays available via the title/aria-label. */
+.fl-doc-link {
+  max-width: 14rem;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+.fl-doc-link .fl-doc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 /* Cards (FR-020) */
 .fl-card {
   background: var(--color-bg-surface);

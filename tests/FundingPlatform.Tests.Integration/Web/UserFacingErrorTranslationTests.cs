@@ -177,6 +177,57 @@ public class UserFacingErrorTranslationTests
         Assert.That(error!.Code, Is.EqualTo(UserFacingErrorCode.ApplicationNotFound));
         Assert.That(_translator.Translate(error), Is.EqualTo("Solicitud no encontrada."));
     }
+
+    // Spec 021 / FR-014 (evolution 2026-05-25) — the funding-agreement panel
+    // disabled-reason is built in the Application layer from English domain
+    // precondition strings (CanGenerate/CanRegenerateFundingAgreement). Those
+    // strings reached the applicant /Application/Details page untranslated
+    // ("Review is still in progress."). The Web translator now maps the closed
+    // set of domain strings to es-CR, avoiding the word "financiamiento" on the
+    // applicant surface (acompañamiento copy pivot).
+    [TestCase("An appeal is currently open on this application.",
+        "Hay una apelación abierta en esta solicitud.")]
+    [TestCase("Review is still in progress.",
+        "La revisión aún está en curso.")]
+    [TestCase("Applicant has not yet responded to every approved item.",
+        "Aún no se ha respondido a todos los ítems aprobados.")]
+    [TestCase("Nothing to fund: all items were rejected.",
+        "No hay ítems aprobados para incluir en el convenio.")]
+    [TestCase("No Funding Agreement exists to regenerate.",
+        "No existe un convenio para regenerar.")]
+    [TestCase("Agreement is locked: a signed upload has been submitted.",
+        "El convenio está bloqueado: ya se cargó un documento firmado.")]
+    public void TranslateAgreementDisabledReason_MapsKnownDomainStringToSpanish(
+        string english, string expected)
+    {
+        var translated = _translator.TranslateAgreementDisabledReason(english);
+
+        Assert.That(translated, Is.EqualTo(expected));
+        // NFR-001: no English fragment may survive.
+        Assert.That(translated, Does.Not.Contain("progress"));
+        Assert.That(translated, Does.Not.Contain("appeal"));
+        Assert.That(translated, Does.Not.Contain("Agreement"));
+        // Acompañamiento copy pivot: applicant surface must not say "financiamiento".
+        Assert.That(translated, Does.Not.Contain("financiamiento"));
+    }
+
+    [Test]
+    public void TranslateAgreementDisabledReason_UnknownString_FallsBackToGenericSpanish()
+    {
+        var translated = _translator.TranslateAgreementDisabledReason(
+            "Some brand-new domain precondition not yet mapped.");
+
+        Assert.That(translated, Is.EqualTo(
+            "Aún no se cumplen las condiciones para generar el convenio."));
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void TranslateAgreementDisabledReason_NullOrBlank_ReturnsNull(string? input)
+    {
+        Assert.That(_translator.TranslateAgreementDisabledReason(input), Is.Null);
+    }
 }
 
 /// <summary>

@@ -52,6 +52,11 @@ public class ItemViewModel
     public bool HasImpact { get; set; }
     public string? ReviewComment { get; set; }
 
+    /// <summary>True when the reviewer flagged the item's quotations as not
+    /// technically equivalent. Drives a localized message on Details instead of a
+    /// persisted English ReviewComment.</summary>
+    public bool IsNotTechnicallyEquivalent { get; set; }
+
     /// <summary>Spec 015 / T413 — populated from the reviewer's selection so the
     /// application-summary total can pick the right per-Item quotation. Null until
     /// the reviewer chooses a supplier on the item.</summary>
