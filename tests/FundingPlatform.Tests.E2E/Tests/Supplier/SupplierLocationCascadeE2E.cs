@@ -7,6 +7,7 @@
 using System.Text.RegularExpressions;
 using FundingPlatform.Tests.E2E.Fixtures;
 using FundingPlatform.Tests.E2E.PageObjects;
+using FundingPlatform.Tests.E2E.Support;
 using Microsoft.Data.SqlClient;
 using Microsoft.Playwright;
 
@@ -134,7 +135,7 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
     [Test]
     public async Task US1_NewSupplier_CascadeNarrows_AndPersistsLocation()
     {
-        var legalId = $"US1-{Guid.NewGuid().ToString("N")[..8]}";
+        var legalId = IdentificationData.CedulaJuridica($"US1-{Guid.NewGuid().ToString("N")[..8]}");
         await StartApplicantWithItemAsync("loc_us1");
         await ClickAddSupplierAsync();
 
@@ -190,7 +191,7 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
     [Test]
     public async Task US1_NewSupplier_IncompleteLocation_RejectedServerSide()
     {
-        var legalId = $"US1B-{Guid.NewGuid().ToString("N")[..8]}";
+        var legalId = IdentificationData.CedulaJuridica($"US1B-{Guid.NewGuid().ToString("N")[..8]}");
         await StartApplicantWithItemAsync("loc_us1b");
         await ClickAddSupplierAsync();
 
@@ -222,7 +223,7 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
     [Test]
     public async Task US2_NewBranchOnExistingSupplier_CascadePersists()
     {
-        var legalId = $"US2-{Guid.NewGuid().ToString("N")[..8]}";
+        var legalId = IdentificationData.CedulaJuridica($"US2-{Guid.NewGuid().ToString("N")[..8]}");
         await StartApplicantWithItemAsync("loc_us2");
 
         // First, create the supplier (US1 path) on item #1 so a later lookup is a Hit.
@@ -286,7 +287,7 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
     public async Task US3_AdminBranchEdit_PreselectsAndChangesLocation()
     {
         // Applicant creates a supplier (default branch carries a location from US1 path).
-        var legalId = $"US3-{Guid.NewGuid().ToString("N")[..8]}";
+        var legalId = IdentificationData.CedulaJuridica($"US3-{Guid.NewGuid().ToString("N")[..8]}");
         await StartApplicantWithItemAsync("loc_us3");
         await ClickAddSupplierAsync();
         var sp = new SupplierPage(Page);

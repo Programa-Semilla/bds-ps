@@ -18,6 +18,9 @@ public class ApplicantConfiguration : IEntityTypeConfiguration<Applicant>
         builder.Property(a => a.LegalId).IsRequired().HasMaxLength(50);
         builder.HasIndex(a => a.LegalId).IsUnique().HasDatabaseName("UX_Applicants_LegalId");
 
+        // Spec 026 — nullable byte-enum stored as TINYINT.
+        builder.Property(a => a.IdentificationType).HasConversion<byte?>();
+
         builder.Property(a => a.FirstName).IsRequired().HasMaxLength(100);
         builder.Property(a => a.LastName).IsRequired().HasMaxLength(100);
         builder.Property(a => a.Email).IsRequired().HasMaxLength(256);

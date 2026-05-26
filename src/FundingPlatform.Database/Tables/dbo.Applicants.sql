@@ -3,6 +3,7 @@ CREATE TABLE [dbo].[Applicants]
     [Id]               INT            IDENTITY(1,1) NOT NULL,
     [UserId]           NVARCHAR(450)  NOT NULL,
     [LegalId]          NVARCHAR(50)   NOT NULL,
+    [IdentificationType] TINYINT      NULL,            -- spec 026; NULL = unassigned (legacy / non-applicant-role admin user)
     [FirstName]        NVARCHAR(100)  NOT NULL,
     [LastName]         NVARCHAR(100)  NOT NULL,
     [Email]            NVARCHAR(256)  NOT NULL,

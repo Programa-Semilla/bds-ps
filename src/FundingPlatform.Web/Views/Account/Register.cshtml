@@ -1,3 +1,5 @@
+@using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.ViewModels
 @model FundingPlatform.Web.ViewModels.RegisterViewModel
 
 @{
@@ -62,10 +64,26 @@
         </div>
     </div>
 
+    @* Spec 026 — type-aware masked identification (replaces the plain LegalId input). *@
     <div class="mb-3" data-testid="form-section" data-field="LegalId">
-        <label asp-for="LegalId" class="form-label fl-type-meta"></label>
-        <input asp-for="LegalId" class="fl-input" />
-        <span asp-validation-for="LegalId" class="invalid-feedback d-block"></span>
+        @await Html.PartialAsync("_LegalIdField", new LegalIdFieldModel
+        {
+            TypeFieldName = nameof(Model.IdentificationType),
+            ValueFieldName = nameof(Model.LegalId),
+            SelectedType = Model.IdentificationType,
+            Value = Model.LegalId,
+            AllowedTypes = new[]
+            {
+                IdentificationType.CedulaFisica,
+                IdentificationType.Dimex,
+                IdentificationType.Nite,
+                IdentificationType.Pasaporte,
+            },
+            GroupId = "register-legal-id",
+            InputCssClass = "fl-input",
+            SelectCssClass = "fl-input",
+            ValidationCssClass = "invalid-feedback",
+        })
     </div>
 
     <div class="form-footer">
@@ -80,4 +98,5 @@
 @section Scripts {
     <script type="module" src="~/js/password-eye-toggle.js" asp-append-version="true" defer></script>
     <script type="module" src="~/js/password-strength-legend.js" asp-append-version="true" defer></script>
+    <script src="~/js/input-masks.js" asp-append-version="true" defer></script>
 }

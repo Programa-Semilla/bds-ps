@@ -7,6 +7,7 @@
 // smuggled form field can't reach UpdateProfileCommand.
 
 using System.ComponentModel.DataAnnotations;
+using FundingPlatform.Domain.Enums;
 
 namespace FundingPlatform.Web.ViewModels;
 
@@ -35,6 +36,10 @@ public class ProfileViewModel
     public string Role { get; init; } = "";
     public string Group { get; init; } = "";
     public string? CodigoPersonal { get; init; }
+
+    // Spec 026 — identification is admin-managed: shown read-only on /Profile.
+    public IdentificationType? IdentificationType { get; init; }
+    public string? LegalId { get; init; }
 
     // Companion form-model for the change-password panel on /Profile.
     public ChangePasswordViewModel ChangePassword { get; set; } = new();

@@ -188,11 +188,11 @@
                                                 </div>
                                                 <div class="col-md-6 mb-2">
                                                     <label class="form-label">Correo</label>
-                                                    <input class="form-control" type="email" name="Email" value="@b.Email" maxlength="256" />
+                                                    <input class="form-control" type="email" name="Email" value="@b.Email" maxlength="256" data-mask="email" />
                                                 </div>
                                                 <div class="col-md-6 mb-2">
                                                     <label class="form-label">Teléfono</label>
-                                                    <input class="form-control" type="tel" name="Phone" value="@b.Phone" maxlength="20" />
+                                                    <input class="form-control" type="tel" name="Phone" value="@b.Phone" maxlength="20" data-mask="phone-cr" />
                                                 </div>
                                                 <div class="col-md-12 mb-2">
                                                     <label class="form-label">Dirección</label>
@@ -235,4 +235,6 @@
 @section Scripts {
     @* Spec 025 — Provincia → Cantón → Distrito cascade for the per-branch edit forms. *@
     <script src="~/js/location-cascade.js" asp-append-version="true"></script>
+    @* Spec 026 — email/phone masks on the per-branch edit forms. *@
+    <script src="~/js/input-masks.js" asp-append-version="true" defer></script>
 }

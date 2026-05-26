@@ -1,5 +1,7 @@
 @using FundingPlatform.Application.Suppliers.DTOs
+@using FundingPlatform.Domain.Enums
 @using FundingPlatform.Web.Resources
+@using FundingPlatform.Web.ViewModels
 @model FundingPlatform.Web.ViewModels.AddSupplierViewModel
 
 @{
@@ -35,12 +37,24 @@
                     <h4 class="card-title">Identificación del proveedor</h4>
                     <div class="row">
                         <div class="col-md-8 mb-3">
-                            <label asp-for="SupplierLegalId" class="form-label"></label>
-                            <input asp-for="SupplierLegalId" class="form-control"
-                                   data-testid="supplier-legal-id-input"
-                                   id="supplier-legal-id-input"
-                                   autocomplete="off" />
-                            <span asp-validation-for="SupplierLegalId" class="text-danger"></span>
+                            @* Spec 026 — type-aware masked supplier identification (Cédula jurídica / NITE).
+                               The selector drives the mask on #supplier-legal-id-input; the 250 ms
+                               debounce lookup below reads that same input. *@
+                            @await Html.PartialAsync("_LegalIdField", new LegalIdFieldModel
+                            {
+                                TypeFieldName = nameof(Model.SupplierIdentificationType),
+                                ValueFieldName = nameof(Model.SupplierLegalId),
+                                SelectedType = Model.SupplierIdentificationType,
+                                Value = Model.SupplierLegalId,
+                                ValueLabel = "Identificación del proveedor",
+                                AllowedTypes = new[]
+                                {
+                                    IdentificationType.CedulaJuridica,
+                                    IdentificationType.Nite,
+                                },
+                                GroupId = "supplier-legal-id",
+                                InputId = "supplier-legal-id-input",
+                            })
                             <small class="form-hint">El sistema buscará al proveedor automáticamente.</small>
                         </div>
                     </div>
@@ -103,6 +117,9 @@
     @* Spec 025 — Provincia → Cantón → Distrito cascade. Event-delegated, so it
        drives the AJAX-injected _LookupEmpty / _BranchPicker partials too. *@
     <script src="~/js/location-cascade.js" asp-append-version="true"></script>
+    @* Spec 026 — masks (supplier identification + email/phone on injected partials),
+       event-delegated so it covers the AJAX-injected _LookupEmpty / _BranchPicker. *@
+    <script src="~/js/input-masks.js" asp-append-version="true" defer></script>
     <script>
         // Spec 013 NFR-004: 250ms-debounced legal-ID lookup. Calls the server-rendered
         // /Search partial and replaces the lookup-result region in the DOM. Vanilla JS,

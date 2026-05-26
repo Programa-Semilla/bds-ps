@@ -116,7 +116,8 @@ public class US5_ProfileAndForgotPassword : AuthenticatedTestBase
         await Expect(profile.CodigoPersonalField).ToBeDisabledAsync();
 
         // ----- Edit the four self-fields and save.
-        await profile.EditAndSaveAsync("Vivi", "Editada", "+506 8000 0000", "San José, Costa Rica");
+        // Spec 026 — the phone field is now CR-masked (8888-8888), so use a CR number.
+        await profile.EditAndSaveAsync("Vivi", "Editada", "8000-0000", "San José, Costa Rica");
 
         // After the POST, the page redirects back to /Profile with a success banner.
         await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex(@"/Profile$"));
@@ -125,7 +126,7 @@ public class US5_ProfileAndForgotPassword : AuthenticatedTestBase
         // Verify the input values came back as the edited ones.
         await Expect(profile.FirstNameInput).ToHaveValueAsync("Vivi");
         await Expect(profile.LastNameInput).ToHaveValueAsync("Editada");
-        await Expect(profile.PhoneInput).ToHaveValueAsync("+506 8000 0000");
+        await Expect(profile.PhoneInput).ToHaveValueAsync("8000-0000");
         await Expect(profile.AddressInput).ToHaveValueAsync("San José, Costa Rica");
     }
 

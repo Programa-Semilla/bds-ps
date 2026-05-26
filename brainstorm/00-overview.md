@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-22
+Last updated: 2026-05-24
 
 ## Sessions
 
@@ -29,8 +29,13 @@ Last updated: 2026-05-22
 | 21 | 2026-05-20 | quotation-edit | spec-created | 023 |
 | 22 | 2026-05-21 | applicant-delete-withdrawal | spec-created | 021-feedback-session-may13 |
 | 23 | 2026-05-22 | toast-confirm-dialogs | spec-created | 024 |
+| 24 | 2026-05-24 | input-masks | spec-created | 026 |
 
 ## Open Threads
+
+- Domain placement of the identification type↔shape invariant: value object vs entity guard, ViewModel attributes echoing it — settle in planning (from #24)
+- Profile identification editable vs display-only (Profile email is currently read-only / admin-managed) (from #24)
+- Optional deferred soft hint: warn when a 10-digit ID's leading digit is atypical for the chosen type (jurídica usually starts `3`) (from #24)
 
 - Should there be a maximum number of items per application? (from #01)
 - Should there be a maximum number of suppliers per item beyond the minimum? (from #01)

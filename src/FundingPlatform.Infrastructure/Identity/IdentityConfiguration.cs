@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -88,11 +89,12 @@ public static class IdentityConfiguration
         var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var dbContext = serviceProvider.GetRequiredService<AppDbContext>();
 
+        // Spec 026 — demo applicants carry valid canonical cédulas físicas + type.
         var seedUsers = new[]
         {
-            new { Email = "applicant@programa-semilla.test", Password = "Demo123!", FirstName = "Ana", LastName = "Pérez", LegalId = "DEMO-APP-001", Roles = new[] { "Applicant" } },
-            new { Email = "reviewer@programa-semilla.test", Password = "Demo123!", FirstName = "Carlos", LastName = "Rivera", LegalId = "DEMO-REV-001", Roles = new[] { "Reviewer" } },
-            new { Email = "demo-admin@programa-semilla.test", Password = "Demo123!", FirstName = "María", LastName = "Torres", LegalId = "DEMO-ADM-001", Roles = new[] { "Admin" } },
+            new { Email = "applicant@programa-semilla.test", Password = "Demo123!", FirstName = "Ana", LastName = "Pérez", LegalId = "1-0001-0001", IdType = IdentificationType.CedulaFisica, Roles = new[] { "Applicant" } },
+            new { Email = "reviewer@programa-semilla.test", Password = "Demo123!", FirstName = "Carlos", LastName = "Rivera", LegalId = "1-0001-0002", IdType = IdentificationType.CedulaFisica, Roles = new[] { "Reviewer" } },
+            new { Email = "demo-admin@programa-semilla.test", Password = "Demo123!", FirstName = "María", LastName = "Torres", LegalId = "1-0001-0003", IdType = IdentificationType.CedulaFisica, Roles = new[] { "Admin" } },
         };
 
         foreach (var seed in seedUsers)
@@ -120,7 +122,8 @@ public static class IdentityConfiguration
                     lastName: seed.LastName,
                     email: seed.Email,
                     phone: null,
-                    performanceScore: null));
+                    performanceScore: null,
+                    identificationType: seed.IdType));
             }
         }
 

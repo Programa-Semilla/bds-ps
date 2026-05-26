@@ -219,11 +219,12 @@ public class UserAdministrationService : IUserAdministrationService
                     lastName: request.LastName,
                     email: request.Email,
                     phone: request.Phone,
-                    performanceScore: null));
+                    performanceScore: null,
+                    identificationType: request.IdentificationType));
             }
             else
             {
-                existingApplicant.UpdateProfile(request.LegalId!, request.FirstName, request.LastName, request.Email, request.Phone);
+                existingApplicant.UpdateProfile(request.LegalId!, request.FirstName, request.LastName, request.Email, request.Phone, request.IdentificationType);
             }
             await _dbContext.SaveChangesAsync(ct);
         }
@@ -408,18 +409,24 @@ public class UserAdministrationService : IUserAdministrationService
                     lastName: request.LastName,
                     email: request.Email,
                     phone: request.Phone,
-                    performanceScore: null));
+                    performanceScore: null,
+                    identificationType: request.IdentificationType));
             }
             else
             {
-                if (!string.Equals(applicant.LegalId, request.LegalId, StringComparison.Ordinal)
-                    && await _dbContext.Applicants.AnyAsync(a => a.LegalId == request.LegalId && a.UserId != target.Id, ct))
+                // Compare against the canonical form so a re-typed hyphenation variant
+                // does not register as a change (spec 026 canonical legal ID).
+                var canonicalNew = request.IdentificationType is { } t && !string.IsNullOrWhiteSpace(request.LegalId)
+                    ? Domain.ValueObjects.Identification.From(t, request.LegalId).Value
+                    : request.LegalId;
+                if (!string.Equals(applicant.LegalId, canonicalNew, StringComparison.Ordinal)
+                    && await _dbContext.Applicants.AnyAsync(a => a.LegalId == canonicalNew && a.UserId != target.Id, ct))
                 {
                     return Result<UserDetailDto>.Failure(
                         new DomainError("LEGAL_ID_IN_USE", nameof(UpdateUserRequest.LegalId),
                             "Legal ID already in use by another applicant."));
                 }
-                applicant.UpdateProfile(request.LegalId!, request.FirstName, request.LastName, request.Email, request.Phone);
+                applicant.UpdateProfile(request.LegalId!, request.FirstName, request.LastName, request.Email, request.Phone, request.IdentificationType);
             }
             await _dbContext.SaveChangesAsync(ct);
         }
@@ -548,12 +555,15 @@ public class UserAdministrationService : IUserAdministrationService
         var roles = await _userManager.GetRolesAsync(user);
         var role = SelectPrimaryRole(roles);
         string? legalId = null;
+        Domain.Enums.IdentificationType? identificationType = null;
         if (string.Equals(role, ApplicantRole, StringComparison.Ordinal))
         {
-            legalId = await _dbContext.Applicants
+            var applicantRow = await _dbContext.Applicants
                 .Where(a => a.UserId == user.Id)
-                .Select(a => a.LegalId)
+                .Select(a => new { a.LegalId, a.IdentificationType })
                 .FirstOrDefaultAsync(ct);
+            legalId = applicantRow?.LegalId;
+            identificationType = applicantRow?.IdentificationType;
         }
         var status = IsDisabled(user, DateTimeOffset.UtcNow) ? "Disabled" : "Active";
         // Spec 016 — surface current memberships so the edit form pre-selects them.
@@ -573,7 +583,8 @@ public class UserAdministrationService : IUserAdministrationService
             LegalId: legalId,
             MustChangePassword: user.MustChangePassword,
             GroupIds: groupIds,
-            ConcurrencyStamp: user.ConcurrencyStamp);
+            ConcurrencyStamp: user.ConcurrencyStamp,
+            IdentificationType: identificationType);
     }
 
     /// <summary>

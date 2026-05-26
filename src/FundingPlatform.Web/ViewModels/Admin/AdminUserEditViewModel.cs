@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using FundingPlatform.Domain.Enums;
+using FundingPlatform.Web.Validation;
 
 namespace FundingPlatform.Web.ViewModels.Admin;
 
@@ -31,8 +33,13 @@ public class AdminUserEditViewModel
     [Display(Name = "Rol")]
     public string Role { get; set; } = "Applicant";
 
-    [StringLength(50, ErrorMessage = "La cédula debe tener máximo {1} caracteres.")]
-    [Display(Name = "Cédula")]
+    // Spec 026 — identification type; required (with the value) only when Role=Applicant.
+    [Display(Name = "Tipo de identificación")]
+    public IdentificationType? IdentificationType { get; set; }
+
+    [StringLength(50, ErrorMessage = "La identificación debe tener máximo {1} caracteres.")]
+    [Display(Name = "Identificación")]
+    [IdentificationFormat]
     public string? LegalId { get; set; }
 
     /// <summary>Spec 016 / FR-008 / FR-010 — selected group ids.</summary>

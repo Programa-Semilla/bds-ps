@@ -128,7 +128,8 @@ public class SupplierCatalogService
     /// pointing at the now-existing supplier (R4 concurrent-insert recovery).
     /// </summary>
     public async Task<CreateDraftResult> CreateDraftWithBranchAsync(
-        string legalId, string name, AddBranchInput firstBranch, int createdByApplicantId)
+        string legalId, string name, AddBranchInput firstBranch, int createdByApplicantId,
+        IdentificationType? identificationType = null)
     {
         ArgumentNullException.ThrowIfNull(firstBranch);
 
@@ -150,7 +151,11 @@ public class SupplierCatalogService
             firstBranchCantonId: firstBranch.CantonId,
             firstBranchDistrictId: firstBranch.DistrictId,
             firstBranchCanton: firstBranch.Canton,
-            firstBranchDistrict: firstBranch.District);
+            firstBranchDistrict: firstBranch.District,
+            // Spec 026 — persist the supplier identification kind. The legal ID is
+            // already canonical (NormalizeLegalId == VO canonical for the 10-digit
+            // jurídica/NITE shape), so the VO inside CreateDraft is idempotent.
+            identificationType: identificationType);
 
         try
         {

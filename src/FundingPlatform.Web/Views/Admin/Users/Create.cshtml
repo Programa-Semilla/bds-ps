@@ -1,4 +1,6 @@
+@using FundingPlatform.Domain.Enums
 @using FundingPlatform.Web.Resources
+@using FundingPlatform.Web.ViewModels
 @using FundingPlatform.Web.ViewModels.Admin
 @model AdminUserCreateViewModel
 @{
@@ -40,12 +42,12 @@
         </div>
         <div class="col-md-6 mb-3">
             <label class="form-label" asp-for="Email">Correo electrónico</label>
-            <input asp-for="Email" class="form-control" type="email" />
+            <input asp-for="Email" class="form-control" type="email" data-mask="email" />
             <span asp-validation-for="Email" class="text-danger"></span>
         </div>
         <div class="col-md-6 mb-3">
             <label class="form-label" asp-for="Phone">Teléfono (opcional)</label>
-            <input asp-for="Phone" class="form-control" type="tel" />
+            <input asp-for="Phone" class="form-control" type="tel" data-mask="phone-cr" />
             <span asp-validation-for="Phone" class="text-danger"></span>
         </div>
         <div class="col-md-6 mb-3">
@@ -58,10 +60,24 @@
             </select>
             <span asp-validation-for="Role" class="text-danger"></span>
         </div>
+        @* Spec 026 — type-aware masked identification (shown only for the Applicant role via the JS below). *@
         <div class="col-md-6 mb-3" data-testid="legalid-field" id="legalIdField">
-            <label class="form-label" asp-for="LegalId">Cédula (obligatoria para solicitantes)</label>
-            <input asp-for="LegalId" class="form-control" />
-            <span asp-validation-for="LegalId" class="text-danger"></span>
+            @await Html.PartialAsync("_LegalIdField", new LegalIdFieldModel
+            {
+                TypeFieldName = nameof(Model.IdentificationType),
+                ValueFieldName = nameof(Model.LegalId),
+                SelectedType = Model.IdentificationType,
+                Value = Model.LegalId,
+                ValueLabel = "Identificación (obligatoria para solicitantes)",
+                AllowedTypes = new[]
+                {
+                    IdentificationType.CedulaFisica,
+                    IdentificationType.Dimex,
+                    IdentificationType.Nite,
+                    IdentificationType.Pasaporte,
+                },
+                GroupId = "admin-legal-id",
+            })
         </div>
 
         <div class="col-md-12 mb-3" data-testid="admin-user-groups-field" id="groupsField">
@@ -121,3 +137,4 @@
         }
     })();
 </script>
+<script src="~/js/input-masks.js" asp-append-version="true" defer></script>

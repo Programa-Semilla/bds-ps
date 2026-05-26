@@ -47,7 +47,9 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult Register()
     {
-        return View();
+        // Spec 026 — the view dereferences the model (identification partial), so a
+        // non-null instance is required (GET previously returned View() with null).
+        return View(new RegisterViewModel());
     }
 
     [HttpPost]
@@ -79,6 +81,7 @@ public class AccountController : Controller
 
         await _userManager.AddToRoleAsync(user, "Applicant");
 
+        // Spec 026 — route the legal ID through the Identification VO via the typed ctor.
         var applicant = new Applicant(
             userId: user.Id,
             legalId: model.LegalId,
@@ -86,7 +89,8 @@ public class AccountController : Controller
             lastName: model.LastName,
             email: model.Email,
             phone: null,
-            performanceScore: null);
+            performanceScore: null,
+            identificationType: model.IdentificationType);
 
         _dbContext.Applicants.Add(applicant);
         await _dbContext.SaveChangesAsync();
@@ -463,6 +467,13 @@ public class AccountController : Controller
         var claims = await _userManager.GetClaimsAsync(user);
         var address = claims.FirstOrDefault(c => c.Type == "profile.address")?.Value;
 
+        // Spec 026 — identification is admin-managed; surface it read-only.
+        var applicant = await _dbContext.Applicants
+            .AsNoTracking()
+            .Where(a => a.UserId == user.Id)
+            .Select(a => new { a.LegalId, a.IdentificationType })
+            .FirstOrDefaultAsync();
+
         return new ProfileViewModel
         {
             FirstName = user.FirstName,
@@ -473,6 +484,8 @@ public class AccountController : Controller
             Role = roleLabel is null ? "—" : DisplayRole(roleLabel),
             Group = groupLabel,
             CodigoPersonal = user.CodigoPersonal,
+            LegalId = applicant?.LegalId,
+            IdentificationType = applicant?.IdentificationType,
         };
     }
 

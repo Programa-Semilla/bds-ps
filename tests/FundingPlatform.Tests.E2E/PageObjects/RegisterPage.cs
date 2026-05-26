@@ -21,6 +21,8 @@ public class RegisterPage : BasePage
     public ILocator ConfirmPasswordInput => Page.Locator("[name=ConfirmPassword]");
     public ILocator FirstNameInput => Page.Locator("[name=FirstName]");
     public ILocator LastNameInput => Page.Locator("[name=LastName]");
+    // Spec 026 — identification type selector + masked value input.
+    public ILocator IdentificationTypeSelect => Page.Locator("[name=IdentificationType]");
     public ILocator LegalIdInput => Page.Locator("[name=LegalId]");
     public ILocator SubmitButton => Page.Locator("main button[type=submit]");
 
@@ -29,13 +31,21 @@ public class RegisterPage : BasePage
         await Page.GotoAsync($"{baseUrl}/Account/Register");
     }
 
-    public async Task RegisterAsync(string email, string password, string firstName, string lastName, string legalId)
+    /// <summary>
+    /// Spec 026 — <paramref name="identificationType"/> is the enum member name
+    /// (CedulaFisica / Dimex / Nite / Pasaporte). <paramref name="legalId"/> must be
+    /// a valid canonical value for that type.
+    /// </summary>
+    public async Task RegisterAsync(
+        string email, string password, string firstName, string lastName, string legalId,
+        string identificationType = "CedulaFisica")
     {
         await EmailInput.FillAsync(email);
         await PasswordInput.FillAsync(password);
         await ConfirmPasswordInput.FillAsync(password);
         await FirstNameInput.FillAsync(firstName);
         await LastNameInput.FillAsync(lastName);
+        await IdentificationTypeSelect.SelectOptionAsync(identificationType);
         await LegalIdInput.FillAsync(legalId);
         await SubmitButton.ClickAsync();
     }

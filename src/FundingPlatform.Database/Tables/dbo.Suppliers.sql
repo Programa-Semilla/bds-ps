@@ -2,6 +2,7 @@ CREATE TABLE [dbo].[Suppliers]
 (
     [Id]                       INT             IDENTITY(1,1) NOT NULL,
     [LegalId]                  NVARCHAR(50)    NOT NULL,
+    [IdentificationType]       TINYINT         NULL,            -- spec 026; NULL = unassigned (legacy row)
     [Name]                     NVARCHAR(300)   NOT NULL,
     [HasElectronicInvoice]     BIT             NOT NULL CONSTRAINT [DF_Suppliers_HasElectronicInvoice] DEFAULT (0),
     [IsCompliantCCSS]          BIT             NOT NULL CONSTRAINT [DF_Suppliers_IsCompliantCCSS] DEFAULT (0),

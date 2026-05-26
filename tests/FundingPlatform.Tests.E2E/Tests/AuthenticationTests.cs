@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using FundingPlatform.Tests.E2E.Fixtures;
 using FundingPlatform.Tests.E2E.PageObjects;
+using FundingPlatform.Tests.E2E.Support;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.Tests;
@@ -15,7 +16,7 @@ public class AuthenticationTests : AuthenticatedTestBase
         var password = "Test123!";
         var firstName = "Test";
         var lastName = "User";
-        var legalId = $"LID-{uniqueId}";
+        var legalId = IdentificationData.CedulaFisica($"LID-{uniqueId}");
 
         // Register
         var registerPage = new RegisterPage(Page);
