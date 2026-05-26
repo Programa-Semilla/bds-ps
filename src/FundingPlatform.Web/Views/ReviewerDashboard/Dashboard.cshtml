@@ -5,8 +5,10 @@
 }
 @*
     Spec 021 / US6 / T138 / FR-033 / SC-010 — reviewer dashboard surface that
-    hosts the *Cotizaciones pendientes* KPI tile. The tile moved here from
-    the admin dashboard (R-12); admin no longer projects this counter.
+    hosts the *Solicitudes pendientes* KPI tile. The tile moved here from the
+    admin dashboard (R-12); admin no longer projects this counter. Evolved
+    2026-05-25: counts Submitted applications (units of pending work), not
+    individual quotations.
 *@
 
 @await Html.PartialAsync("Components/_PageHeader",
@@ -19,11 +21,11 @@
         <div class="col-sm-6 col-lg-4">
             @await Html.PartialAsync("Components/_KpiTile",
                 new KpiTileViewModel(
-                    Label: "Cotizaciones pendientes",
+                    Label: "Solicitudes pendientes",
                     NumericValue: Model,
                     Stack: null,
                     Href: Url.Action("Index", "Review"),
-                    Slug: "pending-quotations"))
+                    Slug: "pending-applications"))
         </div>
     </div>
 

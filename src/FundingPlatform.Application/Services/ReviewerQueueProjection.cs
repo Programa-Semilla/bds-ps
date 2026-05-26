@@ -99,7 +99,7 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
         var recent = allCandidates
             .SelectMany(a => a.VersionHistory.Select(v => new ReviewerActivityEvent(
                 Occurred: new DateTimeOffset(v.Timestamp, TimeSpan.Zero),
-                Title: v.Action,
+                Title: ActivityActionCopy.Title(v.Action),
                 ApplicantName: FormatApplicantName(a.Applicant),
                 ApplicationNumber: $"APP-{a.Id:D5}",
                 DeepLinkHref: ReviewRoutes.DeepLinkFor(a.Id, v.Id))))
@@ -164,7 +164,7 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
                 JourneyMicro: micro,
                 DaysInCurrentState: _journey.DaysInCurrentState(a, now),
                 LastActivity: a.UpdatedAt == default ? DateTimeOffset.UtcNow : new DateTimeOffset(a.UpdatedAt, TimeSpan.Zero),
-                PrimaryAction: new ContextualAction("Review", ReviewRoutes.PathFor(a.Id), ContextualActionStyle.Primary),
+                PrimaryAction: new ContextualAction("Revisar", ReviewRoutes.PathFor(a.Id), ContextualActionStyle.Primary),
                 TotalConvertedCrc: totalCrc,
                 HasNonCrcQuotation: hasNonCrc);
         }).ToList();
@@ -173,11 +173,11 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
 
     private static string FormatApplicantName(Applicant? applicant)
     {
-        if (applicant is null) return "Applicant";
+        if (applicant is null) return "Solicitante";
         var first = applicant.FirstName ?? string.Empty;
         var last = applicant.LastName ?? string.Empty;
         var full = $"{first} {last}".Trim();
-        return string.IsNullOrEmpty(full) ? "Applicant" : full;
+        return string.IsNullOrEmpty(full) ? "Solicitante" : full;
     }
 
     private async Task<int> GetAgingThresholdAsync()

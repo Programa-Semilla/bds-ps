@@ -209,10 +209,11 @@
                                        auth is enforced server-side. *@
                                     <a asp-action="DownloadQuotation" asp-controller="Review"
                                        asp-route-quotationId="@q.QuotationId"
-                                       class="btn btn-sm btn-outline-secondary"
+                                       class="btn btn-sm btn-outline-secondary fl-doc-link"
                                        data-testid="review-quotation-download-@q.QuotationId"
-                                       aria-label="Descargar archivo de @q.SupplierName">
-                                        <i class="ti ti-download me-1"></i>@q.DocumentFileName
+                                       title="@q.DocumentFileName"
+                                       aria-label="Descargar archivo de @q.SupplierName (@q.DocumentFileName)">
+                                        <i class="ti ti-download me-1"></i><span class="fl-doc-name">@q.DocumentFileName</span>
                                     </a>
                                 </td>
                                 <td>

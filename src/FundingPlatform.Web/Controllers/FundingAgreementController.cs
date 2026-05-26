@@ -699,7 +699,10 @@ public class FundingAgreementController : Controller
             AgreementDownloadUrl = downloadUrl,
             CanGenerate = dto.CanGenerate,
             CanRegenerate = dto.CanRegenerate,
-            DisabledReason = dto.DisabledReason,
+            // dto.DisabledReason is an English domain precondition string
+            // (NFR-001). Localize at the Web boundary before it renders on the
+            // applicant /Application/Details panel (FR-014).
+            DisabledReason = _errorTranslator.TranslateAgreementDisabledReason(dto.DisabledReason),
             GeneratedAtUtc = dto.GeneratedAtUtc,
             GeneratedByDisplayName = dto.GeneratedByDisplayName,
             GeneratedVersion = dto.GeneratedVersion,

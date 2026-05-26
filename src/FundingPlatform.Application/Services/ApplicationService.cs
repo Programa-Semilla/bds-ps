@@ -976,7 +976,8 @@ public class ApplicationService
                 SupplierBranchId: q.SupplierBranchId)).ToList(),
             applicationImpactDto,
             item.ReviewComment,
-            item.SelectedSupplierId)).ToList();
+            item.SelectedSupplierId,
+            item.IsNotTechnicallyEquivalent)).ToList();
 
         return new ApplicationDto(
             application.Id,

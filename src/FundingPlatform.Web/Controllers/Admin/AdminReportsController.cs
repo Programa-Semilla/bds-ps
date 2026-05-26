@@ -6,6 +6,7 @@ using FundingPlatform.Application.Admin.Reports.DTOs;
 using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Exceptions;
 using FundingPlatform.Web.Filters;
+using FundingPlatform.Web.Helpers;
 using FundingPlatform.Web.ViewModels.Admin.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -31,8 +32,11 @@ public class AdminReportsController : Controller
         var range = new DateRange(from ?? today.AddDays(-30), to ?? today);
         var result = await _reportsService.GetDashboardAsync(range, ct);
 
+        // es-CR: render the pipeline state as its Spanish label (the same
+        // StatusVisualMap source the _StatusPill uses) instead of the English
+        // enum name (p.State.ToString()) that leaked onto the dashboard.
         var pipelineTiles = result.Pipeline
-            .Select(p => new KpiTileViewModel(p.State.ToString(), p.Count, null))
+            .Select(p => new KpiTileViewModel(StatusVisualMap.For(p.State).DisplayLabel, p.Count, null))
             .ToList();
 
         var financialTiles = result.Financial

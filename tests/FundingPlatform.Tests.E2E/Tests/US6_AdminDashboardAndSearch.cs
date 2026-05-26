@@ -66,7 +66,8 @@ public class US6_AdminDashboardAndSearch : AuthenticatedTestBase
 
         await Page.GotoAsync($"{BaseUrl}/Reviewer/Dashboard");
         await Expect(Page.Locator("[data-testid=\"reviewer-dashboard\"]")).ToBeVisibleAsync();
-        await Expect(Page.Locator("[data-testid=\"admin-kpi-pending-quotations\"]")).ToBeVisibleAsync();
+        // FR-033 (evolved) — the pending tile now counts Submitted applications.
+        await Expect(Page.Locator("[data-testid=\"admin-kpi-pending-applications\"]")).ToBeVisibleAsync();
     }
 
     [Test]

@@ -57,6 +57,30 @@ public class ReviewerQueueProjectionHrefTests
         Assert.That(href, Does.Not.Contain("/Review/Review/"));
     }
 
+    [Test]
+    public async Task GetForReviewerAsync_RecentActivityTitle_AndRowAction_RenderInSpanish()
+    {
+        var (projection, _) = BuildProjectionWithSingleSubmittedApplication(applicationId: 42, withVersionEvent: true);
+
+        var dto = await projection.GetForReviewerAsync(
+            reviewerId: "reviewer-1",
+            firstName: "Reviewer",
+            filter: ReviewerFilter.All,
+            scope: ReviewerScope.Admin,
+            searchTerm: null,
+            ct: CancellationToken.None);
+
+        // es-CR: the activity title is the localized event copy, not the raw
+        // internal VersionHistory action ("Submitted") that leaked before.
+        Assert.That(dto.RecentActivity, Is.Not.Empty);
+        Assert.That(dto.RecentActivity[0].Title, Is.EqualTo("Solicitud enviada"));
+        Assert.That(dto.RecentActivity[0].Title, Does.Not.Contain("Submitted"));
+
+        // es-CR: the row CTA label must be Spanish ("Revisar"), not "Review".
+        Assert.That(dto.Rows, Has.Count.EqualTo(1));
+        Assert.That(dto.Rows[0].PrimaryAction.Label, Is.EqualTo("Revisar"));
+    }
+
     private static (ReviewerQueueProjection Projection, AppEntity App) BuildProjectionWithSingleSubmittedApplication(
         int applicationId,
         bool withVersionEvent = false)

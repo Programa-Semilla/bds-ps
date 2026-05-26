@@ -9,8 +9,10 @@ namespace FundingPlatform.Infrastructure.Persistence;
 
 /// <summary>
 /// Spec 021 / US6 / T136 / FR-033 / SC-010 (R-12) — EF implementation of the
-/// reviewer-dashboard projection. The pending-quotation tile that previously
-/// lived on the admin dashboard now renders here; single source of truth.
+/// reviewer-dashboard projection. The "pending" tile that previously lived on
+/// the admin dashboard now renders here; single source of truth. Evolved
+/// 2026-05-25 to count Submitted *applications* rather than individual
+/// quotations.
 /// </summary>
 public sealed class ReviewerDashboardProjection : IReviewerDashboardProjection
 {
@@ -23,21 +25,15 @@ public sealed class ReviewerDashboardProjection : IReviewerDashboardProjection
         _queryFilter = queryFilter;
     }
 
-    public Task<int> CountPendingQuotationsAsync(CancellationToken ct)
+    public Task<int> CountPendingApplicationsAsync(CancellationToken ct)
     {
-        // Quotations awaiting reviewer action = quotations on Items belonging
-        // to a non-soft-deleted Application in Submitted state. UnderReview is
-        // a reviewer-active state but the queue counter (FR-033 / R-12) names
-        // the *pending* set, i.e. not-yet-picked-up.
-        var apps = _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking())
-            .Where(a => a.State == ApplicationState.Submitted);
-
-        var query =
-            from q in _db.Quotations.AsNoTracking()
-            join i in _db.Items.AsNoTracking() on q.ItemId equals i.Id
-            join a in apps on i.ApplicationId equals a.Id
-            select q.Id;
-
-        return query.CountAsync(ct);
+        // Pending review work = non-soft-deleted Applications in Submitted state
+        // (not-yet-picked-up). Count APPLICATIONS, not quotations: an application
+        // with several competing quotes on an item is one unit of pending work,
+        // not many (FR-033 evolution 2026-05-25). UnderReview is reviewer-active,
+        // so it is excluded from the *pending* set.
+        return _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking())
+            .Where(a => a.State == ApplicationState.Submitted)
+            .CountAsync(ct);
     }
 }

@@ -2,6 +2,7 @@
 
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Applications.Queries;
+using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -73,22 +74,14 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
                 q.Currency,
                 q.ConvertedCrcAmount)).ToList())).ToList();
 
-        decimal? totalCrc = null;
-        var hasNonCrcQuotation = false;
-        foreach (var item in application.Items)
-        {
-            foreach (var q in item.Quotations)
-            {
-                if (!string.Equals(q.Currency, "CRC", StringComparison.OrdinalIgnoreCase))
-                {
-                    hasNonCrcQuotation = true;
-                }
-                if (q.ConvertedCrcAmount is { } amt)
-                {
-                    totalCrc = (totalCrc ?? 0m) + amt;
-                }
-            }
-        }
+        // The /review page renders before any reviewer selects a supplier, so
+        // each item still holds its competing quotations. Reuse the single
+        // source of truth for the rollup (ApplicationCurrencyTotal) in its
+        // pre-selection "cheapest quote per item" mode — the previous inline
+        // loop summed EVERY quote, N-counting each item and producing a total
+        // that no eventual purchase could match (spec 021 / FR-022).
+        var (totalCrc, hasNonCrcQuotation) =
+            ApplicationCurrencyTotal.ComputeCheapestEstimate(application);
 
         var impactSummary = application.ImpactTemplate is null
             ? null
