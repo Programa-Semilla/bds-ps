@@ -101,10 +101,10 @@ tests/
 | "Starters" reuses the existing applications listing (US8) | No standalone applications-list controller exists today | Thin nav-reachable route to the existing Reports Applications view filtered by Process, rather than a brand-new surface. **Route form needs user confirmation.** |
 | US5 last-write-wins (no concurrency token) | Single low-contention scalar (`CodigoPersonal`); concurrent reviewer edits are rare and non-destructive | Skip optimistic concurrency here (constitution quality-gate exception is documented in spec edge cases) rather than add a rowversion for one field |
 
-## Open items surfaced for the user (plan review)
-1. Confirm the **Starters** route form (deep-link to Reports Applications tab w/ `processId` vs a thin dedicated action).
-2. Confirm **deferral** of process-scoped Reportes/Plantillas (recommended) vs build-now (expands scope).
-3. Confirm US2 reject-comment UX interplay with the confirm dialog (gate confirm on filled comment vs rely on server-side enforcement).
+## Plan-review decisions (confirmed by stakeholder 2026-05-26)
+1. **Starters route** — RESOLVED: deep-link to the existing Reports "Applications" view filtered by `processId` (add minimal URL/query support if the tab is not yet addressable); no new standalone surface. (tasks T035)
+2. **Process-scoped Reportes/Plantillas** — RESOLVED: **deferred** to a future spec. Proceso shows Grupos / Starters / Plantillas de impacto / Cotizaciones pendientes; admin-wide Reportes + Plantillas base stay under Administración. (sidebar-structure.md option a)
+3. **US2 reject-comment × confirm** — RESOLVED: keep server-side comment enforcement as the backstop; gate the confirm on a filled comment only if the modal intercepts HTML5 validation. (tasks T008)
 
 ## Phase 2 note
 `/speckit-tasks` generates `tasks.md` (per-user-story, dependency-ordered). Not created by this command.
