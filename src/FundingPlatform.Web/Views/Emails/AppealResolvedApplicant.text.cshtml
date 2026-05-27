@@ -1,0 +1,28 @@
+@{
+    ViewData["DisableLayout"] = true;
+}Resolución de tu apelación — Solicitud #@Model.Payload.ApplicationId
+
+Hola @Model.Recipient.DisplayName,
+@switch (Model.Payload.OutcomeCode)
+{
+    case "AppealReopenedToDraft":
+        @:Tu apelación sobre la solicitud #@Model.Payload.ApplicationId fue concedida. Tu solicitud se reabrió como borrador para que la actualices y la vuelvas a enviar.
+        break;
+    case "AppealReopenedToReview":
+        @:Tu apelación sobre la solicitud #@Model.Payload.ApplicationId fue concedida. Tu solicitud volvió a revisión; el equipo la analizará nuevamente y te informaremos del resultado.
+        break;
+    default:
+        @:Tu apelación sobre la solicitud #@Model.Payload.ApplicationId fue revisada y la resolución se mantuvo. Podés consultar los detalles desde tu panel.
+        break;
+}
+
+Ver tu solicitud:
+@Model.CtaUrl
+
+Saludos cordiales,
+Programa Semilla
+Sistema de Banca para el Desarrollo
+
+—
+Para soporte: soporte@@programa-semilla.cr
+Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.

@@ -212,9 +212,10 @@ public class SignedUploadService
             SignedCategory, key, command.Content, command.ContentType,
             command.Size, CancellationToken.None);
 
+        SignedUpload upload;
+        VersionHistory vhRow;
         try
         {
-            SignedUpload upload;
             try
             {
                 upload = application.SubmitSignedUpload(
@@ -230,7 +231,7 @@ public class SignedUploadService
                 return ValidationFromDomain(ex.Message);
             }
 
-            application.AddVersionHistory(new VersionHistory(
+            vhRow = new VersionHistory(
                 command.UserId,
                 SigningAuditActions.SignedAgreementUploaded,
                 SerializeDetails(new Dictionary<string, object?>
@@ -239,7 +240,8 @@ public class SignedUploadService
                     ["generatedVersion"] = command.GeneratedVersion,
                     ["fileName"] = command.FileName,
                     ["size"] = command.Size
-                })));
+                }));
+            application.AddVersionHistory(vhRow);
 
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
@@ -247,8 +249,6 @@ public class SignedUploadService
             _logger.LogInformation(
                 "Signed agreement uploaded. applicationId={ApplicationId} actingUserId={UserId} signedUploadId={SignedUploadId}",
                 application.Id, command.UserId, upload.Id);
-
-            return new SignedUploadResult(true, null, false, false, upload.Id);
         }
         catch (Exception ex) when (IsConcurrencyException(ex))
         {
@@ -260,6 +260,15 @@ public class SignedUploadService
             await TryDeleteAsync(key);
             throw;
         }
+
+        // Spec 028 / US3 / FR-007 — notify reviewers + admins (actor = applicant).
+        // Placed after the blob-cleanup try/catch: the upload is committed, so a
+        // notification-save failure must NOT delete the persisted blob.
+        await EnqueueSigningReviewerAsync(
+            application, NotificationEvent.SignedUploadSubmittedReviewer,
+            vhRow.Id, actorUserId: command.UserId);
+
+        return new SignedUploadResult(true, null, false, false, upload.Id);
     }
 
     public async Task<SignedUploadResult> ReplaceAsync(ReplaceSignedUploadCommand command)
@@ -290,9 +299,10 @@ public class SignedUploadService
             SignedCategory, key, command.Content, command.ContentType,
             command.Size, CancellationToken.None);
 
+        SignedUpload newUpload;
+        VersionHistory vhRow;
         try
         {
-            SignedUpload newUpload;
             var supersededId = pending.Id;
             try
             {
@@ -309,7 +319,7 @@ public class SignedUploadService
                 return ValidationFromDomain(ex.Message);
             }
 
-            application.AddVersionHistory(new VersionHistory(
+            vhRow = new VersionHistory(
                 command.UserId,
                 SigningAuditActions.SignedUploadReplaced,
                 SerializeDetails(new Dictionary<string, object?>
@@ -317,12 +327,11 @@ public class SignedUploadService
                     ["supersededId"] = supersededId,
                     ["newSignedUploadId"] = 0,
                     ["generatedVersion"] = command.GeneratedVersion
-                })));
+                }));
+            application.AddVersionHistory(vhRow);
 
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
-
-            return new SignedUploadResult(true, null, false, false, newUpload.Id);
         }
         catch (Exception ex) when (IsConcurrencyException(ex))
         {
@@ -334,6 +343,15 @@ public class SignedUploadService
             await TryDeleteAsync(key);
             throw;
         }
+
+        // Spec 028 / US3 / FR-008 — notify reviewers + admins (actor = applicant).
+        // After the blob-cleanup try/catch so a notification-save failure never
+        // deletes the committed replacement blob.
+        await EnqueueSigningReviewerAsync(
+            application, NotificationEvent.SignedUploadReplacedReviewer,
+            vhRow.Id, actorUserId: command.UserId);
+
+        return new SignedUploadResult(true, null, false, false, newUpload.Id);
     }
 
     public async Task<SignedUploadResult> WithdrawAsync(WithdrawSignedUploadCommand command)
@@ -357,18 +375,24 @@ public class SignedUploadService
             return ValidationFromDomain(ex.Message);
         }
 
-        application.AddVersionHistory(new VersionHistory(
+        var vhRow = new VersionHistory(
             command.UserId,
             SigningAuditActions.SignedUploadWithdrawn,
             SerializeDetails(new Dictionary<string, object?>
             {
                 ["signedUploadId"] = pending.Id
-            })));
+            }));
+        application.AddVersionHistory(vhRow);
 
         try
         {
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+
+            // Spec 028 / US3 / FR-009 — notify reviewers + admins (actor = applicant).
+            await EnqueueSigningReviewerAsync(
+                application, NotificationEvent.SignedUploadWithdrawnReviewer,
+                vhRow.Id, actorUserId: command.UserId);
         }
         catch (Exception ex) when (IsConcurrencyException(ex))
         {
@@ -401,19 +425,26 @@ public class SignedUploadService
             return ValidationFromDomain(ex.Message);
         }
 
-        application.AddVersionHistory(new VersionHistory(
+        var vhRow = new VersionHistory(
             command.ReviewerUserId,
             SigningAuditActions.SignedUploadApproved,
             SerializeDetails(new Dictionary<string, object?>
             {
                 ["signedUploadId"] = pending.Id,
                 ["comment"] = command.Comment
-            })));
+            }));
+        application.AddVersionHistory(vhRow);
 
         try
         {
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+
+            // Spec 028 / US3 / FR-011 — convenio executed; notify the applicant
+            // (actor = the reviewer who approved).
+            await EnqueueSigningApplicantAsync(
+                application, NotificationEvent.AgreementExecutedApplicant,
+                vhRow.Id, actorUserId: command.ReviewerUserId);
         }
         catch (Exception ex) when (IsConcurrencyException(ex))
         {
@@ -449,19 +480,27 @@ public class SignedUploadService
             return ValidationFromDomain(ex.Message);
         }
 
-        application.AddVersionHistory(new VersionHistory(
+        var vhRow = new VersionHistory(
             command.ReviewerUserId,
             SigningAuditActions.SignedUploadRejected,
             SerializeDetails(new Dictionary<string, object?>
             {
                 ["signedUploadId"] = pending.Id,
                 ["comment"] = command.Comment
-            })));
+            }));
+        application.AddVersionHistory(vhRow);
 
         try
         {
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+
+            // Spec 028 / US3 / FR-012 / NFR-003 — notify the applicant changes are
+            // required (actor = the reviewer). OutcomeCode is null: the body conveys
+            // a generic cue + CTA, never the verbatim rejection comment.
+            await EnqueueSigningApplicantAsync(
+                application, NotificationEvent.SignedUploadRejectedApplicant,
+                vhRow.Id, actorUserId: command.ReviewerUserId);
         }
         catch (Exception ex) when (IsConcurrencyException(ex))
         {
@@ -513,6 +552,41 @@ public class SignedUploadService
             pageSize: query.PageSize);
 
         return new SigningInboxResult(rows, totalCount);
+    }
+
+    // -------------------------------------------------------------------------
+    // Spec 028 / US3 — two-phase signing-ceremony notification enqueue helpers.
+    // Called AFTER the workflow SaveChangesAsync so the VersionHistory row carries
+    // its identity (the idempotency anchor); the second SaveChangesAsync commits
+    // the outbox row. Mirrors ReviewService.SendBackAsync.
+    // -------------------------------------------------------------------------
+
+    private async Task EnqueueSigningReviewerAsync(
+        AppEntity application, NotificationEvent ev, int versionHistoryId, string actorUserId)
+    {
+        var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
+            application.Id, CancellationToken.None);
+        await EnqueueSigningAsync(application, ev, versionHistoryId, actorUserId, stageGroupIds);
+    }
+
+    private Task EnqueueSigningApplicantAsync(
+        AppEntity application, NotificationEvent ev, int versionHistoryId, string actorUserId)
+        // Applicant-bucket events do not use StageGroupIds (reviewer query skipped).
+        => EnqueueSigningAsync(application, ev, versionHistoryId, actorUserId, Array.Empty<int>());
+
+    private async Task EnqueueSigningAsync(
+        AppEntity application, NotificationEvent ev, int versionHistoryId,
+        string actorUserId, IReadOnlyList<int> stageGroupIds)
+    {
+        var applicantDisplayName = application.Applicant is not null
+            ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+            : "Solicitante";
+        var applicantUserId = application.Applicant?.UserId ?? string.Empty;
+        var payload = new NotificationPayload(
+            application.Id, applicantUserId, applicantDisplayName,
+            stageGroupIds, OutcomeCode: null, ActorUserId: actorUserId);
+        await _outboxWriter.EnqueueAsync(ev, application.Id, versionHistoryId, payload, CancellationToken.None);
+        await _applicationRepository.SaveChangesAsync();
     }
 
     private UserFacingErrorCode? ValidateIntake(string contentType, long size, Stream content)

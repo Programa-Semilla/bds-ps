@@ -176,6 +176,12 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
         NotificationEvent.ReturnedToApplicant           => true,
         NotificationEvent.ApplicationApproved           => true,
         NotificationEvent.ApplicationRejected           => true,
+        // Spec 028 — applicant-facing post-resolution events (4, 5, 7, 11, 12).
+        NotificationEvent.AppealMessageApplicant        => true,
+        NotificationEvent.AppealResolvedApplicant       => true,
+        NotificationEvent.AgreementGeneratedApplicant   => true,
+        NotificationEvent.AgreementExecutedApplicant    => true,
+        NotificationEvent.SignedUploadRejectedApplicant => true,
         _ => false,
     };
 
@@ -187,6 +193,14 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
         // reviewer pool as APPLICATION_SUBMITTED_REVIEWER. Applicant bucket stays
         // false (default); admin bucket stays true (default), mirroring submission.
         NotificationEvent.WithdrawnByApplicant         => true,
+        // Spec 028 — reviewer-facing post-resolution events (1, 2, 3, 6, 8, 9, 10).
+        NotificationEvent.ResponseSubmittedReviewer    => true,
+        NotificationEvent.AppealOpenedReviewer          => true,
+        NotificationEvent.AppealMessageReviewer         => true,
+        NotificationEvent.AppealReopenedReviewer        => true,
+        NotificationEvent.SignedUploadSubmittedReviewer => true,
+        NotificationEvent.SignedUploadReplacedReviewer  => true,
+        NotificationEvent.SignedUploadWithdrawnReviewer => true,
         _ => false,
     };
 

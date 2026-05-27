@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Convenio firmado recibido para revisión</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    El solicitante <strong>@Model.Payload.ApplicantDisplayName</strong> subió el convenio
+    firmado de la solicitud <strong>#@Model.Payload.ApplicationId</strong>. Ingresá a la
+    bandeja de firmas para revisarlo y aprobarlo o rechazarlo.
+</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ir a la bandeja de firmas</a>
+</p>
+<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

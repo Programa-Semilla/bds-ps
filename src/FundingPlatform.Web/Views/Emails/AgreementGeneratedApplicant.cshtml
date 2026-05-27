@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Tu convenio está listo para firmar</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    El convenio de tu solicitud <strong>#@Model.Payload.ApplicationId</strong> ya está
+    disponible. Descargalo, firmalo y subí la versión firmada para continuar con la
+    formalización.
+</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ver el convenio</a>
+</p>
+<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

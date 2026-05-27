@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Apelación concedida: solicitud reabierta para revisión</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    Se concedió la apelación de <strong>@Model.Payload.ApplicantDisplayName</strong> y la
+    solicitud <strong>#@Model.Payload.ApplicationId</strong> volvió a revisión. Ingresá para
+    retomar el análisis del caso.
+</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ver la solicitud</a>
+</p>
+<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

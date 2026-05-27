@@ -57,13 +57,21 @@ public class ApplicantResponseService
         try
         {
             application.SubmitResponse(command.ItemDecisions, command.UserId);
-            application.AddVersionHistory(new VersionHistory(
+            var vhRow = new VersionHistory(
                 command.UserId,
                 "SubmitResponse",
-                $"Applicant response submitted (cycle {application.ApplicantResponses.Count})"));
+                $"Applicant response submitted (cycle {application.ApplicantResponses.Count})");
+            application.AddVersionHistory(vhRow);
 
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+
+            // Spec 028 / US1 / FR-001 — notify stage-group reviewers + admins that
+            // the applicant responded (the actor is the applicant, excluded from
+            // recipients). Two-phase save mirrors ReviewService.SendBackAsync.
+            await EnqueueReviewerEventAsync(
+                application, NotificationEvent.ResponseSubmittedReviewer,
+                vhRow.Id, actorUserId: command.UserId);
 
             return (MapToResponseDto(application), null);
         }
@@ -92,13 +100,19 @@ public class ApplicantResponseService
         try
         {
             var appeal = application.OpenAppeal(command.UserId, maxAppeals);
-            application.AddVersionHistory(new VersionHistory(
+            var vhRow = new VersionHistory(
                 command.UserId,
                 "OpenAppeal",
-                "Applicant opened an appeal"));
+                "Applicant opened an appeal");
+            application.AddVersionHistory(vhRow);
 
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+
+            // Spec 028 / US2 / FR-002 — notify reviewers + admins (actor = applicant).
+            await EnqueueReviewerEventAsync(
+                application, NotificationEvent.AppealOpenedReviewer,
+                vhRow.Id, actorUserId: command.UserId);
 
             return (MapAppealToDto(appeal, application), null);
         }
@@ -154,13 +168,31 @@ public class ApplicantResponseService
         try
         {
             appeal.PostMessage(command.UserId, command.Text);
-            application.AddVersionHistory(new VersionHistory(
+            var vhRow = new VersionHistory(
                 command.UserId,
                 "PostAppealMessage",
-                $"Message posted on appeal {appeal.Id}"));
+                $"Message posted on appeal {appeal.Id}");
+            application.AddVersionHistory(vhRow);
 
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+
+            // Spec 028 / US2 / FR-003+FR-004 / R-002 — direction by author identity:
+            // applicant authored → notify reviewers + admins; reviewer authored →
+            // notify the applicant + admins. The author is the excluded actor.
+            var authoredByApplicant = command.UserId == application.Applicant?.UserId;
+            if (authoredByApplicant)
+            {
+                await EnqueueReviewerEventAsync(
+                    application, NotificationEvent.AppealMessageReviewer,
+                    vhRow.Id, actorUserId: command.UserId);
+            }
+            else
+            {
+                await EnqueueApplicantEventAsync(
+                    application, NotificationEvent.AppealMessageApplicant,
+                    vhRow.Id, actorUserId: command.UserId);
+            }
 
             return (MapAppealToDto(appeal, application), null);
         }
@@ -199,13 +231,29 @@ public class ApplicantResponseService
                         UserFacingErrorCode.UnknownAppealResolution, command.Resolution.ToString()));
             }
 
-            application.AddVersionHistory(new VersionHistory(
+            var vhRow = new VersionHistory(
                 command.UserId,
                 "ResolveAppeal",
-                $"Appeal resolved as {command.Resolution}"));
+                $"Appeal resolved as {command.Resolution}");
+            application.AddVersionHistory(vhRow);
 
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+
+            // Spec 028 / US2 / FR-005+FR-006 — notify the applicant of the
+            // resolution (body switches on OutcomeCode); on GrantReopenToReview
+            // ALSO notify reviewers (dual-fire, same VersionHistoryId, distinct
+            // EventType). Actor = the resolving reviewer.
+            var outcomeCode = command.Resolution switch
+            {
+                AppealResolution.Uphold              => "AppealUpheld",
+                AppealResolution.GrantReopenToDraft  => "AppealReopenedToDraft",
+                AppealResolution.GrantReopenToReview => "AppealReopenedToReview",
+                _ => null,
+            };
+            await EnqueueAppealResolvedAsync(
+                application, vhRow.Id, actorUserId: command.UserId, outcomeCode: outcomeCode,
+                alsoNotifyReviewers: command.Resolution == AppealResolution.GrantReopenToReview);
 
             var appeal = application.Appeals
                 .OrderByDescending(a => a.ResolvedAt ?? a.OpenedAt)
@@ -220,6 +268,77 @@ public class ApplicantResponseService
         {
             return (null, UserFacingError.From(UserFacingErrorCode.ConcurrentAppealModification));
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Spec 028 — two-phase notification enqueue helpers. Called AFTER the workflow
+    // SaveChangesAsync so the VersionHistory row has its identity (the idempotency
+    // anchor); the second SaveChangesAsync commits the outbox row in the same UoW.
+    // Mirrors the canonical pattern in ReviewService.SendBackAsync.
+    // -------------------------------------------------------------------------
+
+    private async Task EnqueueReviewerEventAsync(
+        AppEntity application, NotificationEvent ev, int versionHistoryId, string actorUserId)
+    {
+        var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
+            application.Id, CancellationToken.None);
+        await EnqueueAsync(application, ev, versionHistoryId, actorUserId, stageGroupIds, outcomeCode: null);
+    }
+
+    private Task EnqueueApplicantEventAsync(
+        AppEntity application, NotificationEvent ev, int versionHistoryId,
+        string actorUserId, string? outcomeCode = null)
+        // Applicant-bucket events do not use StageGroupIds (the reviewer query is skipped).
+        => EnqueueAsync(application, ev, versionHistoryId, actorUserId, Array.Empty<int>(), outcomeCode);
+
+    private async Task EnqueueAsync(
+        AppEntity application, NotificationEvent ev, int versionHistoryId,
+        string actorUserId, IReadOnlyList<int> stageGroupIds, string? outcomeCode)
+    {
+        var applicantDisplayName = application.Applicant is not null
+            ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+            : "Solicitante";
+        var applicantUserId = application.Applicant?.UserId ?? string.Empty;
+        var payload = new NotificationPayload(
+            application.Id, applicantUserId, applicantDisplayName,
+            stageGroupIds, outcomeCode, ActorUserId: actorUserId);
+        await _outboxWriter.EnqueueAsync(ev, application.Id, versionHistoryId, payload, CancellationToken.None);
+        await _applicationRepository.SaveChangesAsync();
+    }
+
+    private async Task EnqueueAppealResolvedAsync(
+        AppEntity application, int versionHistoryId, string actorUserId,
+        string? outcomeCode, bool alsoNotifyReviewers)
+    {
+        var applicantDisplayName = application.Applicant is not null
+            ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+            : "Solicitante";
+        var applicantUserId = application.Applicant?.UserId ?? string.Empty;
+
+        // Event 5 — applicant bucket; the partial switches body on OutcomeCode.
+        var applicantPayload = new NotificationPayload(
+            application.Id, applicantUserId, applicantDisplayName,
+            Array.Empty<int>(), outcomeCode, ActorUserId: actorUserId);
+        await _outboxWriter.EnqueueAsync(
+            NotificationEvent.AppealResolvedApplicant, application.Id, versionHistoryId,
+            applicantPayload, CancellationToken.None);
+
+        // Event 6 — reviewer bucket, only on reopen-to-review (FR-006 dual-fire).
+        if (alsoNotifyReviewers)
+        {
+            var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
+                application.Id, CancellationToken.None);
+            var reviewerPayload = new NotificationPayload(
+                application.Id, applicantUserId, applicantDisplayName,
+                stageGroupIds, OutcomeCode: null, ActorUserId: actorUserId);
+            await _outboxWriter.EnqueueAsync(
+                NotificationEvent.AppealReopenedReviewer, application.Id, versionHistoryId,
+                reviewerPayload, CancellationToken.None);
+        }
+
+        // Single phase-2 save commits both rows atomically (the dual-fire shares
+        // one VersionHistoryId; the unique index admits both via distinct EventType).
+        await _applicationRepository.SaveChangesAsync();
     }
 
     private async Task<int> GetMaxAppealsAsync()

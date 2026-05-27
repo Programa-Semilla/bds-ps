@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Nuevo mensaje del revisor en tu apelación</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    Un revisor respondió en la apelación de tu solicitud
+    <strong>#@Model.Payload.ApplicationId</strong>. Ingresá para leer el mensaje y continuar
+    la conversación.
+</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ver tu apelación</a>
+</p>
+<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

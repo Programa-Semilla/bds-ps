@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>El solicitante respondió la resolución</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    El solicitante <strong>@Model.Payload.ApplicantDisplayName</strong> registró su respuesta
+    a la resolución de la solicitud <strong>#@Model.Payload.ApplicationId</strong>. Revisá las
+    decisiones aceptadas o rechazadas para continuar con el proceso.
+</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ver la solicitud</a>
+</p>
+<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

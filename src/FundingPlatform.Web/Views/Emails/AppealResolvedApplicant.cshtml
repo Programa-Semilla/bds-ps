@@ -1,0 +1,34 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Resolución de tu apelación</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+@switch (Model.Payload.OutcomeCode)
+{
+    case "AppealReopenedToDraft":
+        <p>
+            Tu apelación sobre la solicitud <strong>#@Model.Payload.ApplicationId</strong> fue
+            <strong>concedida</strong>. Tu solicitud se reabrió como borrador para que la
+            actualices y la vuelvas a enviar.
+        </p>
+        break;
+    case "AppealReopenedToReview":
+        <p>
+            Tu apelación sobre la solicitud <strong>#@Model.Payload.ApplicationId</strong> fue
+            <strong>concedida</strong>. Tu solicitud volvió a revisión; el equipo la analizará
+            nuevamente y te informaremos del resultado.
+        </p>
+        break;
+    default:
+        <p>
+            Tu apelación sobre la solicitud <strong>#@Model.Payload.ApplicationId</strong> fue
+            revisada y la resolución <strong>se mantuvo</strong>. Podés consultar los detalles
+            desde tu panel.
+        </p>
+        break;
+}
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ver tu solicitud</a>
+</p>
+<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>
