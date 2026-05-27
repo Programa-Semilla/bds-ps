@@ -29,7 +29,7 @@
 
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label asp-for="SourceCurrencyCode" class="form-label">Moneda origen</label>
+                        <label asp-for="SourceCurrencyCode" class="form-label">Moneda origen @await Html.PartialAsync("_RequiredMark")</label>
                         @* Spec 015 / Phase 3 deviation #3 — do NOT add data-val-length on
                            a <select>; jQuery unobtrusive validation reads the selected
                            option's value as a literal string and a 3-char "length"
@@ -50,7 +50,7 @@
                     </div>
 
                     <div class="col-md-6">
-                        <label asp-for="TargetCurrencyCode" class="form-label">Moneda destino</label>
+                        <label asp-for="TargetCurrencyCode" class="form-label">Moneda destino @await Html.PartialAsync("_RequiredMark")</label>
                         <select asp-for="TargetCurrencyCode"
                                 class="form-select"
                                 data-testid="target-currency-select">
@@ -65,7 +65,7 @@
                     </div>
 
                     <div class="col-md-6">
-                        <label asp-for="BuyRate" class="form-label">Tipo de cambio compra (CRC por 1 unidad)</label>
+                        <label asp-for="BuyRate" class="form-label">Tipo de cambio compra (CRC por 1 unidad) @await Html.PartialAsync("_RequiredMark")</label>
                         <input asp-for="BuyRate"
                                type="number"
                                step="0.0001"
@@ -87,7 +87,7 @@
                     </div>
 
                     <div class="col-md-6">
-                        <label asp-for="EffectiveAtLocal" class="form-label">Vigente desde</label>
+                        <label asp-for="EffectiveAtLocal" class="form-label">Vigente desde @await Html.PartialAsync("_RequiredMark")</label>
                         <input asp-for="EffectiveAtLocal"
                                type="datetime-local"
                                class="form-control"

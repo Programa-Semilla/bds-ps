@@ -34,12 +34,12 @@
 
         <div class="row">
             <div class="col-md-8 mb-3">
-                <label class="form-label" asp-for="Name">Nombre</label>
+                <label class="form-label" asp-for="Name">Nombre @await Html.PartialAsync("_RequiredMark")</label>
                 <input asp-for="Name" class="form-control" data-testid="admin-plantilla-name-input" autofocus />
                 <span asp-validation-for="Name" class="text-danger" data-testid="admin-plantilla-name-error"></span>
             </div>
             <div class="col-md-4 mb-3">
-                <label class="form-label" asp-for="MinimumQuotationsPerItem">Mín. cotizaciones por ítem</label>
+                <label class="form-label" asp-for="MinimumQuotationsPerItem">Mín. cotizaciones por ítem @await Html.PartialAsync("_RequiredMark")</label>
                 <input asp-for="MinimumQuotationsPerItem" type="number" min="1" max="10" class="form-control"
                        data-testid="admin-plantilla-min-quotations-input" />
                 <span asp-validation-for="MinimumQuotationsPerItem" class="text-danger"></span>

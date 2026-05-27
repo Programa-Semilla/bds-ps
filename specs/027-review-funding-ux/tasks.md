@@ -123,10 +123,10 @@ description: "Task list for 027 Review & Funding-Agreement UX Refinements"
 
 **Independent Test**: Sampled required field per form area shows the marker + aria-label; optional fields show none.
 
-- [ ] T025 [P] [US6] Sweep applicant forms to use `_RequiredMark` (replace ad-hoc markers; add where only HTML5 `required`): `Account/Register.cshtml`, `Account/ChangePassword.cshtml`, `Account/ForgotPassword.cshtml`, `Account/ResetPassword.cshtml`, `Account/Profile.cshtml`, `Application/Edit.cshtml`, `Application/Impact.cshtml`, `Supplier/Add.cshtml`, `ApplicantResponse/*` (under `src/FundingPlatform.Web/Views/`).
-- [ ] T026 [P] [US6] Sweep admin forms similarly: `Admin/Users/Create.cshtml`, `Admin/Users/Edit.cshtml`, `Admin/CreateTemplate.cshtml`, `Admin/EditTemplate.cshtml`, `Admin/ExchangeRates/Create.cshtml`, `Admin/Plantillas/Create.cshtml`, `Admin/Plantillas/Edit.cshtml`, `Admin/Configuration.cshtml`, `Admin/PublicLanding/Index.cshtml`.
-- [ ] T027 [US6] Sweep the reviewer form `Review/Review.cshtml` (including the US5 código field) to use `_RequiredMark`.
-- [ ] T028 [US6] E2E: assert the marker (with `aria-label="campo obligatorio"`) is present on a sampled required field in an applicant, an admin, and the reviewer form, and absent on a known optional field. In `tests/FundingPlatform.Tests.E2E`.
+- [X] T025 [P] [US6] Sweep applicant forms to use `_RequiredMark` (replace ad-hoc markers; add where only HTML5 `required`): `Account/Register.cshtml`, `Account/ChangePassword.cshtml`, `Account/ForgotPassword.cshtml`, `Account/ResetPassword.cshtml`, `Account/Profile.cshtml`, `Application/Edit.cshtml`, `Application/Impact.cshtml`, `Supplier/Add.cshtml`, `ApplicantResponse/*` (under `src/FundingPlatform.Web/Views/`).
+- [X] T026 [P] [US6] Sweep admin forms similarly: `Admin/Users/Create.cshtml`, `Admin/Users/Edit.cshtml`, `Admin/CreateTemplate.cshtml`, `Admin/EditTemplate.cshtml`, `Admin/ExchangeRates/Create.cshtml`, `Admin/Plantillas/Create.cshtml`, `Admin/Plantillas/Edit.cshtml`, `Admin/Configuration.cshtml`, `Admin/PublicLanding/Index.cshtml`.
+- [X] T027 [US6] Sweep the reviewer form `Review/Review.cshtml` (including the US5 código field) to use `_RequiredMark`.
+- [X] T028 [US6] E2E: assert the marker (with `aria-label="campo obligatorio"`) is present on a sampled required field in an applicant, an admin, and the reviewer form, and absent on a known optional field. In `tests/FundingPlatform.Tests.E2E`.
 
 **Checkpoint**: US6 independently demoable.
 
