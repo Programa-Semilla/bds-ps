@@ -36,7 +36,7 @@
                     <partial name="_QuoteFields" model="@((FundingPlatform.Web.ViewModels.IQuoteFieldsModel)Model)" />
 
                     <div class="mb-3" data-testid="form-section" data-field="SupplierBranchId">
-                        <label asp-for="SupplierBranchId" class="form-label"></label>
+                        <label asp-for="SupplierBranchId" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
                         <select asp-for="SupplierBranchId"
                                 asp-items="Model.BranchOptions"
                                 class="form-select"

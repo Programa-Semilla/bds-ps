@@ -13,13 +13,13 @@
     <div asp-validation-summary="ModelOnly" class="fl-text-danger mb-3"></div>
 
     <div class="mb-3" data-testid="form-section" data-field="Email">
-        <label asp-for="Email" class="form-label fl-type-meta"></label>
+        <label asp-for="Email" class="form-label fl-type-meta"></label> @await Html.PartialAsync("_RequiredMark")
         <input asp-for="Email" class="fl-input" autocomplete="username" />
         <span asp-validation-for="Email" class="invalid-feedback d-block"></span>
     </div>
 
     <div class="mb-3" data-testid="form-section" data-field="Password">
-        <label asp-for="Password" class="form-label fl-type-meta"></label>
+        <label asp-for="Password" class="form-label fl-type-meta"></label> @await Html.PartialAsync("_RequiredMark")
         <div class="input-group">
             <input asp-for="Password" type="password" class="fl-input form-control"
                    id="login-password"
