@@ -138,11 +138,11 @@ description: "Task list for 027 Review & Funding-Agreement UX Refinements"
 
 **Independent Test**: Each applicant field has an info icon; hover renders formatted HTML (not escaped); leave dismisses; no copy → no icon.
 
-- [ ] T029 [P] [US7] Create a static es-CR hint-copy provider `src/FundingPlatform.Web/Resources/HintCopy.cs` (key → es-CR HTML string) for the applicant field set (research D6); author first-pass copy.
-- [ ] T030 [US7] Extend `src/FundingPlatform.Web/Views/Shared/_HintTooltip.cshtml`: render a `ti ti-info-circle` info icon carrying the copy (`data-hint`), and make `ResolveCopy()` read from `HintCopy` instead of returning null; render copy HTML-safely; render nothing when no copy.
-- [ ] T031 [P] [US7] Create `src/FundingPlatform.Web/wwwroot/js/hint-tooltip.js` (own JS, no `window.bootstrap`): on mouseover/focus of `[data-hint]` show an HTML bubble, hide on mouseout/blur; register the script in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml` after `confirm-dialog.js`.
-- [ ] T032 [US7] Decorate applicant view-model properties with `[Hint("…")]` and wire `_HintTooltip` next to each applicant field in `Account/Register.cshtml`, `Application/Edit.cshtml`, `Application/Impact.cshtml`, `Supplier/Add.cshtml`.
-- [ ] T033 [US7] E2E: an applicant field shows an info icon; hovering renders the tooltip with formatted HTML content. In `tests/FundingPlatform.Tests.E2E`.
+- [X] T029 [P] [US7] Create a static es-CR hint-copy provider `src/FundingPlatform.Web/Resources/HintCopy.cs` (key → es-CR HTML string) for the applicant field set (research D6); author first-pass copy.
+- [X] T030 [US7] Extend `src/FundingPlatform.Web/Views/Shared/_HintTooltip.cshtml`: render a `ti ti-info-circle` info icon carrying the copy (`data-hint`), and make `ResolveCopy()` read from `HintCopy` instead of returning null; render copy HTML-safely; render nothing when no copy.
+- [X] T031 [P] [US7] Create `src/FundingPlatform.Web/wwwroot/js/hint-tooltip.js` (own JS, no `window.bootstrap`): on mouseover/focus of `[data-hint]` show an HTML bubble, hide on mouseout/blur; register the script in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml` after `confirm-dialog.js`.
+- [X] T032 [US7] Decorate applicant view-model properties with `[Hint("…")]` and wire `_HintTooltip` next to each applicant field in `Account/Register.cshtml`, `Application/Edit.cshtml`, `Application/Impact.cshtml`, `Supplier/Add.cshtml`.
+- [X] T033 [US7] E2E: an applicant field shows an info icon; hovering renders the tooltip with formatted HTML content. In `tests/FundingPlatform.Tests.E2E`.
 
 **Checkpoint**: US7 independently demoable.
 

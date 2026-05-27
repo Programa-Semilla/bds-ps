@@ -32,7 +32,7 @@
 
                     <div class="mb-3">
                         <label asp-for="SelectedTemplateId" class="form-label">
-                            Plantilla de impacto @await Html.PartialAsync("_RequiredMark")
+                            Plantilla de impacto @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Application.Impact"))
                         </label>
                         <select asp-for="SelectedTemplateId" class="form-select" id="templateSelector"
                                 data-testid="impact-template-select">

@@ -53,7 +53,7 @@ else
         <div class="row g-3" data-autosave-row>
             <div class="col-md-8">
                 <label class="form-label" for="company-name">
-                    Nombre comercial @await Html.PartialAsync("_RequiredMark")
+                    Nombre comercial @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Application.CompanyName"))
                 </label>
                 <input id="company-name"
                        name="CompanyName"
