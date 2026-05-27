@@ -46,13 +46,10 @@ public class ApplicantResponseTests : AuthenticatedTestBase
         await Expect(responsePage.ApplicationState).ToContainTextAsync("Respuesta finalizada");
 
         // Reload and confirm response is read-only.
-        // Note: the decision-display still renders the raw enum name (Accept/Reject)
-        // because it binds @item.Decision directly. That's a UI-copy gap left by spec
-        // 012 — the enum value bleeding through is unconditional, not localized — but
-        // it's outside this batch's scope (no behavior change). The test asserts on
-        // the enum text it actually emits.
+        // The decision-display renders es-CR copy (ItemResponseDecisionCopy.Label),
+        // not the raw enum name — the prior "Accept" leak is fixed.
         await responsePage.GotoAsync(BaseUrl, appId);
-        await Expect(responsePage.DecisionDisplay(itemId)).ToContainTextAsync("Accept");
+        await Expect(responsePage.DecisionDisplay(itemId)).ToContainTextAsync("Aceptada");
     }
 
     [TestCase("Uphold", "ResponseFinalized", "/ApplicantResponse/Appeal/")]

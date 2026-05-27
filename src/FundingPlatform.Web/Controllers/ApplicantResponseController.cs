@@ -192,7 +192,10 @@ public class ApplicantResponseController : Controller
                 SelectedSupplierName = i.SelectedSupplierName,
                 Amount = i.Amount,
                 ReviewComment = i.ReviewComment,
-                Decision = i.Decision
+                Decision = i.Decision,
+                DecisionLabel = i.Decision.HasValue
+                    ? ItemResponseDecisionCopy.Label(i.Decision.Value)
+                    : null
             }).ToList(),
             CanOpenAppeal = dto.State == ApplicationState.ResponseFinalized && hasRejectedItem,
             HasOpenAppeal = dto.State == ApplicationState.AppealOpen,

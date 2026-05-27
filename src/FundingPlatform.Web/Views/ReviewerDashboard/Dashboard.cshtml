@@ -29,9 +29,14 @@
         </div>
     </div>
 
-    <p class="mt-4">
+    <p class="mt-4 d-flex flex-wrap gap-2">
         <a class="btn btn-outline-secondary" href="@Url.Action("Index", "Review")" data-testid="reviewer-go-to-queue">
             <i class="ti ti-clipboard-check me-1"></i>Ir a la cola de revisión
+        </a>
+        @* Direct affordance to the "Generar convenio" queue — applications whose
+           applicant accepted the resolution and now await agreement-PDF generation. *@
+        <a class="btn btn-outline-secondary" href="@Url.Action("GenerateAgreement", "Review")" data-testid="reviewer-go-to-generate-agreement">
+            <i class="ti ti-file-text me-1"></i>Ir a generar convenios
         </a>
     </p>
 </div>
