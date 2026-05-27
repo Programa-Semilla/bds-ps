@@ -18,20 +18,31 @@ namespace FundingPlatform.Application.Notifications.Templates;
 /// HTML files + six <c>.text.cshtml</c> text fallbacks — twelve total.
 /// </para>
 /// <para>
-/// Per FR-026: reviewer/admin CTAs link to <c>/Review/{id}</c>; applicant
-/// CTAs link to <c>/Application/Details/{id}</c>. The renderer composes the
-/// absolute deep link from <c>Notifications:BaseUrl</c>.
+/// Spec 028 / R-001 — the CTA destination is now event-driven via
+/// <see cref="Binding.CtaRouteTemplate"/> rather than bucket-derived. Each
+/// event names exactly one route template (e.g. <c>/Review/{id}</c>,
+/// <c>/Review/SigningInbox</c>, <c>/ApplicantResponse/Index/{id}</c>); the
+/// renderer substitutes <c>{id}</c> with the ApplicationId and composes the
+/// absolute deep link from <c>Notifications:BaseUrl</c>. The existing spec-021
+/// events keep their original routes (the route of the bucket the event is
+/// named for), so observed CTAs are unchanged for them.
 /// </para>
 /// </summary>
 public static class NotificationTemplateBindings
 {
     /// <summary>One row per enum value, exposed for unit-test coverage.</summary>
+    /// <param name="CtaRouteTemplate">
+    /// Spec 028 / R-001 — relative route the email CTA points at. A literal
+    /// <c>{id}</c> token is replaced with the ApplicationId by the renderer;
+    /// templates with no token (e.g. <c>/Review/SigningInbox</c>) are used verbatim.
+    /// </param>
     public sealed record Binding(
         NotificationEvent Event,
         string SubjectTemplate,
         string HtmlViewName,
         string TextViewName,
-        string TemplateVariantKey);
+        string TemplateVariantKey,
+        string CtaRouteTemplate);
 
     /// <summary>Closed map. Adding a new event MUST add a row here AND a view file.</summary>
     public static readonly IReadOnlyDictionary<NotificationEvent, Binding> Bindings =
@@ -43,7 +54,8 @@ public static class NotificationTemplateBindings
                 SubjectTemplate: "Nueva solicitud para revisar: {ApplicantName}",
                 HtmlViewName:    "ApplicationSubmittedReviewer",
                 TextViewName:    "ApplicationSubmittedReviewer.text",
-                TemplateVariantKey: "reviewer-application-submitted"),
+                TemplateVariantKey: "reviewer-application-submitted",
+                CtaRouteTemplate: "/Review/{id}"),
 
             [NotificationEvent.ApplicationSubmittedApplicant] = new(
                 NotificationEvent.ApplicationSubmittedApplicant,
@@ -51,35 +63,40 @@ public static class NotificationTemplateBindings
                 SubjectTemplate: "Recibimos tu solicitud — Solicitud #{ApplicationId}",
                 HtmlViewName:    "ApplicationSubmittedApplicant",
                 TextViewName:    "ApplicationSubmittedApplicant.text",
-                TemplateVariantKey: "applicant-application-submitted"),
+                TemplateVariantKey: "applicant-application-submitted",
+                CtaRouteTemplate: "/Application/Details/{id}"),
 
             [NotificationEvent.ReturnedToApplicant] = new(
                 NotificationEvent.ReturnedToApplicant,
                 SubjectTemplate: "Acción requerida: actualiza tu solicitud — Solicitud #{ApplicationId}",
                 HtmlViewName:    "ReturnedToApplicant",
                 TextViewName:    "ReturnedToApplicant.text",
-                TemplateVariantKey: "applicant-returned"),
+                TemplateVariantKey: "applicant-returned",
+                CtaRouteTemplate: "/Application/Details/{id}"),
 
             [NotificationEvent.ResubmittedByApplicant] = new(
                 NotificationEvent.ResubmittedByApplicant,
                 SubjectTemplate: "Solicitud reenviada para revisión: {ApplicantName}",
                 HtmlViewName:    "ResubmittedByApplicant",
                 TextViewName:    "ResubmittedByApplicant.text",
-                TemplateVariantKey: "reviewer-resubmitted"),
+                TemplateVariantKey: "reviewer-resubmitted",
+                CtaRouteTemplate: "/Review/{id}"),
 
             [NotificationEvent.ApplicationApproved] = new(
                 NotificationEvent.ApplicationApproved,
                 SubjectTemplate: "Tu solicitud fue aprobada — Solicitud #{ApplicationId}",
                 HtmlViewName:    "ApplicationApproved",
                 TextViewName:    "ApplicationApproved.text",
-                TemplateVariantKey: "applicant-approved"),
+                TemplateVariantKey: "applicant-approved",
+                CtaRouteTemplate: "/Application/Details/{id}"),
 
             [NotificationEvent.ApplicationRejected] = new(
                 NotificationEvent.ApplicationRejected,
                 SubjectTemplate: "Decisión sobre tu solicitud — Solicitud #{ApplicationId}",
                 HtmlViewName:    "ApplicationRejected",
                 TextViewName:    "ApplicationRejected.text",
-                TemplateVariantKey: "applicant-rejected"),
+                TemplateVariantKey: "applicant-rejected",
+                CtaRouteTemplate: "/Application/Details/{id}"),
 
             // Spec 021 / US9 / FR-040 — reviewer-bucket notification when an
             // applicant withdraws an UnderReview Application. CTA links to the
@@ -90,7 +107,9 @@ public static class NotificationTemplateBindings
                 SubjectTemplate: "Solicitud retirada por el solicitante: {ApplicantName}",
                 HtmlViewName:    "ApplicationWithdrawnByApplicant",
                 TextViewName:    "ApplicationWithdrawnByApplicant.text",
-                TemplateVariantKey: "reviewer-application-withdrawn"),
+                TemplateVariantKey: "reviewer-application-withdrawn",
+                // Soft-deleted application: link to the reviewer queue, not /Review/{id}.
+                CtaRouteTemplate: "/Review"),
         };
 
     /// <summary>Lookup helper. Throws on unknown event (closed map invariant).</summary>

@@ -3,12 +3,14 @@ using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
 using FundingPlatform.Application.Interfaces;
+using FundingPlatform.Application.Notifications;
 using FundingPlatform.Application.Options;
 using FundingPlatform.Application.SignedUploads.Commands;
 using FundingPlatform.Application.SignedUploads.Queries;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
@@ -47,6 +49,8 @@ public class SignedUploadService
     private readonly ILogger<SignedUploadService> _logger;
     // Spec 027 / US1 — resolve the generator's display name (never a GUID).
     private readonly IUserStoreReader _userStoreReader;
+    // Spec 028 / US3 — signing-ceremony notifications via the spec-021 outbox.
+    private readonly INotificationOutboxWriter _outboxWriter;
 
     private const FileCategory SignedCategory = FileCategory.SignedFundingAgreement;
 
@@ -56,7 +60,8 @@ public class SignedUploadService
         IObjectStorage objectStorage,
         IOptions<SignedUploadOptions> options,
         ILogger<SignedUploadService> logger,
-        IUserStoreReader userStoreReader)
+        IUserStoreReader userStoreReader,
+        INotificationOutboxWriter outboxWriter)
     {
         _applicationRepository = applicationRepository;
         _signedUploadRepository = signedUploadRepository;
@@ -64,6 +69,7 @@ public class SignedUploadService
         _options = options;
         _logger = logger;
         _userStoreReader = userStoreReader;
+        _outboxWriter = outboxWriter;
     }
 
     public async Task<SigningStagePanelDto?> GetPanelAsync(GetSigningStagePanelQuery query)

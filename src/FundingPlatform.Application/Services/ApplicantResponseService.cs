@@ -2,9 +2,11 @@ using FundingPlatform.Application.Applications.Commands;
 using FundingPlatform.Application.Applications.Queries;
 using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
+using FundingPlatform.Application.Notifications;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
@@ -16,15 +18,20 @@ public class ApplicantResponseService
 
     private readonly IApplicationRepository _applicationRepository;
     private readonly ISystemConfigurationRepository _systemConfigurationRepository;
+    // Spec 028 — post-resolution notifications. Enqueued through the shipped
+    // spec-021 transactional outbox using the canonical two-phase save.
+    private readonly INotificationOutboxWriter _outboxWriter;
     private readonly ILogger<ApplicantResponseService> _logger;
 
     public ApplicantResponseService(
         IApplicationRepository applicationRepository,
         ISystemConfigurationRepository systemConfigurationRepository,
+        INotificationOutboxWriter outboxWriter,
         ILogger<ApplicantResponseService> logger)
     {
         _applicationRepository = applicationRepository;
         _systemConfigurationRepository = systemConfigurationRepository;
+        _outboxWriter = outboxWriter;
         _logger = logger;
     }
 

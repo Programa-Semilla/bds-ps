@@ -262,7 +262,8 @@ internal static class SignedUploadEndpointsTestSeeder
         return new SignedUploadService(
             appRepo, suRepo, storage, options,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<SignedUploadService>.Instance,
-            new FundingPlatform.Infrastructure.Identity.UserStoreReader(ctx));
+            new FundingPlatform.Infrastructure.Identity.UserStoreReader(ctx),
+            new FundingPlatform.Infrastructure.Notifications.Persistence.NotificationOutboxWriter(ctx));
     }
 
     private static System.IO.Stream PdfStream()

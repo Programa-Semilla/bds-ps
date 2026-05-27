@@ -152,6 +152,21 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
             .Select(g => g.OrderBy(c => (int)c.Bucket).First())
             .ToList();
 
+        // Spec 028 / R-003 / FR-013a / EC-011 — actor exclusion. The user who
+        // triggered the event must never receive a copy of their own action
+        // (e.g. a reviewer who authors an appeal message or resolves an appeal
+        // while also qualifying as a participating admin). This generalizes the
+        // submitting-applicant exclusion already applied in the reviewer query.
+        // A null ActorUserId (every legacy spec-021 row) is a no-op, so the
+        // shipped 7 events keep their exact recipient sets.
+        var actorUserId = context.Payload.ActorUserId;
+        if (!string.IsNullOrEmpty(actorUserId))
+        {
+            deduped = deduped
+                .Where(r => !string.Equals(r.UserId, actorUserId, StringComparison.Ordinal))
+                .ToList();
+        }
+
         return deduped;
     }
 

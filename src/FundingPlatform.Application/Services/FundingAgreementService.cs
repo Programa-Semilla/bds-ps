@@ -3,9 +3,11 @@ using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
 using FundingPlatform.Application.FundingAgreements.Commands;
 using FundingPlatform.Application.FundingAgreements.Queries;
+using FundingPlatform.Application.Notifications;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
@@ -27,15 +29,19 @@ public class FundingAgreementService
     private readonly ILogger<FundingAgreementService> _logger;
     // Spec 027 / US1 — resolve the generator's display name (never a GUID).
     private readonly IUserStoreReader _userStoreReader;
+    // Spec 028 / US3 — convenio-generated notification via the spec-021 outbox.
+    private readonly INotificationOutboxWriter _outboxWriter;
 
     public FundingAgreementService(
         IApplicationRepository applicationRepository,
         ILogger<FundingAgreementService> logger,
-        IUserStoreReader userStoreReader)
+        IUserStoreReader userStoreReader,
+        INotificationOutboxWriter outboxWriter)
     {
         _applicationRepository = applicationRepository;
         _logger = logger;
         _userStoreReader = userStoreReader;
+        _outboxWriter = outboxWriter;
     }
 
     public async Task<GetPanelResult> GetPanelAsync(GetFundingAgreementPanelQuery query)

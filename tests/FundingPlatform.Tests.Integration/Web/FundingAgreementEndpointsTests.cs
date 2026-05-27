@@ -40,7 +40,7 @@ public class FundingAgreementEndpointsTests
         using (var ctx = CreateContext(dbName))
         {
             var repo = new ApplicationRepository(ctx);
-            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
             var application = await service.LoadForGenerationAsync(applicationId);
             Assert.That(application, Is.Not.Null);
@@ -76,7 +76,7 @@ public class FundingAgreementEndpointsTests
         using (var ctx = CreateContext(dbName))
         {
             var repo = new ApplicationRepository(ctx);
-            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
             var application = await service.LoadForGenerationAsync(applicationId);
             Assert.That(application, Is.Not.Null);
@@ -111,7 +111,7 @@ public class FundingAgreementEndpointsTests
         using (var ctx = CreateContext(dbName))
         {
             var repo = new ApplicationRepository(ctx);
-            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
             var result = await service.GetPanelAsync(new GetFundingAgreementPanelQuery(
                 ApplicationId: applicationId,
@@ -146,7 +146,7 @@ public class FundingAgreementEndpointsTests
         using (var ctx = CreateContext(dbName))
         {
             var repo = new ApplicationRepository(ctx);
-            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
             var result = await service.GetPanelAsync(new GetFundingAgreementPanelQuery(
                 ApplicationId: applicationId,
@@ -182,7 +182,7 @@ public class FundingAgreementEndpointsTests
         using (var ctx = CreateContext(dbName))
         {
             var repo = new ApplicationRepository(ctx);
-            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
             var result = await service.GetPanelAsync(new GetFundingAgreementPanelQuery(
                 ApplicationId: applicationId,
@@ -247,7 +247,7 @@ public class FundingAgreementEndpointsTests
 
         using var ctx2 = CreateContext(dbName);
         var repo = new ApplicationRepository(ctx2);
-        var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+        var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
         var application = (await service.LoadForGenerationAsync(applicationId))!;
         var result = await service.PersistGenerationAsync(
@@ -335,7 +335,7 @@ public class FundingAgreementEndpointsTests
 
         using var ctx2 = CreateContext(dbName);
         var repo = new ApplicationRepository(ctx2);
-        var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+        var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
         var noAgreementResult = await service.GetPanelAsync(new GetFundingAgreementPanelQuery(
             ApplicationId: appWithoutAgreement,
@@ -364,7 +364,7 @@ public class FundingAgreementEndpointsTests
         using var ctx = CreateContext(dbName);
 
         var repo = new ApplicationRepository(ctx);
-        var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+        var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
         var missingAppResult = await service.GetPanelAsync(new GetFundingAgreementPanelQuery(
             ApplicationId: 999999,
@@ -391,7 +391,7 @@ public class FundingAgreementEndpointsTests
 
         using var ctx2 = CreateContext(dbName);
         var repo = new ApplicationRepository(ctx2);
-        var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+        var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
         var panelResult = await service.GetPanelAsync(new GetFundingAgreementPanelQuery(
             ApplicationId: applicationId,
@@ -427,7 +427,7 @@ public class FundingAgreementEndpointsTests
         using (var ctx = CreateContext(dbName))
         {
             var repo = new ApplicationRepository(ctx);
-            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
             var application = (await service.LoadForGenerationAsync(applicationId))!;
             var result = await service.PersistGenerationAsync(
                 application, "admin-1", "a.pdf", 100, "/store/a.pdf");
@@ -445,7 +445,7 @@ public class FundingAgreementEndpointsTests
         using (var ctx = CreateContext(dbName))
         {
             var repo = new ApplicationRepository(ctx);
-            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
             var application = (await service.LoadForGenerationAsync(applicationId))!;
             var result = await service.PersistGenerationAsync(
                 application, "reviewer-1", "b.pdf", 200, "/store/b.pdf");
@@ -483,7 +483,7 @@ public class FundingAgreementEndpointsTests
         using (var ctx = CreateContext(dbName))
         {
             var repo = new ApplicationRepository(ctx);
-            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader());
+            var service = new FundingAgreementService(repo, NullLogger<FundingAgreementService>.Instance, new FundingPlatform.Tests.Integration.TestDoubles.StubUserStoreReader(), NSubstitute.Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
             var result = await service.GetPanelAsync(new GetFundingAgreementPanelQuery(
                 ApplicationId: applicationId,
