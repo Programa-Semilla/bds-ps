@@ -52,13 +52,15 @@ public class ApplicantCodeTests : AuthenticatedTestBase
         await Expect(Page).ToHaveURLAsync(new Regex($@"/Review/{appId}\b"));
         await Logout();
 
-        // Applicant sees it read-only (no input control) on their profile.
+        // Applicant sees it read-only on their profile: the value is the code I set,
+        // and the input is disabled + readonly (administrado), not editable.
         await LoginAsync(Page, applicantEmail, DefaultPassword);
         var profile = new ProfilePage(Page);
         await profile.GotoAsync(BaseUrl);
-        await Expect(profile.CodigoPersonalField).ToContainTextAsync(code);
-        Assert.That(await profile.CodigoPersonalField.Locator("input, textarea, select").CountAsync(),
-            Is.EqualTo(0), "Código del solicitante must be read-only on the profile.");
+        await Expect(profile.CodigoPersonalField).ToHaveValueAsync(code);
+        await Expect(profile.CodigoPersonalField).ToBeDisabledAsync();
+        Assert.That(await profile.CodigoPersonalField.GetAttributeAsync("readonly"),
+            Is.Not.Null, "Código del solicitante must be read-only on the profile.");
     }
 
     private async Task<int> SubmitApplicationAsApplicantAsync(string applicantEmail, string uid)

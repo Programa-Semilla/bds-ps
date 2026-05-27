@@ -87,7 +87,8 @@
         });
         document.addEventListener('mouseout', function (e) {
             var t = e.target.closest('[data-hint]');
-            if (t) {
+            // Ignore moves that stay within the same trigger (span <-> its icon).
+            if (t && !t.contains(e.relatedTarget)) {
                 hide(t);
             }
         });

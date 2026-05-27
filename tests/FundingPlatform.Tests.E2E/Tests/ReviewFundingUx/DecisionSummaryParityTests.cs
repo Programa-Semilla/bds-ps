@@ -67,7 +67,12 @@ public class DecisionSummaryParityTests : AuthenticatedTestBase
         await responsePage.GotoAsync(BaseUrl, appId);
         await AssertSummaryParityAsync("applicant-response");
 
-        await responsePage.AcceptRadio(itemAId).CheckAsync();
+        // The response form lists every item; answer each row so submit enables.
+        var rows = await Page.Locator("tr.response-item").AllAsync();
+        foreach (var row in rows)
+        {
+            await row.Locator("input.decision-accept").CheckAsync();
+        }
         await responsePage.SubmitAsync();
         await Expect(responsePage.SuccessMessage).ToBeVisibleAsync();
         await Logout();
