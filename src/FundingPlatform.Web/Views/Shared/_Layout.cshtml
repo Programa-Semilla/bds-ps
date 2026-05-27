@@ -31,29 +31,34 @@
     var adminSectionHeader = new SidebarEntry(
         "admin", "Administración", Url.Action("Index", "Admin") ?? "/Admin", "ti ti-settings", new[] { "Admin" });
 
+    // Spec 027 / US8 (FR-022/FR-023) — admin nav regrouped into Administración
+    // (cross-process admin surfaces) and a new Proceso section. Every prior
+    // destination is preserved exactly once; AllowedRoles unchanged. The
+    // standalone "Procesos" child is folded into the Proceso section header,
+    // which links to /Admin/Processes (so the destination stays reachable).
     var adminEntries = new List<SidebarEntry>
     {
-        // Spec 021 / US1 / T084 — Procesos sits at the top of the admin section
-        // since every other surface conceptually scopes by Process now.
-        new("processes", "Procesos", "/Admin/Processes", "ti ti-calendar-event", new[] { "Admin" }),
-        new("plantillas", "Plantillas", "/Admin/Plantillas", "ti ti-template", new[] { "Admin" }),
-        // Spec 021 / US10 / FR-042 — restore the impact-template entry the US1
-        // Process-pivot dropped from the sidebar. CRUD surface + dashboard card
-        // already exist; this is the missing direct nav link. Distinct icon from
-        // Plantillas to disambiguate the two related-but-different surfaces.
-        new("impact-templates", "Plantillas de impacto", "/Admin/ImpactTemplates", "ti ti-clipboard-data", new[] { "Admin" }),
-        new("users", "Usuarios", "/Admin/Users", "ti ti-users", new[] { "Admin" }),
-        new("groups", "Grupos", "/Admin/Groups", "ti ti-users-group", new[] { "Admin" }),
-        new("suppliers", "Proveedores", "/Admin/Suppliers", "ti ti-building-store", new[] { "Admin" }),
+        new("suppliers", "Empresas proveedoras", "/Admin/Suppliers", "ti ti-building-store", new[] { "Admin" }),
+        new("plantillas", "Plantillas base", "/Admin/Plantillas", "ti ti-template", new[] { "Admin" }),
         new("reports", "Reportes", "/Admin/Reports", "ti ti-chart-line", new[] { "Admin" }),
         new("currencies", "Monedas", "/Admin/Currencies", "ti ti-coin", new[] { "Admin" }),
         new("exchange-rates", "Tipos de Cambio", "/Admin/ExchangeRates", "ti ti-arrows-exchange", new[] { "Admin" }),
-        new("legacy-quotations", "Cotizaciones Pendientes", "/Admin/LegacyQuotations", "ti ti-history", new[] { "Admin" }),
-        // Spec 021 / US11 / FR-043 — same US1-repivot gap as impact-templates:
-        // the /Admin/Configuration surface kept its dashboard card but lost its
-        // sidebar entry. Distinct icon from the "Administración" section header
-        // (ti-settings) so the child is not confused with its parent.
+        new("users", "Usuarios", "/Admin/Users", "ti ti-users", new[] { "Admin" }),
         new("system-config", "Configuración del sistema", "/Admin/Configuration", "ti ti-adjustments", new[] { "Admin" }),
+    };
+
+    var procesoSectionHeader = new SidebarEntry(
+        "proceso", "Proceso", "/Admin/Processes", "ti ti-calendar-event", new[] { "Admin" });
+
+    var procesoEntries = new List<SidebarEntry>
+    {
+        new("groups", "Grupos", "/Admin/Groups", "ti ti-users-group", new[] { "Admin" }),
+        // Spec 027 / US8 — "Starters" surfaces the existing applications listing
+        // (Reports → Applications); process-scoped pre-filtering is deferred with
+        // the rest of process-scoped Reportes/Plantillas (plan decision #2).
+        new("starters", "Starters", "/Admin/Reports/Applications", "ti ti-rocket", new[] { "Admin" }),
+        new("impact-templates", "Plantillas de impacto", "/Admin/ImpactTemplates", "ti ti-clipboard-data", new[] { "Admin" }),
+        new("legacy-quotations", "Cotizaciones Pendientes", "/Admin/LegacyQuotations", "ti ti-history", new[] { "Admin" }),
     };
 
     // Spec 021 / US3 / T111 — for the SupplierAdmin-only path we render a
@@ -159,6 +164,31 @@
                                         </a>
                                     </li>
                                     foreach (var entry in adminEntries.Where(IsEntryVisible))
+                                    {
+                                        var active = IsActive(entry.Url) ? " active" : string.Empty;
+                                        <li class="nav-item nav-item-admin-child@active">
+                                            <a class="nav-link ps-4" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
+                                                <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
+                                                <span class="nav-link-title">@entry.Label</span>
+                                            </a>
+                                        </li>
+                                    }
+                                }
+                                @* Spec 027 / US8 — Proceso section (Admin only). Header links to
+                                   /Admin/Processes; children are the process-scoped surfaces. *@
+                                if (IsEntryVisible(procesoSectionHeader))
+                                {
+                                    var procesoActive = IsActive(procesoSectionHeader.Url) ? " active" : string.Empty;
+                                    <li class="nav-item nav-item-section-header@procesoActive">
+                                        <a class="nav-link fl-sidebar-section-header"
+                                           href="@procesoSectionHeader.Url"
+                                           data-testid="sidebar-entry-@procesoSectionHeader.Slug"
+                                           data-section-testid="proceso-section">
+                                            <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@procesoSectionHeader.Icon"></i></span>
+                                            <span class="nav-link-title fl-font-display">@procesoSectionHeader.Label</span>
+                                        </a>
+                                    </li>
+                                    foreach (var entry in procesoEntries.Where(IsEntryVisible))
                                     {
                                         var active = IsActive(entry.Url) ? " active" : string.Empty;
                                         <li class="nav-item nav-item-admin-child@active">
