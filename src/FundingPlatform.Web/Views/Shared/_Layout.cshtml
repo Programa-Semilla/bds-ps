@@ -21,6 +21,10 @@
         new("home", "Inicio", Url.Action("Index", "Home") ?? "/", "ti ti-home", Array.Empty<string>()),
         new("my-applications", "Mis solicitudes", Url.Action("Index", "Application") ?? "/Application", "ti ti-files", new[] { "Applicant" }),
         new("review-queue", "Cola de revisión", Url.Action("Index", "Review") ?? "/Review", "ti ti-clipboard-check", new[] { "Reviewer", "Admin" }),
+        // Spec 021 / US6 — the "Generar convenio" queue (Review/GenerateAgreement)
+        // had a tab (_ReviewTabs) but no top-level nav, so a reviewer could only
+        // reach it by first landing on another Review surface. Icon mirrors the tab.
+        new("generate-agreement", "Generar convenio", Url.Action("GenerateAgreement", "Review") ?? "/Review/GenerateAgreement", "ti ti-file-text", new[] { "Reviewer", "Admin" }),
         new("signing-inbox", "Bandeja de firmas", Url.Action("SigningInbox", "Review") ?? "/Review/SigningInbox", "ti ti-signature", new[] { "Reviewer", "Admin" }),
     };
 

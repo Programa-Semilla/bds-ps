@@ -87,7 +87,7 @@ else if (Model.State == ApplicationState.ResponseFinalized && Model.HasFundingAg
                                     {
                                         var color = item.Decision == ItemResponseDecision.Accept ? "green" : "red";
                                         var icon = item.Decision == ItemResponseDecision.Accept ? "ti ti-check" : "ti ti-x";
-                                        <span class="decision-display status status-@color"><i class="@icon"></i> @item.Decision</span>
+                                        <span class="decision-display status status-@color"><i class="@icon"></i> @item.DecisionLabel</span>
                                     }
                                     else
                                     {
