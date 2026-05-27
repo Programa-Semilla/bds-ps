@@ -32,6 +32,7 @@ public class ReviewController : Controller
     private readonly IStageExpiryEvaluator _stageExpiry;
     private readonly IStageExpiryClock _stageExpiryClock;
     private readonly IComparisonOrchestrator _comparisonOrchestrator;
+    private readonly IDecisionSummaryProjection _decisionSummary;
     private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
     public ReviewController(
@@ -45,6 +46,7 @@ public class ReviewController : Controller
         IStageExpiryEvaluator stageExpiry,
         IStageExpiryClock stageExpiryClock,
         IComparisonOrchestrator comparisonOrchestrator,
+        IDecisionSummaryProjection decisionSummary,
         Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _reviewService = reviewService;
@@ -57,6 +59,7 @@ public class ReviewController : Controller
         _stageExpiry = stageExpiry;
         _stageExpiryClock = stageExpiryClock;
         _comparisonOrchestrator = comparisonOrchestrator;
+        _decisionSummary = decisionSummary;
         _configuration = configuration;
     }
 
@@ -246,6 +249,15 @@ public class ReviewController : Controller
         var viewModel = MapToViewModel(dto);
         viewModel.IsAdmin = User.IsInRole("Admin");
         viewModel.PollIntervalSeconds = int.TryParse(_configuration["AiComparison:PollIntervalSeconds"], out var ps) ? ps : 3;
+
+        // Spec 027 / US4 — project the shared decision summary from the loaded
+        // aggregate so the reviewer sees the same per-line block as every other
+        // surface, alongside the unchanged interactive capture controls.
+        var aggregate = await _applicationRepository.GetByIdWithDetailsAsync(id);
+        if (aggregate is not null)
+        {
+            viewModel.DecisionSummary = _decisionSummary.Project(aggregate);
+        }
 
         // Spec 020 / US2 — hydrate per-item comparison region with the cached
         // artifact + freshness signal. Items with < 2 quotations get a

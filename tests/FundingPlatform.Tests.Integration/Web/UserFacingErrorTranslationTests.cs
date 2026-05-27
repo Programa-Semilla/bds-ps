@@ -261,7 +261,8 @@ internal static class SignedUploadEndpointsTestSeeder
         var storage = new InMemoryFileStorage();
         return new SignedUploadService(
             appRepo, suRepo, storage, options,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<SignedUploadService>.Instance);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<SignedUploadService>.Instance,
+            new FundingPlatform.Infrastructure.Identity.UserStoreReader(ctx));
     }
 
     private static System.IO.Stream PdfStream()

@@ -45,6 +45,8 @@ public class SignedUploadService
     private readonly IObjectStorage _objectStorage;
     private readonly IOptions<SignedUploadOptions> _options;
     private readonly ILogger<SignedUploadService> _logger;
+    // Spec 027 / US1 — resolve the generator's display name (never a GUID).
+    private readonly IUserStoreReader _userStoreReader;
 
     private const FileCategory SignedCategory = FileCategory.SignedFundingAgreement;
 
@@ -53,13 +55,15 @@ public class SignedUploadService
         ISignedUploadRepository signedUploadRepository,
         IObjectStorage objectStorage,
         IOptions<SignedUploadOptions> options,
-        ILogger<SignedUploadService> logger)
+        ILogger<SignedUploadService> logger,
+        IUserStoreReader userStoreReader)
     {
         _applicationRepository = applicationRepository;
         _signedUploadRepository = signedUploadRepository;
         _objectStorage = objectStorage;
         _options = options;
         _logger = logger;
+        _userStoreReader = userStoreReader;
     }
 
     public async Task<SigningStagePanelDto?> GetPanelAsync(GetSigningStagePanelQuery query)
@@ -118,6 +122,15 @@ public class SignedUploadService
         var approvedUpload = agreement?.SignedUploads
             .FirstOrDefault(u => u.Status == SignedUploadStatus.Approved);
 
+        // Spec 027 / US1 — resolve the generator to a human display name; never
+        // surface the raw GeneratedByUserId (GUID) on the page (FR-001/FR-002).
+        string? generatedByDisplayName = null;
+        if (agreement?.GeneratedByUserId is { Length: > 0 } signedGeneratorId)
+        {
+            var resolved = await _userStoreReader.GetDisplayNameAsync(signedGeneratorId, CancellationToken.None);
+            generatedByDisplayName = GeneratorDisplayName.FromResolved(resolved, signedGeneratorId);
+        }
+
         var isApplicantOwner =
             query.UserId is not null &&
             application.Applicant?.UserId == query.UserId;
@@ -151,7 +164,7 @@ public class SignedUploadService
             DisabledReason: disabledReason,
             GeneratedAtUtc: agreement?.GeneratedAtUtc,
             GeneratedByUserId: agreement?.GeneratedByUserId,
-            GeneratedByDisplayName: agreement?.GeneratedByUserId,
+            GeneratedByDisplayName: generatedByDisplayName,
             GeneratedVersion: agreement?.GeneratedVersion ?? 0,
             PendingUpload: pendingDto,
             LastDecision: lastDecisionDto,

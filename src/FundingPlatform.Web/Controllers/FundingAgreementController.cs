@@ -42,6 +42,7 @@ public class FundingAgreementController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IUserFacingErrorTranslator _errorTranslator;
     private readonly Application.Services.IUserStoreReader _userStoreReader;
+    private readonly Application.Services.IDecisionSummaryProjection _decisionSummary;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<FundingAgreementController> _logger;
 
@@ -58,6 +59,7 @@ public class FundingAgreementController : Controller
         UserManager<ApplicationUser> userManager,
         IUserFacingErrorTranslator errorTranslator,
         Application.Services.IUserStoreReader userStoreReader,
+        Application.Services.IDecisionSummaryProjection decisionSummary,
         IWebHostEnvironment env,
         ILogger<FundingAgreementController> logger)
     {
@@ -70,6 +72,7 @@ public class FundingAgreementController : Controller
         _userManager = userManager;
         _errorTranslator = errorTranslator;
         _userStoreReader = userStoreReader;
+        _decisionSummary = decisionSummary;
         _env = env;
         _logger = logger;
     }
@@ -549,18 +552,23 @@ public class FundingAgreementController : Controller
         var application = await _service.LoadForGenerationAsync(applicationId);
         FundingAgreementDocumentViewModel? preview = null;
         var hasApplicantResponse = false;
+        // Spec 027 / US4 — project the shared decision summary from the
+        // already-loaded aggregate (no extra query).
+        IReadOnlyList<Application.DTOs.DecisionSummaryLineDto> decisionSummary = [];
 
         if (application is not null)
         {
             preview = await BuildDocumentViewModelAsync(application);
             hasApplicantResponse = application.ApplicantResponses.Any();
+            decisionSummary = _decisionSummary.Project(application);
         }
 
         var viewModel = new FundingAgreementDetailsViewModel
         {
             Panel = panel,
             Preview = preview,
-            HasApplicantResponse = hasApplicantResponse
+            HasApplicantResponse = hasApplicantResponse,
+            DecisionSummary = decisionSummary
         };
 
         return View(viewModel);

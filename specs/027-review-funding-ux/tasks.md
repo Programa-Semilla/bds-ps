@@ -32,7 +32,7 @@ description: "Task list for 027 Review & Funding-Agreement UX Refinements"
 
 **⚠️ CRITICAL**: Complete before US5/US6/US7 begin.
 
-- [ ] T002 [P] Create shared required-field marker partial `src/FundingPlatform.Web/Views/Shared/_RequiredMark.cshtml` rendering `<span class="text-danger" aria-label="campo obligatorio">*</span>` (consumed by US5 field, US6 sweep, US7 forms).
+- [X] T002 [P] Create shared required-field marker partial `src/FundingPlatform.Web/Views/Shared/_RequiredMark.cshtml` rendering `<span class="text-danger" aria-label="campo obligatorio">*</span>` (consumed by US5 field, US6 sweep, US7 forms).
 
 **Checkpoint**: shared marker available.
 
@@ -44,10 +44,10 @@ description: "Task list for 027 Review & Funding-Agreement UX Refinements"
 
 **Independent Test**: Generate as a known user; FA page shows their name; empty name → email; deleted account → stable fallback, never a GUID.
 
-- [ ] T003 [P] [US1] In `src/FundingPlatform.Application/.../SignedUploadService.cs:154`, replace `GeneratedByDisplayName: agreement?.GeneratedByUserId` with a value resolved via `IUserStoreReader.GetDisplayNameAsync` (inject `IUserStoreReader` into the service if not already present).
-- [ ] T004 [P] [US1] In `src/FundingPlatform.Application/.../FundingAgreementService.cs:70`, apply the same display-name resolution.
-- [ ] T005 [US1] Unit test the fallback ladder (full name → email → stable fallback; deleted account does not throw and yields no GUID) in `tests/FundingPlatform.Tests.Unit`.
-- [ ] T006 [US1] E2E: generate an agreement, open `/Applications/{id}/FundingAgreement`, assert the "Generado — … por X" line shows a name and matches no GUID pattern, in `tests/FundingPlatform.Tests.E2E`.
+- [X] T003 [P] [US1] In `src/FundingPlatform.Application/.../SignedUploadService.cs:154`, replace `GeneratedByDisplayName: agreement?.GeneratedByUserId` with a value resolved via `IUserStoreReader.GetDisplayNameAsync` (inject `IUserStoreReader` into the service if not already present).
+- [X] T004 [P] [US1] In `src/FundingPlatform.Application/.../FundingAgreementService.cs:70`, apply the same display-name resolution.
+- [X] T005 [US1] Unit test the fallback ladder (full name → email → stable fallback; deleted account does not throw and yields no GUID) in `tests/FundingPlatform.Tests.Unit`.
+- [X] T006 [US1] E2E: generate an agreement, open `/Applications/{id}/FundingAgreement`, assert the "Generado — … por X" line shows a name and matches no GUID pattern, in `tests/FundingPlatform.Tests.E2E`.
 
 **Checkpoint**: US1 independently demoable.
 
@@ -59,9 +59,9 @@ description: "Task list for 027 Review & Funding-Agreement UX Refinements"
 
 **Independent Test**: Click each action → consequence-stated confirm appears; dismiss = no change; confirm = action; reject still requires its comment.
 
-- [ ] T007 [US2] Add `data-confirm` attributes to the Aprobar and Rechazar submit buttons in `src/FundingPlatform.Web/Views/Applications/_FundingAgreementPanel.cshtml:127-151` per `contracts/ui-surfaces.md` (Aprobar → variant `statelocking`, body "Esto ejecuta el convenio."; Rechazar → variant `destructive`, body "Esto rechaza la carga; el solicitante podrá enviar otra.").
-- [ ] T008 [US2] Verify the reject mandatory-comment UX still holds with the confirm interception (recommendation: keep server-side enforcement at `FundingAgreementController.Reject` as the backstop; if the confirm fires before HTML5 validation, gate the confirm on a non-empty comment). Adjust the panel/JS hook only if needed — no change to `confirm-dialog.js`.
-- [ ] T009 [US2] E2E: confirm modal appears for both actions; dismiss leaves state unchanged; confirm performs the action; reject without a comment is still blocked. In `tests/FundingPlatform.Tests.E2E`.
+- [X] T007 [US2] Add `data-confirm` attributes to the Aprobar and Rechazar submit buttons in `src/FundingPlatform.Web/Views/Applications/_FundingAgreementPanel.cshtml:127-151` per `contracts/ui-surfaces.md` (Aprobar → variant `statelocking`, body "Esto ejecuta el convenio."; Rechazar → variant `destructive`, body "Esto rechaza la carga; el solicitante podrá enviar otra.").
+- [X] T008 [US2] Verify the reject mandatory-comment UX still holds with the confirm interception (recommendation: keep server-side enforcement at `FundingAgreementController.Reject` as the backstop; if the confirm fires before HTML5 validation, gate the confirm on a non-empty comment). Adjust the panel/JS hook only if needed — no change to `confirm-dialog.js`.
+- [X] T009 [US2] E2E: confirm modal appears for both actions; dismiss leaves state unchanged; confirm performs the action; reject without a comment is still blocked. In `tests/FundingPlatform.Tests.E2E`.
 
 **Checkpoint**: US2 independently demoable.
 
@@ -73,14 +73,14 @@ description: "Task list for 027 Review & Funding-Agreement UX Refinements"
 
 **Independent Test**: Walk one application (≥1 approved, ≥1 rejected, a non-CRC quote) through all five screens; each shows the identical field set.
 
-- [ ] T010 [P] [US4] Create `src/FundingPlatform.Application/DTOs/DecisionSummaryLineDto.cs` with `DecisionSummaryLineDto` + `DecisionSummaryQuotationView` per `contracts/decision-summary.md`.
-- [ ] T011 [US4] Create `src/FundingPlatform.Application/Services/IDecisionSummaryProjection.cs` + `DecisionSummaryProjection.cs` implementing the mapping rules (approved/rejected/pending; rejected lists all quotes; conversion note lifted from `FundingAgreementController.BuildConversionNote`); register in DI.
-- [ ] T012 [P] [US4] Unit tests for the projection (approved supplier+amount; rejected reason + all quotes; pending status; non-CRC conversion note; ordering by LineCode then Id) in `tests/FundingPlatform.Tests.Unit`.
-- [ ] T013 [P] [US4] Create read-only shared partial `src/FundingPlatform.Web/Views/Shared/_DecisionSummary.cshtml` (`@model IReadOnlyList<DecisionSummaryLineDto>`) per the partial contract; es-CR status badges.
-- [ ] T014 [US4] Render `_DecisionSummary` on `src/FundingPlatform.Web/Views/ApplicantResponse/Index.cshtml` and feed it from `ApplicantResponseController.Index` (this adds the missing technical specifications).
-- [ ] T015 [US4] Render `_DecisionSummary` on `src/FundingPlatform.Web/Views/FundingAgreement/Details.cshtml`, replacing the approved-only preview; feed it from `FundingAgreementController` (covers the generate / signing / signed-review states).
-- [ ] T016 [US4] Render `_DecisionSummary` read-only alongside the existing capture UI on `src/FundingPlatform.Web/Views/Review/Review.cshtml` (capture controls unchanged).
-- [ ] T017 [US4] E2E: a single five-screen parity test asserting the same field set (incl. technical specs) on reviewer review, applicant accept/reject, FA Details (generate/sign/signed-review states), for both an approved and a rejected line. In `tests/FundingPlatform.Tests.E2E`.
+- [X] T010 [P] [US4] Create `src/FundingPlatform.Application/DTOs/DecisionSummaryLineDto.cs` with `DecisionSummaryLineDto` + `DecisionSummaryQuotationView` per `contracts/decision-summary.md`.
+- [X] T011 [US4] Create `src/FundingPlatform.Application/Services/IDecisionSummaryProjection.cs` + `DecisionSummaryProjection.cs` implementing the mapping rules (approved/rejected/pending; rejected lists all quotes; conversion note lifted from `FundingAgreementController.BuildConversionNote`); register in DI.
+- [X] T012 [P] [US4] Unit tests for the projection (approved supplier+amount; rejected reason + all quotes; pending status; non-CRC conversion note; ordering by LineCode then Id) in `tests/FundingPlatform.Tests.Unit`.
+- [X] T013 [P] [US4] Create read-only shared partial `src/FundingPlatform.Web/Views/Shared/_DecisionSummary.cshtml` (`@model IReadOnlyList<DecisionSummaryLineDto>`) per the partial contract; es-CR status badges.
+- [X] T014 [US4] Render `_DecisionSummary` on `src/FundingPlatform.Web/Views/ApplicantResponse/Index.cshtml` and feed it from `ApplicantResponseController.Index` (this adds the missing technical specifications).
+- [X] T015 [US4] Render `_DecisionSummary` on `src/FundingPlatform.Web/Views/FundingAgreement/Details.cshtml`, replacing the approved-only preview; feed it from `FundingAgreementController` (covers the generate / signing / signed-review states).
+- [X] T016 [US4] Render `_DecisionSummary` read-only alongside the existing capture UI on `src/FundingPlatform.Web/Views/Review/Review.cshtml` (capture controls unchanged).
+- [X] T017 [US4] E2E: a single five-screen parity test asserting the same field set (incl. technical specs) on reviewer review, applicant accept/reject, FA Details (generate/sign/signed-review states), for both an approved and a rejected line. In `tests/FundingPlatform.Tests.E2E`.
 
 **Checkpoint**: US4 independently demoable; US3 may now reuse the partial.
 

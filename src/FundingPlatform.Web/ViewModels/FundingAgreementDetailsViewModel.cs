@@ -1,3 +1,5 @@
+using FundingPlatform.Application.DTOs;
+
 namespace FundingPlatform.Web.ViewModels;
 
 public class FundingAgreementDetailsViewModel
@@ -5,6 +7,14 @@ public class FundingAgreementDetailsViewModel
     public SigningStagePanelViewModel Panel { get; set; } = new();
     public FundingAgreementDocumentViewModel? Preview { get; set; }
     public bool HasApplicantResponse { get; set; }
+
+    /// <summary>
+    /// Spec 027 / US4 — the shared per-line decision summary rendered on the
+    /// funding-agreement page (generate / signing / signed-review states),
+    /// replacing the approved-only preview. Screen-only; the PDF document body
+    /// is unchanged (FR-009).
+    /// </summary>
+    public IReadOnlyList<DecisionSummaryLineDto> DecisionSummary { get; set; } = [];
 
     /// <summary>
     /// Spec 015 / US5 / T512 / FR-027 — when the controller catches

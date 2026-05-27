@@ -52,18 +52,30 @@ else if (Model.State == ApplicationState.ResponseFinalized && Model.HasFundingAg
     </div>
 }
 
+@* Spec 027 / US4 — the shared read-only decision summary (line code, product,
+   category, technical specifications, supplier, amount + CRC note, status;
+   rejected lines also show the reason and every quoted supplier). This adds the
+   technical specifications the legacy applicant table lacked. *@
+<div class="card mb-3" data-testid="applicant-response-decision-summary">
+    <div class="card-header">
+        <strong>Detalle de la revisión</strong>
+    </div>
+    <div class="card-body">
+        @await Html.PartialAsync("_DecisionSummary", Model.DecisionSummary)
+    </div>
+</div>
+
 <form method="post" asp-action="Submit" asp-route-id="@Model.ApplicationId" id="applicantResponseForm">
     @Html.AntiForgeryToken()
     <div class="card">
+        <div class="card-header">
+            <strong>Su decisión por ítem</strong>
+        </div>
         <div class="table-responsive">
             <table class="table card-table table-vcenter response-items">
                 <thead>
                     <tr>
                         <th>Ítem</th>
-                        <th>Decisión del revisor</th>
-                        <th>Proveedor</th>
-                        <th>Monto</th>
-                        <th>Comentario</th>
                         <th>Su decisión</th>
                     </tr>
                 </thead>
@@ -72,14 +84,6 @@ else if (Model.State == ApplicationState.ResponseFinalized && Model.HasFundingAg
                     {
                         <tr class="response-item" data-item-id="@item.ItemId">
                             <td class="item-name">@item.ProductName</td>
-                            <td>
-                                <span class="review-status review-status-@item.ReviewStatus.ToString().ToLowerInvariant()">
-                                    @await Html.PartialAsync("Components/_StatusPill", new StatusPillViewModel(item.ReviewStatus))
-                                </span>
-                            </td>
-                            <td class="supplier-name">@(item.SelectedSupplierName ?? "—")</td>
-                            <td class="amount">@(item.Amount.HasValue ? item.Amount.Value.ToString("C") : "—")</td>
-                            <td class="review-comment">@(item.ReviewComment ?? "—")</td>
                             <td>
                                 @if (isReadOnly)
                                 {
