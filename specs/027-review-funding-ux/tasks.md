@@ -22,7 +22,7 @@ description: "Task list for 027 Review & Funding-Agreement UX Refinements"
 
 **Purpose**: Establish a clean baseline so regressions are attributable.
 
-- [ ] T001 Confirm baseline green: `dotnet build FundingPlatform.slnx` and a baseline run of `tests/FundingPlatform.Tests.E2E`; note any pre-existing failures before changes.
+- [X] T001 Confirm baseline green: `dotnet build FundingPlatform.slnx` and a baseline run of `tests/FundingPlatform.Tests.E2E`; note any pre-existing failures before changes.
 
 ---
 
@@ -164,9 +164,9 @@ description: "Task list for 027 Review & Funding-Agreement UX Refinements"
 
 ## Phase 11: Polish & Cross-Cutting
 
-- [ ] T037 es-CR copy pass over all new/changed strings (confirm tooltips, confirm-dialog bodies, status badges, success messages — no English leaks).
-- [ ] T038 Run `specs/027-review-funding-ux/quickstart.md` manual verification end to end.
-- [ ] T039 Run the FULL E2E suite (`tests/FundingPlatform.Tests.E2E`) and confirm green — the delivery gate (SC-008, constitution III). Personally execute; partial/structural runs do not count.
+- [X] T037 es-CR copy pass over all new/changed strings (confirm tooltips, confirm-dialog bodies, status badges, success messages — no English leaks).
+- [X] T038 Run `specs/027-review-funding-ux/quickstart.md` manual verification end to end.
+- [X] T039 Run the FULL E2E suite (`tests/FundingPlatform.Tests.E2E`) and confirm green — the delivery gate (SC-008, constitution III). Personally execute; partial/structural runs do not count.
 
 ---
 
