@@ -16,6 +16,9 @@ public class FundingAgreementDetailsViewModel
     /// </summary>
     public IReadOnlyList<DecisionSummaryLineDto> DecisionSummary { get; set; } = [];
 
+    /// <summary>Spec 027 / US3 — richer applicant detail block (screen-only).</summary>
+    public FundingAgreementApplicantBlockViewModel? ApplicantBlock { get; set; }
+
     /// <summary>
     /// Spec 015 / US5 / T512 / FR-027 — when the controller catches
     /// <c>MissingConversionMetadataException</c> during Generate, the view is

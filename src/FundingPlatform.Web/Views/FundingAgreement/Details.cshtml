@@ -9,7 +9,6 @@
    is preserved here intentionally. *@
 @{
     ViewData["Title"] = $"Convenio de financiamiento — Solicitud {Model.Panel.ApplicationId}";
-    var preview = Model.Preview;
 }
 
 @await Html.PartialAsync("Components/_PageHeader",
@@ -32,6 +31,63 @@
     </div>
 }
 
+@* Spec 027 / US3 — richer applicant detail (screen-only; the PDF document body
+   is unchanged per FR-009). Empty optional fields render the neutral "—". *@
+@if (Model.ApplicantBlock is { } applicant)
+{
+    var identificationLabel = applicant.IdentificationType is { } idType
+        ? FundingPlatform.Web.ViewModels.LegalIdFieldModel.Label(idType)
+        : null;
+    string OrDash(string? v) => string.IsNullOrWhiteSpace(v) ? "—" : v!;
+    <div class="card mb-4" data-testid="fa-applicant-block">
+        <div class="card-header">
+            <strong>Datos del solicitante</strong>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">Empresa solicitante</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-company">@applicant.CompanyName</dd>
+
+                <dt class="col-sm-3 text-muted">Representante</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-representative">@applicant.RepresentativeName</dd>
+
+                <dt class="col-sm-3 text-muted">Identificación</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-legalid">
+                    @if (string.IsNullOrWhiteSpace(applicant.LegalId))
+                    {
+                        <text>—</text>
+                    }
+                    else
+                    {
+                        @applicant.LegalId
+                        @if (identificationLabel is not null)
+                        {
+                            <span class="text-muted"> &middot; @identificationLabel</span>
+                        }
+                    }
+                </dd>
+
+                <dt class="col-sm-3 text-muted">Correo electrónico</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-email">@OrDash(applicant.Email)</dd>
+
+                <dt class="col-sm-3 text-muted">Teléfono</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-phone">@OrDash(applicant.Phone)</dd>
+
+                <dt class="col-sm-3 text-muted">Código del solicitante</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-codigo">@OrDash(applicant.CodigoPersonal)</dd>
+
+                <dt class="col-sm-3 text-muted">Grupo</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-group">@applicant.Group</dd>
+
+                <dt class="col-sm-3 text-muted">Fecha de envío</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-submitted">
+                    @(applicant.SubmittedAt.HasValue ? applicant.SubmittedAt.Value.ToString("dd/MM/yyyy HH:mm") : "—")
+                </dd>
+            </dl>
+        </div>
+    </div>
+}
+
 @* Spec 027 / US4 — the approved-only preview table is replaced by the shared
    read-only decision summary (line code, product, category, technical specs,
    supplier, amount + CRC note, status; rejected lines also show the reason and
@@ -42,17 +98,6 @@
         <span class="text-muted ms-2 small">Detalle por línea revisada. El documento PDF conserva su propio formato.</span>
     </div>
     <div class="card-body">
-        @if (preview is not null)
-        {
-            <dl class="row mb-3">
-                <dt class="col-sm-3">Empresa solicitante</dt>
-                <dd class="col-sm-9" data-testid="funding-agreement-preview-company-name">@preview.CompanyName</dd>
-
-                <dt class="col-sm-3">Representante</dt>
-                <dd class="col-sm-9" data-testid="funding-agreement-preview-applicant-name">@preview.ApplicantRepresentativeName</dd>
-            </dl>
-        }
-
         @if (!Model.HasApplicantResponse)
         {
             <p class="text-muted" data-testid="funding-agreement-preview-awaiting-response">

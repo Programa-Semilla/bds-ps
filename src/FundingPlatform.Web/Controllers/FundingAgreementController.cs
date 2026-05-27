@@ -19,6 +19,7 @@ using FundingPlatform.Web.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
 namespace FundingPlatform.Web.Controllers;
@@ -43,6 +44,8 @@ public class FundingAgreementController : Controller
     private readonly IUserFacingErrorTranslator _errorTranslator;
     private readonly Application.Services.IUserStoreReader _userStoreReader;
     private readonly Application.Services.IDecisionSummaryProjection _decisionSummary;
+    // Spec 027 / US3 — applicant group lookup for the FA applicant block.
+    private readonly Infrastructure.Persistence.AppDbContext _dbContext;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<FundingAgreementController> _logger;
 
@@ -60,6 +63,7 @@ public class FundingAgreementController : Controller
         IUserFacingErrorTranslator errorTranslator,
         Application.Services.IUserStoreReader userStoreReader,
         Application.Services.IDecisionSummaryProjection decisionSummary,
+        Infrastructure.Persistence.AppDbContext dbContext,
         IWebHostEnvironment env,
         ILogger<FundingAgreementController> logger)
     {
@@ -73,6 +77,7 @@ public class FundingAgreementController : Controller
         _errorTranslator = errorTranslator;
         _userStoreReader = userStoreReader;
         _decisionSummary = decisionSummary;
+        _dbContext = dbContext;
         _env = env;
         _logger = logger;
     }
@@ -556,11 +561,13 @@ public class FundingAgreementController : Controller
         // already-loaded aggregate (no extra query).
         IReadOnlyList<Application.DTOs.DecisionSummaryLineDto> decisionSummary = [];
 
+        FundingAgreementApplicantBlockViewModel? applicantBlock = null;
         if (application is not null)
         {
             preview = await BuildDocumentViewModelAsync(application);
             hasApplicantResponse = application.ApplicantResponses.Any();
             decisionSummary = _decisionSummary.Project(application);
+            applicantBlock = await BuildApplicantBlockAsync(application);
         }
 
         var viewModel = new FundingAgreementDetailsViewModel
@@ -568,7 +575,8 @@ public class FundingAgreementController : Controller
             Panel = panel,
             Preview = preview,
             HasApplicantResponse = hasApplicantResponse,
-            DecisionSummary = decisionSummary
+            DecisionSummary = decisionSummary,
+            ApplicantBlock = applicantBlock
         };
 
         return View(viewModel);
@@ -723,6 +731,48 @@ public class FundingAgreementController : Controller
             CanApplicantReplaceOrWithdraw = dto.CanApplicantReplaceOrWithdraw,
             CanReviewerAct = dto.CanReviewerAct,
             IsExecuted = dto.IsExecuted
+        };
+    }
+
+    /// <summary>
+    /// Spec 027 / US3 — builds the screen-only applicant detail block: company,
+    /// representative, legal id + type, email, phone, código, group, submission
+    /// date. The PDF document body is unchanged (FR-009).
+    /// </summary>
+    private async Task<FundingAgreementApplicantBlockViewModel> BuildApplicantBlockAsync(AppEntity application)
+    {
+        var applicant = application.Applicant;
+        var representative = applicant is null
+            ? string.Empty
+            : $"{applicant.FirstName} {applicant.LastName}".Trim();
+
+        string? codigoPersonal = null;
+        var group = "—";
+        if (applicant?.UserId is { Length: > 0 } userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            codigoPersonal = user?.CodigoPersonal;
+
+            var groups = await _dbContext.UserGroupMemberships
+                .AsNoTracking()
+                .Where(m => m.UserId == userId)
+                .Join(_dbContext.Groups.AsNoTracking(), m => m.GroupId, g => g.Id, (m, g) => g.Name)
+                .OrderBy(n => n)
+                .ToListAsync();
+            if (groups.Count > 0) group = string.Join(", ", groups);
+        }
+
+        return new FundingAgreementApplicantBlockViewModel
+        {
+            CompanyName = string.IsNullOrWhiteSpace(application.CompanyName) ? "—" : application.CompanyName,
+            RepresentativeName = string.IsNullOrWhiteSpace(representative) ? "—" : representative,
+            LegalId = applicant?.LegalId,
+            IdentificationType = applicant?.IdentificationType,
+            Email = applicant?.Email,
+            Phone = applicant?.Phone,
+            CodigoPersonal = codigoPersonal,
+            Group = group,
+            SubmittedAt = application.SubmittedAt,
         };
     }
 

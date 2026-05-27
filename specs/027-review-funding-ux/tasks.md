@@ -92,10 +92,10 @@ description: "Task list for 027 Review & Funding-Agreement UX Refinements"
 
 **Independent Test**: Reviewer sets the code → persists → visible read-only on that applicant's profile; not editable there.
 
-- [ ] T018 [US5] Add `POST /Review/{id:int}/ApplicantCode` to `src/FundingPlatform.Web/Controllers/ReviewController.cs` (`[Authorize(Roles="Reviewer,Admin")]`, `[ValidateAntiForgeryToken]`, group-overlap auth mirroring the existing review predicate; resolve applicant via `application.Applicant.UserId`; set `CodigoPersonal` ≤40 chars via `UserManager<ApplicationUser>.FindByIdAsync`+`UpdateAsync`; es-CR success TempData).
-- [ ] T019 [US5] Add the "Código del solicitante" input + save control to `src/FundingPlatform.Web/Views/Review/Review.cshtml`, prefilled with the current value, required-marked via `_RequiredMark`, posting to the new action.
-- [ ] T020 [US5] Integration test (real DB, no mocks): reviewer POST sets `CodigoPersonal` on the applicant's `ApplicationUser`; non-owning/non-overlapping reviewer is rejected. In `tests/FundingPlatform.Tests.Integration`.
-- [ ] T021 [US5] E2E: reviewer sets the code on `/Review/{id}` → log in as that applicant → code shows read-only on the profile. In `tests/FundingPlatform.Tests.E2E`.
+- [X] T018 [US5] Add `POST /Review/{id:int}/ApplicantCode` to `src/FundingPlatform.Web/Controllers/ReviewController.cs` (`[Authorize(Roles="Reviewer,Admin")]`, `[ValidateAntiForgeryToken]`, group-overlap auth mirroring the existing review predicate; resolve applicant via `application.Applicant.UserId`; set `CodigoPersonal` ≤40 chars via `UserManager<ApplicationUser>.FindByIdAsync`+`UpdateAsync`; es-CR success TempData).
+- [X] T019 [US5] Add the "Código del solicitante" input + save control to `src/FundingPlatform.Web/Views/Review/Review.cshtml`, prefilled with the current value, required-marked via `_RequiredMark`, posting to the new action.
+- [X] T020 [US5] Integration test (real DB, no mocks): reviewer POST sets `CodigoPersonal` on the applicant's `ApplicationUser`; non-owning/non-overlapping reviewer is rejected. In `tests/FundingPlatform.Tests.Integration`.
+- [X] T021 [US5] E2E: reviewer sets the code on `/Review/{id}` → log in as that applicant → code shows read-only on the profile. In `tests/FundingPlatform.Tests.E2E`.
 
 **Checkpoint**: US5 independently demoable; US3 may now display the code.
 
@@ -109,9 +109,9 @@ description: "Task list for 027 Review & Funding-Agreement UX Refinements"
 
 **Depends on**: US4 (partial already on Details), US5 (code value).
 
-- [ ] T022 [US3] Extend the FA Details view model + `FundingAgreementController` to populate an applicant block: company, representative name, legal id + identification type (spec-026 formatting), email, phone, `CodigoPersonal`, group (spec 016), submission date; neutral "—" for empty optionals.
-- [ ] T023 [US3] Render the applicant block on `src/FundingPlatform.Web/Views/FundingAgreement/Details.cshtml`.
-- [ ] T024 [US3] E2E: FA page shows all applicant fields; an empty optional renders "—"; assert the generated PDF document body is unchanged (no new applicant detail leaks into it). In `tests/FundingPlatform.Tests.E2E`.
+- [X] T022 [US3] Extend the FA Details view model + `FundingAgreementController` to populate an applicant block: company, representative name, legal id + identification type (spec-026 formatting), email, phone, `CodigoPersonal`, group (spec 016), submission date; neutral "—" for empty optionals.
+- [X] T023 [US3] Render the applicant block on `src/FundingPlatform.Web/Views/FundingAgreement/Details.cshtml`.
+- [X] T024 [US3] E2E: FA page shows all applicant fields; an empty optional renders "—"; assert the generated PDF document body is unchanged (no new applicant detail leaks into it). In `tests/FundingPlatform.Tests.E2E`.
 
 **Checkpoint**: US3 independently demoable.
 

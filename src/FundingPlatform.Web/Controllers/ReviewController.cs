@@ -33,6 +33,8 @@ public class ReviewController : Controller
     private readonly IStageExpiryClock _stageExpiryClock;
     private readonly IComparisonOrchestrator _comparisonOrchestrator;
     private readonly IDecisionSummaryProjection _decisionSummary;
+    // Spec 027 / US5 — reviewer/admin write surface for the applicant's CodigoPersonal.
+    private readonly Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> _userManager;
     private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
     public ReviewController(
@@ -47,6 +49,7 @@ public class ReviewController : Controller
         IStageExpiryClock stageExpiryClock,
         IComparisonOrchestrator comparisonOrchestrator,
         IDecisionSummaryProjection decisionSummary,
+        Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager,
         Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _reviewService = reviewService;
@@ -60,6 +63,7 @@ public class ReviewController : Controller
         _stageExpiryClock = stageExpiryClock;
         _comparisonOrchestrator = comparisonOrchestrator;
         _decisionSummary = decisionSummary;
+        _userManager = userManager;
         _configuration = configuration;
     }
 
@@ -257,6 +261,15 @@ public class ReviewController : Controller
         if (aggregate is not null)
         {
             viewModel.DecisionSummary = _decisionSummary.Project(aggregate);
+
+            // Spec 027 / US5 — prefill the applicant-code write control with the
+            // current value on the application owner's account.
+            var applicantUserId = aggregate.Applicant?.UserId;
+            if (!string.IsNullOrEmpty(applicantUserId))
+            {
+                var applicantUser = await _userManager.FindByIdAsync(applicantUserId);
+                viewModel.ApplicantCodigoPersonal = applicantUser?.CodigoPersonal;
+            }
         }
 
         // Spec 020 / US2 — hydrate per-item comparison region with the cached
@@ -612,6 +625,51 @@ public class ReviewController : Controller
         else
             TempData["SuccessMessage"] = "Decisión del ítem registrada.";
 
+        return RedirectToAction(nameof(Review), new { id });
+    }
+
+    /// <summary>
+    /// Spec 027 / US5 — reviewer/admin sets the application owner's
+    /// <c>CodigoPersonal</c> from the first review screen. Group-overlap
+    /// authorization mirrors the <see cref="Review"/> GET (spec 016). The column
+    /// is NVARCHAR(40); input is length-bounded. Last-write-wins (no concurrency
+    /// token — a single low-contention scalar, per the spec edge-case note).
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("Review/{id:int}/ApplicantCode")]
+    public async Task<IActionResult> ApplicantCode(int id, string? CodigoPersonal, CancellationToken ct = default)
+    {
+        var scope = await GetScopeAsync(ct);
+        if (!scope.IsAdmin)
+        {
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(id, scope.GroupIds, ct);
+            if (!allowed) return Forbid();
+        }
+
+        var application = await _applicationRepository.GetByIdWithDetailsAsync(id);
+        var applicantUserId = application?.Applicant?.UserId;
+        if (string.IsNullOrEmpty(applicantUserId)) return NotFound();
+
+        var code = CodigoPersonal?.Trim();
+        if (code is { Length: > 40 })
+        {
+            TempData["ErrorMessage"] = "El código del solicitante no puede exceder los 40 caracteres.";
+            return RedirectToAction(nameof(Review), new { id });
+        }
+
+        var user = await _userManager.FindByIdAsync(applicantUserId);
+        if (user is null) return NotFound();
+
+        user.CodigoPersonal = string.IsNullOrWhiteSpace(code) ? null : code;
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            TempData["ErrorMessage"] = "No se pudo actualizar el código del solicitante.";
+            return RedirectToAction(nameof(Review), new { id });
+        }
+
+        TempData["SuccessMessage"] = "Código del solicitante actualizado.";
         return RedirectToAction(nameof(Review), new { id });
     }
 
