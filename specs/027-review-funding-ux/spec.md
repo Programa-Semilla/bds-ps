@@ -148,9 +148,9 @@ The left sidebar is a flat list. It must be reorganized into three labeled group
 **Target grouping** (illustrative example from the stakeholder, to be completed with all current items):
 - **Inicio**
 - **Administración**: Empresas proveedoras, Plantillas base, Reportes (admin-wide), Moneda, Tipos de cambio, Usuarios, Configuración del sistema
-- **Proceso** (headed by the Procesos link): Grupos, Starters, Reportes (process-scoped), Plantillas (process), Plantillas de impacto, Cotizaciones pendientes
+- **Proceso** (headed by the Procesos link): Grupos, Starters, Plantillas de impacto, Cotizaciones pendientes
 
-"Starters" denotes the applicants/companies who start applications under a Process; it surfaces the existing applications listing as a first-class navigation item, filterable by Process.
+"Starters" denotes the applicants/companies who start applications under a Process; it surfaces the existing applications listing as a first-class navigation item, filterable by Process. (Process-scoped Reportes/Plantillas — originally floated as duplicates of the admin-wide surfaces — are deferred to a future spec, since no process-scoped routes exist yet; the admin-wide Reportes and Plantillas base remain under Administración.)
 
 **Acceptance Scenarios**:
 
@@ -159,7 +159,7 @@ The left sidebar is a flat list. It must be reorganized into three labeled group
 3. **Given** a reviewer or applicant, **When** they view the sidebar, **Then** the items they were previously entitled to (e.g. Mis solicitudes, Cola de revisión, Generar convenio, Bandeja de firmas) remain visible and role-gating is unchanged.
 4. **Given** the supplier-admin-only variant, **When** they view the sidebar, **Then** their narrowed entry set is preserved.
 5. **Given** the Proceso group, **When** an admin opens "Starters", **Then** they reach the applications listing, scoped/filterable by Process.
-6. **Given** "Reportes" and "Plantillas" appear under both Administración and Proceso, **When** an admin opens each, **Then** they reach the distinct intended surface (admin-wide vs process-scoped).
+6. **Given** the deferral of process-scoped Reportes/Plantillas, **When** an admin views the sidebar, **Then** admin-wide Reportes and Plantillas base appear once under Administración (no duplicate process-scoped entries) and the Proceso group shows Procesos, Grupos, Starters, Plantillas de impacto, and Cotizaciones pendientes.
 
 ---
 
@@ -216,7 +216,7 @@ The left sidebar is a flat list. It must be reorganized into three labeled group
 - **FR-021**: The sidebar MUST be organized into three labeled groups: Inicio, Administración, and Proceso.
 - **FR-022**: Every destination present in the current sidebar MUST remain reachable in the new grouped sidebar — the restructure removes nothing.
 - **FR-023**: Role-gating (including the applicant/reviewer top-level items and the supplier-admin-only variant) MUST be preserved exactly.
-- **FR-024**: "Starters" MUST surface the existing applications listing as a navigation item, scoped/filterable by Process; "Reportes" and "Plantillas" MUST appear under both Administración and Proceso as their distinct admin-wide vs process-scoped surfaces.
+- **FR-024**: "Starters" MUST surface the existing applications listing as a navigation item, scoped/filterable by Process. Admin-wide "Reportes" and "Plantillas base" remain under Administración. Process-scoped Reportes/Plantillas surfaces are explicitly **deferred to a future spec** (no such routes exist today); the Proceso group comprises Procesos, Grupos, Starters, Plantillas de impacto, and Cotizaciones pendientes.
 - **FR-025**: A group with no items visible to the current role MUST NOT render as a bare header.
 
 **Cross-cutting**
