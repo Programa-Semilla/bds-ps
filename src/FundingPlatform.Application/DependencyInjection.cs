@@ -34,6 +34,9 @@ public static class DependencyInjection
         services.AddScoped<IAdminDashboardProjection, AdminDashboardProjection>();
         services.AddSingleton<IAdminAuditEventCopyProvider, AdminAuditEventCopyProvider>();
 
+        // Spec 027 / US4 — shared per-line decision summary projection (pure mapping).
+        services.AddSingleton<IDecisionSummaryProjection, DecisionSummaryProjection>();
+
         // Spec 021 — Application abstractions; implementations bound in
         // FundingPlatform.Infrastructure.DependencyInjection.
         // (IPasswordResetTokenStore, IApplicationQueryFilter,

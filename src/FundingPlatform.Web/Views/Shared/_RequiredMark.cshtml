@@ -1,0 +1,16 @@
+@*
+    Spec 027 / US6 / FR-018 — `_RequiredMark` partial.
+
+    The single shared required-field marker. Renders an asterisk with an
+    es-CR aria-label so screen readers announce the field as obligatorio.
+    Place immediately after a required field's <label> text:
+
+        <label class="form-label" asp-for="Foo">
+            Foo @await Html.PartialAsync("_RequiredMark")
+        </label>
+
+    Optional fields render no marker. Replaces the ad-hoc
+    `<span class="text-danger" aria-label="campo obligatorio">*</span>`
+    scattered across the forms (research D5).
+*@
+<span class="text-danger" aria-label="campo obligatorio">*</span>

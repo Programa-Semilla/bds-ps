@@ -1,0 +1,121 @@
+@using System.Globalization
+@using FundingPlatform.Application.DTOs
+@using FundingPlatform.Domain.Enums
+@model IReadOnlyList<FundingPlatform.Application.DTOs.DecisionSummaryLineDto>
+
+@*
+    Spec 027 / US4 — the single read-only per-line decision summary, rendered
+    identically on the reviewer review screen, the applicant accept/reject
+    screen, and the funding-agreement Details page (generate / signing /
+    signed-review states). Carries no form controls; safe on every surface.
+    Fed by IDecisionSummaryProjection. PDF document body is NOT this partial
+    (FR-009 / spec 018).
+*@
+
+@functions {
+    static (string Label, string BadgeClass) StatusBadge(ItemReviewStatus status) => status switch
+    {
+        ItemReviewStatus.Approved => ("Aprobado", "bg-success-lt text-success"),
+        ItemReviewStatus.Rejected => ("Rechazado", "bg-danger-lt text-danger"),
+        ItemReviewStatus.NeedsInfo => ("Requiere información", "bg-warning-lt text-warning"),
+        _ => ("Pendiente", "bg-secondary-lt text-secondary"),
+    };
+
+    static string Money(DecisionSummaryQuotationView q)
+    {
+        var culture = CultureInfo.GetCultureInfo("es-CR");
+        if (string.Equals(q.Currency, "CRC", StringComparison.OrdinalIgnoreCase))
+        {
+            return "₡" + q.Amount.ToString("N2", culture);
+        }
+        var native = q.Amount.ToString("N2", culture) + " " + q.Currency;
+        return q.ConvertedCrcAmount is decimal crc
+            ? $"{native} (₡{crc.ToString("N2", culture)})"
+            : native;
+    }
+}
+
+@if (Model is null || Model.Count == 0)
+{
+    <p class="text-muted" data-testid="decision-summary-empty">No hay líneas en esta solicitud.</p>
+}
+else
+{
+    <div class="decision-summary" data-testid="decision-summary">
+        @foreach (var line in Model)
+        {
+            var badge = StatusBadge(line.ReviewStatus);
+            <div class="card mb-3 decision-summary-line" data-testid="decision-summary-line">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        @if (!string.IsNullOrWhiteSpace(line.LineCode))
+                        {
+                            <span class="badge bg-blue-lt text-blue" data-testid="decision-line-code">@line.LineCode</span>
+                        }
+                        <strong data-testid="decision-line-product">@line.ProductName</strong>
+                        <span class="text-muted">·</span>
+                        <span class="text-muted" data-testid="decision-line-category">@line.CategoryName</span>
+                        <span class="badge @badge.BadgeClass ms-auto" data-testid="decision-line-status">@badge.Label</span>
+                    </div>
+
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3 text-muted">Especificaciones técnicas</dt>
+                        <dd class="col-sm-9" data-testid="decision-line-specs">
+                            @(string.IsNullOrWhiteSpace(line.TechnicalSpecifications) ? "—" : line.TechnicalSpecifications)
+                        </dd>
+
+                        @if (line.ReviewStatus == ItemReviewStatus.Approved && line.ApprovedAmount is not null)
+                        {
+                            <dt class="col-sm-3 text-muted">Proveedor</dt>
+                            <dd class="col-sm-9" data-testid="decision-line-supplier">
+                                @line.ApprovedSupplierName — <strong>@Money(line.ApprovedAmount)</strong>
+                                @if (!string.IsNullOrWhiteSpace(line.ApprovedAmount.CurrencyConversionNote))
+                                {
+                                    <div class="small text-muted" data-testid="decision-line-conversion">@line.ApprovedAmount.CurrencyConversionNote</div>
+                                }
+                            </dd>
+                        }
+
+                        @if (line.ReviewStatus == ItemReviewStatus.Rejected)
+                        {
+                            <dt class="col-sm-3 text-muted">Razón</dt>
+                            <dd class="col-sm-9" data-testid="decision-line-reason">
+                                @(string.IsNullOrWhiteSpace(line.ReviewComment) ? "—" : line.ReviewComment)
+                            </dd>
+
+                            @if (line.Quotations.Count > 0)
+                            {
+                                <dt class="col-sm-3 text-muted">Opciones cotizadas</dt>
+                                <dd class="col-sm-9">
+                                    <table class="table table-sm table-borderless mb-0" data-testid="decision-line-quotes">
+                                        <tbody>
+                                            @foreach (var q in line.Quotations)
+                                            {
+                                                <tr>
+                                                    <td>@q.SupplierName</td>
+                                                    <td class="text-end">
+                                                        @Money(q)
+                                                        @if (!string.IsNullOrWhiteSpace(q.CurrencyConversionNote))
+                                                        {
+                                                            <div class="small text-muted">@q.CurrencyConversionNote</div>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </dd>
+                            }
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(line.ApplicantDecision))
+                        {
+                            <dt class="col-sm-3 text-muted">Decisión del solicitante</dt>
+                            <dd class="col-sm-9" data-testid="decision-line-applicant">@line.ApplicantDecision</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+        }
+    </div>
+}

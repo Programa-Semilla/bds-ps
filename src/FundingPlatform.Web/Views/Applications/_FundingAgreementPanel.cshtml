@@ -134,8 +134,15 @@
                                     <input type="text" name="comment" class="form-control form-control-sm d-inline-block signed-comment-input"
                                            placeholder="Comentario opcional"
                                            data-testid="signed-upload-approve-comment" />
+                                    @* Spec 027 / US2 / FR-003 — execute is consequential; route the click
+                                       through the spec-024 confirm dialog before committing. *@
                                     <button type="submit" class="btn btn-success btn-sm"
-                                            data-testid="signed-upload-approve">Aprobar</button>
+                                            data-testid="signed-upload-approve"
+                                            data-confirm
+                                            data-confirm-variant="statelocking"
+                                            data-confirm-title="Ejecutar convenio"
+                                            data-confirm-body="Esto ejecuta el convenio."
+                                            data-confirm-label="Ejecutar">Aprobar</button>
                                 </form>
                                 <form method="post"
                                       action="@Url.Action("Reject", "FundingAgreement", new { applicationId = Model.ApplicationId })">
@@ -144,8 +151,15 @@
                                     <textarea name="comment" class="form-control form-control-sm d-inline-block signed-comment-input"
                                               placeholder="Comentario de rechazo (obligatorio)" rows="1"
                                               data-testid="signed-upload-reject-comment"></textarea>
+                                    @* Spec 027 / US2 / FR-003 — reject is consequential; confirm first.
+                                       The mandatory comment stays enforced server-side (Reject action). *@
                                     <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            data-testid="signed-upload-reject">Rechazar</button>
+                                            data-testid="signed-upload-reject"
+                                            data-confirm
+                                            data-confirm-variant="destructive"
+                                            data-confirm-title="Rechazar carga"
+                                            data-confirm-body="Esto rechaza la carga; el solicitante podrá enviar otra."
+                                            data-confirm-label="Rechazar">Rechazar</button>
                                 </form>
                             </div>
                         }

@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-24
+Last updated: 2026-05-26
 
 ## Sessions
 
@@ -30,8 +30,15 @@ Last updated: 2026-05-24
 | 22 | 2026-05-21 | applicant-delete-withdrawal | spec-created | 021-feedback-session-may13 |
 | 23 | 2026-05-22 | toast-confirm-dialogs | spec-created | 024 |
 | 24 | 2026-05-24 | input-masks | spec-created | 026 |
+| 25 | 2026-05-26 | review-funding-ux | spec-created | 027 |
 
 ## Open Threads
+
+- Per-applicant vs per-application scope for the reviewer-assigned code — spec 027 assumes per-applicant (reuses `CodigoPersonal`); confirm at planning (from #25)
+- Final placement of sidebar items absent from the stakeholder example (Usuarios, Configuración, Plantillas de impacto, Cotizaciones pendientes) — confirm in plan (from #25)
+- US4 single line-summary projection contract (fields + rejected-line per-supplier amounts) — define once, fan out to 5 surfaces (from #25)
+- Tooltip copy: ship Claude's draft es-CR strings now and iterate vs wait for stakeholder copy — completes spec-021 OQ-8 / FR-020 (from #25)
+- FR-022 zero-removal sidebar: encode an explicit before/after per-role destination table for mechanical verification (from #25)
 
 - Domain placement of the identification type↔shape invariant: value object vs entity guard, ViewModel attributes echoing it — settle in planning (from #24)
 - Profile identification editable vs display-only (Profile email is currently read-only / admin-managed) (from #24)

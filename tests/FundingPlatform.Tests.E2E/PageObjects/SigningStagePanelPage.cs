@@ -36,6 +36,12 @@ public class SigningStagePanelPage : BasePage
         return await PendingCard.CountAsync() > 0;
     }
 
+    // Spec 027 / US2 — Aprobar/Rechazar now route through the shared confirm
+    // modal (data-confirm). Click the action, then confirm to commit.
+    public ILocator ConfirmModalButton => Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]");
+    public ILocator ConfirmModalCancelButton => Page.Locator("#fl-shared-confirm-modal [data-testid=\"cancel-button\"]");
+    public ILocator ConfirmModalBody => Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-rationale\"]");
+
     public async Task ApprovePending(string? comment = null)
     {
         if (!string.IsNullOrWhiteSpace(comment))
@@ -43,12 +49,14 @@ public class SigningStagePanelPage : BasePage
             await ApproveCommentInput.FillAsync(comment);
         }
         await ApproveButton.ClickAsync();
+        await ConfirmModalButton.ClickAsync();
     }
 
     public async Task RejectPending(string comment)
     {
         await RejectCommentInput.FillAsync(comment);
         await RejectButton.ClickAsync();
+        await ConfirmModalButton.ClickAsync();
     }
 
     public async Task ReplacePending(string filePath)

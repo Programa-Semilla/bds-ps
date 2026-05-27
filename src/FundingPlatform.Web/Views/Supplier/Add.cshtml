@@ -95,7 +95,7 @@
                     <partial name="_QuoteFields" model="@((FundingPlatform.Web.ViewModels.IQuoteFieldsModel)Model)" />
 
                     <div class="mb-3">
-                        <label asp-for="QuotationFile" class="form-label"></label>
+                        <label asp-for="QuotationFile" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
                         <input asp-for="QuotationFile" class="form-control" type="file" data-testid="quotation-file-input" />
                         <span asp-validation-for="QuotationFile" class="text-danger"></span>
                     </div>

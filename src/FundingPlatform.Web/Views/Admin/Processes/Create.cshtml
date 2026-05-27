@@ -22,7 +22,7 @@
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3" data-testid="admin-process-validation-summary"></div>
 
         <div class="col-md-6 mb-3">
-            <label class="form-label" asp-for="Name">Nombre</label>
+            <label class="form-label" asp-for="Name">Nombre @await Html.PartialAsync("_RequiredMark")</label>
             <input asp-for="Name" class="form-control" data-testid="admin-process-name-input" autofocus />
             <span asp-validation-for="Name" class="text-danger" data-testid="admin-process-name-error"></span>
             <small class="form-hint">Texto libre (p. ej. <em>Crocus 2025</em>, <em>Nexo 2026</em>).</small>

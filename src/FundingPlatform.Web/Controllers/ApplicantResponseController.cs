@@ -19,15 +19,21 @@ public class ApplicantResponseController : Controller
     private readonly ApplicantResponseService _service;
     private readonly AppDbContext _dbContext;
     private readonly IUserFacingErrorTranslator _errorTranslator;
+    private readonly Domain.Interfaces.IApplicationRepository _applicationRepository;
+    private readonly IDecisionSummaryProjection _decisionSummary;
 
     public ApplicantResponseController(
         ApplicantResponseService service,
         AppDbContext dbContext,
-        IUserFacingErrorTranslator errorTranslator)
+        IUserFacingErrorTranslator errorTranslator,
+        Domain.Interfaces.IApplicationRepository applicationRepository,
+        IDecisionSummaryProjection decisionSummary)
     {
         _service = service;
         _dbContext = dbContext;
         _errorTranslator = errorTranslator;
+        _applicationRepository = applicationRepository;
+        _decisionSummary = decisionSummary;
     }
 
     [HttpGet]
@@ -40,7 +46,18 @@ public class ApplicantResponseController : Controller
         var dto = await _service.GetResponseAsync(new GetApplicantResponseQuery(id, userId), applicantId);
         if (dto is null) return NotFound();
 
-        return View(BuildViewModel(dto));
+        var viewModel = BuildViewModel(dto);
+
+        // Spec 027 / US4 — render the shared decision summary (adds the technical
+        // specifications the legacy item table lacked). The aggregate is loaded
+        // once here; access was already authorized by the service above.
+        var application = await _applicationRepository.GetByIdWithDetailsAsync(id);
+        if (application is not null)
+        {
+            viewModel.DecisionSummary = _decisionSummary.Project(application);
+        }
+
+        return View(viewModel);
     }
 
     [HttpPost]

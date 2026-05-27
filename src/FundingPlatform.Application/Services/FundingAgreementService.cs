@@ -25,13 +25,17 @@ public class FundingAgreementService
 {
     private readonly IApplicationRepository _applicationRepository;
     private readonly ILogger<FundingAgreementService> _logger;
+    // Spec 027 / US1 — resolve the generator's display name (never a GUID).
+    private readonly IUserStoreReader _userStoreReader;
 
     public FundingAgreementService(
         IApplicationRepository applicationRepository,
-        ILogger<FundingAgreementService> logger)
+        ILogger<FundingAgreementService> logger,
+        IUserStoreReader userStoreReader)
     {
         _applicationRepository = applicationRepository;
         _logger = logger;
+        _userStoreReader = userStoreReader;
     }
 
     public async Task<GetPanelResult> GetPanelAsync(GetFundingAgreementPanelQuery query)
@@ -59,6 +63,15 @@ public class FundingAgreementService
         var canGenerate = canUserGenerate && preconditionsOk && !agreementExists;
         var canRegenerate = canUserGenerate && preconditionsOk && agreementExists;
 
+        // Spec 027 / US1 — resolve the generator to a human display name; never
+        // surface the raw GeneratedByUserId (GUID) on the page (FR-001/FR-002).
+        string? generatedByDisplayName = null;
+        if (agreement?.GeneratedByUserId is { Length: > 0 } generatorId)
+        {
+            var resolved = await _userStoreReader.GetDisplayNameAsync(generatorId, CancellationToken.None);
+            generatedByDisplayName = GeneratorDisplayName.FromResolved(resolved, generatorId);
+        }
+
         var panel = new FundingAgreementPanelDto(
             ApplicationId: application.Id,
             AgreementExists: agreementExists,
@@ -67,7 +80,7 @@ public class FundingAgreementService
             DisabledReason: agreementExists ? null : disabledReason,
             GeneratedAtUtc: agreement?.GeneratedAtUtc,
             GeneratedByUserId: agreement?.GeneratedByUserId,
-            GeneratedByDisplayName: agreement?.GeneratedByUserId);
+            GeneratedByDisplayName: generatedByDisplayName);
 
         return new GetPanelResult(true, panel);
     }

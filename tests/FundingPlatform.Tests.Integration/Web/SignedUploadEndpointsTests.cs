@@ -41,7 +41,8 @@ public class SignedUploadEndpointsTests
         var options = Options.Create(new SignedUploadOptions { MaxSizeBytes = 20L * 1024 * 1024 });
         storage ??= new InMemoryFileStorage();
         return new SignedUploadService(
-            appRepo, suRepo, storage, options, NullLogger<SignedUploadService>.Instance);
+            appRepo, suRepo, storage, options, NullLogger<SignedUploadService>.Instance,
+            new FundingPlatform.Infrastructure.Identity.UserStoreReader(ctx));
     }
 
     private static Stream PdfStream(string body = "fake PDF body")

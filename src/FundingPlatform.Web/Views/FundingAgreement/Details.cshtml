@@ -9,9 +9,6 @@
    is preserved here intentionally. *@
 @{
     ViewData["Title"] = $"Convenio de financiamiento — Solicitud {Model.Panel.ApplicationId}";
-    var preview = Model.Preview;
-    var culture = EsCrCultureFactory.Build();
-    string Money(decimal value) => $"₡{value.ToString("N2", culture)}";
 }
 
 @await Html.PartialAsync("Components/_PageHeader",
@@ -34,70 +31,81 @@
     </div>
 }
 
+@* Spec 027 / US3 — richer applicant detail (screen-only; the PDF document body
+   is unchanged per FR-009). Empty optional fields render the neutral "—". *@
+@if (Model.ApplicantBlock is { } applicant)
+{
+    var identificationLabel = applicant.IdentificationType is { } idType
+        ? FundingPlatform.Web.ViewModels.LegalIdFieldModel.Label(idType)
+        : null;
+    string OrDash(string? v) => string.IsNullOrWhiteSpace(v) ? "—" : v!;
+    <div class="card mb-4" data-testid="fa-applicant-block">
+        <div class="card-header">
+            <strong>Datos del solicitante</strong>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">Empresa solicitante</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-company">@applicant.CompanyName</dd>
+
+                <dt class="col-sm-3 text-muted">Representante</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-representative">@applicant.RepresentativeName</dd>
+
+                <dt class="col-sm-3 text-muted">Identificación</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-legalid">
+                    @if (string.IsNullOrWhiteSpace(applicant.LegalId))
+                    {
+                        <text>—</text>
+                    }
+                    else
+                    {
+                        @applicant.LegalId
+                        @if (identificationLabel is not null)
+                        {
+                            <span class="text-muted"> &middot; @identificationLabel</span>
+                        }
+                    }
+                </dd>
+
+                <dt class="col-sm-3 text-muted">Correo electrónico</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-email">@OrDash(applicant.Email)</dd>
+
+                <dt class="col-sm-3 text-muted">Teléfono</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-phone">@OrDash(applicant.Phone)</dd>
+
+                <dt class="col-sm-3 text-muted">Código del solicitante</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-codigo">@OrDash(applicant.CodigoPersonal)</dd>
+
+                <dt class="col-sm-3 text-muted">Grupo</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-group">@applicant.Group</dd>
+
+                <dt class="col-sm-3 text-muted">Fecha de envío</dt>
+                <dd class="col-sm-9" data-testid="fa-applicant-submitted">
+                    @(applicant.SubmittedAt.HasValue ? applicant.SubmittedAt.Value.ToString("dd/MM/yyyy HH:mm") : "—")
+                </dd>
+            </dl>
+        </div>
+    </div>
+}
+
+@* Spec 027 / US4 — the approved-only preview table is replaced by the shared
+   read-only decision summary (line code, product, category, technical specs,
+   supplier, amount + CRC note, status; rejected lines also show the reason and
+   every quoted supplier). The PDF document body is unchanged (FR-009). *@
 <div class="card mb-4" data-testid="funding-agreement-preview">
     <div class="card-header">
-        <strong>Resumen del convenio</strong>
-        <span class="text-muted ms-2 small">Vista previa de los ítems aprobados que se incluirán en el documento.</span>
+        <strong>Resumen de la solicitud</strong>
+        <span class="text-muted ms-2 small">Detalle por línea revisada. El documento PDF conserva su propio formato.</span>
     </div>
     <div class="card-body">
-        @if (preview is null)
+        @if (!Model.HasApplicantResponse)
         {
-            <p class="text-muted mb-0" data-testid="funding-agreement-preview-unavailable">
-                No se pudo cargar el detalle de la solicitud.
+            <p class="text-muted" data-testid="funding-agreement-preview-awaiting-response">
+                A la espera de la respuesta del solicitante. Una vez que el solicitante acepte o rechace los ítems aprobados, aquí se reflejará su decisión por línea.
             </p>
         }
-        else if (!Model.HasApplicantResponse)
-        {
-            <p class="text-muted mb-0" data-testid="funding-agreement-preview-awaiting-response">
-                A la espera de la respuesta del solicitante. Una vez que el solicitante acepte o rechace los ítems aprobados, aquí aparecerá el detalle final del convenio.
-            </p>
-        }
-        else if (preview.ApprovedLines.Count == 0)
-        {
-            <p class="text-muted mb-0" data-testid="funding-agreement-preview-no-accepted-items">
-                El solicitante no aceptó ningún ítem. No hay nada por incluir en el convenio.
-            </p>
-        }
-        else
-        {
-            <dl class="row mb-3">
-                <dt class="col-sm-3">Empresa solicitante</dt>
-                <dd class="col-sm-9" data-testid="funding-agreement-preview-company-name">@preview.CompanyName</dd>
 
-                <dt class="col-sm-3">Representante</dt>
-                <dd class="col-sm-9" data-testid="funding-agreement-preview-applicant-name">@preview.ApplicantRepresentativeName</dd>
-            </dl>
-
-            <div class="table-responsive">
-                <table class="table table-vcenter card-table" data-testid="funding-agreement-preview-items">
-                    <thead>
-                        <tr>
-                            <th>Variable</th>
-                            <th>Tipo</th>
-                            <th>Empresa proveedora</th>
-                            <th class="text-end">Desembolso</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var line in preview.ApprovedLines)
-                        {
-                            <tr>
-                                <td>@line.LineCode</td>
-                                <td>@line.ProductName</td>
-                                <td>@line.SelectedSupplierName</td>
-                                <td class="text-end">@Money(line.Disbursement)</td>
-                            </tr>
-                        }
-                    </tbody>
-                    <tfoot>
-                        <tr class="fw-bold" data-testid="funding-agreement-preview-total" data-currency="CRC">
-                            <td colspan="3" class="text-end">Total</td>
-                            <td class="text-end">@Money(preview.ApprovedDisbursementTotal)</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        }
+        @await Html.PartialAsync("_DecisionSummary", Model.DecisionSummary)
     </div>
 </div>
 

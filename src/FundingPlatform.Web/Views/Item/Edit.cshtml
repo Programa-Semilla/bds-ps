@@ -24,13 +24,13 @@
             <input type="hidden" asp-for="ApplicationId" />
 
             <div class="mb-3" data-testid="form-section" data-field="ProductName">
-                <label asp-for="ProductName" class="form-label"></label>
+                <label asp-for="ProductName" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
                 <input asp-for="ProductName" class="form-control" />
                 <span asp-validation-for="ProductName" class="invalid-feedback d-block"></span>
             </div>
 
             <div class="mb-3" data-testid="form-section" data-field="CategoryId">
-                <label asp-for="CategoryId" class="form-label"></label>
+                <label asp-for="CategoryId" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
                 <select asp-for="CategoryId" asp-items="Model.Categories" class="form-select">
                     <option value="">-- Seleccione una categoría --</option>
                 </select>
@@ -38,7 +38,7 @@
             </div>
 
             <div class="mb-3" data-testid="form-section" data-field="TechnicalSpecifications">
-                <label asp-for="TechnicalSpecifications" class="form-label"></label>
+                <label asp-for="TechnicalSpecifications" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
                 <textarea asp-for="TechnicalSpecifications" class="form-control" rows="5"></textarea>
                 <span asp-validation-for="TechnicalSpecifications" class="invalid-feedback d-block"></span>
             </div>

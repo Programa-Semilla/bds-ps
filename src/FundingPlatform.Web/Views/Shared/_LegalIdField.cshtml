@@ -16,7 +16,7 @@
    data-mask-group). Field names are passed in so the values bind to the parent
    model. *@
 <div data-testid="legal-id-field">
-    <label class="form-label fl-type-meta" for="@typeId">@Model.TypeLabel</label>
+    <label class="form-label fl-type-meta" for="@typeId">@Model.TypeLabel @await Html.PartialAsync("_RequiredMark")</label>
     <select id="@typeId" name="@Model.TypeFieldName"
             class="@Model.SelectCssClass mb-2"
             data-mask-controller="@Model.GroupId"
@@ -28,7 +28,7 @@
     </select>
     @Html.ValidationMessage(Model.TypeFieldName, new { @class = Model.ValidationCssClass + " d-block" })
 
-    <label class="form-label fl-type-meta" for="@inputId">@Model.ValueLabel</label>
+    <label class="form-label fl-type-meta" for="@inputId">@Model.ValueLabel @await Html.PartialAsync("_RequiredMark")</label>
     <input id="@inputId" name="@Model.ValueFieldName" value="@Model.Value"
            class="@Model.InputCssClass"
            data-mask-group="@Model.GroupId" data-mask="@initialMask"

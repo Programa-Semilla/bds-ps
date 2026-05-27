@@ -33,17 +33,17 @@
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
         <div class="col-md-6 mb-3">
-            <label class="form-label" asp-for="FirstName">Nombre</label>
+            <label class="form-label" asp-for="FirstName">Nombre @await Html.PartialAsync("_RequiredMark")</label>
             <input asp-for="FirstName" class="form-control" />
             <span asp-validation-for="FirstName" class="text-danger"></span>
         </div>
         <div class="col-md-6 mb-3">
-            <label class="form-label" asp-for="LastName">Apellidos</label>
+            <label class="form-label" asp-for="LastName">Apellidos @await Html.PartialAsync("_RequiredMark")</label>
             <input asp-for="LastName" class="form-control" />
             <span asp-validation-for="LastName" class="text-danger"></span>
         </div>
         <div class="col-md-6 mb-3">
-            <label class="form-label" asp-for="Email">Correo electrónico</label>
+            <label class="form-label" asp-for="Email">Correo electrónico @await Html.PartialAsync("_RequiredMark")</label>
             <input asp-for="Email" class="form-control" type="email" data-mask="email" />
             <span asp-validation-for="Email" class="text-danger"></span>
         </div>
@@ -53,7 +53,7 @@
             <span asp-validation-for="Phone" class="text-danger"></span>
         </div>
         <div class="col-md-6 mb-3">
-            <label class="form-label" asp-for="Role">Rol</label>
+            <label class="form-label" asp-for="Role">Rol @await Html.PartialAsync("_RequiredMark")</label>
             <select asp-for="Role" class="form-select" id="roleSelect" data-testid="admin-user-role">
                 @foreach (var r in roles)
                 {

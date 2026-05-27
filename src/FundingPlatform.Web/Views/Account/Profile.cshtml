@@ -30,7 +30,7 @@
                     <div class="row g-2">
                         <div class="col-md-6">
                             <div class="mb-3" data-testid="form-section" data-field="FirstName">
-                                <label asp-for="FirstName" class="form-label"></label>
+                                <label asp-for="FirstName" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
                                 <input asp-for="FirstName" class="form-control"
                                        data-testid="profile-firstname"
                                        autocomplete="given-name" />
@@ -39,7 +39,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3" data-testid="form-section" data-field="LastName">
-                                <label asp-for="LastName" class="form-label"></label>
+                                <label asp-for="LastName" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
                                 <input asp-for="LastName" class="form-control"
                                        data-testid="profile-lastname"
                                        autocomplete="family-name" />

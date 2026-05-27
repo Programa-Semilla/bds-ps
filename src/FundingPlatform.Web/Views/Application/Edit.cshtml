@@ -53,7 +53,7 @@ else
         <div class="row g-3" data-autosave-row>
             <div class="col-md-8">
                 <label class="form-label" for="company-name">
-                    Nombre comercial <span class="text-danger" aria-label="campo obligatorio">*</span>
+                    Nombre comercial @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Application.CompanyName"))
                 </label>
                 <input id="company-name"
                        name="CompanyName"
@@ -80,7 +80,7 @@ else
 <div class="card mb-4" data-testid="application-edit-impact-card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h4 class="card-title mb-0">
-            Impacto <span class="text-danger" aria-label="campo obligatorio">*</span>
+            Impacto @await Html.PartialAsync("_RequiredMark")
         </h4>
         @if (Model.ImpactSet)
         {
@@ -133,7 +133,7 @@ else
    draft editor and posts back to it, so the applicant never leaves the screen. *@
 <div class="card mb-4" data-testid="application-edit-items-card">
     <div class="card-header">
-        <h4 class="card-title mb-0">Ítems <span class="text-danger" aria-label="campo obligatorio">*</span></h4>
+        <h4 class="card-title mb-0">Ítems @await Html.PartialAsync("_RequiredMark")</h4>
     </div>
     <div class="card-body">
         <form asp-controller="Application" asp-action="AddItem" asp-route-id="@Model.Id"

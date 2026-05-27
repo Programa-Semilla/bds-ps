@@ -47,6 +47,9 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/confirm-dialog.js" asp-append-version="true"></script>
+    @* Spec 027 / US7 — Register (and other auth pages) carry applicant-field
+       tooltips; the hint module must load here too, not only in _Layout. *@
+    <script src="~/js/hint-tooltip.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

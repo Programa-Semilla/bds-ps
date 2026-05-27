@@ -1,3 +1,4 @@
+using FundingPlatform.Application.DTOs;
 using FundingPlatform.Web.ViewModels.Review;
 
 namespace FundingPlatform.Web.ViewModels;
@@ -10,6 +11,15 @@ public class ReviewApplicationViewModel
     public string State { get; set; } = string.Empty;
     public DateTime? SubmittedAt { get; set; }
     public List<ReviewItemViewModel> Items { get; set; } = [];
+
+    /// <summary>
+    /// Spec 027 / US4 — shared per-line decision summary rendered read-only
+    /// alongside the interactive capture controls (which are unchanged).
+    /// </summary>
+    public IReadOnlyList<DecisionSummaryLineDto> DecisionSummary { get; set; } = [];
+
+    /// <summary>Spec 027 / US5 — current applicant code, prefilled into the write control.</summary>
+    public string? ApplicantCodigoPersonal { get; set; }
     public bool HasUnresolvedItems { get; set; }
     public List<string>? UnresolvedItemWarnings { get; set; }
     /// <summary>Spec 013 FR-052: count of quotations referencing a Rejected supplier.</summary>

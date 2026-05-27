@@ -95,7 +95,10 @@ public class SignedFundingAgreementUploadDownloadTests : AuthenticatedTestBase
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
         await LoginAsync(Page, adminEmail, "Test123!");
         await Page.GotoAsync($"{BaseUrl}/Applications/{appId}/FundingAgreement");
+        // Spec 027 / US2 — Aprobar now routes through the shared confirm dialog;
+        // click the action then confirm to commit.
         await Page.Locator("[data-testid=signed-upload-approve]").ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=confirm-button]").ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Applications/\d+/FundingAgreement"));
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
 

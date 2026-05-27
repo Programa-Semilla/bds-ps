@@ -78,6 +78,43 @@
     </div>
 </div>
 
+@* Spec 027 / US5 — reviewer/admin write surface for the applicant's código.
+   Read-only on the applicant profile (unchanged). *@
+<div class="card mb-4" data-testid="applicant-code-card">
+    <div class="card-body">
+        <form method="post" asp-controller="Review" asp-action="ApplicantCode"
+              asp-route-id="@Model.ApplicationId" class="row g-2 align-items-end">
+            @Html.AntiForgeryToken()
+            <div class="col-md-4">
+                <label class="form-label" for="applicant-codigo">
+                    Código del solicitante @await Html.PartialAsync("_RequiredMark")
+                </label>
+                <input type="text" id="applicant-codigo" name="CodigoPersonal" class="form-control"
+                       maxlength="40" value="@Model.ApplicantCodigoPersonal"
+                       data-testid="applicant-code-input" />
+            </div>
+            <div class="col-md-auto">
+                <button type="submit" class="btn btn-primary" data-testid="applicant-code-save">
+                    Guardar código
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Spec 027 / US4 — the shared read-only decision summary, identical to the
+   applicant and funding-agreement surfaces. The interactive capture controls
+   below are unchanged. *@
+<div class="card mb-4" data-testid="review-decision-summary">
+    <div class="card-header">
+        <strong>Resumen de decisiones</strong>
+        <span class="text-muted ms-2 small">Misma vista que ven el solicitante y la página del convenio.</span>
+    </div>
+    <div class="card-body">
+        @await Html.PartialAsync("_DecisionSummary", Model.DecisionSummary)
+    </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-2">
     <h4 class="mb-0">Ítems (@Model.Items.Count)</h4>
     @if (appState == ApplicationState.UnderReview && Model.Items.Any(i => i.Quotations.Count >= 2))

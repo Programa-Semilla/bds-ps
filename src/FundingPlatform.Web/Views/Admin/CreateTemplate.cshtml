@@ -20,7 +20,7 @@
             @Html.AntiForgeryToken()
 
             <div class="mb-3">
-                <label asp-for="Name" class="form-label">Nombre de la plantilla</label>
+                <label asp-for="Name" class="form-label">Nombre de la plantilla @await Html.PartialAsync("_RequiredMark")</label>
                 <input asp-for="Name" class="form-control" />
                 <span asp-validation-for="Name" class="text-danger"></span>
             </div>
