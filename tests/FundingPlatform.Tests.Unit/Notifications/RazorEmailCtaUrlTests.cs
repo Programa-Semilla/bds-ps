@@ -1,13 +1,16 @@
-using FundingPlatform.Application.Notifications;
 using FundingPlatform.Domain.Notifications;
 using FundingPlatform.Web.Services;
 
 namespace FundingPlatform.Tests.Unit.Notifications;
 
 /// <summary>
-/// Spec 021 / US9 / FR-040 — CTA deep-link composition. The withdrawal variant
-/// must link to the reviewer queue (<c>/Review</c>) and NOT <c>/Review/{id}</c>:
-/// the Application is soft-deleted, so the detail route would 403/404.
+/// Spec 021 / US9 / FR-040 + Spec 028 / R-001 — CTA deep-link composition. The
+/// CTA destination is now event-driven (the binding's <c>CtaRouteTemplate</c>),
+/// no longer derived from the recipient bucket. These assertions are the
+/// regression guard for the T004 refactor: the spec-021 events keep their
+/// original URLs. The withdrawal variant still links to the reviewer queue
+/// (<c>/Review</c>) and NOT <c>/Review/{id}</c> — the Application is soft-deleted,
+/// so the detail route would 403/404.
 /// </summary>
 [TestFixture]
 public class RazorEmailCtaUrlTests
@@ -18,7 +21,7 @@ public class RazorEmailCtaUrlTests
     public void Withdrawal_links_to_reviewer_queue_not_detail()
     {
         var url = RazorEmailRenderer.ComposeCtaUrl(
-            NotificationEvent.WithdrawnByApplicant, RecipientBucket.Reviewer, Base, applicationId: 42);
+            NotificationEvent.WithdrawnByApplicant, Base, applicationId: 42);
 
         Assert.That(url, Is.EqualTo($"{Base}/Review"));
         Assert.That(url, Does.Not.Contain("/Review/42"));
@@ -28,7 +31,7 @@ public class RazorEmailCtaUrlTests
     public void ReviewerSubmitted_links_to_application_detail_in_queue()
     {
         var url = RazorEmailRenderer.ComposeCtaUrl(
-            NotificationEvent.ApplicationSubmittedReviewer, RecipientBucket.Reviewer, Base, applicationId: 42);
+            NotificationEvent.ApplicationSubmittedReviewer, Base, applicationId: 42);
 
         Assert.That(url, Is.EqualTo($"{Base}/Review/42"));
     }
@@ -37,7 +40,7 @@ public class RazorEmailCtaUrlTests
     public void ApplicantBucket_links_to_application_details()
     {
         var url = RazorEmailRenderer.ComposeCtaUrl(
-            NotificationEvent.ApplicationSubmittedApplicant, RecipientBucket.Applicant, Base, applicationId: 42);
+            NotificationEvent.ApplicationSubmittedApplicant, Base, applicationId: 42);
 
         Assert.That(url, Is.EqualTo($"{Base}/Application/Details/42"));
     }

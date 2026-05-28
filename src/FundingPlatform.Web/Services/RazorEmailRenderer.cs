@@ -59,9 +59,10 @@ public sealed class RazorEmailRenderer : IEmailTemplateRenderer
         var subject = NotificationTemplateBindings.RenderSubject(
             eventType, payload.ApplicantDisplayName, payload.ApplicationId);
 
-        // FR-026 — composed deep link from Notifications:BaseUrl + role-specific route.
+        // FR-026 / spec 028 R-001 — composed deep link from Notifications:BaseUrl
+        // + the event's CtaRouteTemplate (event-driven, not bucket-derived).
         var baseUrl = _config["Notifications:BaseUrl"] ?? string.Empty;
-        var ctaUrl = ComposeCtaUrl(eventType, recipient.Bucket, baseUrl, payload.ApplicationId);
+        var ctaUrl = ComposeCtaUrl(eventType, baseUrl, payload.ApplicationId);
 
         var senderName = _config["Notifications:Sender:Name"]
             ?? "Programa Semilla / Sistema de Banca para el Desarrollo";
@@ -136,22 +137,22 @@ public sealed class RazorEmailRenderer : IEmailTemplateRenderer
     }
 
     /// <summary>
-    /// Spec 021 / FR-026 / FR-040 — composes the CTA deep link.
-    /// Reviewer/admin → <c>/Review/{id}</c>; applicant → <c>/Application/Details/{id}</c>.
-    /// The withdrawal variant is special-cased to the reviewer queue (<c>/Review</c>)
-    /// because the Application is soft-deleted and <c>/Review/{id}</c> would 403/404.
+    /// Spec 028 / R-001 / FR-026 — composes the CTA deep link from the event's
+    /// <see cref="NotificationTemplateBindings.Binding.CtaRouteTemplate"/>. The
+    /// literal <c>{id}</c> token is replaced with the ApplicationId; templates
+    /// with no token (e.g. <c>/Review/SigningInbox</c>, the soft-deleted-withdrawal
+    /// <c>/Review</c>) are used verbatim. The CTA destination is now a function of
+    /// the event, NOT the recipient bucket (it replaced the spec-021 bucket branch).
     /// </summary>
     public static string ComposeCtaUrl(
-        NotificationEvent eventType, RecipientBucket bucket, string baseUrl, int applicationId)
+        NotificationEvent eventType, string baseUrl, int applicationId)
     {
-        if (eventType == NotificationEvent.WithdrawnByApplicant)
-        {
-            return Combine(baseUrl, "/Review");
-        }
-
-        return bucket == RecipientBucket.Applicant
-            ? Combine(baseUrl, $"/Application/Details/{applicationId}")
-            : Combine(baseUrl, $"/Review/{applicationId}");
+        var template = NotificationTemplateBindings.For(eventType).CtaRouteTemplate;
+        var path = template.Replace(
+            "{id}",
+            applicationId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            StringComparison.Ordinal);
+        return Combine(baseUrl, path);
     }
 
     private static string Combine(string baseUrl, string path)

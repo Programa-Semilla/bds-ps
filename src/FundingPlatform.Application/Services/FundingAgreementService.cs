@@ -3,9 +3,11 @@ using FundingPlatform.Application.DTOs;
 using FundingPlatform.Application.Errors;
 using FundingPlatform.Application.FundingAgreements.Commands;
 using FundingPlatform.Application.FundingAgreements.Queries;
+using FundingPlatform.Application.Notifications;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.Notifications;
 using Microsoft.Extensions.Logging;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
@@ -27,15 +29,19 @@ public class FundingAgreementService
     private readonly ILogger<FundingAgreementService> _logger;
     // Spec 027 / US1 — resolve the generator's display name (never a GUID).
     private readonly IUserStoreReader _userStoreReader;
+    // Spec 028 / US3 — convenio-generated notification via the spec-021 outbox.
+    private readonly INotificationOutboxWriter _outboxWriter;
 
     public FundingAgreementService(
         IApplicationRepository applicationRepository,
         ILogger<FundingAgreementService> logger,
-        IUserStoreReader userStoreReader)
+        IUserStoreReader userStoreReader,
+        INotificationOutboxWriter outboxWriter)
     {
         _applicationRepository = applicationRepository;
         _logger = logger;
         _userStoreReader = userStoreReader;
+        _outboxWriter = outboxWriter;
     }
 
     public async Task<GetPanelResult> GetPanelAsync(GetFundingAgreementPanelQuery query)
@@ -90,6 +96,25 @@ public class FundingAgreementService
         return await _applicationRepository.GetByIdWithResponseAndAppealsAsync(applicationId);
     }
 
+    // Spec 028 / US3 — applicant-bucket enqueue for AGREEMENT_GENERATED_APPLICANT.
+    // Two-phase: called AFTER the workflow SaveChangesAsync so the VersionHistory
+    // row carries its identity (the idempotency anchor).
+    private async Task EnqueueAgreementGeneratedAsync(
+        AppEntity application, int versionHistoryId, string actorUserId)
+    {
+        var applicantDisplayName = application.Applicant is not null
+            ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+            : "Solicitante";
+        var applicantUserId = application.Applicant?.UserId ?? string.Empty;
+        var payload = new NotificationPayload(
+            application.Id, applicantUserId, applicantDisplayName,
+            Array.Empty<int>(), OutcomeCode: null, ActorUserId: actorUserId);
+        await _outboxWriter.EnqueueAsync(
+            NotificationEvent.AgreementGeneratedApplicant, application.Id, versionHistoryId,
+            payload, CancellationToken.None);
+        await _applicationRepository.SaveChangesAsync();
+    }
+
     public async Task<GenerateFundingAgreementResult> PersistGenerationAsync(
         AppEntity application,
         string userId,
@@ -111,8 +136,23 @@ public class FundingAgreementService
                     fileName, "application/pdf", size, blobKey, userId);
             }
 
+            // Spec 028 / US3 / FR-010 / R-007 — convenio generation previously wrote
+            // no audit row. Add one (via the domain method, §II) so the idempotency
+            // anchor is uniform across all 12 events and generation is auditable.
+            // Regeneration writes a fresh row → fresh VersionHistoryId → fresh email.
+            var vhRow = new VersionHistory(
+                userId,
+                "AgreementGenerated",
+                $"Convenio generado (versión {agreement.GeneratedVersion})");
+            application.AddVersionHistory(vhRow);
+
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
+
+            // Spec 028 / US3 / FR-010 — notify the applicant the convenio is ready
+            // to sign (actor = the generating reviewer/admin, excluded if also an
+            // admin recipient). Two-phase save mirrors ReviewService.SendBackAsync.
+            await EnqueueAgreementGeneratedAsync(application, vhRow.Id, actorUserId: userId);
 
             var dto = new FundingAgreementDto(
                 application.Id,

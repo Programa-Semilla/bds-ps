@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Tu convenio firmado requiere cambios</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    Revisamos el convenio firmado que subiste para la solicitud
+    <strong>#@Model.Payload.ApplicationId</strong> y <strong>requiere cambios</strong> antes de
+    poder aprobarlo. Ingresá para ver el detalle de lo solicitado y subir una versión corregida.
+</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ver el detalle</a>
+</p>
+<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

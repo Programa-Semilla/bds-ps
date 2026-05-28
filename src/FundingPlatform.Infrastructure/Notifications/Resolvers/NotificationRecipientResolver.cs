@@ -152,6 +152,21 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
             .Select(g => g.OrderBy(c => (int)c.Bucket).First())
             .ToList();
 
+        // Spec 028 / R-003 / FR-013a / EC-011 — actor exclusion. The user who
+        // triggered the event must never receive a copy of their own action
+        // (e.g. a reviewer who authors an appeal message or resolves an appeal
+        // while also qualifying as a participating admin). This generalizes the
+        // submitting-applicant exclusion already applied in the reviewer query.
+        // A null ActorUserId (every legacy spec-021 row) is a no-op, so the
+        // shipped 7 events keep their exact recipient sets.
+        var actorUserId = context.Payload.ActorUserId;
+        if (!string.IsNullOrEmpty(actorUserId))
+        {
+            deduped = deduped
+                .Where(r => !string.Equals(r.UserId, actorUserId, StringComparison.Ordinal))
+                .ToList();
+        }
+
         return deduped;
     }
 
@@ -161,6 +176,12 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
         NotificationEvent.ReturnedToApplicant           => true,
         NotificationEvent.ApplicationApproved           => true,
         NotificationEvent.ApplicationRejected           => true,
+        // Spec 028 — applicant-facing post-resolution events (4, 5, 7, 11, 12).
+        NotificationEvent.AppealMessageApplicant        => true,
+        NotificationEvent.AppealResolvedApplicant       => true,
+        NotificationEvent.AgreementGeneratedApplicant   => true,
+        NotificationEvent.AgreementExecutedApplicant    => true,
+        NotificationEvent.SignedUploadRejectedApplicant => true,
         _ => false,
     };
 
@@ -172,6 +193,14 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
         // reviewer pool as APPLICATION_SUBMITTED_REVIEWER. Applicant bucket stays
         // false (default); admin bucket stays true (default), mirroring submission.
         NotificationEvent.WithdrawnByApplicant         => true,
+        // Spec 028 — reviewer-facing post-resolution events (1, 2, 3, 6, 8, 9, 10).
+        NotificationEvent.ResponseSubmittedReviewer    => true,
+        NotificationEvent.AppealOpenedReviewer          => true,
+        NotificationEvent.AppealMessageReviewer         => true,
+        NotificationEvent.AppealReopenedReviewer        => true,
+        NotificationEvent.SignedUploadSubmittedReviewer => true,
+        NotificationEvent.SignedUploadReplacedReviewer  => true,
+        NotificationEvent.SignedUploadWithdrawnReviewer => true,
         _ => false,
     };
 

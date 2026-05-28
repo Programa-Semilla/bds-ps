@@ -42,7 +42,8 @@ public class SignedUploadEndpointsTests
         storage ??= new InMemoryFileStorage();
         return new SignedUploadService(
             appRepo, suRepo, storage, options, NullLogger<SignedUploadService>.Instance,
-            new FundingPlatform.Infrastructure.Identity.UserStoreReader(ctx));
+            new FundingPlatform.Infrastructure.Identity.UserStoreReader(ctx),
+            new FundingPlatform.Infrastructure.Notifications.Persistence.NotificationOutboxWriter(ctx));
     }
 
     private static Stream PdfStream(string body = "fake PDF body")

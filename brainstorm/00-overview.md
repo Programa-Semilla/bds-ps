@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 ## Sessions
 
@@ -24,7 +24,7 @@ Last updated: 2026-05-26
 | 16 | 2026-05-08 | pdf-template-lift | spec-created | 018 |
 | 17 | 2026-05-09 | programa-semilla-brand | spec-created | 019 |
 | 18 | 2026-05-11 | ai-quote-comparison | spec-created | 020 |
-| 19 | 2026-05-11 | email-notifications | spec-created | 021-email-notifications |
+| 19 | 2026-05-11 | email-notifications | spec-created | 021-email-notifications; 028 (revisit 2026-05-27) |
 | 20 | 2026-05-13 | feedback-session-may13 | spec-created | 021-feedback-session-may13 |
 | 21 | 2026-05-20 | quotation-edit | spec-created | 023 |
 | 22 | 2026-05-21 | applicant-delete-withdrawal | spec-created | 021-feedback-session-may13 |
@@ -187,9 +187,11 @@ Last updated: 2026-05-26
 - Brand-grep gate scope for new email templates: source-`.cshtml` layer (recommended) vs render-time scan (from #19)
 - Future in-app notifications / bell icon / SignalR / push / SMS / Slack — spec 021-email-notifications ships email-only; in-app channel still pending (carries forward from #08 / #11)
 - Future stage-granular notification events (`STAGE_APPROVED`, `REVIEWER_ASSIGNED`, `REVIEWER_UNASSIGNED`, `COMMENT_ADDED`) — out of scope for 021-email-notifications; eligible for v2 if reviewer churn proves a real signal (from #19)
-- Future signing-stage notification events (`AGREEMENT_GENERATED`, `SIGNED_PDF_UPLOADED`) — out of scope for 021-email-notifications; eligible for a follow-up once 005 / 006 traffic patterns are observed (from #19)
 - Future user-facing notification-preferences UI / opt-out flow — deferred; OQ-001 may force a static unsubscribe-mailto footer in the interim (from #19)
 - Future Mailgun bounce-webhook ingestion + suppression-list sync — deferred until Mailgun delivery telemetry justifies the loop (from #19)
+- Appeal-message email cadence at scale (debounce/digest) if high-volume threads prove noisy — spec 028 v1 sends one email per message; deferred (from #19 revisit / 028 OQ-001)
+- Inherited spec-021 OQ-011 participating-admin role-change predicate limitation applies to all 12 spec-028 events; fixing it is out of scope for 028 (from #19 revisit)
+- Planning-pin — exact `/Applications/{id}/FundingAgreement/` sub-route per applicant CTA, and whether `APPEAL_MESSAGE_*` carries a message snippet or a bare "new message" cue (NFR-003 leans cue+CTA) (from #19 revisit / 028)
 - Plantilla cardinality per Process — one-to-one (default) vs many-to-one; pin in `/speckit-plan` (from #20, OQ-1)
 - Process closure freeze semantics on `FundingAgreement` (default = freeze) (from #20, OQ-2)
 - Stage-expiry override granularity — per-Process only (default) vs also per-Plantilla (from #20, OQ-3)
@@ -229,6 +231,7 @@ Last updated: 2026-05-26
 - Future notifications & inbox / SignalR spec needs its own brainstorm — spec 011 deliberately excludes real-time push (from #11) — **Partially closed by #19**: email channel ships in spec 021. Real-time push / in-app inbox remains open.
 - Email signature layout — text-only vs inline seedling mark; defaults to text-only (from #17) — **Closed by #19**: spec 021 ships text-only email signatures with no inline `<img>` (FR-023 + NFR-001), preserving spec 019 NFR-005 email-client compatibility.
 - Whether `_ConfirmDialog` for every destructive action (including draft-item deletes) is the right baseline, or whether specific exceptions should be enumerated (from #08) — **Closed by #23**: spec 024 establishes one reusable styled confirmation modal for **all** current `confirm()` sites + any destructive action (FR-006); no per-site exceptions — only the mechanism changes, not which actions are guarded.
+- Future signing-stage notification events (`AGREEMENT_GENERATED`, `SIGNED_PDF_UPLOADED`) — out of scope for 021-email-notifications; eligible for a follow-up (from #19) — **Closed by #19 revisit / spec 028**: post-resolution increment adds `AGREEMENT_GENERATED_APPLICANT`, `SIGNED_UPLOAD_SUBMITTED/REPLACED/WITHDRAWN_REVIEWER`, `AGREEMENT_EXECUTED_APPLICANT`, `SIGNED_UPLOAD_REJECTED_APPLICANT` plus the applicant-response and full appeal-lifecycle events — every post-`Resolved` applicant↔reviewer interaction now notified.
 
 ## Parked Ideas
 

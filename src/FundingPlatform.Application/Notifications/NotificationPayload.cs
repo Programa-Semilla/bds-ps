@@ -13,13 +13,24 @@ namespace FundingPlatform.Application.Notifications;
 /// <param name="ApplicantUserId">Applicant's ASP.NET Identity user id; used for the applicant bucket.</param>
 /// <param name="ApplicantDisplayName">First + Last, used in subjects + bodies; safe to render.</param>
 /// <param name="StageGroupIds">Group ids assigned to the current workflow stage (drives reviewer bucket).</param>
-/// <param name="OutcomeCode">"Approved" / "Rejected" for terminal events; null otherwise.</param>
+/// <param name="OutcomeCode">
+/// "Approved" / "Rejected" for terminal events; for spec-028 <c>AppealResolvedApplicant</c>
+/// carries "AppealUpheld" / "AppealReopenedToDraft" / "AppealReopenedToReview" (R-004);
+/// null otherwise.
+/// </param>
+/// <param name="ActorUserId">
+/// Spec 028 / R-003 / FR-013a — the user who triggered the event. The resolver drops this
+/// id from the final recipient set (actor exclusion) so an actor who is also a participating
+/// admin never receives a copy of their own action. Optional + nullable: legacy spec-021 rows
+/// have no such field and deserialize to null, which the resolver treats as "no actor to exclude".
+/// </param>
 public sealed record NotificationPayload(
     int ApplicationId,
     string ApplicantUserId,
     string ApplicantDisplayName,
     IReadOnlyList<int> StageGroupIds,
-    string? OutcomeCode)
+    string? OutcomeCode,
+    string? ActorUserId = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

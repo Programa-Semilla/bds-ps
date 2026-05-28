@@ -16,7 +16,7 @@ public class GenerateFundingAgreementCommandLoggingTests
     {
         var repo = Substitute.For<IApplicationRepository>();
         var logger = Substitute.For<ILogger<FundingAgreementService>>();
-        var service = new FundingAgreementService(repo, logger, Substitute.For<IUserStoreReader>());
+        var service = new FundingAgreementService(repo, logger, Substitute.For<IUserStoreReader>(), Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
         var application = BuildReadyApplication();
 
@@ -44,7 +44,7 @@ public class GenerateFundingAgreementCommandLoggingTests
     {
         var repo = Substitute.For<IApplicationRepository>();
         var logger = Substitute.For<ILogger<FundingAgreementService>>();
-        var service = new FundingAgreementService(repo, logger, Substitute.For<IUserStoreReader>());
+        var service = new FundingAgreementService(repo, logger, Substitute.For<IUserStoreReader>(), Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
         var application = new AppEntity(applicantId: 1, companyName: "Test Company");
         // Application is in Draft — preconditions fail.
