@@ -4,6 +4,7 @@ using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Domain.ValueObjects;
 using NSubstitute;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
@@ -66,6 +67,40 @@ public class ApplicantDashboardCtaTests
         var primary = dto.ActiveApplications[0].PrimaryAction;
         Assert.That(primary.Label, Is.EqualTo("Continuar con la solicitud"));
         Assert.That(primary.Href, Is.EqualTo($"/Application/Details/{application.Id}"));
+    }
+
+    [Test]
+    public async Task ApplicationCard_DisplaysOpaquePublicCode_NeverInternalAppNumber()
+    {
+        // Spec 021 / FR-008 — applicant-facing surfaces (incl. the home dashboard,
+        // PublicCode.cs docstring) must show the opaque PublicCode, never "APP-{Id}".
+        var application = BuildDraftApplication();
+        application.AssignPublicCode(new PublicCode("ABCD-2345"));
+        var projection = BuildProjection(application);
+
+        var dto = await projection.GetForUserAsync(application.ApplicantId, "Ada", CancellationToken.None);
+
+        Assert.That(dto.ActiveApplications, Has.Count.EqualTo(1));
+        Assert.That(dto.ActiveApplications[0].ApplicationNumber, Is.EqualTo("ABCD-2345"),
+            "The dashboard card must display the opaque PublicCode (FR-008).");
+        Assert.That(dto.ActiveApplications[0].ApplicationNumber, Does.Not.Contain("APP-"),
+            "The internal APP-{Id} reference must never leak onto an applicant-facing card.");
+    }
+
+    [Test]
+    public async Task AwaitingAction_DisplaysOpaquePublicCode_NeverInternalAppNumber()
+    {
+        var application = BuildApplicationAwaitingSignature();
+        application.AssignPublicCode(new PublicCode("ABCD-2345"));
+        var projection = BuildProjection(application);
+
+        var dto = await projection.GetForUserAsync(application.ApplicantId, "Ada", CancellationToken.None);
+
+        Assert.That(dto.AwaitingAction, Is.Not.Null);
+        Assert.That(dto.AwaitingAction!.ApplicationNumber, Is.EqualTo("ABCD-2345"),
+            "The awaiting-action surface must display the opaque PublicCode (FR-008).");
+        Assert.That(dto.AwaitingAction.ApplicationNumber, Does.Not.Contain("APP-"),
+            "The internal APP-{Id} reference must never leak onto the awaiting-action banner.");
     }
 
     private static ApplicantDashboardProjection BuildProjection(AppEntity application)

@@ -55,7 +55,7 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
             {
                 awaitingAction = new AwaitingAction(
                     Guid.Empty,
-                    $"APP-{a.Id:D5}",
+                    DisplayCode(a),
                     GetProjectName(a),
                     _copy.AwaitingActionAgreement(GetProjectName(a)),
                     _copy.ActionSignAgreement(),
@@ -66,7 +66,7 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
             {
                 awaitingAction = new AwaitingAction(
                     Guid.Empty,
-                    $"APP-{a.Id:D5}",
+                    DisplayCode(a),
                     GetProjectName(a),
                     _copy.AwaitingActionSentBack(GetProjectName(a)),
                     _copy.ActionAddMissingDetails(),
@@ -77,7 +77,7 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
             {
                 awaitingAction = new AwaitingAction(
                     Guid.Empty,
-                    $"APP-{a.Id:D5}",
+                    DisplayCode(a),
                     GetProjectName(a),
                     _copy.AwaitingActionDraft(GetProjectName(a)),
                     _copy.ActionContinueApplication(),
@@ -106,7 +106,7 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
             var (totalCrc, hasNonCrc) = ApplicationCurrencyTotal.Compute(a);
             return new ApplicationCardDto(
                 ApplicationId: Guid.Empty,
-                ApplicationNumber: $"APP-{a.Id:D5}",
+                ApplicationNumber: DisplayCode(a),
                 ProjectName: GetProjectName(a),
                 JourneyMini: mini,
                 CurrentStageLabel: stageMapping,
@@ -158,6 +158,14 @@ public sealed class ApplicantDashboardProjection : IApplicantDashboardProjection
         var last = a.VersionHistory.OrderByDescending(v => v.Timestamp).FirstOrDefault();
         return last is not null && string.Equals(last.Action, "SendBack", StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Spec 021 / FR-008 — applicant-facing surfaces display only the opaque
+    /// PublicCode, never the internal numeric Id. Falls back to an em-dash for
+    /// legacy rows seeded before the PublicCode cutover; production rows always
+    /// carry one (stamped at creation by <c>ApplicationService.CreateApplicationAsync</c>).
+    /// </summary>
+    private static string DisplayCode(AppEntity a) => a.PublicCode?.Value ?? "—";
 
     private static string GetProjectName(AppEntity a)
     {
