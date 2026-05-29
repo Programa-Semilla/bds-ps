@@ -20,6 +20,14 @@
     {
         new("home", "Inicio", Url.Action("Index", "Home") ?? "/", "ti ti-home", Array.Empty<string>()),
         new("my-applications", "Mis solicitudes", Url.Action("Index", "Application") ?? "/Application", "ti ti-files", new[] { "Applicant" }),
+    };
+
+    // Operational queues. Reviewers (non-admin) see these flat at the top level,
+    // exactly as before. Admins get them grouped under a collapsible "Operativo"
+    // accordion section (rendered below) to keep the admin sidebar shallow. Same
+    // slugs in both layouts, so the data-testids stay stable for E2E.
+    var operativoEntries = new List<SidebarEntry>
+    {
         new("review-queue", "Cola de revisión", Url.Action("Index", "Review") ?? "/Review", "ti ti-clipboard-check", new[] { "Reviewer", "Admin" }),
         // Spec 021 / US6 — the "Generar convenio" queue (Review/GenerateAgreement)
         // had a tab (_ReviewTabs) but no top-level nav, so a reviewer could only
@@ -27,6 +35,11 @@
         new("generate-agreement", "Generar convenio", Url.Action("GenerateAgreement", "Review") ?? "/Review/GenerateAgreement", "ti ti-file-text", new[] { "Reviewer", "Admin" }),
         new("signing-inbox", "Bandeja de firmas", Url.Action("SigningInbox", "Review") ?? "/Review/SigningInbox", "ti ti-signature", new[] { "Reviewer", "Admin" }),
     };
+
+    // "Operativo" is a grouping-only header (no landing page of its own); like
+    // Administración/Proceso it is an accordion toggle. Admin-only.
+    var operativoSectionHeader = new SidebarEntry(
+        "operativo", "Operativo", string.Empty, "ti ti-briefcase", new[] { "Admin" });
 
     var adminSectionHeader = new SidebarEntry(
         "admin", "Administración", Url.Action("Index", "Admin") ?? "/Admin", "ti ti-settings", new[] { "Admin" });
@@ -94,6 +107,16 @@
             return string.Equals(currentPath, "/", StringComparison.OrdinalIgnoreCase);
         return currentPath.StartsWith(url, StringComparison.OrdinalIgnoreCase);
     }
+    bool IsActiveExact(string url) => string.Equals(currentPath, url, StringComparison.OrdinalIgnoreCase);
+
+    // Sidebar sections are accordion toggles (no navigation). On load, expand the
+    // section that owns the current page; everything else stays collapsed. Proceso
+    // is the more specific match (its URLs nest under /Admin), so it wins ties.
+    var operativoExpanded = operativoEntries.Any(e => IsActive(e.Url));
+    var procesoExpanded = !operativoExpanded
+        && (IsActive(procesoSectionHeader.Url) || procesoEntries.Any(e => IsActive(e.Url)));
+    var adminExpanded = !operativoExpanded && !procesoExpanded
+        && (IsActiveExact(adminSectionHeader.Url) || adminEntries.Any(e => IsActive(e.Url)));
 }
 <!DOCTYPE html>
 <html lang="es-CR">
@@ -122,7 +145,7 @@
                         @await Html.PartialAsync("_BrandSidebarHeader")
                     </h1>
                     <div class="collapse navbar-collapse" id="sidebar-menu" data-supplier-admin-only="@(isSupplierAdminOnly ? "true" : "false")">
-                        <ul class="navbar-nav pt-lg-3">
+                        <ul class="navbar-nav pt-lg-3" id="sidebar-accordion">
                             @if (isSupplierAdminOnly)
                             {
                                 @* Spec 021 / US3 / T111 / FR-007 — SupplierAdmin sidebar variant.
@@ -151,53 +174,142 @@
                                         </a>
                                     </li>
                                 }
-                                if (IsEntryVisible(adminSectionHeader))
+                                @* Operativo — admin-only accordion grouping for the operational
+                                   queues (Cola de revisión / Generar convenio / Bandeja de firmas).
+                                   Reviewers (non-admin) see the very same entries flat at the top
+                                   level — the else branch below preserves the legacy layout exactly.
+                                   The header is toggle-only (no landing page); accordion behaviour
+                                   is shared via #sidebar-accordion in site.js. *@
+                                if (User.IsInRole("Admin"))
                                 {
-                                    var sectionActive = IsActive(adminSectionHeader.Url) ? " active" : string.Empty;
-                                    <li class="nav-item nav-item-section-header@sectionActive">
-                                        <a class="nav-link fl-sidebar-section-header"
-                                           href="@adminSectionHeader.Url"
-                                           data-testid="sidebar-entry-@adminSectionHeader.Slug"
-                                           data-section-testid="admin-section">
-                                            <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@adminSectionHeader.Icon"></i></span>
-                                            <span class="nav-link-title fl-font-display">@adminSectionHeader.Label</span>
+                                    <li class="nav-item nav-item-section-header@(operativoExpanded ? " active" : "")">
+                                        <a class="nav-link fl-sidebar-section-header@(operativoExpanded ? "" : " collapsed")"
+                                           href="#sidebar-section-operativo"
+                                           role="button"
+                                           data-bs-toggle="collapse"
+                                           aria-expanded="@(operativoExpanded ? "true" : "false")"
+                                           aria-controls="sidebar-section-operativo"
+                                           data-testid="sidebar-entry-@operativoSectionHeader.Slug"
+                                           data-section-testid="operativo-section">
+                                            <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@operativoSectionHeader.Icon"></i></span>
+                                            <span class="nav-link-title fl-font-display">@operativoSectionHeader.Label</span>
+                                            <span class="fl-sidebar-section-caret"><i class="ti ti-chevron-down"></i></span>
                                         </a>
                                     </li>
-                                    foreach (var entry in adminEntries.Where(IsEntryVisible))
+                                    <li class="nav-item p-0">
+                                        <div class="collapse@(operativoExpanded ? " show" : "")" id="sidebar-section-operativo">
+                                            <ul class="navbar-nav">
+                                                @foreach (var entry in operativoEntries.Where(IsEntryVisible))
+                                                {
+                                                    var active = IsActive(entry.Url) ? " active" : string.Empty;
+                                                    <li class="nav-item nav-item-admin-child@active">
+                                                        <a class="nav-link ps-4" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
+                                                            <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
+                                                            <span class="nav-link-title">@entry.Label</span>
+                                                        </a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </li>
+                                }
+                                else
+                                {
+                                    @foreach (var entry in operativoEntries.Where(IsEntryVisible))
                                     {
                                         var active = IsActive(entry.Url) ? " active" : string.Empty;
-                                        <li class="nav-item nav-item-admin-child@active">
-                                            <a class="nav-link ps-4" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
+                                        <li class="nav-item@active">
+                                            <a class="nav-link" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
                                                 <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
                                                 <span class="nav-link-title">@entry.Label</span>
                                             </a>
                                         </li>
                                     }
                                 }
-                                @* Spec 027 / US8 — Proceso section (Admin only). Header links to
-                                   /Admin/Processes; children are the process-scoped surfaces. *@
+                                @* Administración — accordion section. The header is a collapse
+                                   toggle (no navigation); the section landing (/Admin) is re-added
+                                   as the first child so the dashboard stays reachable. Accordion
+                                   behaviour (one section open at a time) is enforced in site.js,
+                                   scoped to #sidebar-accordion. *@
+                                if (IsEntryVisible(adminSectionHeader))
+                                {
+                                    <li class="nav-item nav-item-section-header@(adminExpanded ? " active" : "")">
+                                        <a class="nav-link fl-sidebar-section-header@(adminExpanded ? "" : " collapsed")"
+                                           href="#sidebar-section-admin"
+                                           role="button"
+                                           data-bs-toggle="collapse"
+                                           aria-expanded="@(adminExpanded ? "true" : "false")"
+                                           aria-controls="sidebar-section-admin"
+                                           data-testid="sidebar-entry-@adminSectionHeader.Slug"
+                                           data-section-testid="admin-section">
+                                            <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@adminSectionHeader.Icon"></i></span>
+                                            <span class="nav-link-title fl-font-display">@adminSectionHeader.Label</span>
+                                            <span class="fl-sidebar-section-caret"><i class="ti ti-chevron-down"></i></span>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item p-0">
+                                        <div class="collapse@(adminExpanded ? " show" : "")" id="sidebar-section-admin">
+                                            <ul class="navbar-nav">
+                                                <li class="nav-item nav-item-admin-child@(IsActiveExact(adminSectionHeader.Url) ? " active" : "")">
+                                                    <a class="nav-link ps-4" href="@adminSectionHeader.Url" data-testid="sidebar-entry-admin-home">
+                                                        <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="ti ti-layout-dashboard"></i></span>
+                                                        <span class="nav-link-title">Panel</span>
+                                                    </a>
+                                                </li>
+                                                @foreach (var entry in adminEntries.Where(IsEntryVisible))
+                                                {
+                                                    var active = IsActive(entry.Url) ? " active" : string.Empty;
+                                                    <li class="nav-item nav-item-admin-child@active">
+                                                        <a class="nav-link ps-4" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
+                                                            <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
+                                                            <span class="nav-link-title">@entry.Label</span>
+                                                        </a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </li>
+                                }
+                                @* Spec 027 / US8 — Proceso section (Admin only). Accordion toggle;
+                                   the /Admin/Processes landing is re-added as the first child. *@
                                 if (IsEntryVisible(procesoSectionHeader))
                                 {
-                                    var procesoActive = IsActive(procesoSectionHeader.Url) ? " active" : string.Empty;
-                                    <li class="nav-item nav-item-section-header@procesoActive">
-                                        <a class="nav-link fl-sidebar-section-header"
-                                           href="@procesoSectionHeader.Url"
+                                    <li class="nav-item nav-item-section-header@(procesoExpanded ? " active" : "")">
+                                        <a class="nav-link fl-sidebar-section-header@(procesoExpanded ? "" : " collapsed")"
+                                           href="#sidebar-section-proceso"
+                                           role="button"
+                                           data-bs-toggle="collapse"
+                                           aria-expanded="@(procesoExpanded ? "true" : "false")"
+                                           aria-controls="sidebar-section-proceso"
                                            data-testid="sidebar-entry-@procesoSectionHeader.Slug"
                                            data-section-testid="proceso-section">
                                             <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@procesoSectionHeader.Icon"></i></span>
                                             <span class="nav-link-title fl-font-display">@procesoSectionHeader.Label</span>
+                                            <span class="fl-sidebar-section-caret"><i class="ti ti-chevron-down"></i></span>
                                         </a>
                                     </li>
-                                    foreach (var entry in procesoEntries.Where(IsEntryVisible))
-                                    {
-                                        var active = IsActive(entry.Url) ? " active" : string.Empty;
-                                        <li class="nav-item nav-item-admin-child@active">
-                                            <a class="nav-link ps-4" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
-                                                <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
-                                                <span class="nav-link-title">@entry.Label</span>
-                                            </a>
-                                        </li>
-                                    }
+                                    <li class="nav-item p-0">
+                                        <div class="collapse@(procesoExpanded ? " show" : "")" id="sidebar-section-proceso">
+                                            <ul class="navbar-nav">
+                                                <li class="nav-item nav-item-admin-child@(IsActive(procesoSectionHeader.Url) ? " active" : "")">
+                                                    <a class="nav-link ps-4" href="@procesoSectionHeader.Url" data-testid="sidebar-entry-processes">
+                                                        <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@procesoSectionHeader.Icon"></i></span>
+                                                        <span class="nav-link-title">Procesos</span>
+                                                    </a>
+                                                </li>
+                                                @foreach (var entry in procesoEntries.Where(IsEntryVisible))
+                                                {
+                                                    var active = IsActive(entry.Url) ? " active" : string.Empty;
+                                                    <li class="nav-item nav-item-admin-child@active">
+                                                        <a class="nav-link ps-4" href="@entry.Url" data-testid="sidebar-entry-@entry.Slug">
+                                                            <span class="nav-link-icon d-md-none d-lg-inline-block"><i class="@entry.Icon"></i></span>
+                                                            <span class="nav-link-title">@entry.Label</span>
+                                                        </a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </li>
                                 }
                             }
                         </ul>

@@ -36,6 +36,12 @@ public class ImpactTemplateNavTests : AuthenticatedTestBase
         // Land on an authenticated surface so the sidebar partial renders.
         await Page.GotoAsync($"{BaseUrl}/Admin");
 
+        var adminPage = new AdminPage(Page);
+
+        // impact-templates lives under the collapsable Proceso group — expand it
+        // first (real menu journey, no deep-link).
+        await adminPage.ExpandSidebarSectionAsync("proceso-section");
+
         // ----- (1) Sidebar entry exists and is the navigation path (FR-042/AC-1). -----
         var sidebarEntry = Page.Locator("[data-testid=sidebar-entry-impact-templates]");
         await Expect(sidebarEntry).ToBeVisibleAsync();
@@ -46,7 +52,6 @@ public class ImpactTemplateNavTests : AuthenticatedTestBase
         await sidebarEntry.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex("/Admin/ImpactTemplates"));
 
-        var adminPage = new AdminPage(Page);
         await Expect(adminPage.CreateNewTemplateButton).ToBeVisibleAsync();
 
         // ----- (3) Create a template to prove the surface is fully usable (SC-019). -----

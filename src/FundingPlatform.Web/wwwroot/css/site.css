@@ -51,14 +51,34 @@
 }
 .fl-capability-card:hover { transform: translateY(-2px); }
 
-/* US4 — admin sidebar section header. Subtle divider + display typography. */
+/* US4 — admin sidebar section header. Subtle divider + display typography.
+   The header is now an accordion toggle (collapsable groups): a caret on the
+   right rotates when its section is expanded. */
 .fl-sidebar-section-header {
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-size: var(--type-meta-size, 0.75rem);
+    cursor: pointer;
+}
+.fl-sidebar-section-caret {
+    margin-left: auto;
+    display: inline-flex;
+    transition: transform var(--motion-base) ease;
+}
+.fl-sidebar-section-header[aria-expanded="true"] .fl-sidebar-section-caret {
+    transform: rotate(180deg);
 }
 .nav-item-section-header { margin-top: var(--space-3); }
-.nav-item-section-header + .nav-item-admin-child { margin-top: var(--space-1); }
+.nav-item-section-header + .nav-item .collapse .nav-item-admin-child:first-child { margin-top: var(--space-1); }
+
+/* Sidebar never shows a horizontal scrollbar; vertical scroll only when the
+   nav genuinely overflows the viewport (collapsable groups keep it short).
+   The scroll container is the aside itself — Tabler sets `overflow-y: scroll`
+   on `.navbar-vertical`, which makes `overflow-x` compute to `auto`; the
+   reserved vertical scrollbar then narrows the content box just enough to
+   trip a spurious horizontal scrollbar. Pinning `overflow-x: hidden` on the
+   aside kills it (nothing real overflows — nav titles wrap). */
+[data-testid="sidebar"] { overflow-x: hidden; }
 
 /* US6 / FR-023 — reports table density. Applies to the cards Reports tabs render. */
 [data-testid="report-subtabs"] ~ .card .table > :not(caption) > * > * {
