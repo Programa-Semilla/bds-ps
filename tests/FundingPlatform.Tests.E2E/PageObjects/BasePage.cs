@@ -18,6 +18,24 @@ public abstract class BasePage
 
     public ILocator SidebarEntry(string slug) => Page.Locator($"[data-testid=\"sidebar-entry-{slug}\"]");
 
+    /// <summary>
+    /// Sidebar section headers (admin-section / proceso-section) are accordion
+    /// toggles with no navigation: clicking expands the group and reveals its
+    /// children (accordion — opening one collapses the other). Idempotent: a
+    /// no-op when the section is already expanded.
+    /// </summary>
+    public ILocator SidebarSectionHeader(string section) => Page.Locator($"[data-section-testid=\"{section}\"]");
+
+    public async Task ExpandSidebarSectionAsync(string section)
+    {
+        var header = SidebarSectionHeader(section);
+        var expanded = await header.GetAttributeAsync("aria-expanded");
+        if (!string.Equals(expanded, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            await header.ClickAsync();
+        }
+    }
+
     // Spec 024 — toast + shared confirmation modal surfaces.
     public ILocator SuccessToast => Page.Locator("[data-testid=\"success-banner\"]");
     public ILocator ErrorToast => Page.Locator("[data-testid=\"error-banner\"]");

@@ -27,10 +27,15 @@ public class RoleAwareSidebarAdminEntriesTests : AuthenticatedTestBase
         await Page.GotoAsync(BaseUrl + "/");
 
         var basePage = new ApplicationPage(Page);
+
+        // users/reports live under the collapsable Administración group — expand it.
+        await basePage.ExpandSidebarSectionAsync("admin-section");
         await Expect(basePage.SidebarEntry("users")).ToBeVisibleAsync();
         await Expect(basePage.SidebarEntry("reports")).ToBeVisibleAsync();
 
-        // Admin also still sees the Reviewer entries (claims transformation).
+        // Admin also still sees the Reviewer entries (claims transformation), but
+        // for admins they move under the collapsable "Operativo" group — expand it.
+        await basePage.ExpandSidebarSectionAsync("operativo-section");
         await Expect(basePage.SidebarEntry("review-queue")).ToBeVisibleAsync();
         await Expect(basePage.SidebarEntry("signing-inbox")).ToBeVisibleAsync();
     }

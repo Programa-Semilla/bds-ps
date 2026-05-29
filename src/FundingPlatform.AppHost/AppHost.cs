@@ -141,6 +141,18 @@ var adminDefaultPassword = ephemeralStorage
     ? "Sentinel123!"
     : builder.Configuration["Admin:DefaultPassword"];
 
+// Spec 021 — Notifications config read once: validated in publish mode below and
+// forwarded to the Web container after webApp is defined. AppHost previously only
+// validated these and never forwarded them, so the running container fell back to
+// the appsettings default (Provider=Mailtrap) and prod mail never reached Mailgun.
+var notificationsProvider    = builder.Configuration["Notifications:Provider"];
+var notificationsBaseUrl     = builder.Configuration["Notifications:BaseUrl"];
+var mailgunApiKey            = builder.Configuration["Notifications:Mailgun:ApiKey"];
+var mailgunDomain            = builder.Configuration["Notifications:Mailgun:Domain"];
+var mailgunBaseUrl           = builder.Configuration["Notifications:Mailgun:BaseUrl"];
+var notificationsSenderName  = builder.Configuration["Notifications:Sender:Name"];
+var notificationsSenderEmail = builder.Configuration["Notifications:Sender:Email"];
+
 // Spec 021 / FR-016 — fail-fast in publish mode when Mailgun config is missing.
 // In Azure deployment the only acceptable provider is Mailgun; the smtp4dev
 // sidecar is a dev-only convenience and is NOT provisioned. AppHost validates
@@ -148,15 +160,15 @@ var adminDefaultPassword = ephemeralStorage
 // than silently routing transactional mail into a non-existent sidecar.
 if (builder.ExecutionContext.IsPublishMode)
 {
-    var provider = builder.Configuration["Notifications:Provider"] ?? "Mailgun";
+    var provider = notificationsProvider ?? "Mailgun";
     if (string.Equals(provider, "Mailgun", StringComparison.OrdinalIgnoreCase))
     {
         var missing = new[]
         {
-            ("Notifications:Mailgun:ApiKey", builder.Configuration["Notifications:Mailgun:ApiKey"]),
-            ("Notifications:Mailgun:Domain", builder.Configuration["Notifications:Mailgun:Domain"]),
-            ("Notifications:Sender:Email",   builder.Configuration["Notifications:Sender:Email"]),
-            ("Notifications:BaseUrl",        builder.Configuration["Notifications:BaseUrl"]),
+            ("Notifications:Mailgun:ApiKey", mailgunApiKey),
+            ("Notifications:Mailgun:Domain", mailgunDomain),
+            ("Notifications:Sender:Email",   notificationsSenderEmail),
+            ("Notifications:BaseUrl",        notificationsBaseUrl),
         }
         .Where(p => string.IsNullOrWhiteSpace(p.Item2))
         .Select(p => p.Item1)
@@ -241,6 +253,39 @@ if (!string.IsNullOrEmpty(adminDefaultPassword))
 {
     webApp.WithEnvironment("Admin__DefaultPassword", adminDefaultPassword);
 }
+
+// Publish mode → pin the container to the Production environment. ASP.NET Core's
+// IHostEnvironment gates the recipient-allowlist bypass (FR-017/FR-019), the
+// Mailgun runtime fail-fast, and the Storage FR-011 guard; without this the
+// deployed container could resolve to a non-Production environment and silently
+// drop every real recipient via RecipientAllowlistFilter. Run mode is left alone
+// so local dev keeps Development (demo-user seeding, dev exception page, etc.).
+if (builder.ExecutionContext.IsPublishMode)
+{
+    webApp.WithEnvironment("ASPNETCORE_ENVIRONMENT", "Production");
+}
+
+// Spec 021 — forward Notifications config to the Web container. Conditional-on-
+// present so local run mode keeps the appsettings default (Provider=Mailtrap) and
+// the smtp4dev Mailtrap Host/Port wiring above; publish mode (azd env / Key Vault
+// supplies the keys, validated by the FR-016 fail-fast) routes prod mail through
+// MailgunHttpEmailSender. The runtime allowlist bypass + Mailgun fail-fast still
+// require ASPNETCORE_ENVIRONMENT=Production on the container (set via azd).
+void ForwardNotification(string envKey, string? value)
+{
+    if (!string.IsNullOrWhiteSpace(value))
+    {
+        webApp.WithEnvironment(envKey, value);
+    }
+}
+
+ForwardNotification("Notifications__Provider",         notificationsProvider);
+ForwardNotification("Notifications__BaseUrl",          notificationsBaseUrl);
+ForwardNotification("Notifications__Mailgun__ApiKey",  mailgunApiKey);
+ForwardNotification("Notifications__Mailgun__Domain",  mailgunDomain);
+ForwardNotification("Notifications__Mailgun__BaseUrl", mailgunBaseUrl);
+ForwardNotification("Notifications__Sender__Name",     notificationsSenderName);
+ForwardNotification("Notifications__Sender__Email",    notificationsSenderEmail);
 
 // Spec 014 (T014): wire Storage provider configuration to the Web project.
 webApp.WithEnvironment("Storage__Provider", storageProvider);

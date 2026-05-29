@@ -1,14 +1,15 @@
 using FundingPlatform.Tests.E2E.Fixtures;
+using FundingPlatform.Tests.E2E.PageObjects;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.Tests.Admin;
 
 /// <summary>
 /// Spec 017 / US4 — sidebar admin grouping. Admin users see an "Administración"
-/// section header (slug `admin-section` via data-section-testid) followed by
-/// the admin sub-entries indented under it. The pre-existing
-/// `sidebar-entry-admin` testid stays on the same element for back-compat.
-/// Non-Admin users see no admin section.
+/// section header (slug `admin-section` via data-section-testid). The header is
+/// now a collapsable accordion toggle (no navigation); its sub-entries live in
+/// a collapse that opens on click. The pre-existing `sidebar-entry-admin` testid
+/// stays on the same element for back-compat. Non-Admin users see no admin section.
 /// </summary>
 public class AdminSidebarGroupingTests : AuthenticatedTestBase
 {
@@ -26,20 +27,31 @@ public class AdminSidebarGroupingTests : AuthenticatedTestBase
         await RegisterAndLoginAsAdminAsync(Page, $"admin_sidebar_{uniqueId}@example.com", "Test123!");
         await Page.GotoAsync($"{BaseUrl}/Admin");
 
-        // Section header carries a data-section-testid="admin-section" and
-        // links to /Admin per R3.
+        var basePage = new ApplicationPage(Page);
+
+        // Section header carries data-section-testid="admin-section" and is an
+        // accordion toggle (collapsable groups) — it controls a collapse, not an href.
         var header = Page.Locator("[data-section-testid=admin-section]");
         await Expect(header).ToBeVisibleAsync();
-        var href = await header.GetAttributeAsync("href");
-        Assert.That(href, Is.EqualTo("/Admin"),
-            "FR-015 + R3 — section header navigates to /Admin.");
+        Assert.That(await header.GetAttributeAsync("data-bs-toggle"), Is.EqualTo("collapse"),
+            "Collapsable groups — the header toggles its section instead of navigating.");
 
-        // All admin sub-entry slugs must be present (FR-016; +impact-templates per US10/FR-042; +system-config per US11/FR-043).
-        var slugs = new[] { "impact-templates", "users", "groups", "suppliers", "reports", "currencies", "exchange-rates", "legacy-quotations", "system-config" };
-        foreach (var slug in slugs)
+        // On /Admin the Administración section auto-expands; its children are
+        // visible, including the re-added Panel landing that preserves /Admin.
+        await basePage.ExpandSidebarSectionAsync("admin-section");
+        foreach (var slug in new[] { "admin-home", "users", "suppliers", "reports", "currencies", "exchange-rates", "system-config" })
         {
             await Expect(Page.Locator($"[data-testid=sidebar-entry-{slug}]")).ToBeVisibleAsync();
         }
+
+        // Accordion: opening Proceso reveals its children (incl. impact-templates,
+        // groups, legacy-quotations, processes) and collapses Administración.
+        await basePage.ExpandSidebarSectionAsync("proceso-section");
+        foreach (var slug in new[] { "processes", "groups", "impact-templates", "legacy-quotations" })
+        {
+            await Expect(Page.Locator($"[data-testid=sidebar-entry-{slug}]")).ToBeVisibleAsync();
+        }
+        await Expect(Page.Locator("[data-testid=sidebar-entry-users]")).Not.ToBeVisibleAsync();
     }
 
     [Test]
