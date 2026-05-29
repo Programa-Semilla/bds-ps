@@ -16,6 +16,15 @@ COPY src/FundingPlatform.Infrastructure/ src/FundingPlatform.Infrastructure/
 COPY src/FundingPlatform.ServiceDefaults/ src/FundingPlatform.ServiceDefaults/
 COPY src/FundingPlatform.Web/ src/FundingPlatform.Web/
 
+# Spec 020 / NFR-M2 — repo-root prompts/ + schemas/ are the source of truth that
+# FundingPlatform.Web.csproj globs into the publish output (..\..\prompts\**,
+# ..\..\schemas\**) so PromptCatalog + SchemaValidator can read them at runtime.
+# Without copying them into the build context the glob matches nothing and the
+# published image throws FileNotFoundException('prompts/extract.v1.md') the
+# moment the AI comparison worker runs.
+COPY prompts/ prompts/
+COPY schemas/ schemas/
+
 RUN --mount=type=cache,target=/root/.nuget/packages \
     dotnet restore src/FundingPlatform.Web/FundingPlatform.Web.csproj -a "$TARGETARCH"
 
