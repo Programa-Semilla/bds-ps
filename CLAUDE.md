@@ -82,6 +82,28 @@ The Aspire AppHost registers `rnwood/smtp4dev` as a container resource named `sm
 - Speckit checkpoints: at every phase checkpoint, commit and push without prompting.
 - UX/UI quality wins over E2E selector stability. HTML restructuring + E2E rewrites are in scope when elevating UI.
 
+## Deploy to Azure
+
+The `dev` environment lives in Azure subscription **LinaSys-DevEnv** (`d428f98f-…`), resource group `rg-CapitalSemilla-D`, region centralus, azd env name `CapitalSemilla-D`. Container App `webapp`. Custom domain: `https://capitalsemilla-dev.programasemilla.com/`.
+
+### Deploy steps (in order)
+
+1. **Code + container env:** `cd src/FundingPlatform.AppHost && azd up` (incremental — infra already provisioned). For a code-only redeploy: `azd deploy webapp`.
+2. **Schema (NOT auto-deployed in publish mode):** the AppHost only registers the SqlProject in run mode, so Azure SQL is never updated by `azd up`. After every code deploy that changes schema, run `bash scripts/publish-dacpac-azure.sh`. The script handles dacpac build + transient firewall + AAD token. Defaults are destructive (`BlockOnPossibleDataLoss=false`, `DropObjectsNotInSource=true`). **Always use `--no-drop` for this env** — otherwise sqlpackage drops the contained DB user `mi-negelwcexrtzc` (created by the `sqlserver-roles` bicep outside the dacpac) and the running app loses DB auth.
+3. **Auth to deploy schema:** your AAD account needs DDL on `fundingdb`. Server AAD admin is normally `sqlserver-admin-negelwcexrtzc` (sid `e991a9d7-28bc-46d5-ba15-bf68559c8541`). If your `az` user isn't that admin, temporarily set yourself: `az sql server ad-admin update -g rg-CapitalSemilla-D -s sqlserver-negelwcexrtzc --display-name "<you>" --object-id "<your-objectId>"`, deploy, then restore with `--display-name sqlserver-admin-negelwcexrtzc --object-id e991a9d7-28bc-46d5-ba15-bf68559c8541`.
+4. **Tag the deployed commit on `main`:**
+   ```bash
+   git tag -a deploy/<env>/<YYYY-MM-DD>[-<N>] -m "<env> environment release to Azure (...)"
+   git push origin deploy/<env>/<YYYY-MM-DD>[-<N>]
+   ```
+   Convention: `deploy/<env>/<YYYY-MM-DD>` where `<env>` is `dev|staging|prod`. Suffix `-2`, `-3`, … when more than one deploy lands the same day. Tags are **annotated** and point at the merged-to-main commit that was built and shipped. List releases: `git tag -l 'deploy/dev/*'`.
+
+### Things that bite during a fresh deploy
+
+- `azd` does **not** forward azd-environment (`.env`) values into the AppHost's manifest-generation subprocess. Code that reads runtime business config via `builder.Configuration[...]` inside `if (IsPublishMode)` will see `null` and must not throw on absent values — runtime fail-fasts belong in the Web project, not the AppHost.
+- The on-disk Container App template `infra/webapp.tmpl.yaml` is the source of truth for the deployed container env (and overrides the AppHost's `WithEnvironment` literals once `infra/` exists on disk). Per `next-steps.md`: drift here will silently outlast AppHost changes. Reference azd-env via `{{ .Env.X }}` for non-secrets and Container App secrets (`secretRef:`) for credentials, both sourced from azd-env.
+- `azd deploy` has occasionally shipped a BuildKit-cache-stale image. If a fresh deploy ships missing files that are clearly in the Dockerfile, `docker builder prune` then redeploy.
+
 ## Specs
 
 `specs/NNN-slug/` is the source of truth for feature intent — spec.md, plan.md, tasks.md, and contracts. Read the spec before changing behavior in that area. Active specs span 001-core-model-submission through 014-azure-blob-storage.
