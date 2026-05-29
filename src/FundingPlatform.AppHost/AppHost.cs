@@ -153,14 +153,20 @@ var mailgunBaseUrl           = builder.Configuration["Notifications:Mailgun:Base
 var notificationsSenderName  = builder.Configuration["Notifications:Sender:Name"];
 var notificationsSenderEmail = builder.Configuration["Notifications:Sender:Email"];
 
-// Spec 021 / FR-016 — fail-fast in publish mode when Mailgun config is missing.
-// In Azure deployment the only acceptable provider is Mailgun; the smtp4dev
-// sidecar is a dev-only convenience and is NOT provisioned. AppHost validates
-// the required keys here so a misconfigured deploy surfaces at boot rather
-// than silently routing transactional mail into a non-existent sidecar.
+// Spec 021 / FR-016 — fail-fast in publish mode when Mailgun is *explicitly*
+// selected but its config is incomplete. This block runs during azd's manifest
+// generation (`dotnet run --publisher manifest`), NOT at container runtime —
+// the AppHost never executes in Azure. azd does not forward the azd-environment
+// (.env) values into that manifest-generation process, so `notificationsProvider`
+// is normally null here. We therefore must NOT default an absent provider to
+// "Mailgun" (doing so aborted every `azd up` with a false FR-016 failure). The
+// authoritative runtime fail-fast lives in the Web project's
+// NotificationsServiceCollectionExtensions (FR-016), which sees real config when
+// the container boots in Production. This guard only catches a locally-set,
+// explicit Mailgun misconfiguration before publishing.
 if (builder.ExecutionContext.IsPublishMode)
 {
-    var provider = notificationsProvider ?? "Mailgun";
+    var provider = notificationsProvider;
     if (string.Equals(provider, "Mailgun", StringComparison.OrdinalIgnoreCase))
     {
         var missing = new[]
