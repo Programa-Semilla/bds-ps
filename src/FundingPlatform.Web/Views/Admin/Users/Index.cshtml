@@ -3,12 +3,15 @@
 @model AdminUsersListViewModel
 @{
     ViewData["Title"] = "Usuarios";
-    var roles = new[] { "Applicant", "Reviewer", "Admin" };
+    // Spec 021 / FR-007 — SupplierAdmin included in the role filter so admins can
+    // narrow the list to supplier-catalog admins.
+    var roles = new[] { "Applicant", "Reviewer", "SupplierAdmin", "Admin" };
     var statuses = new[] { "Active", "Disabled" };
     string RoleLabel(string r) => r switch
     {
         "Applicant" => "Solicitante",
         "Reviewer" => "Revisor",
+        "SupplierAdmin" => "Administrador de proveedores",
         "Admin" => "Administrador",
         _ => r,
     };

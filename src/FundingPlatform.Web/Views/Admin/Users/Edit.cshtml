@@ -5,11 +5,14 @@
 @model AdminUserEditViewModel
 @{
     ViewData["Title"] = "Editar usuario";
-    var roles = new[] { "Applicant", "Reviewer", "Admin" };
+    // Spec 021 / FR-007 — SupplierAdmin role exposed for assignment + editing
+    // (matches the Create form). Label matches the profile-screen copy.
+    var roles = new[] { "Applicant", "Reviewer", "SupplierAdmin", "Admin" };
     string RoleLabel(string r) => r switch
     {
         "Applicant" => "Solicitante",
         "Reviewer" => "Revisor",
+        "SupplierAdmin" => "Administrador de proveedores",
         "Admin" => "Administrador",
         _ => r,
     };
@@ -129,7 +132,10 @@
                 legalField.style.display = role === 'Applicant' ? '' : 'none';
             }
             if (groupsField) {
-                groupsField.style.display = role === 'Admin' ? 'none' : '';
+                // Spec 016 / FR-009 + spec 021 / FR-007 — Admin AND SupplierAdmin
+                // both bypass Process/Group scope.
+                var isGroupless = role === 'Admin' || role === 'SupplierAdmin';
+                groupsField.style.display = isGroupless ? 'none' : '';
             }
         }
         if (roleSelect) {

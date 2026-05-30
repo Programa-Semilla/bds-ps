@@ -156,7 +156,11 @@ public class AdminUsersController : Controller
         }
         // Spec 016 / FR-007 — required-group check at the controller boundary.
         // Admin role bypasses this (FR-009).
-        if (!string.Equals(vm.Role, "Admin", StringComparison.Ordinal)
+        // Spec 021 / FR-007 — SupplierAdmin is global-scope (no Process/Group),
+        // same bypass: without this, an invisible ModelState error on the
+        // hidden GroupIds field renders "Corrige los campos marcados" with no
+        // visible field marker because the group selector is JS-hidden.
+        if (!IsGrouplessRole(vm.Role)
             && (vm.GroupIds is null || vm.GroupIds.Length == 0))
         {
             ModelState.AddModelError(nameof(vm.GroupIds), AdminUsersResources.AtLeastOneGroupRequired);
@@ -246,7 +250,8 @@ public class AdminUsersController : Controller
             ModelState.AddModelError(nameof(vm.IdentificationType), "Seleccione el tipo de identificación.");
         }
         // Spec 016 / FR-008 — required-group check at the controller boundary.
-        if (!string.Equals(vm.Role, "Admin", StringComparison.Ordinal)
+        // Spec 021 / FR-007 — SupplierAdmin bypasses too (same rationale as Create).
+        if (!IsGrouplessRole(vm.Role)
             && (vm.GroupIds is null || vm.GroupIds.Length == 0))
         {
             ModelState.AddModelError(nameof(vm.GroupIds), AdminUsersResources.AtLeastOneGroupRequired);
@@ -422,6 +427,19 @@ public class AdminUsersController : Controller
             ModelState.AddModelError(key, translated);
         }
     }
+
+    /// <summary>
+    /// Spec 016 / FR-009 + spec 021 / FR-007 — roles that MUST NOT carry Process/Group
+    /// memberships. The controller mirrors the service-layer check
+    /// (<c>UserAdministrationService.RoleRequiresGroups</c>) so the form's
+    /// required-group ModelState error is suppressed for groupless roles —
+    /// without this, the hidden group selector accumulates an invisible error
+    /// and the form summary shows "Corrige los campos marcados" with no
+    /// visible field marker.
+    /// </summary>
+    private static bool IsGrouplessRole(string? role)
+        => string.Equals(role, "Admin", StringComparison.Ordinal)
+        || string.Equals(role, "SupplierAdmin", StringComparison.Ordinal);
 
     private static string ResolveSelfMessage(SelfModificationAction action) => action switch
     {

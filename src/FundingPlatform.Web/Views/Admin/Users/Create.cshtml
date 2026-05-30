@@ -5,11 +5,16 @@
 @model AdminUserCreateViewModel
 @{
     ViewData["Title"] = "Crear usuario";
-    var roles = new[] { "Applicant", "Reviewer", "Admin" };
+    // Spec 021 / FR-007 — SupplierAdmin role included so admins can provision
+    // a supplier-catalog-only user from this form (closes the impl gap that
+    // forced dev-only `Account/AssignRole` use). The SupplierAdmin label
+    // matches the profile-screen copy in AccountController.BuildProfileViewModelAsync.
+    var roles = new[] { "Applicant", "Reviewer", "SupplierAdmin", "Admin" };
     string RoleLabel(string r) => r switch
     {
         "Applicant" => "Solicitante",
         "Reviewer" => "Revisor",
+        "SupplierAdmin" => "Administrador de proveedores",
         "Admin" => "Administrador",
         _ => r,
     };
@@ -128,7 +133,10 @@
             }
             if (groupsField) {
                 // Spec 016 / FR-009 — hide the group selector when role is Admin.
-                groupsField.style.display = role === 'Admin' ? 'none' : '';
+                // Spec 021 / FR-007 — same for SupplierAdmin: scope is global supplier
+                // catalog, Process/Group does not apply.
+                var isGroupless = role === 'Admin' || role === 'SupplierAdmin';
+                groupsField.style.display = isGroupless ? 'none' : '';
             }
         }
         if (roleSelect) {

@@ -69,7 +69,7 @@ The Aspire AppHost registers `rnwood/smtp4dev` as a container resource named `sm
 - Integration: `dotnet test tests/FundingPlatform.Tests.Integration`
 - E2E: `dotnet test tests/FundingPlatform.Tests.E2E`
 - E2E uses `AspireFixture`, which boots AppHost with `--EphemeralStorage=true`. Each fixture run starts with a clean SQL Server container; the fixture deploys the dacpac via `sqlpackage` and waits synchronously before tests start.
-- Sentinel admin in ephemeral E2E: `admin@programa-semilla.test` / `Sentinel123!`. Demo seeds: `applicant@programa-semilla.test`, `reviewer@programa-semilla.test`, `demo-admin@programa-semilla.test` (all `Demo123!`). All seed emails live in the `Notifications:NonProdAllowlist` default `["@programa-semilla.test"]` so mail captures in smtp4dev without further config.
+- Sentinel admin in ephemeral E2E: `admin@programa-semilla.test` / `Sentinel123!`. Demo seeds: `applicant@programa-semilla.test`, `reviewer@programa-semilla.test`, `demo-admin@programa-semilla.test`, `supplieradmin@programa-semilla.test` (all `Demo123!`). All seed emails live in the `Notifications:NonProdAllowlist` default `["@programa-semilla.test"]` so mail captures in smtp4dev without further config.
 - Integration tests must hit a real DB, never mocks. Mocks burned the team on a prod migration last quarter.
 - Delivery bar: a feature is not delivered until the **full E2E suite has been personally executed and is green**. Structural readiness, type-checks, or partial runs do not count.
 
