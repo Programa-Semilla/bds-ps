@@ -54,7 +54,10 @@ public class UserAdministrationGroupsTests
     private static async Task SeedRolesAsync(IServiceProvider sp)
     {
         var roleMgr = sp.GetRequiredService<RoleManager<IdentityRole>>();
-        foreach (var r in new[] { "Applicant", "Reviewer", "Admin" })
+        // Spec 021 / FR-007 — SupplierAdmin seeded so role-assignment tests can
+        // exercise the standard admin Users form path (closes the impl gap that
+        // forced dev-only `Account/AssignRole` use).
+        foreach (var r in new[] { "Applicant", "Reviewer", "SupplierAdmin", "Admin" })
         {
             if (!await roleMgr.RoleExistsAsync(r))
             {
@@ -241,6 +244,144 @@ public class UserAdministrationGroupsTests
 
         Assert.That(update.Succeeded, Is.False);
         Assert.That(update.Errors.Any(e => e.Code == "AT_LEAST_ONE_GROUP"), Is.True);
+    }
+
+    // ---------------------------------------------------------------------
+    // Spec 021 / FR-007 — SupplierAdmin assignment via the standard admin
+    // Users form. The role is global-scope (no Process/Group), so the service
+    // MUST treat it like Admin for membership purposes: zero rows on create,
+    // strip rows on update.
+    // ---------------------------------------------------------------------
+
+    [Test]
+    public async Task Create_SupplierAdmin_WithoutGroups_Succeeds_AndPersistsNoMemberships()
+    {
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+
+        var result = await sut.CreateUserAsync(
+            new CreateUserRequest("Sup", "Admin", "supadmin1@test.com", null, "SupplierAdmin", "Test1!", null,
+                GroupIds: Array.Empty<int>()),
+            ActorAdminId, CancellationToken.None);
+
+        Assert.That(result.Succeeded, Is.True, string.Join("; ", result.Errors.Select(e => e.Message)));
+        var memberships = await ctx.UserGroupMemberships
+            .Where(m => m.UserId == result.Value!.Id)
+            .ToListAsync();
+        Assert.That(memberships, Has.Count.EqualTo(0));
+    }
+
+    [Test]
+    public async Task Create_SupplierAdmin_WithCraftedGroupIds_IgnoresMemberships()
+    {
+        // Defensive — a crafted form payload sets role=SupplierAdmin and posts
+        // GroupIds anyway. NormalizeGroupIdsForRole strips them so the table
+        // can never accumulate orphan rows for the new global role.
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+        var ids = await SeedGroupsAsync(ctx, "Norte");
+
+        var result = await sut.CreateUserAsync(
+            new CreateUserRequest("Sup", "Admin", "supadmin2@test.com", null, "SupplierAdmin", "Test1!", null,
+                GroupIds: ids),
+            ActorAdminId, CancellationToken.None);
+
+        Assert.That(result.Succeeded, Is.True, string.Join("; ", result.Errors.Select(e => e.Message)));
+        var memberships = await ctx.UserGroupMemberships
+            .Where(m => m.UserId == result.Value!.Id)
+            .ToListAsync();
+        Assert.That(memberships, Has.Count.EqualTo(0),
+            "FR-007: SupplierAdmin is global-scope; the service must strip any incoming GroupIds.");
+    }
+
+    [Test]
+    public async Task Update_Reviewer_To_SupplierAdmin_ClearsAllMemberships()
+    {
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+        var ids = await SeedGroupsAsync(ctx, "Norte", "Sur");
+
+        var created = await sut.CreateUserAsync(
+            new CreateUserRequest("F", "L", "rev-to-sup@test.com", null, "Reviewer", "Test1!", null,
+                GroupIds: ids),
+            ActorAdminId, CancellationToken.None);
+        Assert.That(created.Succeeded, Is.True);
+        var userId = created.Value!.Id;
+
+        var fresh = await sut.GetUserAsync(userId, CancellationToken.None);
+        var update = await sut.UpdateUserAsync(
+            new UpdateUserRequest(userId, "F", "L", "rev-to-sup@test.com", null, "SupplierAdmin", null,
+                GroupIds: ids, // crafted payload tries to retain — must be ignored
+                ConcurrencyStamp: fresh!.ConcurrencyStamp),
+            ActorAdminId, CancellationToken.None);
+
+        Assert.That(update.Succeeded, Is.True, string.Join("; ", update.Errors.Select(e => e.Message)));
+        var memberships = await ctx.UserGroupMemberships
+            .Where(m => m.UserId == userId)
+            .ToListAsync();
+        Assert.That(memberships, Has.Count.EqualTo(0),
+            "FR-007: promoting to SupplierAdmin must clear Process/Group memberships.");
+
+        var refreshed = await sut.GetUserAsync(userId, CancellationToken.None);
+        Assert.That(refreshed!.Role, Is.EqualTo("SupplierAdmin"));
+    }
+
+    [Test]
+    public async Task ListUsers_DualRole_AdminWinsOverSupplierAdmin()
+    {
+        // Guards SelectPrimaryRole priority — Admin must win even when a dual-
+        // role user also holds SupplierAdmin (parity with the AccountController
+        // profile-screen rank).
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+
+        var created = await sut.CreateUserAsync(
+            new CreateUserRequest("F", "L", "dual@test.com", null, "Admin", "Test1!", null,
+                GroupIds: Array.Empty<int>()),
+            ActorAdminId, CancellationToken.None);
+        Assert.That(created.Succeeded, Is.True);
+        var userId = created.Value!.Id;
+
+        // Pile the SupplierAdmin role on top through Identity directly — the
+        // admin form only assigns ONE role at a time, but the existing
+        // /Account/AssignRole path can add multiple. The display must still
+        // pick Admin.
+        var userMgr = sp.GetRequiredService<UserManager<ApplicationUser>>();
+        var target = await userMgr.FindByIdAsync(userId);
+        Assert.That(target, Is.Not.Null);
+        var addRes = await userMgr.AddToRoleAsync(target!, "SupplierAdmin");
+        Assert.That(addRes.Succeeded, Is.True);
+
+        var list = await sut.ListUsersAsync(new ListUsersRequest(null, null, null, 1, 20), CancellationToken.None);
+        var row = list.Items.Single(i => i.Id == userId);
+        Assert.That(row.Role, Is.EqualTo("Admin"));
+    }
+
+    [Test]
+    public async Task ListUsers_RoleFilter_AcceptsSupplierAdmin()
+    {
+        // ListUsersAsync's AllowedRoles guard must now accept SupplierAdmin so
+        // the Index filter dropdown's new option works.
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+
+        var sup = await sut.CreateUserAsync(
+            new CreateUserRequest("S", "A", "sup-filt@test.com", null, "SupplierAdmin", "Test1!", null,
+                GroupIds: Array.Empty<int>()),
+            ActorAdminId, CancellationToken.None);
+        Assert.That(sup.Succeeded, Is.True);
+
+        var other = await sut.CreateUserAsync(
+            new CreateUserRequest("R", "B", "rev-filt@test.com", null, "Admin", "Test1!", null,
+                GroupIds: Array.Empty<int>()),
+            ActorAdminId, CancellationToken.None);
+        Assert.That(other.Succeeded, Is.True);
+
+        var filtered = await sut.ListUsersAsync(
+            new ListUsersRequest("SupplierAdmin", null, null, 1, 20),
+            CancellationToken.None);
+        Assert.That(filtered.Items.Select(i => i.Id), Contains.Item(sup.Value!.Id));
+        Assert.That(filtered.Items.Select(i => i.Id), Does.Not.Contain(other.Value!.Id));
     }
 
     [Test]

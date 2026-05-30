@@ -14,9 +14,13 @@ public class UserAdministrationService : IUserAdministrationService
 {
     private const string ApplicantRole = "Applicant";
     private const string ReviewerRole = "Reviewer";
+    // Spec 021 / FR-007 — SupplierAdmin is a global-scope role (no Process/Group),
+    // assignable from the standard admin Users form (parity with Admin in terms of
+    // group handling — see RoleRequiresGroups + NormalizeGroupIdsForRole below).
+    private const string SupplierAdminRole = "SupplierAdmin";
     private const string AdminRole = "Admin";
 
-    private static readonly string[] AllowedRoles = [ApplicantRole, ReviewerRole, AdminRole];
+    private static readonly string[] AllowedRoles = [ApplicantRole, ReviewerRole, SupplierAdminRole, AdminRole];
 
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
@@ -640,12 +644,15 @@ public class UserAdministrationService : IUserAdministrationService
         || string.Equals(role, ReviewerRole, StringComparison.Ordinal);
 
     /// <summary>
-    /// Spec 016 / FR-009 — Admin role MUST never carry memberships. Strip the
-    /// posted ids when role is Admin; otherwise distinct/sort the input.
+    /// Spec 016 / FR-009 — Admin role MUST never carry memberships.
+    /// Spec 021 / FR-007 — SupplierAdmin is global-scope (no Process/Group); same
+    /// strip-on-write rule applies so the membership table can never accumulate
+    /// orphan rows for these two roles.
     /// </summary>
     private static IReadOnlyList<int> NormalizeGroupIdsForRole(string? role, IReadOnlyList<int> ids)
     {
-        if (string.Equals(role, AdminRole, StringComparison.Ordinal))
+        if (string.Equals(role, AdminRole, StringComparison.Ordinal)
+            || string.Equals(role, SupplierAdminRole, StringComparison.Ordinal))
         {
             return Array.Empty<int>();
         }
@@ -657,7 +664,7 @@ public class UserAdministrationService : IUserAdministrationService
         var errors = new List<DomainError>();
         if (string.IsNullOrWhiteSpace(role) || !AllowedRoles.Contains(role))
         {
-            errors.Add(new DomainError("INVALID_INPUT", "Role", "Role must be Applicant, Reviewer, or Admin."));
+            errors.Add(new DomainError("INVALID_INPUT", "Role", "Role must be Applicant, Reviewer, SupplierAdmin, or Admin."));
             return errors;
         }
         if (string.Equals(role, ApplicantRole, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(legalId))
@@ -694,12 +701,15 @@ public class UserAdministrationService : IUserAdministrationService
 
     // FR-001 says one role per user, but the existing /Account/Register + /Account/AssignRole
     // flow assigns multiple (Applicant + Reviewer/Admin). The admin area surfaces ONE role,
-    // picked Admin > Reviewer > Applicant so reviewers / admins read as their elevated role.
+    // picked Admin > Reviewer > SupplierAdmin > Applicant — matching the priority list in
+    // AccountController.BuildProfileViewModelAsync so a dual-role user reads the same way
+    // on both the admin Users list and their own profile screen (spec 021 / FR-007).
     private static string SelectPrimaryRole(IEnumerable<string> roles)
     {
         var set = roles.ToHashSet(StringComparer.Ordinal);
         if (set.Contains(AdminRole)) return AdminRole;
         if (set.Contains(ReviewerRole)) return ReviewerRole;
+        if (set.Contains(SupplierAdminRole)) return SupplierAdminRole;
         if (set.Contains(ApplicantRole)) return ApplicantRole;
         return set.FirstOrDefault() ?? "";
     }
