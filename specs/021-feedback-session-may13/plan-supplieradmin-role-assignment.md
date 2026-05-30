@@ -76,6 +76,14 @@ No new E2E test added: the existing `US3_SupplierAdmin` E2E continues to provisi
 
 Single-commit, view + service deltas only — `git revert` restores the prior dropdown.
 
+## Demo seed parity
+
+`IdentityConfiguration.SeedUsersAsync` previously shipped three demo users (Applicant / Reviewer / demo-Admin) but no SupplierAdmin. Added `supplieradmin@programa-semilla.test` / `Demo123!` (Lucía Mora, `1-0001-0004`) so a developer can one-click the role from the login screen without first running the dev-only `/Account/AssignRole` provisioning shortcut. Email matches the `@programa-semilla.test` domain so it sits inside the `Notifications:NonProdAllowlist` default and mail captures in smtp4dev without further config.
+
+`SeedRolesAsync` is also extended to include `"SupplierAdmin"` so the role row is present on paths that bypass the dacpac (in-memory unit/integration runs, fresh local demos without sqlpackage). The dacpac post-deployment script `03_SeedSupplierAdminRole.sql` remains the canonical seed in deployed environments; the C# branch is redundant-but-idempotent there (`RoleExistsAsync` short-circuits).
+
+CLAUDE.md updated so future agents see the four-user demo seed list.
+
 ## Out of scope
 
 - E2E rewrite of `US3_SupplierAdmin` to drive the admin form (deferred — provisioning via `AssignRole` is still valid).
