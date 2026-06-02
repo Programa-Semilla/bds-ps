@@ -184,6 +184,27 @@ chmod +x ~/deploy/backup.sh
 Restore: copy a `*.bak` into the `mssql` container and `RESTORE DATABASE`. For
 off-VM durability, uncomment the `az storage blob upload-batch` line in `backup.sh`.
 
+## Power schedule (cut cost ~half)
+
+Deallocate the VM off-hours — compute billing stops while stopped (disk + static
+IP still bill, ~$8/mo floor). `provision-schedule.sh` sets up **auto-start
+Mon–Fri 06:45** (Azure Automation runbook + managed identity) and **auto-stop
+daily 19:00** (DevTest schedule), Costa Rica time. Containers auto-recover on
+boot (`restart: unless-stopped`). Always-on ~$40/mo → scheduled ~$20/mo.
+
+```bash
+./provision-schedule.sh provision   # create/refresh both schedules (idempotent)
+./provision-schedule.sh start       # start now (after-hours testing) — runs until next 19:00
+./provision-schedule.sh stop        # deallocate now (stop billing early)
+./provision-schedule.sh status      # power state
+./provision-schedule.sh disable     # pause both schedules;  enable = resume
+```
+
+Manual `start` works anytime regardless of the schedule; the daily 19:00 stop is
+a safety net so a forgotten after-hours start never runs forever. Configure
+times/timezone/weekdays via env (`START_TIME`, `STOP_TIME`, `TIMEZONE_IANA`,
+`WEEKDAYS`, …). Static IP persists across stop/start, so DNS + TLS are unaffected.
+
 ## Optional: literal cost kill-switch
 
 Fixed VM cost already removes surprises, but if you want the site to **stop** at
@@ -215,3 +236,4 @@ Keep a final dacpac + data export first.
 | `deploy.sh` | Idempotent deploy/update — sync + build + recreate (run from dev machine). First deploy and every update. |
 | `publish-dacpac-vm.sh` | Publish schema via SSH tunnel (run from dev machine; or via `deploy.sh --schema`). |
 | `backup.sh` | Nightly SQL + storage backup (cron on the VM). |
+| `provision-schedule.sh` | Auto start/stop power schedule + manual `start`/`stop`/`status` control (run from dev machine). |
