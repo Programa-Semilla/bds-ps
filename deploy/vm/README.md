@@ -62,28 +62,35 @@ cp .env.example .env && nano .env      # set MSSQL_SA_PASSWORD, ADMIN_DEFAULT_PA
                                        # STORAGE_PROVIDER + BLOB_CONNECTION (from step 2), etc.
 docker compose up -d mssql             # wait until healthy: docker compose ps
 
-# 6. From your DEV MACHINE: publish the database schema (dacpac over SSH tunnel).
-MSSQL_SA_PASSWORD='<same as VM .env>' ./publish-dacpac-vm.sh <VM IP>
-
-# 7. On the VM: build + start the app and proxy.
-docker compose up -d --build
-docker compose logs -f caddy webapp    # watch cert issuance + app boot
+# 6. From your DEV MACHINE: first deploy — sync source, publish schema, build, start.
+#    deploy.sh is idempotent; --schema also publishes the dacpac.
+MSSQL_SA_PASSWORD='<same as VM .env>' ./deploy.sh <VM IP> --schema --logs
 ```
 
 Visit https://capitalsemilla-dev.programasemilla.com — Caddy serves a valid
 Let's Encrypt cert automatically.
 
-## Day-to-day
+## Day-to-day — deploy updates
+
+One command from your **dev machine** handles every redeploy. It rsyncs the repo
+to the VM (never touching the VM's `.env`), rebuilds the image **on the VM**, and
+recreates only what changed. Safe to run repeatedly.
 
 ```bash
-# Redeploy app after a code change (rebuild image, recreate webapp only):
-git pull && docker compose up -d --build webapp
+# Code change — push the update:
+./deploy.sh <VM IP>
 
-# Schema change: re-run the dacpac publish from the dev machine.
-MSSQL_SA_PASSWORD='…' ./publish-dacpac-vm.sh <VM IP>
+# Code + schema change — also publish the dacpac:
+MSSQL_SA_PASSWORD='…' ./deploy.sh <VM IP> --schema
 
-# Logs — see below.
+# Recreate without rebuilding / watch logs after:
+./deploy.sh <VM IP> --no-build
+./deploy.sh <VM IP> --logs
 ```
+
+> The image builds on the VM (the Dockerfile COPYs from the synced source). On a
+> 4 GB B2s the .NET SDK build is heavy but fine; it won't interrupt the running
+> container until the new image is ready.
 
 ## Logs
 
@@ -201,5 +208,6 @@ Keep a final dacpac + data export first.
 | `docker-compose.yml` | caddy + webapp + mssql services (+ aspire-dashboard under the `debug` profile). |
 | `Caddyfile` | Domain + auto-TLS reverse proxy. |
 | `.env.example` | Secrets/config template — copy to `.env` on the VM. |
-| `publish-dacpac-vm.sh` | Publish schema via SSH tunnel (run from dev machine). |
+| `deploy.sh` | Idempotent deploy/update — sync + build + recreate (run from dev machine). First deploy and every update. |
+| `publish-dacpac-vm.sh` | Publish schema via SSH tunnel (run from dev machine; or via `deploy.sh --schema`). |
 | `backup.sh` | Nightly SQL + storage backup (cron on the VM). |
