@@ -46,6 +46,25 @@ properties:
             value: Production
           - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
             value: "true"
+          # Log-cost guard (PR #44): authoritative log levels at the Container App
+          # config layer. Overrides appsettings.json and applies even if azd ships
+          # a BuildKit-cache-stale image. EF "Executed DbCommand" at Information +
+          # 1-5s worker polls were the Log Analytics ingestion spike.
+          - name: Logging__LogLevel__Default
+            value: Warning
+          - name: Logging__LogLevel__Microsoft.AspNetCore
+            value: Warning
+          - name: Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command
+            value: Warning
+          - name: Logging__LogLevel__FundingPlatform.Infrastructure.Notifications
+            value: Warning
+          - name: Logging__LogLevel__FundingPlatform.Application.Services
+            value: Information
+          # Throttle background-worker DB polling (fewer queries = fewer log lines).
+          - name: Notifications__Worker__PollIntervalSeconds
+            value: "30"
+          - name: AiComparison__WorkerIdleDelaySeconds
+            value: "10"
           - name: AiComparison__Provider
             value: Anthropic
           - name: AiComparison__Anthropic__ApiKey
