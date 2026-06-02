@@ -35,13 +35,18 @@ PID="$(az vm show -g "$RG" -n "$VM" --query identity.principalId -o tsv)"
 [[ -n "$PID" ]] || { echo "Could not resolve VM identity principalId." >&2; exit 1; }
 
 SCOPE="$(az storage account show -n "$ACCT" -g "$RG" --query id -o tsv)"
-echo "== Granting 'Storage Blob Data Contributor' to the VM identity =="
+# Data Owner (not just Contributor): the app's EnsureContainersHostedService
+# calls GetAccessPolicy (Get Container ACL) on startup to assert containers are
+# private (FR-027), which Contributor does not permit — it would 403 and the
+# app fail-fasts. Owner is a superset and covers it.
+echo "== Granting 'Storage Blob Data Owner' to the VM identity =="
 az role assignment create \
   --assignee-object-id "$PID" \
   --assignee-principal-type ServicePrincipal \
-  --role "Storage Blob Data Contributor" \
+  --role "Storage Blob Data Owner" \
   --scope "$SCOPE" \
   -o none
+echo "   (RBAC can take a few minutes to propagate before blob auth succeeds.)"
 
 ENDPOINT="$(az storage account show -n "$ACCT" -g "$RG" --query primaryEndpoints.blob -o tsv)"
 cat <<EOF

@@ -68,19 +68,41 @@ services:
       Notifications__Mailgun__BaseUrl: https://api.mailgun.net/v3
       Notifications__Sender__Name: "Programa Semilla / Sistema de Banca para el Desarrollo"
       Notifications__Sender__Email: ${NOTIFICATIONS_SENDER_EMAIL:-no-reply@programa-semilla.cr}
-      # AI quote comparison (spec 020). Leave key empty to keep the worker idle.
-      AiComparison__Provider: ${AI_PROVIDER:-Anthropic}
+      # AI quote comparison (spec 020). Default Stub (no key, fake output) so a
+      # keyless deploy works — provider=Anthropic *requires* a key or the client
+      # ctor throws and both the worker and the /Review comparison region 500.
+      # For real AI: set AI_PROVIDER=Anthropic and ANTHROPIC_API_KEY in .env.
+      AiComparison__Provider: ${AI_PROVIDER:-Stub}
       AiComparison__Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
       AiComparison__WorkerIdleDelaySeconds: "10"
+      # Log levels pinned for parity with the old Container Apps env (cost guard).
+      Logging__LogLevel__Default: Warning
+      Logging__LogLevel__Microsoft.AspNetCore: Warning
+      Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning
+      Logging__LogLevel__FundingPlatform.Infrastructure.Notifications: Warning
+      Logging__LogLevel__FundingPlatform.Application.Services: Information
+      Notifications__Worker__PollIntervalSeconds: "30"
       AdminReports__DefaultCurrency: CRC
       AdminReports__CsvRowLimit: "50000"
       FundingAgreement__LocaleCode: es-CR
+      # Funder identity printed on generated agreement PDFs (ported from the old
+      # azd env). Falls back to appsettings placeholders if unset.
+      FundingAgreement__Funder__LegalName: ${FUNDER_LEGALNAME:-}
+      FundingAgreement__Funder__TaxId: ${FUNDER_TAXID:-}
+      FundingAgreement__Funder__Address: ${FUNDER_ADDRESS:-}
+      FundingAgreement__Funder__ContactEmail: ${FUNDER_CONTACTEMAIL:-}
+      FundingAgreement__Funder__ContactPhone: ${FUNDER_CONTACTPHONE:-}
       FundingAgreement__CurrencyIsoCode: CRC
       SignedUpload__MaxSizeBytes: "20971520"
       Syncfusion__LicenseKey: ${SYNCFUSION_LICENSE_KEY}
       Admin__DefaultPassword: ${ADMIN_DEFAULT_PASSWORD}
     volumes:
       - app_storage:/data/storage
+      # Persist ASP.NET DataProtection keys across container recreates. Without
+      # this, every deploy wipes the keyring -> all auth cookies + antiforgery
+      # tokens invalidate (everyone logged out) and DP-encrypted data is lost.
+      # (Azure Container Apps did this via runtime.dotnet autoConfigureDataProtection.)
+      - dataprotection:/root/.aspnet/DataProtection-Keys
 
   mssql:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -135,3 +157,4 @@ volumes:
   caddy_config:
   mssql_data:
   app_storage:
+  dataprotection:
