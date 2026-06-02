@@ -32,6 +32,8 @@ public class ComparisonJobWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var concurrency = int.TryParse(_configuration["AiComparison:WorkerConcurrency"], out var c) ? c : 2;
+        var idleDelay = TimeSpan.FromSeconds(
+            int.TryParse(_configuration["AiComparison:WorkerIdleDelaySeconds"], out var d) ? Math.Max(1, d) : 10);
         using var sem = new SemaphoreSlim(concurrency, concurrency);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -44,7 +46,7 @@ public class ComparisonJobWorker : BackgroundService
                     var claimed = await ClaimAndRunOneAsync(stoppingToken);
                     if (!claimed)
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+                        await Task.Delay(idleDelay, stoppingToken);
                     }
                 }
                 catch (OperationCanceledException) { /* shutting down */ }

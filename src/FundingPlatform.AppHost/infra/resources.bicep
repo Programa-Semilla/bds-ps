@@ -41,6 +41,13 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10
     sku: {
       name: 'PerGB2018'
     }
+    // Cost guard: floor retention (30 is the minimum; first 31 days are free anyway)
+    // and a hard daily ingestion ceiling. 0.1 GB/day ~= 3 GB/mo well under the $10 target.
+    // Dropping data past the cap is acceptable for a dev env.
+    retentionInDays: 30
+    workspaceCapping: {
+      dailyQuotaGb: json('0.1')
+    }
   }
   tags: tags
 }
