@@ -104,6 +104,23 @@ The `dev` environment lives in Azure subscription **LinaSys-DevEnv** (`d428f98f-
 - The on-disk Container App template `infra/webapp.tmpl.yaml` is the source of truth for the deployed container env (and overrides the AppHost's `WithEnvironment` literals once `infra/` exists on disk). Per `next-steps.md`: drift here will silently outlast AppHost changes. Reference azd-env via `{{ .Env.X }}` for non-secrets and Container App secrets (`secretRef:`) for credentials, both sourced from azd-env.
 - `azd deploy` has occasionally shipped a BuildKit-cache-stale image. If a fresh deploy ships missing files that are clearly in the Dockerfile, `docker builder prune` then redeploy.
 
+### Alternative: single-VM fixed-cost deploy (`deploy/vm/`)
+
+A second, **fixed-monthly-cost** deployment path that does not use azd/Container Apps. Azure has no native "stop at $X" (budgets only alert; Container Apps + Azure SQL bill by usage), so a single VM's fixed compute cost is the lever. One Linux VM runs everything via Docker Compose: Caddy (auto Let's Encrypt TLS for `capitalsemilla-dev.programasemilla.com`) + the webapp (built on the VM from `src/FundingPlatform.Web/Dockerfile`) + SQL Server 2022 container; attachments go to Azure Blob via the VM's managed identity (cheap, durable), with LocalFilesystem as a fallback. Logs stay on the VM (`docker compose logs`, or the optional in-memory Aspire Dashboard) — **zero Log Analytics cost**. Full runbook: `deploy/vm/README.md`.
+
+One-time provision (from dev machine, needs `az`): `deploy/vm/provision-vm.sh` (creates the RG + VM + NSG) → `deploy/vm/provision-storage.sh` (Blob account + managed-identity grant) → point DNS at the printed IP → create `deploy/vm/.env` on the VM from `.env.example`.
+
+Deploy / update (idempotent, from dev machine) — `deploy/vm/deploy.sh` rsyncs the repo to the VM (never touching the VM's `.env`), rebuilds the image on the VM, recreates only what changed:
+
+```bash
+./deploy.sh <VM IP>                                  # push a code update
+MSSQL_SA_PASSWORD='…' ./deploy.sh <VM IP> --schema   # also publish the dacpac
+./deploy.sh <VM IP> --no-build                       # recreate without rebuilding
+./deploy.sh <VM IP> --logs                           # tail webapp+caddy after
+```
+
+Schema-only publish (also used by `--schema`): `deploy/vm/publish-dacpac-vm.sh <VM IP>` (dacpac over an SSH tunnel; SQL is loopback-only on the VM). Note: the `dev` Azure resource group was deleted on 2026-06-01 to stop a Log Analytics billing spike, so this VM path is the current forward plan rather than the azd stack.
+
 ## Specs
 
 `specs/NNN-slug/` is the source of truth for feature intent — spec.md, plan.md, tasks.md, and contracts. Read the spec before changing behavior in that area. Active specs span 001-core-model-submission through 014-azure-blob-storage.

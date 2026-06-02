@@ -7,7 +7,8 @@ everything via Docker Compose:
 Caddy (auto-TLS, 80/443)
   └─ webapp   (.NET 10, existing src/FundingPlatform.Web/Dockerfile)
   └─ mssql    (SQL Server 2022 Developer, loopback-only)
-  └─ LocalFilesystem storage + nightly backups (no Azure Blob bill)
+  └─ attachments → Azure Blob (durable, ~cents/GB) via VM managed identity
+                   — or LocalFilesystem on the VM disk if you prefer
 ```
 
 ## Why a VM
@@ -37,45 +38,59 @@ alert → automation runbook that **deallocates** the VM (see bottom).
 ```bash
 cd deploy/vm
 
-# 1. Provision the VM (locks SSH to your current IP, opens 80/443).
+# 1. Provision the VM (creates the resource group if missing, locks SSH to your
+#    current IP, opens 80/443).
 ./provision-vm.sh
 #    -> prints the VM public IP.
 
-# 2. DNS: point an A record at that IP and wait for it to resolve:
+# 2. Provision the attachments storage account + grant the VM managed identity.
+#    Prints the BLOB_CONNECTION endpoint URI for .env. (Skip if you set
+#    STORAGE_PROVIDER=LocalFilesystem instead.)
+./provision-storage.sh
+
+# 3. DNS: point an A record at that IP and wait for it to resolve:
 #       capitalsemilla-dev.programasemilla.com -> <VM IP>
 #    Caddy can't issue the TLS cert until this resolves publicly.
 
-# 3. Ship the deploy files to the VM.
+# 4. Ship the deploy files to the VM.
 scp -r ../vm azureuser@<VM IP>:~/deploy
 
-# 4. On the VM: configure secrets and start SQL.
+# 5. On the VM: configure secrets and start SQL.
 ssh azureuser@<VM IP>
 cd ~/deploy
-cp .env.example .env && nano .env      # set MSSQL_SA_PASSWORD, ADMIN_DEFAULT_PASSWORD, etc.
+cp .env.example .env && nano .env      # set MSSQL_SA_PASSWORD, ADMIN_DEFAULT_PASSWORD,
+                                       # STORAGE_PROVIDER + BLOB_CONNECTION (from step 2), etc.
 docker compose up -d mssql             # wait until healthy: docker compose ps
 
-# 5. From your DEV MACHINE: publish the database schema (dacpac over SSH tunnel).
-MSSQL_SA_PASSWORD='<same as VM .env>' ./publish-dacpac-vm.sh <VM IP>
-
-# 6. On the VM: build + start the app and proxy.
-docker compose up -d --build
-docker compose logs -f caddy webapp    # watch cert issuance + app boot
+# 6. From your DEV MACHINE: first deploy — sync source, publish schema, build, start.
+#    deploy.sh is idempotent; --schema also publishes the dacpac.
+MSSQL_SA_PASSWORD='<same as VM .env>' ./deploy.sh <VM IP> --schema --logs
 ```
 
 Visit https://capitalsemilla-dev.programasemilla.com — Caddy serves a valid
 Let's Encrypt cert automatically.
 
-## Day-to-day
+## Day-to-day — deploy updates
+
+One command from your **dev machine** handles every redeploy. It rsyncs the repo
+to the VM (never touching the VM's `.env`), rebuilds the image **on the VM**, and
+recreates only what changed. Safe to run repeatedly.
 
 ```bash
-# Redeploy app after a code change (rebuild image, recreate webapp only):
-git pull && docker compose up -d --build webapp
+# Code change — push the update:
+./deploy.sh <VM IP>
 
-# Schema change: re-run the dacpac publish from the dev machine.
-MSSQL_SA_PASSWORD='…' ./publish-dacpac-vm.sh <VM IP>
+# Code + schema change — also publish the dacpac:
+MSSQL_SA_PASSWORD='…' ./deploy.sh <VM IP> --schema
 
-# Logs — see below.
+# Recreate without rebuilding / watch logs after:
+./deploy.sh <VM IP> --no-build
+./deploy.sh <VM IP> --logs
 ```
+
+> The image builds on the VM (the Dockerfile COPYs from the synced source). On a
+> 4 GB B2s the .NET SDK build is heavy but fine; it won't interrupt the running
+> container until the new image is ready.
 
 ## Logs
 
@@ -132,6 +147,29 @@ never published to the public NSG. Always reach it through the SSH tunnel above.
 Do **not** add an `aspire-dashboard` entry to the `Caddyfile` without putting auth
 in front of it.
 
+## Storage (attachments)
+
+Default is **Azure Blob** — durable (survives VM loss), virtually unlimited, and
+cheap (Standard_LRS hot ~$0.018/GB-mo + trivial per-transaction). Storage was
+never the cost driver; Log Analytics ingestion was. `provision-storage.sh`
+creates the account and grants the VM's **managed identity** `Storage Blob Data
+Contributor`, so the app authenticates with **no secret on disk** — `.env` holds
+only the blob endpoint URI. The app auto-creates its per-category containers at
+startup (spec 014).
+
+Auth options for `BLOB_CONNECTION` in `.env`:
+- **Managed identity (recommended):** the `https://<acct>.blob.core.windows.net`
+  URI. No key stored; the Production storage guard stays Healthy.
+- **Account key:** a full connection string. Simpler (no role setup); fine for dev.
+
+The webapp container reaches the managed identity over Azure IMDS
+(`169.254.169.254`), normally routable from the docker bridge. If blob auth fails
+with a credential error, fall back to a key connection string.
+
+Prefer files on the VM disk instead? Set `STORAGE_PROVIDER=LocalFilesystem` —
+they live in the `app_storage` volume and are captured by `backup.sh`. (Bounded
+by disk size; no offsite durability — that's why Blob is the default.)
+
 ## Backups (you own them now)
 
 ```bash
@@ -164,10 +202,12 @@ Keep a final dacpac + data export first.
 
 | File | Purpose |
 |---|---|
-| `provision-vm.sh` | Create the VM + NSG (run from dev machine, needs `az`). |
+| `provision-vm.sh` | Create the resource group (if missing) + VM + NSG (run from dev machine, needs `az`). |
+| `provision-storage.sh` | Create the attachments Blob account + grant the VM managed identity (run after `provision-vm.sh`). |
 | `cloud-init.yaml` | First-boot Docker install + host firewall. |
 | `docker-compose.yml` | caddy + webapp + mssql services (+ aspire-dashboard under the `debug` profile). |
 | `Caddyfile` | Domain + auto-TLS reverse proxy. |
 | `.env.example` | Secrets/config template — copy to `.env` on the VM. |
-| `publish-dacpac-vm.sh` | Publish schema via SSH tunnel (run from dev machine). |
+| `deploy.sh` | Idempotent deploy/update — sync + build + recreate (run from dev machine). First deploy and every update. |
+| `publish-dacpac-vm.sh` | Publish schema via SSH tunnel (run from dev machine; or via `deploy.sh --schema`). |
 | `backup.sh` | Nightly SQL + storage backup (cron on the VM). |
