@@ -1,0 +1,173 @@
+# Single-VM deployment — capitalsemilla-dev
+
+Fixed-cost alternative to the Azure Container Apps stack. One Linux VM runs
+everything via Docker Compose:
+
+```
+Caddy (auto-TLS, 80/443)
+  └─ webapp   (.NET 10, existing src/FundingPlatform.Web/Dockerfile)
+  └─ mssql    (SQL Server 2022 Developer, loopback-only)
+  └─ LocalFilesystem storage + nightly backups (no Azure Blob bill)
+```
+
+## Why a VM
+
+Azure has **no native "stop at $X"** — budgets only alert, and Container Apps +
+Azure SQL bill by usage. A VM's compute cost is **fixed** whether idle or busy,
+so the bill can't surprise you. If you want a literal kill-switch, wire a budget
+alert → automation runbook that **deallocates** the VM (see bottom).
+
+## Cost (centralus, ~fixed/month)
+
+| Item | Choice | ~Cost |
+|---|---|---|
+| VM | `Standard_B2s` (2 vCPU, 4 GB) | $30–38 |
+| OS disk | 64 GB StandardSSD | $5 |
+| Static public IP | Standard | $3–4 |
+| Egress | low for this app | ~$0–5 |
+| **Total** | | **~$40, predictable** |
+
+> B2s (4 GB) is the lowest size that runs SQL Server + the webapp. It's tight
+> once Syncfusion launches Chromium for a PDF. If you hit OOM kills, set
+> `VM_SIZE=Standard_B2ms` (8 GB, ~$60) before running `provision-vm.sh`, or
+> resize later: `az vm resize -g rg-CapitalSemilla-D -n vm-capitalsemilla-dev --size Standard_B2ms`.
+
+## One-time setup
+
+```bash
+cd deploy/vm
+
+# 1. Provision the VM (locks SSH to your current IP, opens 80/443).
+./provision-vm.sh
+#    -> prints the VM public IP.
+
+# 2. DNS: point an A record at that IP and wait for it to resolve:
+#       capitalsemilla-dev.programasemilla.com -> <VM IP>
+#    Caddy can't issue the TLS cert until this resolves publicly.
+
+# 3. Ship the deploy files to the VM.
+scp -r ../vm azureuser@<VM IP>:~/deploy
+
+# 4. On the VM: configure secrets and start SQL.
+ssh azureuser@<VM IP>
+cd ~/deploy
+cp .env.example .env && nano .env      # set MSSQL_SA_PASSWORD, ADMIN_DEFAULT_PASSWORD, etc.
+docker compose up -d mssql             # wait until healthy: docker compose ps
+
+# 5. From your DEV MACHINE: publish the database schema (dacpac over SSH tunnel).
+MSSQL_SA_PASSWORD='<same as VM .env>' ./publish-dacpac-vm.sh <VM IP>
+
+# 6. On the VM: build + start the app and proxy.
+docker compose up -d --build
+docker compose logs -f caddy webapp    # watch cert issuance + app boot
+```
+
+Visit https://capitalsemilla-dev.programasemilla.com — Caddy serves a valid
+Let's Encrypt cert automatically.
+
+## Day-to-day
+
+```bash
+# Redeploy app after a code change (rebuild image, recreate webapp only):
+git pull && docker compose up -d --build webapp
+
+# Schema change: re-run the dacpac publish from the dev machine.
+MSSQL_SA_PASSWORD='…' ./publish-dacpac-vm.sh <VM IP>
+
+# Logs — see below.
+```
+
+## Logs
+
+Everything runs on the VM, so **there is no Azure log cost at all** — no Log
+Analytics ingestion, no retention bill. Two ways to look:
+
+### 1. Live tail (always on, zero setup)
+
+```bash
+docker compose logs -f webapp           # live stream
+docker compose logs --since 30m webapp  # last 30 minutes
+docker compose logs --tail 200 webapp   # last 200 lines
+```
+
+Cap how much docker keeps on disk (the on-VM equivalent of the LAW cap). Add to
+`/etc/docker/daemon.json` on the VM, then `sudo systemctl restart docker`:
+
+```json
+{ "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }
+```
+
+That's ~30 MB/container, oldest rotated out. Note: docker caps by **size**, not
+time — there's no native "keep 30 min" knob; size rotation is the lever.
+
+### 2. Aspire Dashboard (structured logs + traces + errors)
+
+In-memory telemetry UI. **Nothing is persisted → $0, and it self-evicts** (keeps
+the last 5000 logs/traces, oldest dropped; all gone on restart). Off by default
+to save RAM; start it only when investigating:
+
+```bash
+# On the VM: point the app at the dashboard, then start it.
+nano .env        # uncomment: OTEL_ENDPOINT=http://aspire-dashboard:18889
+docker compose up -d webapp                       # picks up the new OTEL endpoint
+docker compose --profile debug up -d aspire-dashboard
+
+# From your dev machine: tunnel the loopback-bound UI and open it.
+ssh -L 18888:localhost:18888 azureuser@<VM IP>
+#   then browse http://localhost:18888  (Structured logs / Traces / Metrics tabs)
+
+# When done — free the RAM and stop exporting.
+docker compose stop aspire-dashboard
+nano .env        # re-comment OTEL_ENDPOINT
+docker compose up -d webapp
+```
+
+**RAM cost:** dashboard ~150–250 MB while running. On a 4 GB B2s that's tight
+alongside SQL — fine for short debugging bursts, but if you want it **always on**
+move to `Standard_B2ms` (8 GB). Lower the `MAXLOGCOUNT`/`MAXTRACECOUNT` env in
+`docker-compose.yml` to shrink its footprint.
+
+**Security:** the UI runs `AUTHMODE=Unsecured` and is bound to `127.0.0.1` only —
+never published to the public NSG. Always reach it through the SSH tunnel above.
+Do **not** add an `aspire-dashboard` entry to the `Caddyfile` without putting auth
+in front of it.
+
+## Backups (you own them now)
+
+```bash
+# On the VM — schedule nightly 03:30 SQL + storage backup, keep 7 days:
+chmod +x ~/deploy/backup.sh
+( crontab -l 2>/dev/null; echo "30 3 * * * ~/deploy/backup.sh >> ~/backup.log 2>&1" ) | crontab -
+```
+Restore: copy a `*.bak` into the `mssql` container and `RESTORE DATABASE`. For
+off-VM durability, uncomment the `az storage blob upload-batch` line in `backup.sh`.
+
+## Optional: literal cost kill-switch
+
+Fixed VM cost already removes surprises, but if you want the site to **stop** at
+a threshold:
+
+1. Create a budget on `rg-CapitalSemilla-D`.
+2. Budget alert → Action Group → Automation Runbook running
+   `az vm deallocate -g rg-CapitalSemilla-D -n vm-capitalsemilla-dev`.
+
+Deallocated VM = $0 compute (you keep paying only the disk + IP). The site goes
+down until you `az vm start` — exactly the "stop rather than grow" behavior.
+
+## Decommission the old Container Apps stack
+
+Once this VM serves traffic, tear down the serverless stack to stop double-billing
+(Container Apps, Azure SQL, Storage, the now-capped Log Analytics workspace, ACR).
+Keep a final dacpac + data export first.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `provision-vm.sh` | Create the VM + NSG (run from dev machine, needs `az`). |
+| `cloud-init.yaml` | First-boot Docker install + host firewall. |
+| `docker-compose.yml` | caddy + webapp + mssql services (+ aspire-dashboard under the `debug` profile). |
+| `Caddyfile` | Domain + auto-TLS reverse proxy. |
+| `.env.example` | Secrets/config template — copy to `.env` on the VM. |
+| `publish-dacpac-vm.sh` | Publish schema via SSH tunnel (run from dev machine). |
+| `backup.sh` | Nightly SQL + storage backup (cron on the VM). |
