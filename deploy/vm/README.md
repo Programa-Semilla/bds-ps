@@ -153,9 +153,13 @@ Default is **Azure Blob** — durable (survives VM loss), virtually unlimited, a
 cheap (Standard_LRS hot ~$0.018/GB-mo + trivial per-transaction). Storage was
 never the cost driver; Log Analytics ingestion was. `provision-storage.sh`
 creates the account and grants the VM's **managed identity** `Storage Blob Data
-Contributor`, so the app authenticates with **no secret on disk** — `.env` holds
-only the blob endpoint URI. The app auto-creates its per-category containers at
-startup (spec 014).
+Owner`, so the app authenticates with **no secret on disk** — `.env` holds only
+the blob endpoint URI. (Owner, not just Contributor: startup calls
+`GetAccessPolicy` to assert containers are private per FR-027, which Contributor
+can't do.) The app auto-creates its per-category containers at startup (spec
+014). **RBAC takes a few minutes to propagate** — the webapp fail-fasts on blob
+auth until then, so on a fresh deploy it may restart a few times before the role
+is live; it self-heals once propagation completes.
 
 Auth options for `BLOB_CONNECTION` in `.env`:
 - **Managed identity (recommended):** the `https://<acct>.blob.core.windows.net`

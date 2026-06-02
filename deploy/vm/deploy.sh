@@ -71,6 +71,15 @@ ssh "$REMOTE" "test -f ${COMPOSE_DIR}/.env" || {
   exit 1
 }
 ssh "$REMOTE" "cd ${COMPOSE_DIR} && docker compose up -d mssql"
+echo "   waiting for SQL Server to report healthy..."
+SQL_OK="false"
+for _ in $(seq 1 36); do
+  h="$(ssh "$REMOTE" "cd ${COMPOSE_DIR} && docker compose ps --format '{{.Health}}' mssql" 2>/dev/null | tr -d '[:space:]')"
+  if [[ "$h" == "healthy" ]]; then SQL_OK="true"; break; fi
+  sleep 5
+done
+[[ "$SQL_OK" == "true" ]] || { echo "SQL did not become healthy in time." >&2; exit 1; }
+echo "   SQL healthy."
 
 if [[ "$DO_SCHEMA" == "true" ]]; then
   echo "== [3b] Publishing dacpac schema =="

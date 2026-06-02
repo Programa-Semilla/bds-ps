@@ -81,6 +81,11 @@ services:
       Admin__DefaultPassword: ${ADMIN_DEFAULT_PASSWORD}
     volumes:
       - app_storage:/data/storage
+      # Persist ASP.NET DataProtection keys across container recreates. Without
+      # this, every deploy wipes the keyring -> all auth cookies + antiforgery
+      # tokens invalidate (everyone logged out) and DP-encrypted data is lost.
+      # (Azure Container Apps did this via runtime.dotnet autoConfigureDataProtection.)
+      - dataprotection:/root/.aspnet/DataProtection-Keys
 
   mssql:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -135,3 +140,4 @@ volumes:
   caddy_config:
   mssql_data:
   app_storage:
+  dataprotection:

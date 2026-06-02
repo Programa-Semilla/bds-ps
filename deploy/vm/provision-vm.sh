@@ -22,7 +22,14 @@ DISK_GB="${OS_DISK_GB:-64}"
 command -v az >/dev/null || { echo "az CLI missing." >&2; exit 1; }
 az account show >/dev/null 2>&1 || { echo "Not logged in. Run: az login" >&2; exit 1; }
 
-MYIP="$(curl -fsS https://ifconfig.me)"
+# Public IP to lock the SSH NSG rule to. Override with MYIP=... ; otherwise try
+# several echo services (some networks block any single one).
+MYIP="${MYIP:-}"
+for _svc in https://api.ipify.org https://checkip.amazonaws.com https://ifconfig.me; do
+  [[ -n "$MYIP" ]] && break
+  MYIP="$(curl -fsS --max-time 8 "$_svc" 2>/dev/null | tr -d '[:space:]')"
+done
+[[ -n "$MYIP" ]] || { echo "Could not determine public IP. Re-run with MYIP=<your.ip>" >&2; exit 1; }
 echo "== Provisioning $VM ($SIZE) in $RG / $LOC =="
 echo "   SSH will be locked to your current IP: $MYIP"
 
