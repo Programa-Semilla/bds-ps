@@ -7,7 +7,8 @@ everything via Docker Compose:
 Caddy (auto-TLS, 80/443)
   └─ webapp   (.NET 10, existing src/FundingPlatform.Web/Dockerfile)
   └─ mssql    (SQL Server 2022 Developer, loopback-only)
-  └─ LocalFilesystem storage + nightly backups (no Azure Blob bill)
+  └─ attachments → Azure Blob (durable, ~cents/GB) via VM managed identity
+                   — or LocalFilesystem on the VM disk if you prefer
 ```
 
 ## Why a VM
@@ -37,27 +38,34 @@ alert → automation runbook that **deallocates** the VM (see bottom).
 ```bash
 cd deploy/vm
 
-# 1. Provision the VM (locks SSH to your current IP, opens 80/443).
+# 1. Provision the VM (creates the resource group if missing, locks SSH to your
+#    current IP, opens 80/443).
 ./provision-vm.sh
 #    -> prints the VM public IP.
 
-# 2. DNS: point an A record at that IP and wait for it to resolve:
+# 2. Provision the attachments storage account + grant the VM managed identity.
+#    Prints the BLOB_CONNECTION endpoint URI for .env. (Skip if you set
+#    STORAGE_PROVIDER=LocalFilesystem instead.)
+./provision-storage.sh
+
+# 3. DNS: point an A record at that IP and wait for it to resolve:
 #       capitalsemilla-dev.programasemilla.com -> <VM IP>
 #    Caddy can't issue the TLS cert until this resolves publicly.
 
-# 3. Ship the deploy files to the VM.
+# 4. Ship the deploy files to the VM.
 scp -r ../vm azureuser@<VM IP>:~/deploy
 
-# 4. On the VM: configure secrets and start SQL.
+# 5. On the VM: configure secrets and start SQL.
 ssh azureuser@<VM IP>
 cd ~/deploy
-cp .env.example .env && nano .env      # set MSSQL_SA_PASSWORD, ADMIN_DEFAULT_PASSWORD, etc.
+cp .env.example .env && nano .env      # set MSSQL_SA_PASSWORD, ADMIN_DEFAULT_PASSWORD,
+                                       # STORAGE_PROVIDER + BLOB_CONNECTION (from step 2), etc.
 docker compose up -d mssql             # wait until healthy: docker compose ps
 
-# 5. From your DEV MACHINE: publish the database schema (dacpac over SSH tunnel).
+# 6. From your DEV MACHINE: publish the database schema (dacpac over SSH tunnel).
 MSSQL_SA_PASSWORD='<same as VM .env>' ./publish-dacpac-vm.sh <VM IP>
 
-# 6. On the VM: build + start the app and proxy.
+# 7. On the VM: build + start the app and proxy.
 docker compose up -d --build
 docker compose logs -f caddy webapp    # watch cert issuance + app boot
 ```
@@ -132,6 +140,29 @@ never published to the public NSG. Always reach it through the SSH tunnel above.
 Do **not** add an `aspire-dashboard` entry to the `Caddyfile` without putting auth
 in front of it.
 
+## Storage (attachments)
+
+Default is **Azure Blob** — durable (survives VM loss), virtually unlimited, and
+cheap (Standard_LRS hot ~$0.018/GB-mo + trivial per-transaction). Storage was
+never the cost driver; Log Analytics ingestion was. `provision-storage.sh`
+creates the account and grants the VM's **managed identity** `Storage Blob Data
+Contributor`, so the app authenticates with **no secret on disk** — `.env` holds
+only the blob endpoint URI. The app auto-creates its per-category containers at
+startup (spec 014).
+
+Auth options for `BLOB_CONNECTION` in `.env`:
+- **Managed identity (recommended):** the `https://<acct>.blob.core.windows.net`
+  URI. No key stored; the Production storage guard stays Healthy.
+- **Account key:** a full connection string. Simpler (no role setup); fine for dev.
+
+The webapp container reaches the managed identity over Azure IMDS
+(`169.254.169.254`), normally routable from the docker bridge. If blob auth fails
+with a credential error, fall back to a key connection string.
+
+Prefer files on the VM disk instead? Set `STORAGE_PROVIDER=LocalFilesystem` —
+they live in the `app_storage` volume and are captured by `backup.sh`. (Bounded
+by disk size; no offsite durability — that's why Blob is the default.)
+
 ## Backups (you own them now)
 
 ```bash
@@ -164,7 +195,8 @@ Keep a final dacpac + data export first.
 
 | File | Purpose |
 |---|---|
-| `provision-vm.sh` | Create the VM + NSG (run from dev machine, needs `az`). |
+| `provision-vm.sh` | Create the resource group (if missing) + VM + NSG (run from dev machine, needs `az`). |
+| `provision-storage.sh` | Create the attachments Blob account + grant the VM managed identity (run after `provision-vm.sh`). |
 | `cloud-init.yaml` | First-boot Docker install + host firewall. |
 | `docker-compose.yml` | caddy + webapp + mssql services (+ aspire-dashboard under the `debug` profile). |
 | `Caddyfile` | Domain + auto-TLS reverse proxy. |

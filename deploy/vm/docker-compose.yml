@@ -49,11 +49,17 @@ services:
       OTEL_SERVICE_NAME: webapp
       # DB: SA auth against the mssql container on the private compose network.
       ConnectionStrings__fundingdb: "Server=mssql,1433;Database=fundingdb;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
-      # Storage: local disk, no Azure Blob cost. No connection string => the
-      # Production storage guard stays healthy (it only trips on AzureBlob+connstring).
-      # Host owns encryption-at-rest (spec 014 / FR-026) — fine for a dev env.
-      Storage__Provider: LocalFilesystem
+      # Attachments storage. Default AzureBlob — durable (survives VM loss) and
+      # cheap (~cents/GB; storage was never the cost problem, Log Analytics was).
+      # Set STORAGE_PROVIDER=LocalFilesystem in .env to keep files on the VM disk.
+      Storage__Provider: ${STORAGE_PROVIDER:-AzureBlob}
       Storage__LocalFilesystem__RootPath: /data/storage
+      # AzureBlob auth. Put the blob ENDPOINT URI here
+      # (https://<account>.blob.core.windows.net) to use the VM's managed identity
+      # — no secret on disk, and the Production storage guard stays Healthy because
+      # it only flags a key in Storage:ConnectionString. A full account connection
+      # string also works (key auth). Empty for LocalFilesystem.
+      ConnectionStrings__blobs: ${BLOB_CONNECTION:-}
       # Notifications: off by default. Set NOTIFICATIONS_PROVIDER=Mailgun + keys in .env to enable.
       Notifications__Provider: ${NOTIFICATIONS_PROVIDER:-NoOp}
       Notifications__BaseUrl: https://${APP_DOMAIN}

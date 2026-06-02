@@ -26,6 +26,11 @@ MYIP="$(curl -fsS https://ifconfig.me)"
 echo "== Provisioning $VM ($SIZE) in $RG / $LOC =="
 echo "   SSH will be locked to your current IP: $MYIP"
 
+# az vm create does NOT create the resource group. Make it idempotently so this
+# works green-field (e.g. after the RG was deleted to stop billing).
+echo "== Ensuring resource group $RG exists in $LOC =="
+az group create -n "$RG" -l "$LOC" -o none
+
 az vm create \
   -g "$RG" -n "$VM" -l "$LOC" \
   --image Ubuntu2404 \
