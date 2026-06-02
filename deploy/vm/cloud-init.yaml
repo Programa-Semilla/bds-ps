@@ -1,0 +1,16 @@
+#cloud-config
+# Bootstraps Docker + compose plugin on first boot. Referenced by provision-vm.sh
+# (az vm create --custom-data).
+package_update: true
+package_upgrade: true
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - unzip
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - usermod -aG docker azureuser
+  - systemctl enable --now docker
+  # Basic host firewall in addition to the Azure NSG.
+  - [ bash, -lc, "ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp && ufw --force enable" ]

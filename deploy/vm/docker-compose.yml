@@ -1,0 +1,131 @@
+# Single-VM deployment for capitalsemilla-dev.programasemilla.com
+# Fixed-cost alternative to the Azure Container Apps stack.
+#
+#   caddy   -> auto-TLS reverse proxy (Let's Encrypt), ports 80/443
+#   webapp  -> the .NET 10 app (existing src/FundingPlatform.Web/Dockerfile)
+#   mssql   -> SQL Server 2022 (Developer edition, free for non-prod)
+#
+# Storage uses the LocalFilesystem provider (no Azure Blob bill). All state
+# lives in named volumes on the VM's data disk; back them up with backup.sh.
+name: capitalsemilla
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - webapp
+
+  webapp:
+    build:
+      # Build context is the repo root — the Dockerfile COPYs from repo root
+      # (slnx, src/, prompts/, schemas/).
+      context: ../..
+      dockerfile: src/FundingPlatform.Web/Dockerfile
+    image: capitalsemilla-webapp:local
+    restart: unless-stopped
+    depends_on:
+      mssql:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      HTTP_PORTS: "8080"
+      # OpenTelemetry export -> Aspire Dashboard. Empty by default (ServiceDefaults
+      # only wires the OTLP exporter when this is non-empty). To view telemetry,
+      # set OTEL_ENDPOINT=http://aspire-dashboard:18889 in .env and start the
+      # dashboard: docker compose --profile debug up -d aspire-dashboard
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: webapp
+      # DB: SA auth against the mssql container on the private compose network.
+      ConnectionStrings__fundingdb: "Server=mssql,1433;Database=fundingdb;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      # Storage: local disk, no Azure Blob cost. No connection string => the
+      # Production storage guard stays healthy (it only trips on AzureBlob+connstring).
+      # Host owns encryption-at-rest (spec 014 / FR-026) — fine for a dev env.
+      Storage__Provider: LocalFilesystem
+      Storage__LocalFilesystem__RootPath: /data/storage
+      # Notifications: off by default. Set NOTIFICATIONS_PROVIDER=Mailgun + keys in .env to enable.
+      Notifications__Provider: ${NOTIFICATIONS_PROVIDER:-NoOp}
+      Notifications__BaseUrl: https://${APP_DOMAIN}
+      Notifications__Mailgun__ApiKey: ${MAILGUN_API_KEY:-}
+      Notifications__Mailgun__Domain: ${MAILGUN_DOMAIN:-}
+      Notifications__Mailgun__BaseUrl: https://api.mailgun.net/v3
+      Notifications__Sender__Name: "Programa Semilla / Sistema de Banca para el Desarrollo"
+      Notifications__Sender__Email: ${NOTIFICATIONS_SENDER_EMAIL:-no-reply@programa-semilla.cr}
+      # AI quote comparison (spec 020). Leave key empty to keep the worker idle.
+      AiComparison__Provider: ${AI_PROVIDER:-Anthropic}
+      AiComparison__Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
+      AiComparison__WorkerIdleDelaySeconds: "10"
+      AdminReports__DefaultCurrency: CRC
+      AdminReports__CsvRowLimit: "50000"
+      FundingAgreement__LocaleCode: es-CR
+      FundingAgreement__CurrencyIsoCode: CRC
+      SignedUpload__MaxSizeBytes: "20971520"
+      Syncfusion__LicenseKey: ${SYNCFUSION_LICENSE_KEY}
+      Admin__DefaultPassword: ${ADMIN_DEFAULT_PASSWORD}
+    volumes:
+      - app_storage:/data/storage
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    # Bind to loopback only — SQL never faces the public internet. Reach it for
+    # dacpac publishing via an SSH tunnel (see publish-dacpac-vm.sh).
+    ports:
+      - "127.0.0.1:1433:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_PID: Developer
+      # Cap the SQL buffer pool so the webapp (+ Syncfusion Chromium) has headroom
+      # on a 4 GB B2s. Raise if you move to a larger VM.
+      MSSQL_MEMORY_LIMIT_MB: "2048"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  # On-demand only (profile: debug). In-memory telemetry viewer — structured
+  # logs, traces, metrics. Nothing persisted, nothing to pay for: all state is
+  # RAM and evaporates on restart. Bound to loopback; reach the UI through an
+  # SSH tunnel:  ssh -L 18888:localhost:18888 azureuser@<VM IP>  then open
+  # http://localhost:18888
+  #
+  # Start:  docker compose --profile debug up -d aspire-dashboard
+  # Stop:   docker compose --profile debug down  (or stop just this service)
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
+    profiles: ["debug"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18888:18888"   # web UI (loopback only -> SSH tunnel)
+    environment:
+      # No auth: safe only because the UI is loopback-bound and OTLP ingest is
+      # reachable solely on the private compose network.
+      DASHBOARD__FRONTEND__AUTHMODE: Unsecured
+      DASHBOARD__OTLP__AUTHMODE: Unsecured
+      DOTNET_DASHBOARD_OTLP_ENDPOINT_URL: http://0.0.0.0:18889
+      # Bound buffers ~= "recent only". Lower = less RAM. Oldest auto-evicted.
+      DASHBOARD__TELEMETRYLIMITS__MAXLOGCOUNT: "5000"
+      DASHBOARD__TELEMETRYLIMITS__MAXTRACECOUNT: "5000"
+      DASHBOARD__TELEMETRYLIMITS__MAXMETRICSCOUNT: "5000"
+
+volumes:
+  caddy_data:
+  caddy_config:
+  mssql_data:
+  app_storage:
