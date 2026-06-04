@@ -31,7 +31,11 @@ public class DistrictsCatalogE2E : AuthenticatedTestBase
     {
         var golfitoId = await CantonIdByCodeAsync("06_07");
 
-        using var http = new HttpClient { BaseAddress = new Uri(BaseUrl) };
+        using var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+        };
+        using var http = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) };
         var response = await http.GetAsync($"/api/districts?cantonId={golfitoId}");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
@@ -56,7 +60,11 @@ public class DistrictsCatalogE2E : AuthenticatedTestBase
     [Test]
     public async Task DistrictsApi_UnknownCantonId_ReturnsEmptyArray()
     {
-        using var http = new HttpClient { BaseAddress = new Uri(BaseUrl) };
+        using var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+        };
+        using var http = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) };
         var response = await http.GetAsync("/api/districts?cantonId=999999");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
