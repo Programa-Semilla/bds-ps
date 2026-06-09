@@ -119,7 +119,19 @@ time — there's no native "keep 30 min" knob; size rotation is the lever.
 
 In-memory telemetry UI. **Nothing is persisted → $0, and it self-evicts** (keeps
 the last 5000 logs/traces, oldest dropped; all gone on restart). Off by default
-to save RAM; start it only when investigating:
+to save RAM; start it only when investigating.
+
+**Quick toggle (from your dev machine)** — `aspire-dashboard.sh` resolves the VM,
+flips export, starts/stops the container, and opens/closes the SSH tunnel for you:
+
+```bash
+./aspire-dashboard.sh on       # -> prints http://localhost:18888 and exits (tunnel stays up)
+./aspire-dashboard.sh status   # tunnel / container / export state
+./aspire-dashboard.sh off      # close tunnel, stop dashboard, disable export
+```
+
+It restarts the webapp on `on`/`off` so it re-reads `OTEL_ENDPOINT` (a few seconds
+of downtime). The manual equivalent, if you'd rather drive it by hand:
 
 ```bash
 # On the VM: point the app at the dashboard, then start it.
@@ -237,3 +249,6 @@ Keep a final dacpac + data export first.
 | `publish-dacpac-vm.sh` | Publish schema via SSH tunnel (run from dev machine; or via `deploy.sh --schema`). |
 | `backup.sh` | Nightly SQL + storage backup (cron on the VM). |
 | `provision-schedule.sh` | Auto start/stop power schedule + manual `start`/`stop`/`status` control (run from dev machine). |
+| `aspire-dashboard.sh` | Toggle the Aspire Dashboard `on`/`off`/`status` — flips export, starts/stops the container, opens/closes the SSH tunnel (run from dev machine). |
+| `vm-metrics.sh` | CPU / memory / per-container metrics with a verdict column — `snapshot` (one-shot) or `stream [secs]` (live). Pulled over SSH, no agent/cost (run from dev machine). |
+| `vm-logs.sh` | Container logs over SSH — `follow [service...]` (live `-f`) or `tail [N] [service...]` (last N lines). Defaults to `webapp` (run from dev machine). |
