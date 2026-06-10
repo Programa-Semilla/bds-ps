@@ -1,6 +1,6 @@
 # Capital Semilla / FundingPlatform
 
-Last updated: 2026-05-22
+Last updated: 2026-06-09
 
 ## Stack
 
@@ -123,26 +123,27 @@ Schema-only publish (also used by `--schema`): `deploy/vm/publish-dacpac-vm.sh <
 
 ## Specs
 
-`specs/NNN-slug/` is the source of truth for feature intent — spec.md, plan.md, tasks.md, and contracts. Read the spec before changing behavior in that area. Active specs span 001-core-model-submission through 014-azure-blob-storage.
+`specs/NNN-slug/` is the source of truth for feature intent — spec.md, plan.md, tasks.md, and contracts. Read the spec before changing behavior in that area. Specs span 001-core-model-submission through 028-post-resolution-notifications (note: two `021-` slugs exist — `021-email-notifications` and `021-feedback-session-may13`).
 
 <!-- MANUAL ADDITIONS START -->
 
 <!-- MANUAL ADDITIONS END -->
 
-## Active Technologies
-- C# 13 / .NET 10.0 (014-azure-blob-storage)
-- C# 13 / .NET 10.0 (015-multi-currency-quotes — Currencies, ExchangeRates, snapshot-locked Quotation conversion)
-- C# 13 / .NET 10.0 (016-user-groups — Group / UserGroupMembership / AdminAuditEvent; reviewer-side group-overlap predicate composed at the EF query level on every listing surface; detail-page authorization mirrors the same predicate)
-- C# 13 / .NET 10.0 (017-admin-ux-facelift — `IAdminDashboardProjection` + `IAdminAuditEventReader` + `IAdminAuditEventCopyProvider`; new `_AdminDashboard` + `_CapabilityCard` partials; `_KpiTile` + `_ReportSubTabs` re-templated; route-attribute renames on three admin controllers; **schema unchanged**)
-- C# 13 / .NET 10.0 (020-ai-quote-comparison — `IComparisonOrchestrator` + `IAiClient` (Anthropic) + `IPiiRedactor`; new `ComparisonArtifact` + `ComparisonJob` aggregate roots; hosted `BackgroundService` worker; reviewer-screen comparison region; reused `AdminAuditEvent` payload shape)
-- C# 13 / .NET 10.0 (021-email-notifications — `NotificationOutbox` + `NotificationDelivery` dacpac tables; `IEmailSender` (MailKit v3 MIT) + `MailgunHttpEmailSender` + `NoOpEmailSender` + `RecipientAllowlistFilter` decorator; `INotificationRecipientResolver`; `EmailDispatchWorker` BackgroundService; Razor email templates under `Views/Emails/`; **AppHost smtp4dev sidecar**; `MailCaptureClient` E2E surface)
-- C# 13 / .NET 10.0 (023-quotation-edit — in-place quotation Edit (Price/Currency/ValidUntil/SupplierBranchId, same-supplier only) on Application owner while `Draft`; routed through existing `Quotation.EditAmount` / `ChangeCurrencyAsync` (spec 015 snapshot contract) + new `Quotation.ChangeBranch`; shared `_QuoteFields.cshtml` partial extracted from Supplier/Add; Edit GET/POST on `QuotationController`; synchronous `IComparisonCacheInvalidator` invalidates `ComparisonArtifact` (spec 020) on save; **schema unchanged**)
-- C# 13 / .NET 10.0 (021-feedback-session-may13 — `Process` aggregate above `Group` + per-Process `Plantilla` snapshot with copy-on-assign; Application carries `Impact` value object + opaque `PublicCode` (base32 `A-HJ-NP-Z2-9`, regex `^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$`); `Province`/`Cantón` CR catalogs cascade on supplier-branch entry; ASP.NET Identity `PasswordResetToken` flow; `StageExpiryReminderService` hosted background worker + `SmtpEmailSender` (`System.Net.Mail.SmtpClient`, no MailKit per NFR-005); Tabler-branded public landing scaffold; acompañamiento copy pivot over "financiamiento" on every applicant-facing surface; reviewer queue search; `[Hint]` attribute + `_HintTooltip.cshtml` scaffold for FR-020 hint copy (strings deferred per OQ-8))
-- Azure Blob Storage in production / Azurite (Docker container) in dev+test / local filesystem fallback. SQL Server unchanged. (014-azure-blob-storage)
-- `Anthropic.SDK` NuGet (new managed dep, approved via spec 020 A-10)
-- smtp4dev (rnwood/smtp4dev) Aspire container in Local; Mailgun HTTP API outside Local (021-email-notifications)
+## Managed dependencies (each added one required spec approval per Conventions)
+
+- `Anthropic.SDK` NuGet — AI quote comparison (`IAiClient`), approved via spec 020 (A-10).
+- MailKit v3 (MIT) — SMTP `IEmailSender` path, spec 021. Note: spec 021-feedback-session-may13's `SmtpEmailSender` deliberately uses `System.Net.Mail.SmtpClient` instead (no MailKit, per its NFR-005).
+- smtp4dev (`rnwood/smtp4dev`) — Aspire container resource in Local only; Mailgun HTTP API is the non-Local provider (spec 021).
+- Azurite — Docker container for blob storage in dev+test; Azure Blob in prod, local-filesystem fallback (spec 014).
+
+Per-spec architectural seams (interfaces, aggregates, tables) are summarized in **Recent Changes** below and detailed in each `specs/NNN-slug/plan.md`.
 
 ## Recent Changes
+- 028-post-resolution-notifications: 12 new post-`Resolved` `NotificationEvent` values (applicant-response → reviewer, appeal lifecycle, full signing ceremony) wired through the existing spec-021 outbox → `EmailDispatchWorker` → `IEmailSender` → allowlist pipeline; cross-cutting event-aware CTA (`CtaRouteTemplate` on `Binding`) + actor-exclusion (`NotificationPayload.ActorUserId`); 24 es-CR Razor partials under `Views/Emails/`; no schema change. Shipped to main via PR #38 (squash `5b965fb`). STAMP PASS (E2E 291/0/5)
+- 027-review-funding-ux: Eight reviewer/applicant funding-agreement UX refinements making submitted-item decision data legible + consistent at every touchpoint; es-CR; PDF body explicitly unchanged (spec 018 minimalism preserved); no schema change
+- 026-input-masks: Extensible structured-field input masks for email, CR phone, and CR identification numbers (cédula física/jurídica, DIMEX, NITE, passport) — type-aware ID entry + submit-time rejection of malformed values; completes spec 021 FR-013
+- 025-supplier-location-cascade: Wires the never-rendered Provincia → Cantón cascade from spec 021 FR-014 and adds the Distrito level — full three-level Costa Rica hierarchy on the supplier-branch form
+- 024-toast-confirm-dialogs: Unified in-app messaging — replaces TempData banner alerts + native `window.alert`/`confirm()` with one consistent toast + modal-dialog system across all pages and roles
 - 023-quotation-edit: In-place per-quotation Edit affordance for the Application owner while `Draft` — editable Price / Currency / ValidUntil / SupplierBranchId (same supplier); persistence through existing `Quotation.EditAmount` / `ChangeCurrencyAsync` + new `Quotation.ChangeBranch` invariant; `_QuoteFields.cshtml` extracted from Supplier/Add; ModelState-aggregated server validation; `ComparisonArtifact` cache invalidation on save; 3 per-US Playwright E2E classes; no schema change. STAMP PASS (FR 11/11, SC 8/8). Variance: spec FR-008 names `ReturnedForChanges` but codebase has no such enum — `SendBack` returns to `Draft`, gate is on `Draft` (REVIEW-CODE Deviation #1, evolve post-merge)
 - 022-combined-release: 020 + 021 merged for joint PR; no behavioral changes beyond per-spec contracts; conflict-resolution log in `specs/022-combined-release/plan.md`
 - 021-feedback-session-may13: Consolidated implementation of the 26 May-13 stakeholder refinements across US1–US8 — Process/Plantilla/PublicCode/Impact-at-Application, supplier autocomplete + Province/Cantón cascade + new-supplier inline branch, autosave-on-blur + masks + required markers + submit gating + `/review` confirmation, profile + forgot-password flows, stage-expiry windows + reminder emails, acompañamiento copy pivot + landing scaffold, admin KPI repivot + deleted-still-active bug fix
@@ -153,5 +154,5 @@ Schema-only publish (also used by `--schema`): `deploy/vm/publish-dacpac-vm.sh <
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-Active plan: `specs/028-post-resolution-notifications/plan.md` — Post-resolution email notifications, an additive increment to shipped spec 021. Adds **12** new `NotificationEvent` values closing the notification gap after an application reaches `Resolved` (today the system goes dark post-Finalize). **No schema change** (`EventType` is already `varchar(64)`; enum-add is non-breaking), zero dacpac change, zero EF migration — reuses the entire spec-021 outbox → `EmailDispatchWorker` → `IEmailSender` → `RecipientAllowlistFilter` pipeline. Counterparty-only (no self-confirm), one Razor partial pair per event (24 `.cshtml` under `Views/Emails/`), es-CR, brand-grep-clean. **US1** Applicant response → reviewer (`RESPONSE_SUBMITTED_REVIEWER`, `ApplicantResponseService.SubmitResponseAsync`, CTA `/Review/{id}`) — *fixes the reported bug* (reviewer not notified on applicant accept). **US2** Appeal lifecycle (5 events): `APPEAL_OPENED_REVIEWER`, `APPEAL_MESSAGE_REVIEWER`/`_APPLICANT` (direction chosen by author==applicant in `PostMessageAsync`), `APPEAL_RESOLVED_APPLICANT` (3 body variants via `OutcomeCode`), `APPEAL_REOPENED_REVIEWER` (dual-fire with resolved on `GrantReopenToReview`). **US3** Signing ceremony (6 events): `AGREEMENT_GENERATED_APPLICANT` (+regenerate; adds an `Action="AgreementGenerated"` `VersionHistory` row in `PersistGenerationAsync` via `Application.AddVersionHistory` — the only non-notification change, uniform idempotency anchor + audits generation), `SIGNED_UPLOAD_SUBMITTED`/`REPLACED`/`WITHDRAWN_REVIEWER` (CTA `/Review/SigningInbox`), `AGREEMENT_EXECUTED_APPLICANT`, `SIGNED_UPLOAD_REJECTED_APPLICANT`. Two cross-cutting extensions: **event-aware CTA** (new `CtaRouteTemplate` on the `Binding` record — today's CTA is bucket-only/two-route) and **actor exclusion** (new `NotificationPayload.ActorUserId`, dropped from recipients — FR-013a/EC-011). Three services gain `INotificationOutboxWriter` + the canonical two-phase enqueue: `ApplicantResponseService`, `SignedUploadService`, `FundingAgreementService`. Idempotency anchor `(EventType, ApplicationId, VersionHistoryId, RecipientUserId)` unchanged. Constitution Check: PASS (no violations). Artifacts: spec.md, plan.md, research.md (R-001..009), data-model.md, contracts/notification-events.md, quickstart.md, REVIEW-SPEC.md (SOUND). Next: `/speckit-tasks`.
+No active plan. (Spec 028 post-resolution-notifications shipped to main via PR #38, squash commit `5b965fb`. The leftover `028-post-resolution-notifications` branch is the already-merged source branch — stale.)
 <!-- SPECKIT END -->
