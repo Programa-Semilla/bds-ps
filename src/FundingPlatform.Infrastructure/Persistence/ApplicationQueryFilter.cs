@@ -30,6 +30,15 @@ public sealed class ApplicationQueryFilter : IApplicationQueryFilter
     public IQueryable<AppEntity> ExcludeArchivedFund(IQueryable<AppEntity> source)
     {
         ArgumentNullException.ThrowIfNull(source);
-        return source.Where(a => a.Group!.Process!.Fund!.Status != FundStatus.Archived);
+        // Null-tolerant by design: EF translates the reference-nav chain to LEFT
+        // JOINs, so an application is hidden ONLY when its governing Fund is
+        // explicitly Archived. In production the anchor chain is always complete
+        // (required FKs), so this filters exactly on Status; the null guards keep
+        // the predicate from silently dropping rows with an incomplete chain.
+        return source.Where(a =>
+            a.Group == null
+            || a.Group.Process == null
+            || a.Group.Process.Fund == null
+            || a.Group.Process.Fund.Status != FundStatus.Archived);
     }
 }

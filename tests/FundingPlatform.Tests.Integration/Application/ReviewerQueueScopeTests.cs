@@ -40,8 +40,11 @@ public class ReviewerQueueScopeTests
     /// </summary>
     private static async Task<(int a, int b, int c, int norteId, int surId)> SeedFixtureAsync(AppDbContext ctx)
     {
-        // Spec 021 / FR-001 — every Group belongs to exactly one Process.
-        var process = Process.Create("Crocus 2025", 1);
+        // Spec 029 — every Process belongs to a Fund; every Group to a Process.
+        var fund = Fund.Create("Fondo de prueba", "Fondo de prueba para tests.");
+        ctx.Funds.Add(fund);
+        await ctx.SaveChangesAsync();
+        var process = Process.Create("Crocus 2025", fund.Id);
         ctx.Processes.Add(process);
         await ctx.SaveChangesAsync();
         var norte = Group.Create("Norte", process.Id);
@@ -62,7 +65,7 @@ public class ReviewerQueueScopeTests
                 ctx.UserGroupMemberships.Add(new UserGroupMembership(u.Id, gid));
             }
             await ctx.SaveChangesAsync();
-            var app = new AppEntity(applicantId: ap.Id, 1, companyName: "Test Company");
+            var app = new AppEntity(applicantId: ap.Id, groupIds[0], companyName: "Test Company");
             app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);
             ctx.Applications.Add(app);

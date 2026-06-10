@@ -44,8 +44,11 @@ public class ReviewerScopeNextRequestTests
         AppEntity app;
         using (var ctx = CreateContext(dbName))
         {
-            // Spec 021 / FR-001 — every Group belongs to exactly one Process.
-            var process = Process.Create("Crocus 2025", 1);
+            // Spec 029 — every Process belongs to a Fund; every Group to a Process.
+            var fund = Fund.Create("Fondo de prueba", "Fondo de prueba para tests.");
+            ctx.Funds.Add(fund);
+            await ctx.SaveChangesAsync();
+            var process = Process.Create("Crocus 2025", fund.Id);
             ctx.Processes.Add(process);
             await ctx.SaveChangesAsync();
             norte = Group.Create("Norte", process.Id);
@@ -65,7 +68,7 @@ public class ReviewerScopeNextRequestTests
             ctx.UserGroupMemberships.Add(new UserGroupMembership(applicantUser.Id, norte.Id));
             await ctx.SaveChangesAsync();
 
-            app = new AppEntity(applicantId: applicant.Id, 1, companyName: "Test Company");
+            app = new AppEntity(applicantId: applicant.Id, norte.Id, companyName: "Test Company");
             app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);
             ctx.Applications.Add(app);

@@ -50,7 +50,10 @@ public class ReviewerApplicantCodeTests
     private static async Task<(int appId, int norteId, int surId, string applicantUserId)> SeedAsync(
         AppDbContext ctx, UserManager<ApplicationUser> users)
     {
-        var process = Process.Create("Crocus 2025", 1);
+        var fund = Fund.Create("Fondo de prueba", "Fondo de prueba para tests.");
+        ctx.Funds.Add(fund);
+        await ctx.SaveChangesAsync();
+        var process = Process.Create("Crocus 2025", fund.Id);
         ctx.Processes.Add(process);
         await ctx.SaveChangesAsync();
 
@@ -71,7 +74,7 @@ public class ReviewerApplicantCodeTests
         ctx.UserGroupMemberships.Add(new UserGroupMembership(applicantUser.Id, norte.Id));
         await ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicantId: applicant.Id, 1, companyName: "ACME");
+        var app = new AppEntity(applicantId: applicant.Id, norte.Id, companyName: "ACME");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);
         ctx.Applications.Add(app);

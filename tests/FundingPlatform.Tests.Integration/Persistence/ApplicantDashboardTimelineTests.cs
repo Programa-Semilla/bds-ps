@@ -22,6 +22,21 @@ public class ApplicantDashboardTimelineTests
         return new AppDbContext(options);
     }
 
+    // Spec 029 — every Application anchors to an Active Fund→Process→Group chain.
+    private static async Task<int> SeedActiveGroupAsync(AppDbContext ctx)
+    {
+        var fund = Fund.Create("Fondo de prueba", "Fondo de prueba para tests.");
+        ctx.Funds.Add(fund);
+        await ctx.SaveChangesAsync();
+        var process = Process.Create("Proceso de prueba", fund.Id);
+        ctx.Processes.Add(process);
+        await ctx.SaveChangesAsync();
+        var group = Group.Create("Grupo de prueba", process.Id);
+        ctx.Groups.Add(group);
+        await ctx.SaveChangesAsync();
+        return group.Id;
+    }
+
     [Test]
     public async Task SubmittedApplication_DashboardCard_ReportsSubmittedAsCurrent()
     {
@@ -50,7 +65,9 @@ public class ApplicantDashboardTimelineTests
             ctx.Categories.Add(category);
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id, 1, "Test Company");
+            var groupId = await SeedActiveGroupAsync(ctx);
+
+            var application = new AppEntity(applicant.Id, groupId, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             application.AddItem(new Item("Widget", category.Id, "specs"));
             // Move state to Submitted directly + record matching VersionHistory entry.
@@ -111,7 +128,9 @@ public class ApplicantDashboardTimelineTests
             ctx.Categories.Add(category);
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id, 1, "Test Company");
+            var groupId = await SeedActiveGroupAsync(ctx);
+
+            var application = new AppEntity(applicant.Id, groupId, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             application.AddItem(new Item("Widget", category.Id, "specs"));
             typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Submitted);

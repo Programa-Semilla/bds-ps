@@ -39,6 +39,7 @@ public class StageExpiryReminderServiceTests
     private StageExpiryReminderService _service = null!;
     private IServiceProvider _services = null!;
     private DateTimeOffset _baseInstant;
+    private int _defaultGroupId;
 
     [SetUp]
     public async Task Setup()
@@ -81,6 +82,19 @@ public class StageExpiryReminderServiceTests
         _ctx.SystemConfigurations.Add(
             new SystemConfiguration("Stage.Facturacion.WindowDays", "30", description: null));
         await _ctx.SaveChangesAsync();
+
+        // Spec 029 — a default Active Fund→Process→Group chain so applications
+        // seeded by SeedApplicantAndApplicationAsync survive the freeze filter.
+        var fund = Fund.Create("Fondo de prueba", "Fondo de prueba para tests.");
+        _ctx.Funds.Add(fund);
+        await _ctx.SaveChangesAsync();
+        var defaultProcess = Process.Create("Proceso de prueba", fund.Id);
+        _ctx.Processes.Add(defaultProcess);
+        await _ctx.SaveChangesAsync();
+        var defaultGroup = Group.Create("Grupo de prueba", defaultProcess.Id);
+        _ctx.Groups.Add(defaultGroup);
+        await _ctx.SaveChangesAsync();
+        _defaultGroupId = defaultGroup.Id;
     }
 
     [TearDown]
@@ -163,7 +177,10 @@ public class StageExpiryReminderServiceTests
         // 1-day override, StageEnteredAt > 24h ago lands in the expired bucket
         // even though the platform default is 30 days.
 
-        var process = Process.Create("Crocus 2025", 1);
+        var fund = Fund.Create("Fondo Crocus", "Fondo de prueba para tests.");
+        _ctx.Funds.Add(fund);
+        await _ctx.SaveChangesAsync();
+        var process = Process.Create("Crocus 2025", fund.Id);
         process.OverrideStageWindow(StageKind.Facturacion, 1);
         _ctx.Processes.Add(process);
         await _ctx.SaveChangesAsync();
@@ -187,7 +204,7 @@ public class StageExpiryReminderServiceTests
         await _ctx.SaveChangesAsync();
 
         // Application in ResponseFinalized state with StageEnteredAt = 2 days ago.
-        var app = new AppEntity(applicant.Id, 1, "Sazón Crocus");
+        var app = new AppEntity(applicant.Id, group.Id, "Sazón Crocus");
         app.AssignPublicCode(new PublicCode("EEEE-6666"));
         _ctx.Applications.Add(app);
         await _ctx.SaveChangesAsync();
@@ -229,7 +246,7 @@ public class StageExpiryReminderServiceTests
         _ctx.Applicants.Add(applicant);
         await _ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, 1, $"Co-{userId}");
+        var app = new AppEntity(applicant.Id, _defaultGroupId, $"Co-{userId}");
         app.AssignPublicCode(new PublicCode(publicCode));
         _ctx.Applications.Add(app);
         await _ctx.SaveChangesAsync();

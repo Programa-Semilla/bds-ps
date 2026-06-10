@@ -31,6 +31,17 @@ public class ReviewerDashboardProjectionTests
 
         using (var ctx = CreateContext(dbName))
         {
+            // Spec 029 — anchor applications to an Active Fund→Process→Group chain.
+            var fund = Fund.Create("Fondo de prueba", "Fondo de prueba para tests.");
+            ctx.Funds.Add(fund);
+            await ctx.SaveChangesAsync();
+            var process = Process.Create("Proceso de prueba", fund.Id);
+            ctx.Processes.Add(process);
+            await ctx.SaveChangesAsync();
+            var group = Group.Create("Grupo de prueba", process.Id);
+            ctx.Groups.Add(group);
+            await ctx.SaveChangesAsync();
+
             var applicant = new Applicant(
                 userId: $"user-{Guid.NewGuid():N}",
                 legalId: "REVD-1",
@@ -44,14 +55,14 @@ public class ReviewerDashboardProjectionTests
             await ctx.SaveChangesAsync();
 
             // One SUBMITTED application: one item, TWO competing quotations.
-            var submitted = new AppEntity(applicant.Id, 1, "Submitted Co");
+            var submitted = new AppEntity(applicant.Id, group.Id, "Submitted Co");
             submitted.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             submitted.AddItem(new Item("Widget", category.Id, "specs"));
             typeof(AppEntity).GetProperty("State")!.SetValue(submitted, ApplicationState.Submitted);
             ctx.Applications.Add(submitted);
 
             // One DRAFT application — must be excluded from the pending count.
-            var draft = new AppEntity(applicant.Id, 1, "Draft Co");
+            var draft = new AppEntity(applicant.Id, group.Id, "Draft Co");
             draft.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             draft.AddItem(new Item("Gadget", category.Id, "specs"));
             ctx.Applications.Add(draft);
