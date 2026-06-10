@@ -48,7 +48,7 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [x] T016 Edit `ApplicationConfiguration.cs`: map `Group` FK (`HasOne(a=>a.Group).WithMany().HasForeignKey(a=>a.GroupId).OnDelete(NoAction)`) (depends on T011).
 - [x] T017 Register `DbSet<Fund>` in the EF `DbContext` and apply `FundConfiguration`.
 - [x] T018 Implement `ExcludeArchivedFund` in `src/FundingPlatform.Infrastructure/Persistence/ApplicationQueryFilter.cs` (`source.Where(a => a.Group.Process.Fund.Status != FundStatus.Archived)`) (depends on T013, T016).
-- [ ] T019 Foundational checkpoint: `dotnet build FundingPlatform.slnx` green; dacpac deploys cleanly via `dotnet run --project src/FundingPlatform.AppHost` (new objects created, seed Fund present).
+- [x] T019 Foundational checkpoint: `dotnet build FundingPlatform.slnx` green; dacpac deploys cleanly via `dotnet run --project src/FundingPlatform.AppHost` (new objects created, seed Fund present).
 
 **Checkpoint**: schema + domain + EF ready. User stories can proceed.
 
@@ -63,9 +63,9 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [x] T020 [US6] Add `GroupId` to `CreateApplicationCommand`; in `src/FundingPlatform.Application/Services/ApplicationService.cs` resolve the applicant's eligible groups (member of group whose `Process.Status==Active` AND `Process.Fund.Status==Active`), validate the chosen `GroupId` against that set, and set `Application.GroupId`.
 - [x] T021 [US6] In `src/FundingPlatform.Web/Controllers/ApplicationController.cs` (`Create` GET/POST) + `CreateApplicationViewModel`: add required `GroupId`; implement 0-eligible (block with es-CR message), 1-eligible (auto, hidden), ≥2 (required select) logic.
 - [x] T022 [US6] Update `src/FundingPlatform.Web/Views/Application/Create.cshtml` to render the Process/convocatoria selector (labelled by Process name; Group when ambiguous) and the blocked-state message.
-- [ ] T023 [US6] Replace the nondeterministic group-membership Plantilla lookup with the anchor in `src/FundingPlatform.Infrastructure/Services/GetApplicationReviewProjection.cs` (`ResolveMinimumQuotationsAsync`) and `src/FundingPlatform.Infrastructure/Services/SubmitApplicationHandler.cs` (use `application.Group.Process.Plantilla`).
-- [ ] T024 [US6] Ensure seed Applications carry a valid `GroupId` (extend T005 seed or demo-seed) so existing E2E create/submit flows pass.
-- [ ] T025 [P] [US6] Unit tests in `tests/FundingPlatform.Tests.Unit`: eligible-group resolution (0/1/many), invalid-group rejection, Plantilla-via-anchor determinism.
+- [x] T023 [US6] Replace the nondeterministic group-membership Plantilla lookup with the anchor in `src/FundingPlatform.Infrastructure/Services/GetApplicationReviewProjection.cs` (`ResolveMinimumQuotationsAsync`) and `src/FundingPlatform.Infrastructure/Services/SubmitApplicationHandler.cs` (use `application.Group.Process.Plantilla`).
+- [x] T024 [US6] Ensure seed Applications carry a valid `GroupId` (extend T005 seed or demo-seed) so existing E2E create/submit flows pass.
+- [x] T025 [P] [US6] Unit tests in `tests/FundingPlatform.Tests.Unit`: eligible-group resolution (0/1/many), invalid-group rejection, Plantilla-via-anchor determinism.
 - [ ] T026 [US6] E2E `ApplicationFundAnchorTests` in `tests/FundingPlatform.Tests.E2E` (POM): auto-anchor, choose, blocked-no-group, submit uses anchored Plantilla.
 
 **Checkpoint**: applications anchor deterministically; create/submit work again end-to-end.

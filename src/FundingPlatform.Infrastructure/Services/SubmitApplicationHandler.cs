@@ -137,23 +137,16 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
 
     private async Task<int> ResolveMinimumQuotationsAsync(AppEntity application, CancellationToken ct)
     {
-        var userId = await _db.Applicants
-            .Where(a => a.Id == application.ApplicantId)
-            .Select(a => a.UserId)
-            .FirstOrDefaultAsync(ct);
-
-        if (!string.IsNullOrEmpty(userId))
+        // Spec 029 / FR-017 — resolve the Plantilla deterministically through the
+        // application's Group anchor (Group → Process → ProcessPlantilla).
+        var snapshot = await (
+            from g in _db.Groups
+            where g.Id == application.GroupId
+            join pp in _db.ProcessPlantillas on g.ProcessId equals pp.ProcessId
+            select pp).FirstOrDefaultAsync(ct);
+        if (snapshot is not null)
         {
-            var snapshot = await (
-                from m in _db.UserGroupMemberships
-                where m.UserId == userId
-                join g in _db.Groups on m.GroupId equals g.Id
-                join pp in _db.ProcessPlantillas on g.ProcessId equals pp.ProcessId
-                select pp).FirstOrDefaultAsync(ct);
-            if (snapshot is not null)
-            {
-                return snapshot.MinimumQuotationsPerItem;
-            }
+            return snapshot.MinimumQuotationsPerItem;
         }
 
         var config = await _db.SystemConfigurations
@@ -167,21 +160,14 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
 
     private async Task<DateTimeOffset> ResolveStageClosesAtAsync(AppEntity application, CancellationToken ct)
     {
-        int? overrideDays = null;
-        var userId = await _db.Applicants
-            .Where(a => a.Id == application.ApplicantId)
-            .Select(a => a.UserId)
-            .FirstOrDefaultAsync(ct);
-
-        if (!string.IsNullOrEmpty(userId))
-        {
-            overrideDays = await (
-                from m in _db.UserGroupMemberships
-                where m.UserId == userId
-                join g in _db.Groups on m.GroupId equals g.Id
-                join p in _db.Processes on g.ProcessId equals p.Id
-                select p.SolicitudWindowDays).FirstOrDefaultAsync(ct);
-        }
+        // Spec 029 / FR-017 — resolve the per-Process stage-window override through
+        // the application's Group anchor (Group → Process), not the ambiguous
+        // membership join.
+        int? overrideDays = await (
+            from g in _db.Groups
+            where g.Id == application.GroupId
+            join p in _db.Processes on g.ProcessId equals p.Id
+            select p.SolicitudWindowDays).FirstOrDefaultAsync(ct);
 
         int days = overrideDays ?? await ResolvePlatformDefaultAsync(ct);
         return application.StageEnteredAt.AddDays(days);
