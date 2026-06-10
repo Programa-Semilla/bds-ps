@@ -44,6 +44,7 @@
                         }
                     </select>
                 </div>
+                @await Html.PartialAsync("_FundFilter")
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary" data-testid="applications-filter-apply">Aplicar</button>
                     <a class="btn btn-outline-secondary"
@@ -84,6 +85,7 @@
                             <th>N.º solicitud</th>
                             <th>Solicitante</th>
                             <th>Cédula</th>
+                            <th>Fondo</th>
                             <th>Estado</th>
                             <th>Creada</th>
                             <th>Enviada</th>
@@ -100,6 +102,7 @@
                                 <td>@row.AppId</td>
                                 <td>@row.ApplicantFullName</td>
                                 <td>@row.ApplicantLegalId</td>
+                                <td data-testid="applications-row-fund">@row.FundName</td>
                                 <td>@row.State</td>
                                 <td>@row.CreatedAt.ToString("dd/MM/yyyy")</td>
                                 <td>@(row.SubmittedAt?.ToString("dd/MM/yyyy") ?? "—")</td>

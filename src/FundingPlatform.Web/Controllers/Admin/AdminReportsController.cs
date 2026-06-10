@@ -7,9 +7,12 @@ using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Exceptions;
 using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.Helpers;
+using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.ViewModels.Admin.Reports;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Web.Controllers.Admin;
 
@@ -19,10 +22,26 @@ namespace FundingPlatform.Web.Controllers.Admin;
 public class AdminReportsController : Controller
 {
     private readonly IAdminReportsService _reportsService;
+    private readonly AppDbContext _db;
 
-    public AdminReportsController(IAdminReportsService reportsService)
+    public AdminReportsController(IAdminReportsService reportsService, AppDbContext db)
     {
         _reportsService = reportsService;
+        _db = db;
+    }
+
+    /// <summary>
+    /// Spec 029 / FR-012 / OI-3 — Fund filter options for the report views (all
+    /// Funds incl. Archived, so admins can report on archived Funds). Stashed in
+    /// ViewData with the selected value for the shared filter partial.
+    /// </summary>
+    private async Task PopulateFundFilterAsync(int? selected, CancellationToken ct)
+    {
+        ViewData["FundFilter"] = selected;
+        ViewData["FundOptions"] = await _db.Funds
+            .OrderBy(f => f.Name)
+            .Select(f => new SelectListItem(f.Name, f.Id.ToString()))
+            .ToListAsync(ct);
     }
 
     [HttpGet("")]
@@ -63,6 +82,7 @@ public class AdminReportsController : Controller
     {
         // Force the fixed page size; clients cannot override.
         req.PageSize = AdminReportsService.PageSize;
+        await PopulateFundFilterAsync(req.FundId, ct);
         var result = await _reportsService.ListApplicationsAsync(req, ct);
 
         var totalPages = (int)Math.Ceiling((double)result.TotalCount / AdminReportsService.PageSize);
@@ -117,6 +137,7 @@ public class AdminReportsController : Controller
     public async Task<IActionResult> FundedItems([FromQuery] ListFundedItemsRequest req, CancellationToken ct)
     {
         req.PageSize = AdminReportsService.PageSize;
+        await PopulateFundFilterAsync(req.FundId, ct);
         var result = await _reportsService.ListFundedItemsAsync(req, ct);
         var totalPages = (int)Math.Ceiling((double)result.TotalCount / AdminReportsService.PageSize);
         var vm = new FundedItemsViewModel
@@ -153,6 +174,7 @@ public class AdminReportsController : Controller
     public async Task<IActionResult> Aging([FromQuery] ListAgingApplicationsRequest req, CancellationToken ct)
     {
         req.PageSize = AdminReportsService.PageSize;
+        await PopulateFundFilterAsync(req.FundId, ct);
         try
         {
             var result = await _reportsService.ListAgingApplicationsAsync(req, ct);

@@ -86,7 +86,7 @@ public class ReviewServiceGenerateAgreementQueueTests
             performanceScore: null);
         typeof(Applicant).GetProperty("Id")!.SetValue(applicant, applicationId);
 
-        var application = new AppEntity(applicantId: applicationId, companyName: "Test Company");
+        var application = new AppEntity(applicantId: applicationId, 1, companyName: "Test Company");
         typeof(AppEntity).GetProperty("Id")!.SetValue(application, applicationId);
         typeof(AppEntity).GetProperty("Applicant")!.SetValue(application, applicant);
         typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.ResponseFinalized);

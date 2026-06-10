@@ -92,29 +92,50 @@ public class ApplicationController : Controller
     }
 
     [HttpGet]
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
-        return View(new CreateApplicationViewModel());
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var model = new CreateApplicationViewModel();
+        await PopulateEligibleGroupsAsync(model, userId);
+        return View(model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateApplicationViewModel model)
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        // Spec 029 / FR-018 — resolve the applicant's eligible Groups and validate
+        // the chosen anchor against that set (defense against tampering + the
+        // 0/1/many rendering rules). Re-populate for redisplay on any failure.
+        var eligible = await ResolveEligibleGroupsAsync(userId);
+        if (eligible.Count == 0)
+        {
+            PopulateEligibleGroupsFrom(model, eligible);
+            return View(model);
+        }
+        if (model.GroupId is null || eligible.All(g => g.GroupId != model.GroupId.Value))
+        {
+            ModelState.AddModelError(nameof(CreateApplicationViewModel.GroupId),
+                "Debe seleccionar un proceso activo válido para postular.");
+        }
+
         if (!ModelState.IsValid)
         {
+            PopulateEligibleGroupsFrom(model, eligible);
             return View(model);
         }
 
         var applicantId = await GetCurrentApplicantIdAsync();
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var command = new CreateApplicationCommand(applicantId, model.CompanyName);
+        var command = new CreateApplicationCommand(applicantId, model.CompanyName, model.GroupId!.Value);
         var result = await _applicationService.CreateApplicationAsync(command, userId);
 
         if (result.Error is not null)
         {
             ModelState.AddModelError(nameof(CreateApplicationViewModel.CompanyName),
                 _errorTranslator.Translate(result.Error));
+            PopulateEligibleGroupsFrom(model, eligible);
             return View(model);
         }
 
@@ -135,6 +156,7 @@ public class ApplicationController : Controller
             return NotFound();
         }
 
+        await PopulateRegulationLinkAsync(id);
         var viewModel = MapToViewModel(application);
         return View(viewModel);
     }
@@ -161,6 +183,7 @@ public class ApplicationController : Controller
         // banner ViewModel so the partial in Edit.cshtml can render the live
         // window (or the "Vencido" red state when closed).
         await PopulateStageBannerAsync(id);
+        await PopulateRegulationLinkAsync(id);
 
         var viewModel = MapToViewModel(application);
         var categories = await _categoryRepository.GetAllActiveAsync();
@@ -234,6 +257,12 @@ public class ApplicationController : Controller
         if (application is null || application.ApplicantId != applicantId)
         {
             return NotFound();
+        }
+
+        if (await IsApplicationFrozenAsync(id))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         if (!model.SelectedTemplateId.HasValue)
@@ -316,6 +345,12 @@ public class ApplicationController : Controller
             return NotFound();
         }
 
+        if (await IsApplicationFrozenAsync(id))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         if (string.IsNullOrWhiteSpace(productName)
             || categoryId == 0
             || string.IsNullOrWhiteSpace(technicalSpecifications))
@@ -344,6 +379,12 @@ public class ApplicationController : Controller
         if (application is null || application.ApplicantId != applicantId)
         {
             return NotFound();
+        }
+
+        if (await IsApplicationFrozenAsync(id))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         await _applicationService.RemoveItemAsync(new RemoveItemCommand(itemId, id));
@@ -387,6 +428,12 @@ public class ApplicationController : Controller
             return NotFound();
         }
 
+        if (await IsApplicationFrozenAsync(id))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         try
         {
             // Spec 021 / T091 — route through the stage-aware submit handler so
@@ -423,6 +470,12 @@ public class ApplicationController : Controller
         if (string.IsNullOrEmpty(userId))
         {
             return Forbid();
+        }
+
+        if (await IsApplicationFrozenAsync(id))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction(nameof(Index));
         }
 
         var result = await _applicationService.RemoveByApplicantAsync(
@@ -485,6 +538,23 @@ public class ApplicationController : Controller
             return BadRequest();
         }
         var applicantId = await GetCurrentApplicantIdAsync();
+
+        // Spec 029 / FR-021 — reject autosaves to an archived-Fund application.
+        FundingPlatform.Domain.ValueObjects.PublicCode? canonical = null;
+        try { canonical = new FundingPlatform.Domain.ValueObjects.PublicCode(publicCode); }
+        catch { /* malformed code → let the handler resolve/404 below */ }
+        if (canonical is not null && await _dbContext.Applications.AnyAsync(a =>
+                a.PublicCode == canonical
+                && a.Group!.Process!.Fund!.Status == FundingPlatform.Domain.Enums.FundStatus.Archived))
+        {
+            return UnprocessableEntity(new ProblemDetails
+            {
+                Title = "Fondo archivado",
+                Detail = FrozenToast,
+                Status = StatusCodes.Status422UnprocessableEntity,
+            });
+        }
+
         try
         {
             var result = await _autosaveHandler.HandleAsync(
@@ -581,6 +651,95 @@ public class ApplicationController : Controller
             .FirstOrDefaultAsync(a => a.UserId == userId);
 
         return applicant?.Id ?? throw new InvalidOperationException("Applicant not found for current user.");
+    }
+
+    /// <summary>
+    /// Spec 029 / FR-013 — when the application's anchored Fund is Active and
+    /// carries a regulation, stash the download target in ViewData so the
+    /// applicant Edit/Details surfaces can render the link (and nothing otherwise).
+    /// </summary>
+    private async Task PopulateRegulationLinkAsync(int applicationId)
+    {
+        var reg = await _dbContext.Applications
+            .Where(a => a.Id == applicationId)
+            .Select(a => new
+            {
+                FundId = a.Group!.Process!.Fund!.Id,
+                a.Group!.Process!.Fund!.Status,
+                HasRegulation = a.Group!.Process!.Fund!.RegulationBlobKey != null,
+            })
+            .FirstOrDefaultAsync();
+
+        if (reg is not null
+            && reg.Status == FundingPlatform.Domain.Enums.FundStatus.Active
+            && reg.HasRegulation)
+        {
+            ViewData["RegulationFundId"] = reg.FundId;
+        }
+        else
+        {
+            ViewData["RegulationFundId"] = null;
+        }
+    }
+
+    /// <summary>Spec 029 / FR-021 — es-CR message when a frozen application is mutated.</summary>
+    private const string FrozenToast =
+        "El fondo que rige esta postulación está archivado. No se permiten cambios.";
+
+    /// <summary>
+    /// Spec 029 / FR-021 — controller-boundary freeze guard: true when the
+    /// application's anchored Fund is Archived. Primary enforcement for mutation
+    /// (the domain guard is defense-in-depth). Applicants are never admins here.
+    /// </summary>
+    private Task<bool> IsApplicationFrozenAsync(int applicationId)
+        => _dbContext.Applications.AnyAsync(a => a.Id == applicationId
+            && a.Group!.Process!.Fund!.Status == FundingPlatform.Domain.Enums.FundStatus.Archived);
+
+    /// <summary>Spec 029 / FR-018 — one eligible Group for the create-flow anchor.</summary>
+    private sealed record EligibleGroup(int GroupId, string ProcessName, string GroupName);
+
+    /// <summary>
+    /// Spec 029 / FR-018 — the Groups the applicant's user is a member of whose
+    /// Process is Active AND whose Fund is Active. These are the only valid
+    /// anchors for a new application.
+    /// </summary>
+    private async Task<IReadOnlyList<EligibleGroup>> ResolveEligibleGroupsAsync(string userId)
+    {
+        return await _dbContext.UserGroupMemberships
+            .Where(m => m.UserId == userId
+                && m.Group!.Process!.Status == Domain.Enums.ProcessStatus.Active
+                && m.Group!.Process!.Fund!.Status == Domain.Enums.FundStatus.Active)
+            .OrderBy(m => m.Group!.Process!.Name)
+            .ThenBy(m => m.Group!.Name)
+            .Select(m => new EligibleGroup(m.GroupId, m.Group!.Process!.Name, m.Group!.Name))
+            .ToListAsync();
+    }
+
+    /// <summary>Resolves the applicant's eligible groups then fills the view model.</summary>
+    private async Task PopulateEligibleGroupsAsync(CreateApplicationViewModel model, string userId)
+        => PopulateEligibleGroupsFrom(model, await ResolveEligibleGroupsAsync(userId));
+
+    /// <summary>
+    /// Spec 029 / FR-018 — applies the 0/1/many rendering rules to the view model.
+    /// When ambiguous (≥2 eligible) each option is disambiguated by its Group name.
+    /// </summary>
+    private static void PopulateEligibleGroupsFrom(
+        CreateApplicationViewModel model, IReadOnlyList<EligibleGroup> eligible)
+    {
+        model.HasNoEligibleGroups = eligible.Count == 0;
+        model.IsSingleEligibleGroup = eligible.Count == 1;
+
+        var ambiguous = eligible.Count > 1;
+        model.EligibleGroups = eligible
+            .Select(g => new SelectListItem(
+                ambiguous ? $"{g.ProcessName} — {g.GroupName}" : g.ProcessName,
+                g.GroupId.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            .ToList();
+
+        if (eligible.Count == 1 && model.GroupId is null)
+        {
+            model.GroupId = eligible[0].GroupId;
+        }
     }
 
     /// <summary>

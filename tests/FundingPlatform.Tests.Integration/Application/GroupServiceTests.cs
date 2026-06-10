@@ -49,7 +49,7 @@ public class GroupServiceTests
     /// <summary>Spec 021 / FR-001 — seeds an Active Process and returns its id.</summary>
     private static async Task<int> SeedProcessAsync(AppDbContext ctx, string name = "Crocus 2025")
     {
-        var process = Process.Create(name);
+        var process = Process.Create(name, 1);
         ctx.Processes.Add(process);
         await ctx.SaveChangesAsync();
         return process.Id;
@@ -115,7 +115,7 @@ public class GroupServiceTests
     {
         var dbName = $"groups-create-closed-{Guid.NewGuid():N}";
         using var ctx = CreateContext(dbName);
-        var process = Process.Create("Crocus 2024");
+        var process = Process.Create("Crocus 2024", 1);
         process.Close();
         ctx.Processes.Add(process);
         await ctx.SaveChangesAsync();
@@ -192,7 +192,7 @@ public class GroupServiceTests
         var dbName = $"groups-move-closed-{Guid.NewGuid():N}";
         using var ctx = CreateContext(dbName);
         var fromProcess = await SeedProcessAsync(ctx, "Crocus 2025");
-        var closed = Process.Create("Crocus 2024");
+        var closed = Process.Create("Crocus 2024", 1);
         closed.Close();
         ctx.Processes.Add(closed);
         await ctx.SaveChangesAsync();

@@ -95,7 +95,7 @@ public class ReviewerQueueProjectionHrefTests
             performanceScore: null);
         typeof(Applicant).GetProperty("Id")!.SetValue(applicant, applicationId);
 
-        var app = new AppEntity(applicantId: applicationId, companyName: "Test Company");
+        var app = new AppEntity(applicantId: applicationId, 1, companyName: "Test Company");
         typeof(AppEntity).GetProperty("Id")!.SetValue(app, applicationId);
         typeof(AppEntity).GetProperty("Applicant")!.SetValue(app, applicant);
         typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);

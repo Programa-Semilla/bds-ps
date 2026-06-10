@@ -168,7 +168,7 @@ public class ComparisonCacheStaleDiffTests
         _ctx.Suppliers.AddRange(sA, sB);
         await _ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, "Co");
+        var app = new AppEntity(applicant.Id, 1, "Co");
         app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         var item = new Item("Item", category.Id, "specs");
         app.AddItem(item);

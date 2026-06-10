@@ -126,7 +126,11 @@ public class ApplicationService
         AppEntity application;
         try
         {
-            application = new AppEntity(cmd.ApplicantId, cmd.CompanyName);
+            // Spec 029 / FR-017 — anchor the application to its Group at creation.
+            // Eligible-group resolution + membership validation happen in US6
+            // (controller + service) before this point; the constructor enforces
+            // GroupId > 0.
+            application = new AppEntity(cmd.ApplicantId, cmd.GroupId, cmd.CompanyName);
         }
         catch (ArgumentException ex)
         {

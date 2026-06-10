@@ -193,7 +193,14 @@ public class UserAdministrationTransactionTests
         var process = ctx.Processes.FirstOrDefault();
         if (process is null)
         {
-            process = Process.Create("Migración inicial");
+            var fund = ctx.Funds.FirstOrDefault();
+            if (fund is null)
+            {
+                fund = Fund.Create("Fondo de prueba", "Fondo de prueba para tests.");
+                ctx.Funds.Add(fund);
+                await ctx.SaveChangesAsync();
+            }
+            process = Process.Create("Migración inicial", fund.Id);
             ctx.Processes.Add(process);
             await ctx.SaveChangesAsync();
         }

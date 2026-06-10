@@ -69,7 +69,7 @@ public class SubmitGuardTests
     [Test]
     public async Task Submit_WithZeroItems_Throws()
     {
-        var application = new AppEntity(_applicantId, "Sazón Vegetariano");
+        var application = new AppEntity(_applicantId, 1, "Sazón Vegetariano");
         application.AssignPublicCode(new PublicCode("A7K2-9XF3"));
         _ctx.Applications.Add(application);
         await _ctx.SaveChangesAsync();
@@ -90,7 +90,7 @@ public class SubmitGuardTests
     [Test]
     public async Task Submit_WhenStageWindowClosed_ThrowsStageWindowClosed()
     {
-        var application = new AppEntity(_applicantId, "Sazón Vegetariano");
+        var application = new AppEntity(_applicantId, 1, "Sazón Vegetariano");
         application.AssignPublicCode(new PublicCode("A7K2-9XF4"));
         _ctx.Applications.Add(application);
         await _ctx.SaveChangesAsync();
@@ -115,7 +115,7 @@ public class SubmitGuardTests
         // For the integration test we assert the guard fires when Impact is
         // present + Items are present but quotations are missing, validating
         // the snapshot's MinimumQuotationsPerItem resolution.
-        var application = new AppEntity(_applicantId, "Sazón Vegetariano");
+        var application = new AppEntity(_applicantId, 1, "Sazón Vegetariano");
         application.AssignPublicCode(new PublicCode("A7K2-9XF5"));
 
         var template = new ImpactTemplate("ImpactA", description: null, isActive: true);

@@ -1,0 +1,20 @@
+@*
+    Spec 029 / FR-012 / OI-3 — shared Fund filter dropdown for the report filter
+    forms. Reads ViewData["FundOptions"] (all Funds incl. Archived) +
+    ViewData["FundFilter"] (selected id). Posts ?FundId= via GET.
+*@
+@{
+    var fundOpts = ViewData["FundOptions"] as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
+        ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
+    var fundSel = ViewData["FundFilter"] as int?;
+}
+<div class="col-md-3">
+    <label class="form-label" for="fundId">Fondo</label>
+    <select name="FundId" id="fundId" class="form-select" data-testid="report-filter-fund">
+        <option value="">Todos los fondos</option>
+        @foreach (var f in fundOpts)
+        {
+            <option value="@f.Value" selected="@(fundSel?.ToString() == f.Value)">@f.Text</option>
+        }
+    </select>
+</div>

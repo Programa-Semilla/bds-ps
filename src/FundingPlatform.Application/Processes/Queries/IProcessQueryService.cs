@@ -13,8 +13,9 @@ namespace FundingPlatform.Application.Processes.Queries;
 public interface IProcessQueryService
 {
     /// <summary>FR-001 — lists every Process for the admin index, optionally
-    /// filtered by <see cref="ProcessStatus"/>.</summary>
-    Task<IReadOnlyList<ProcessListRow>> ListAsync(ProcessStatus? statusFilter, CancellationToken ct);
+    /// filtered by <see cref="ProcessStatus"/> and (spec 029 / FR-011) by Fund.</summary>
+    Task<IReadOnlyList<ProcessListRow>> ListAsync(
+        ProcessStatus? statusFilter, int? fundFilter, CancellationToken ct);
 
     /// <summary>Returns the Process detail used by <c>/Admin/Processes/{id}</c> —
     /// includes the attached <c>ProcessPlantilla</c> snapshot, groups, and
@@ -30,7 +31,9 @@ public sealed record ProcessListRow(
     DateTimeOffset CreatedAt,
     DateTimeOffset? ClosedAt,
     int GroupCount,
-    string? PlantillaName);
+    string? PlantillaName,
+    int FundId,
+    string FundName);
 
 /// <summary>Spec 021 / T079 — projection used on the admin Process detail view.</summary>
 public sealed record ProcessDetail(
@@ -43,7 +46,9 @@ public sealed record ProcessDetail(
     int? RevisionWindowDays,
     int? FacturacionWindowDays,
     ProcessPlantillaSnapshotDto? Plantilla,
-    IReadOnlyList<ProcessGroupRow> Groups);
+    IReadOnlyList<ProcessGroupRow> Groups,
+    int FundId,
+    string FundName);
 
 /// <summary>Spec 021 / T079 — group-row helper for the detail view.</summary>
 public sealed record ProcessGroupRow(int Id, string Name, int MemberCount);

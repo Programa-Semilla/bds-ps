@@ -35,6 +35,21 @@ public class AdminDashboardProjectionTests
 
     private static IApplicationQueryFilter SoftDeleteFilter() => new ApplicationQueryFilter();
 
+    // Spec 029 — every Application anchors to an Active Fund→Process→Group chain.
+    private static async Task<int> SeedActiveGroupAsync(AppDbContext ctx)
+    {
+        var fund = Fund.Create("Fondo de prueba", "Fondo de prueba para tests.");
+        ctx.Funds.Add(fund);
+        await ctx.SaveChangesAsync();
+        var process = Process.Create("Proceso de prueba", fund.Id);
+        ctx.Processes.Add(process);
+        await ctx.SaveChangesAsync();
+        var group = Group.Create("Grupo de prueba", process.Id);
+        ctx.Groups.Add(group);
+        await ctx.SaveChangesAsync();
+        return group.Id;
+    }
+
     // PublicCode is required (FR-008); generate a unique 4-4 base32 token from a
     // counter so each Application gets a distinct, valid code.
     private static int _publicCodeCounter;
@@ -64,6 +79,7 @@ public class AdminDashboardProjectionTests
             var category = new Category("Equipment", "desc", isActive: true);
             ctx.Categories.Add(category);
             await ctx.SaveChangesAsync();
+            var groupId = await SeedActiveGroupAsync(ctx);
 
             for (var i = 0; i < 3; i++)
             {
@@ -78,7 +94,7 @@ public class AdminDashboardProjectionTests
                 ctx.Applicants.Add(applicant);
                 await ctx.SaveChangesAsync();
 
-                var app = new AppEntity(applicant.Id, $"Co {i}");
+                var app = new AppEntity(applicant.Id, groupId, $"Co {i}");
                 app.AssignPublicCode(NextPublicCode());
                 app.AddItem(new Item("Server", category.Id, "specs"));
                 ctx.Applications.Add(app);
@@ -113,6 +129,7 @@ public class AdminDashboardProjectionTests
             var category = new Category("Equipment", "desc", isActive: true);
             ctx.Categories.Add(category);
             await ctx.SaveChangesAsync();
+            var groupId = await SeedActiveGroupAsync(ctx);
 
             // Live applicant
             var live = new Applicant(
@@ -121,7 +138,7 @@ public class AdminDashboardProjectionTests
                 email: "live@example.com", phone: null, performanceScore: null);
             ctx.Applicants.Add(live);
             await ctx.SaveChangesAsync();
-            var liveApp = new AppEntity(live.Id, "Live Co");
+            var liveApp = new AppEntity(live.Id, groupId, "Live Co");
             liveApp.AssignPublicCode(NextPublicCode());
             liveApp.AddItem(new Item("Server", category.Id, "specs"));
             ctx.Applications.Add(liveApp);
@@ -136,7 +153,7 @@ public class AdminDashboardProjectionTests
             await ctx.SaveChangesAsync();
             deletedApplicantId = ghost.Id;
 
-            var deletedApp = new AppEntity(ghost.Id, "Ghost Co");
+            var deletedApp = new AppEntity(ghost.Id, groupId, "Ghost Co");
             deletedApp.AssignPublicCode(NextPublicCode());
             deletedApp.AddItem(new Item("Server", category.Id, "specs"));
             ctx.Applications.Add(deletedApp);
@@ -259,7 +276,8 @@ public class AdminDashboardProjectionTests
         await ctx.SaveChangesAsync();
         var branchId = supplier.Branches.First().Id;
 
-        var app = new AppEntity(applicant.Id, $"Co {label}");
+        var groupId = await SeedActiveGroupAsync(ctx);
+        var app = new AppEntity(applicant.Id, groupId, $"Co {label}");
         app.AssignPublicCode(NextPublicCode());
         var item = new Item($"Item {label}", categoryId, "specs");
         app.AddItem(item);

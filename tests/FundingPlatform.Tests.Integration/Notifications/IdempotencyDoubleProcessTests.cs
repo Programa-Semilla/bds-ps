@@ -54,7 +54,7 @@ public class IdempotencyDoubleProcessTests
         ctx.Applicants.Add(applicant);
         await ctx.SaveChangesAsync();
 
-        var app = new Domain.Entities.Application(applicant.Id, "TestCo");
+        var app = new Domain.Entities.Application(applicant.Id, 1, "TestCo");
         app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         var vh = new Domain.Entities.VersionHistory(user.Id, "Submitted", null);
         app.AddVersionHistory(vh);

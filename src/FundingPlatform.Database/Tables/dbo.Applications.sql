@@ -2,6 +2,14 @@ CREATE TABLE [dbo].[Applications]
 (
     [Id]                INT            IDENTITY(1,1) NOT NULL,
     [ApplicantId]       INT            NOT NULL,
+    -- Spec 029 / FR-017 — authoritative anchor: the Group fixes the
+    -- application's Process (Group.Process) and Fund (Group.Process.Fund)
+    -- exactly. Captured at creation (US6). Migration-safe: a DEFAULT(0)
+    -- placeholder lets the column be added to an already-populated table;
+    -- 05_Fund029Anchors backfills any pre-existing applications to a valid seed
+    -- Group and then adds FK_Applications_Groups. Runtime creation always
+    -- supplies a real GroupId.
+    [GroupId]           INT            NOT NULL CONSTRAINT [DF_Applications_GroupId] DEFAULT (0),
     [CompanyName]       NVARCHAR(200)  NOT NULL,
     [State]             INT            NOT NULL CONSTRAINT [DF_Applications_State] DEFAULT (0),
     -- Spec 021 / FR-008 — PublicCode is the human-facing identifier displayed
@@ -32,6 +40,7 @@ CREATE TABLE [dbo].[Applications]
 
     CONSTRAINT [PK_Applications] PRIMARY KEY CLUSTERED ([Id]),
     CONSTRAINT [FK_Applications_Applicants] FOREIGN KEY ([ApplicantId]) REFERENCES [dbo].[Applicants] ([Id]) ON DELETE NO ACTION,
+    -- FK_Applications_Groups is added in post-deploy (05_Fund029Anchors) after backfill.
     CONSTRAINT [FK_Applications_ImpactTemplates] FOREIGN KEY ([ImpactTemplateId]) REFERENCES [dbo].[ImpactTemplates] ([Id]) ON DELETE NO ACTION,
     -- Spec 021 / FR-008 — Crockford-base32 4-4 with hyphen (alphabet excludes
     -- I, L, O, U, 0, 1). The check matches the regex enforced by the
@@ -44,6 +53,12 @@ GO
 
 CREATE NONCLUSTERED INDEX [IX_Applications_ApplicantId]
     ON [dbo].[Applications] ([ApplicantId]);
+GO
+
+-- Spec 029 / FR-017 — covers the anchor join used by Plantilla resolution,
+-- the archived-Fund freeze filter, and report Fund derivation.
+CREATE NONCLUSTERED INDEX [IX_Applications_GroupId]
+    ON [dbo].[Applications] ([GroupId]);
 GO
 
 CREATE NONCLUSTERED INDEX [IX_Applications_State]

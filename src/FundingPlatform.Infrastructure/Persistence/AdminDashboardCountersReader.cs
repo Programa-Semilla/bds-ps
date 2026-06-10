@@ -37,7 +37,10 @@ public sealed class AdminDashboardCountersReader : IAdminDashboardCountersReader
     {
         var since = _clock.GetUtcNow().UtcDateTime - PersonasActivasWindow;
 
-        var apps = _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking())
+        // Spec 029 / FR-020 — a frozen (archived-Fund) application's applicant is
+        // not counted as "active".
+        var apps = _queryFilter.ExcludeArchivedFund(
+                _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking()))
             .Where(a => a.CreatedAt >= since);
 
         return apps.Select(a => a.ApplicantId).Distinct().CountAsync(ct);
@@ -52,7 +55,8 @@ public sealed class AdminDashboardCountersReader : IAdminDashboardCountersReader
         // AgreementExecuted Application has, by construction, an attached
         // FundingAgreement (the state transition is gated on
         // GenerateFundingAgreement succeeding).
-        var apps = _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking())
+        var apps = _queryFilter.ExcludeArchivedFund(
+                _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking()))
             .Where(a => a.State == ApplicationState.AgreementExecuted);
 
         var query =

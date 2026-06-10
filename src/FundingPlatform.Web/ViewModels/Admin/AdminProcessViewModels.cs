@@ -4,22 +4,38 @@ using System.ComponentModel.DataAnnotations;
 using FundingPlatform.Application.Plantillas;
 using FundingPlatform.Application.Processes.Queries;
 using FundingPlatform.Domain.Enums;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace FundingPlatform.Web.ViewModels.Admin;
 
-/// <summary>Spec 021 / US1 — ViewModel for <c>/Admin/Processes</c> (Index).</summary>
+/// <summary>Spec 021 / US1 — ViewModel for <c>/Admin/Processes</c> (Index).
+/// Spec 029 / FR-011 adds a Fund filter alongside the status filter.</summary>
 public sealed class AdminProcessesIndexViewModel
 {
     public IReadOnlyList<ProcessListRow> Rows { get; init; } = Array.Empty<ProcessListRow>();
     public ProcessStatus? StatusFilter { get; init; }
+
+    /// <summary>Spec 029 / FR-011 — selected Fund filter (null = all Funds).</summary>
+    public int? FundFilter { get; init; }
+
+    /// <summary>Spec 029 / FR-011 — Fund options for the filter dropdown (all Funds).</summary>
+    public IReadOnlyList<SelectListItem> FundOptions { get; init; } = Array.Empty<SelectListItem>();
 }
 
-/// <summary>Spec 021 / US1 — ViewModel for <c>/Admin/Processes/Create</c>.</summary>
+/// <summary>Spec 021 / US1 — ViewModel for <c>/Admin/Processes/Create</c>.
+/// Spec 029 / FR-002 adds the required Fund anchor.</summary>
 public sealed class AdminProcessCreateViewModel
 {
     [Required(ErrorMessage = "El nombre es obligatorio.")]
     [StringLength(120, ErrorMessage = "El nombre debe tener 120 caracteres o menos.")]
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>Spec 029 / FR-002 — the Active Fund the new Process is anchored to.</summary>
+    [Required(ErrorMessage = "Debe seleccionar un fondo activo.")]
+    public int? FundId { get; set; }
+
+    /// <summary>Active Funds available for selection.</summary>
+    public IReadOnlyList<SelectListItem> FundOptions { get; set; } = Array.Empty<SelectListItem>();
 }
 
 /// <summary>Spec 021 / US1 — ViewModel for <c>/Admin/Processes/{id}</c> detail.
@@ -30,4 +46,7 @@ public sealed class AdminProcessDetailsViewModel
     public ProcessDetail Detail { get; init; } = null!;
     public IReadOnlyList<PlantillaListRow> AssignableBasePlantillas { get; init; } = Array.Empty<PlantillaListRow>();
     public IReadOnlyList<string> CloseBlockingPublicCodes { get; init; } = Array.Empty<string>();
+
+    /// <summary>Spec 029 / FR-009 — Active Funds available as reassignment targets.</summary>
+    public IReadOnlyList<SelectListItem> FundOptions { get; init; } = Array.Empty<SelectListItem>();
 }

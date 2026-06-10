@@ -13,4 +13,5 @@ public sealed record AgingApplicationRowDto(
     DateTime? LastTransitionAt,
     string? LastActor,
     int ItemCount,
-    IReadOnlyList<CurrencyAmount> TotalApproved);
+    IReadOnlyList<CurrencyAmount> TotalApproved,
+    string FundName);

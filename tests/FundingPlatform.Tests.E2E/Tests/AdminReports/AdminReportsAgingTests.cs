@@ -55,6 +55,6 @@ public class AdminReportsAgingTests : AuthenticatedTestBase
             "App Id", "Applicant Name", "Email", "Legal Id", "State",
             "Days In Current State", "Last Transition", "Last Actor", "Item Count",
             "Approved Amount", "Currency",
-            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount", "Fund");
     }
 }

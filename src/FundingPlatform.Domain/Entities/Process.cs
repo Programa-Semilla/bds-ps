@@ -25,6 +25,10 @@ public class Process
     public string Name { get; private set; } = string.Empty;
     public ProcessStatus Status { get; private set; }
 
+    // Spec 029 / FR-002 — every Process belongs to exactly one Fund (Fondo).
+    public int FundId { get; private set; }
+    public Fund? Fund { get; private set; }
+
     public int? SolicitudWindowDays { get; private set; }
     public int? RevisionWindowDays { get; private set; }
     public int? FacturacionWindowDays { get; private set; }
@@ -39,20 +43,37 @@ public class Process
 
     private Process() { }
 
-    private Process(string name, DateTimeOffset now)
+    private Process(string name, int fundId, DateTimeOffset now)
     {
         Name = name;
+        FundId = fundId;
         Status = ProcessStatus.Active;
         CreatedAt = now;
     }
 
     /// <summary>
-    /// Factory: a new Process is always created Active. Catalog uniqueness within
-    /// the active set is enforced at the application layer (reuse across closed
-    /// cycles is allowed per data-model.md).
+    /// Factory: a new Process is always created Active and anchored to a Fund
+    /// (spec 029 / FR-002). Catalog uniqueness within the active set is enforced
+    /// at the application layer (reuse across closed cycles is allowed per
+    /// data-model.md); the caller validates that <paramref name="fundId"/>
+    /// refers to an Active Fund.
     /// </summary>
-    public static Process Create(string name)
-        => new(ValidateName(name), DateTimeOffset.UtcNow);
+    public static Process Create(string name, int fundId)
+        => new(ValidateName(name), ValidateFundId(fundId), DateTimeOffset.UtcNow);
+
+    /// <summary>
+    /// Spec 029 / FR-009 — reassigns the Process to a different Fund (admin
+    /// edit). Guarded against Closed; the caller validates the target Fund is
+    /// Active.
+    /// </summary>
+    public void SetFund(int fundId)
+    {
+        if (Status == ProcessStatus.Closed)
+        {
+            throw new ProcessClosedException(Id, ClosedAt);
+        }
+        FundId = ValidateFundId(fundId);
+    }
 
     /// <summary>
     /// Renames the Process. Trimmed value persisted.
@@ -149,5 +170,14 @@ public class Process
                 $"Process name must be {MaxNameLength} characters or fewer.", nameof(name));
         }
         return trimmed;
+    }
+
+    private static int ValidateFundId(int fundId)
+    {
+        if (fundId <= 0)
+        {
+            throw new ArgumentException("A Process must be anchored to a Fund.", nameof(fundId));
+        }
+        return fundId;
     }
 }

@@ -14,4 +14,5 @@ public sealed record ApplicationRowDto(
     int ItemCount,
     IReadOnlyList<CurrencyAmount> TotalApproved,
     bool HasAgreement,
-    bool HasActiveAppeal);
+    bool HasActiveAppeal,
+    string FundName);

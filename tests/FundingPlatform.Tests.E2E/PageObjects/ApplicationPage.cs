@@ -35,7 +35,27 @@ public class ApplicationPage : BasePage
     {
         await CreateButton.ClickAsync();
         await CompanyNameInput.FillAsync(companyName);
+
+        await SelectEligibleGroupIfPresentAsync();
         await SubmitDraftButton.ClickAsync();
+    }
+
+    /// <summary>
+    /// Spec 029 / FR-018 — the create form anchors the application to an eligible
+    /// Group (Process/convocatoria). When the applicant is a member of ≥2 eligible
+    /// groups (the E2E default — RegisterUserAsync assigns all seeded groups), a
+    /// required <c>&lt;select&gt;</c> is rendered; pick the first real option. With
+    /// exactly one eligible group the control is a hidden input (auto-anchored) and
+    /// this locator matches nothing, so we skip. Call this in custom create flows
+    /// after clicking Create + filling the company name, before submitting.
+    /// </summary>
+    public async Task SelectEligibleGroupIfPresentAsync()
+    {
+        var groupSelect = Page.Locator("select[data-testid=application-create-group]");
+        if (await groupSelect.CountAsync() > 0)
+        {
+            await groupSelect.SelectOptionAsync(new SelectOptionValue { Index = 1 });
+        }
     }
 
     public async Task ViewApplicationAsync(int id)

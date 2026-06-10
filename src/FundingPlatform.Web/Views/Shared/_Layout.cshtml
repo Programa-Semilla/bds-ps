@@ -65,6 +65,8 @@
 
     var procesoEntries = new List<SidebarEntry>
     {
+        // Spec 029 — Fondos sit above Procesos in the hierarchy (Fondo → Proceso).
+        new("funds", "Fondos", "/Admin/Funds", "ti ti-building-bank", new[] { "Admin" }),
         new("groups", "Grupos", "/Admin/Groups", "ti ti-users-group", new[] { "Admin" }),
         // Spec 027 / US8 — "Starters" surfaces the existing applications listing
         // (Reports → Applications); process-scoped pre-filtering is deferred with

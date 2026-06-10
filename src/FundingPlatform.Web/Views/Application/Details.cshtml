@@ -83,6 +83,16 @@
     </div>
 }
 
+@* Spec 029 / FR-013 — regulation download when the governing Fund is Active + present. *@
+@if (ViewData["RegulationFundId"] is int regulationFundId)
+{
+    <a class="btn btn-outline-info mb-3"
+       href="/Funds/@regulationFundId/Regulation/Download"
+       data-testid="applicant-regulation-download">
+        <i class="ti ti-file-text me-1"></i>Descargar reglamento del fondo
+    </a>
+}
+
 <div class="card mb-4">
     <div class="card-body">
         <div class="row g-2">

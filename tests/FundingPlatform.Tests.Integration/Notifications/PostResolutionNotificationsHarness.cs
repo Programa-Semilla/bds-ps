@@ -90,7 +90,7 @@ internal sealed class PostResolutionNotificationsHarness : IAsyncDisposable
         ctx.UserGroupMemberships.Add(new UserGroupMembership(reviewerUser.Id, group.Id));
         await ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, "PostRes-Co");
+        var app = new AppEntity(applicant.Id, 1, "PostRes-Co");
         app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         // The participating admin authored an action on THIS application → matches
         // the participating-admin predicate. The non-participating admin does not.

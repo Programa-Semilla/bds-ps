@@ -32,7 +32,9 @@ public sealed class ReviewerDashboardProjection : IReviewerDashboardProjection
         // with several competing quotes on an item is one unit of pending work,
         // not many (FR-033 evolution 2026-05-25). UnderReview is reviewer-active,
         // so it is excluded from the *pending* set.
-        return _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking())
+        // Spec 029 / FR-020 — archived-Fund applications drop off reviewer widgets.
+        return _queryFilter.ExcludeArchivedFund(
+                _queryFilter.ExcludeDeleted(_db.Applications.AsNoTracking()))
             .Where(a => a.State == ApplicationState.Submitted)
             .CountAsync(ct);
     }

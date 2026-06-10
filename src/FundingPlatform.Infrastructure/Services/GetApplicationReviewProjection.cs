@@ -94,7 +94,7 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
                         ?? string.Empty,
                     pv.Value ?? string.Empty)).ToList());
 
-        var minQuotations = await ResolveMinimumQuotationsAsync(application.ApplicantId, ct);
+        var minQuotations = await ResolveMinimumQuotationsAsync(application.GroupId, ct);
         var canSubmit = application.ImpactTemplateId is not null
                         && application.Items.Count >= 1
                         && application.Items.All(i => i.Quotations.Count >= minQuotations);
@@ -112,25 +112,19 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
             canSubmit);
     }
 
-    private async Task<int> ResolveMinimumQuotationsAsync(int applicantId, CancellationToken ct)
+    private async Task<int> ResolveMinimumQuotationsAsync(int groupId, CancellationToken ct)
     {
-        var userId = await _db.Applicants
-            .Where(a => a.Id == applicantId)
-            .Select(a => a.UserId)
-            .FirstOrDefaultAsync(ct);
-
-        if (!string.IsNullOrEmpty(userId))
+        // Spec 029 / FR-017 — resolve the Plantilla deterministically through the
+        // application's Group anchor (Group → Process → ProcessPlantilla),
+        // replacing the prior nondeterministic membership FirstOrDefault.
+        var snapshot = await (
+            from g in _db.Groups
+            where g.Id == groupId
+            join pp in _db.ProcessPlantillas on g.ProcessId equals pp.ProcessId
+            select pp).FirstOrDefaultAsync(ct);
+        if (snapshot is not null)
         {
-            var snapshot = await (
-                from m in _db.UserGroupMemberships
-                where m.UserId == userId
-                join g in _db.Groups on m.GroupId equals g.Id
-                join pp in _db.ProcessPlantillas on g.ProcessId equals pp.ProcessId
-                select pp).FirstOrDefaultAsync(ct);
-            if (snapshot is not null)
-            {
-                return snapshot.MinimumQuotationsPerItem;
-            }
+            return snapshot.MinimumQuotationsPerItem;
         }
 
         var config = await _db.SystemConfigurations

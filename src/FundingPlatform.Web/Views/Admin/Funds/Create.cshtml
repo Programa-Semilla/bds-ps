@@ -1,0 +1,50 @@
+@*
+    Spec 029 / US1 — Fund (Fondo) Create form.
+*@
+@using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Admin.AdminFundCreateViewModel
+@{
+    ViewData["Title"] = AdminFundsResources.Breadcrumb_Create;
+}
+
+<div data-testid="admin-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: AdminFundsResources.Breadcrumb_Create,
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem(AdminFundsResources.Breadcrumb_Index, Url.Action("Index", "AdminFunds")),
+                new BreadcrumbItem(AdminFundsResources.Breadcrumb_Create),
+            }))
+
+    <form method="post" asp-action="Create" enctype="multipart/form-data" class="row" data-testid="admin-fund-create-form">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3" data-testid="admin-fund-validation-summary"></div>
+
+        <div class="col-md-8 mb-3">
+            <label class="form-label" asp-for="Name">@AdminFundsResources.Field_Name @await Html.PartialAsync("_RequiredMark")</label>
+            <input asp-for="Name" class="form-control" data-testid="admin-fund-name-input" maxlength="120" autofocus />
+            <span asp-validation-for="Name" class="text-danger" data-testid="admin-fund-name-error"></span>
+        </div>
+
+        <div class="col-md-12 mb-3">
+            <label class="form-label" asp-for="Description">@AdminFundsResources.Field_Description @await Html.PartialAsync("_RequiredMark")</label>
+            <textarea asp-for="Description" class="form-control" rows="4" maxlength="2000" data-testid="admin-fund-description-input"></textarea>
+            <span asp-validation-for="Description" class="text-danger" data-testid="admin-fund-description-error"></span>
+        </div>
+
+        <div class="col-md-8 mb-3">
+            <label class="form-label" asp-for="RegulationFile">@AdminFundsResources.Field_Regulation</label>
+            <input asp-for="RegulationFile" type="file" accept="application/pdf,.pdf" class="form-control" data-testid="admin-fund-regulation-input" />
+            <span asp-validation-for="RegulationFile" class="text-danger" data-testid="admin-fund-regulation-error"></span>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-2">
+            <a class="btn btn-secondary" href="@Url.Action("Index", "AdminFunds")">@AdminFundsResources.Action_Cancel</a>
+            <button type="submit" class="btn btn-primary" data-testid="admin-fund-create-submit">
+                @AdminFundsResources.Action_Save
+            </button>
+        </div>
+    </form>
+</div>

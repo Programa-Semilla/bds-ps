@@ -39,7 +39,7 @@ public class ProcessRepositoryTests
         int id;
         using (var ctx = CreateContext(dbName))
         {
-            var process = Process.Create("Crocus 2025");
+            var process = Process.Create("Crocus 2025", 1);
             ctx.Processes.Add(process);
             await ctx.SaveChangesAsync();
             id = process.Id;
@@ -66,7 +66,7 @@ public class ProcessRepositoryTests
         int id;
         using (var ctx = CreateContext(dbName))
         {
-            var process = Process.Create("Nexo 2026");
+            var process = Process.Create("Nexo 2026", 1);
             ctx.Processes.Add(process);
             await ctx.SaveChangesAsync();
             id = process.Id;
@@ -96,7 +96,7 @@ public class ProcessRepositoryTests
         int id;
         using (var ctx = CreateContext(dbName))
         {
-            var process = Process.Create("Crocus Override");
+            var process = Process.Create("Crocus Override", 1);
             ctx.Processes.Add(process);
             await ctx.SaveChangesAsync();
             id = process.Id;
@@ -144,7 +144,7 @@ public class ProcessRepositoryTests
         int processId, plantillaId, snapshotId;
         using (var ctx = CreateContext(dbName))
         {
-            var process = Process.Create("Crocus Snap");
+            var process = Process.Create("Crocus Snap", 1);
             ctx.Processes.Add(process);
 
             var template = new ImpactTemplate("Empleo", description: null, isActive: true);

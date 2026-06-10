@@ -17,7 +17,7 @@ public class ProcessTests
     {
         var before = DateTimeOffset.UtcNow.AddSeconds(-1);
 
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
 
         var after = DateTimeOffset.UtcNow.AddSeconds(1);
         Assert.That(process.Name, Is.EqualTo("Crocus 2025"));
@@ -32,7 +32,7 @@ public class ProcessTests
     [Test]
     public void Create_TrimsName()
     {
-        var process = Process.Create("  Crocus 2025  ");
+        var process = Process.Create("  Crocus 2025  ", 1);
 
         Assert.That(process.Name, Is.EqualTo("Crocus 2025"));
     }
@@ -42,7 +42,7 @@ public class ProcessTests
     [TestCase(null)]
     public void Create_RejectsEmptyOrWhitespaceName(string? raw)
     {
-        Assert.Throws<ArgumentException>(() => Process.Create(raw!));
+        Assert.Throws<ArgumentException>(() => Process.Create(raw!, 1));
     }
 
     [Test]
@@ -50,13 +50,13 @@ public class ProcessTests
     {
         var name = new string('x', Process.MaxNameLength + 1);
 
-        Assert.Throws<ArgumentException>(() => Process.Create(name));
+        Assert.Throws<ArgumentException>(() => Process.Create(name, 1));
     }
 
     [Test]
     public void Close_FlipsStatusAndStampsClosedAt()
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
         var before = DateTimeOffset.UtcNow.AddSeconds(-1);
 
         process.Close();
@@ -70,7 +70,7 @@ public class ProcessTests
     [Test]
     public void Close_WhenAlreadyClosed_Throws()
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
         process.Close();
 
         Assert.Throws<ProcessClosedException>(() => process.Close());
@@ -79,7 +79,7 @@ public class ProcessTests
     [Test]
     public void OverrideStageWindow_Solicitud_SetsField()
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
 
         process.OverrideStageWindow(StageKind.Solicitud, 14);
 
@@ -90,7 +90,7 @@ public class ProcessTests
     [Test]
     public void OverrideStageWindow_Revision_SetsField()
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
 
         process.OverrideStageWindow(StageKind.Revision, 30);
 
@@ -101,7 +101,7 @@ public class ProcessTests
     [Test]
     public void OverrideStageWindow_Facturacion_SetsField()
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
 
         process.OverrideStageWindow(StageKind.Facturacion, 45);
 
@@ -112,7 +112,7 @@ public class ProcessTests
     [Test]
     public void OverrideStageWindow_Null_RevertsToDefault()
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
         process.OverrideStageWindow(StageKind.Solicitud, 14);
 
         process.OverrideStageWindow(StageKind.Solicitud, null);
@@ -126,7 +126,7 @@ public class ProcessTests
     [TestCase(-365)]
     public void OverrideStageWindow_RejectsNonPositiveDays(int days)
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
 
         Assert.Throws<ArgumentOutOfRangeException>(
             () => process.OverrideStageWindow(StageKind.Solicitud, days));
@@ -135,7 +135,7 @@ public class ProcessTests
     [Test]
     public void OverrideStageWindow_WhenClosed_Throws()
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
         process.Close();
 
         Assert.Throws<ProcessClosedException>(
@@ -145,7 +145,7 @@ public class ProcessTests
     [Test]
     public void OverrideForStage_NoOverrideSet_ReturnsNull()
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
 
         Assert.That(process.OverrideForStage(StageKind.Solicitud), Is.Null);
         Assert.That(process.OverrideForStage(StageKind.Revision), Is.Null);
@@ -155,7 +155,7 @@ public class ProcessTests
     [Test]
     public void Rename_TrimsAndUpdates()
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
 
         process.Rename("  Crocus 2026  ");
 

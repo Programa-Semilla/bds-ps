@@ -137,5 +137,31 @@ public static class IdentityConfiguration
         }
 
         await dbContext.SaveChangesAsync();
+
+        // Spec 029 / T024 — anchor the demo applicant (and the demo reviewer, for
+        // queue overlap) to a Group under the seed Fund's Active Process so the
+        // application-create flow auto-anchors (exactly one eligible group) and
+        // existing demo / E2E create + review flows keep working unchanged.
+        var seedGroupId = await dbContext.Groups
+            .Where(g => g.Name == "Norte"
+                && g.Process!.Status == ProcessStatus.Active
+                && g.Process!.Fund!.Status == FundStatus.Active)
+            .Select(g => g.Id)
+            .FirstOrDefaultAsync();
+
+        if (seedGroupId != 0)
+        {
+            foreach (var email in new[] { "applicant@programa-semilla.test", "reviewer@programa-semilla.test" })
+            {
+                var user = await userManager.FindByEmailAsync(email);
+                if (user is null)
+                    continue;
+                if (!await dbContext.UserGroupMemberships.AnyAsync(m => m.UserId == user.Id && m.GroupId == seedGroupId))
+                {
+                    dbContext.UserGroupMemberships.Add(new UserGroupMembership(user.Id, seedGroupId));
+                }
+            }
+            await dbContext.SaveChangesAsync();
+        }
     }
 }

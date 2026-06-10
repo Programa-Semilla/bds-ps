@@ -87,6 +87,7 @@ public class CompanyNameApplicationFlowTests : AuthenticatedTestBase
 
         // Fill with only whitespace — server-side trim should reject this.
         await appPage.CompanyNameInput.FillAsync("    ");
+        await appPage.SelectEligibleGroupIfPresentAsync();
         await appPage.SubmitDraftButton.ClickAsync();
 
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Create"));

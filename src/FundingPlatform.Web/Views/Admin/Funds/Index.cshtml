@@ -1,0 +1,105 @@
+@*
+    Spec 029 / US1 — Fund (Fondo) catalog index.
+*@
+@using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
+@using FundingPlatform.Domain.Enums
+@model FundingPlatform.Web.ViewModels.Admin.AdminFundsIndexViewModel
+@{
+    ViewData["Title"] = AdminFundsResources.Page_Title;
+}
+
+<div data-testid="admin-funds-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: AdminFundsResources.Page_Title,
+            Subtitle: AdminFundsResources.Page_Subtitle,
+            PrimaryActions: new[]
+            {
+                new ActionItem(
+                    Label: AdminFundsResources.Action_Create,
+                    Class: ActionClass.Primary,
+                    Url: Url.Action("Create", "AdminFunds"),
+                    Icon: "ti ti-plus")
+            }))
+
+    <div class="mb-3 btn-list" data-testid="admin-funds-filter">
+        <a class="btn btn-sm @(Model.StatusFilter is null ? "btn-primary" : "btn-outline-secondary")"
+           href="@Url.Action("Index", "AdminFunds")">@AdminFundsResources.Filter_All</a>
+        <a class="btn btn-sm @(Model.StatusFilter == FundStatus.Active ? "btn-primary" : "btn-outline-secondary")"
+           href="@Url.Action("Index", "AdminFunds", new { status = FundStatus.Active })">@AdminFundsResources.Filter_Active</a>
+        <a class="btn btn-sm @(Model.StatusFilter == FundStatus.Archived ? "btn-primary" : "btn-outline-secondary")"
+           href="@Url.Action("Index", "AdminFunds", new { status = FundStatus.Archived })">@AdminFundsResources.Filter_Archived</a>
+    </div>
+
+    @if (Model.Rows.Count == 0)
+    {
+        <div data-testid="admin-funds-empty">
+            @await Html.PartialAsync("Components/_EmptyState",
+                new EmptyStateViewModel(
+                    Headline: AdminFundsResources.Empty_Title,
+                    Body: AdminFundsResources.Empty_Subtitle,
+                    Icon: "ti ti-building-bank",
+                    IllustrationSceneKey: "folders-stack",
+                    PrimaryAction: new ActionItem(
+                        Label: AdminFundsResources.Action_Create,
+                        Class: ActionClass.Primary,
+                        Url: Url.Action("Create", "AdminFunds"),
+                        Icon: "ti ti-plus")))
+        </div>
+    }
+    else
+    {
+        <div class="card" data-testid="admin-funds-table">
+            <div class="table-responsive">
+                <table class="fl-table" data-density="reviewer">
+                    <thead>
+                        <tr>
+                            <th>@AdminFundsResources.Column_Name</th>
+                            <th class="w-1">@AdminFundsResources.Column_Status</th>
+                            <th class="w-1">@AdminFundsResources.Column_ProcessCount</th>
+                            <th class="w-1">@AdminFundsResources.Column_Regulation</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr data-testid="admin-fund-row-@row.Id">
+                                <td data-testid="admin-fund-name">@row.Name</td>
+                                <td>
+                                    @if (row.Status == FundStatus.Archived)
+                                    {
+                                        <span class="badge bg-secondary" data-testid="admin-fund-status">@AdminFundsResources.Status_Archived</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-green-lt" data-testid="admin-fund-status">@AdminFundsResources.Status_Active</span>
+                                    }
+                                </td>
+                                <td>@row.ProcessCount</td>
+                                <td>
+                                    @if (row.HasRegulation)
+                                    {
+                                        <span class="badge bg-blue-lt"><i class="ti ti-file-text"></i></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">—</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-secondary"
+                                       data-testid="admin-fund-details"
+                                       href="@Url.Action("Details", "AdminFunds", new { id = row.Id })">
+                                        <i class="ti ti-eye"></i> @AdminFundsResources.Action_Details
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

@@ -326,6 +326,9 @@ GO
 -- =============================================================================
 
 :r .\01_SeedProvincesCantons.sql
+-- Spec 029 — seed Fund MUST precede the Process seed (Processes.FundId is a
+-- required FK satisfied by "Fondo General").
+:r .\00_SeedFunds.sql
 :r .\02_SeedMigracionInicialProcess.sql
 :r .\03_SeedSupplierAdminRole.sql
 
@@ -333,6 +336,12 @@ GO
 -- 01_SeedProvincesCantons.sql so the cantón Codes its CantonId lookup resolves
 -- against already exist. ~488 rows, idempotent MERGE.
 :r .\04_SeedDistricts.sql
+
+-- Spec 029 — finalize the Fund anchors (backfill placeholder FundId/GroupId on
+-- pre-existing rows, then add FK_Processes_Funds + FK_Applications_Groups). MUST
+-- run LAST: after Funds (00), the Migración inicial Process (02), and the
+-- Norte/Sur/Centro Groups (inline MERGE above) all exist.
+:r .\05_Fund029Anchors.sql
 
 -- =============================================================================
 -- Spec 021 / data-model.md — SystemConfiguration rows for stage windows and the
