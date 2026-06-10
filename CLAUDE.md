@@ -155,5 +155,7 @@ Per-spec architectural seams (interfaces, aggregates, tables) are summarized in 
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-No active plan. Last shipped: **029-fund-entity** (see Recent Changes above) — implemented end-to-end, all 61 tasks, 21/21 FR compliance, full E2E green; merged to main via PR #56.
+Active plan: **030-edit-process-name** (`specs/030-edit-process-name/plan.md`) — inline admin rename of a Process `Name` on the Details page (the one immutable Process detail). Reuses the spec-029 Fund-reassignment seam: `RenameProcessCommand` → `IProcessService.RenameAsync` → existing domain `Process.Rename()`; `[HttpPost("{id:int}/Rename")]` mirrors `ChangeFund`; inline Name card on `Details.cshtml`; new `AdminAuditEvent.ProcessRenamed` (`process.renamed`). Rename allowed at any status (incl. Closed) — intentional. No schema change, no new deps. Next: `/speckit-tasks`.
+
+Last shipped: **029-fund-entity** (see Recent Changes above) — merged to main via PR #56.
 <!-- SPECKIT END -->
