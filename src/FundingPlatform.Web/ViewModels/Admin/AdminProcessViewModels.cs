@@ -46,4 +46,7 @@ public sealed class AdminProcessDetailsViewModel
     public ProcessDetail Detail { get; init; } = null!;
     public IReadOnlyList<PlantillaListRow> AssignableBasePlantillas { get; init; } = Array.Empty<PlantillaListRow>();
     public IReadOnlyList<string> CloseBlockingPublicCodes { get; init; } = Array.Empty<string>();
+
+    /// <summary>Spec 029 / FR-009 — Active Funds available as reassignment targets.</summary>
+    public IReadOnlyList<SelectListItem> FundOptions { get; init; } = Array.Empty<SelectListItem>();
 }

@@ -37,6 +37,14 @@
             <option value="@ProcessStatus.Active" selected="@(Model.StatusFilter == ProcessStatus.Active)">@StatusLabel(ProcessStatus.Active)</option>
             <option value="@ProcessStatus.Closed" selected="@(Model.StatusFilter == ProcessStatus.Closed)">@StatusLabel(ProcessStatus.Closed)</option>
         </select>
+        @* Spec 029 / FR-011 — filter the Process list by Fund. *@
+        <select name="fundId" class="form-select" data-testid="admin-processes-fund-filter" style="max-width: 220px;">
+            <option value="">Todos los fondos</option>
+            @foreach (var f in Model.FundOptions)
+            {
+                <option value="@f.Value" selected="@(Model.FundFilter?.ToString() == f.Value)">@f.Text</option>
+            }
+        </select>
         <button type="submit" class="btn btn-secondary" data-testid="admin-processes-filter-submit">Aplicar</button>
     </form>
 
@@ -64,6 +72,7 @@
                     <thead>
                         <tr>
                             <th>Nombre</th>
+                            <th>Fondo</th>
                             <th>Estado</th>
                             <th>Plantilla asignada</th>
                             <th class="w-1">Grupos</th>
@@ -76,6 +85,9 @@
                         {
                             <tr data-testid="admin-process-row-@row.Id">
                                 <td data-testid="admin-process-name">@row.Name</td>
+                                <td data-testid="admin-process-fund">
+                                    <a href="@Url.Action("Details", "AdminFunds", new { id = row.FundId })">@row.FundName</a>
+                                </td>
                                 <td>
                                     <span class="badge bg-@(row.Status == ProcessStatus.Active ? "green-lt" : "secondary")"
                                           data-testid="admin-process-status">@StatusLabel(row.Status)</span>

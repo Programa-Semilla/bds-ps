@@ -142,7 +142,7 @@ public class AdminGroupsController : Controller
 
     private async Task<IReadOnlyList<AdminGroupProcessOption>> LoadProcessOptionsAsync(CancellationToken ct)
     {
-        var processes = await _processQuery.ListAsync(statusFilter: null, ct);
+        var processes = await _processQuery.ListAsync(statusFilter: null, fundFilter: null, ct);
         return processes
             .OrderBy(p => p.Name, StringComparer.CurrentCulture)
             .Select(p => new AdminGroupProcessOption(p.Id, p.Name))

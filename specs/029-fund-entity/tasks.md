@@ -100,10 +100,10 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Independent Test**: Create Process blocked without Fund; selector lists only Active Funds; reassign to another Active Fund; list column + filter work.
 
-- [ ] T038 [US2] In `src/FundingPlatform.Web/Controllers/Admin/AdminProcessesController.cs` + `AdminProcessCreateViewModel`: add required `FundId` (Active-only dropdown), validate (reject missing/Archived with es-CR), and support reassign on edit; add `?fundId=` filter to Index.
-- [ ] T039 [US2] Update `src/FundingPlatform.Web/Views/Admin/Processes/Create.cshtml` with the required Fund selector.
-- [ ] T040 [US2] Update `src/FundingPlatform.Web/Views/Admin/Processes/Index.cshtml` with a Fund column + Fund filter dropdown (alongside the existing ProcessStatus filter).
-- [ ] T041 [US2] Wire `Process.Create(fundId)` / `SetFund` through the Process create/edit service path (`ProcessService`).
+- [x] T038 [US2] In `src/FundingPlatform.Web/Controllers/Admin/AdminProcessesController.cs` + `AdminProcessCreateViewModel`: add required `FundId` (Active-only dropdown), validate (reject missing/Archived with es-CR), and support reassign on edit; add `?fundId=` filter to Index.
+- [x] T039 [US2] Update `src/FundingPlatform.Web/Views/Admin/Processes/Create.cshtml` with the required Fund selector.
+- [x] T040 [US2] Update `src/FundingPlatform.Web/Views/Admin/Processes/Index.cshtml` with a Fund column + Fund filter dropdown (alongside the existing ProcessStatus filter).
+- [x] T041 [US2] Wire `Process.Create(fundId)` / `SetFund` through the Process create/edit service path (`ProcessService`).
 - [ ] T042 [US2] E2E `ProcessRequiresFundTests`: create blocked without Fund; Active-only selector; reassign; list filter/column.
 
 **Checkpoint**: every Process belongs to a Fund; admin can pivot the Process list by Fund.

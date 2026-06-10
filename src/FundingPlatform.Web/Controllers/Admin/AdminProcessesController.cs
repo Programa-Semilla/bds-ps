@@ -64,14 +64,48 @@ public class AdminProcessesController : Controller
     }
 
     [HttpGet("")]
-    public async Task<IActionResult> Index(ProcessStatus? statusFilter, CancellationToken ct)
+    public async Task<IActionResult> Index(ProcessStatus? statusFilter, int? fundId, CancellationToken ct)
     {
-        var rows = await _processQuery.ListAsync(statusFilter, ct);
+        var rows = await _processQuery.ListAsync(statusFilter, fundId, ct);
+        // Spec 029 / FR-011 — Fund filter lists every Fund (incl. Archived) so an
+        // admin can still find Processes under an archived Fund.
+        var fundOptions = await _db.Funds
+            .OrderBy(f => f.Name)
+            .Select(f => new SelectListItem(f.Name, f.Id.ToString()))
+            .ToListAsync(ct);
+
         return View(new AdminProcessesIndexViewModel
         {
             Rows = rows,
             StatusFilter = statusFilter,
+            FundFilter = fundId,
+            FundOptions = fundOptions,
         });
+    }
+
+    [HttpPost("{id:int}/ChangeFund")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangeFund(int id, int fundId, CancellationToken ct)
+    {
+        var actorId = _userManager.GetUserId(User) ?? string.Empty;
+        try
+        {
+            await _processes.ReassignFundAsync(new ReassignProcessFundCommand(id, fundId), actorId, ct);
+            TempData["SuccessMessage"] = "Fondo del proceso actualizado.";
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+        catch (Domain.Exceptions.ProcessClosedException)
+        {
+            TempData["ErrorMessage"] = "El proceso está cerrado; no se puede cambiar el fondo.";
+        }
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     [HttpGet("Create")]
@@ -141,12 +175,19 @@ public class AdminProcessesController : Controller
                 .ToList()
             : Array.Empty<PlantillaListRow>();
 
+        var fundOptions = await _db.Funds
+            .Where(f => f.Status == FundStatus.Active)
+            .OrderBy(f => f.Name)
+            .Select(f => new SelectListItem(f.Name, f.Id.ToString()))
+            .ToListAsync(ct);
+
         return View(new AdminProcessDetailsViewModel
         {
             Detail = detail,
             AssignableBasePlantillas = assignable,
             CloseBlockingPublicCodes = TempData["CloseBlockingPublicCodes"] as string[]
                 ?? Array.Empty<string>(),
+            FundOptions = fundOptions,
         });
     }
 

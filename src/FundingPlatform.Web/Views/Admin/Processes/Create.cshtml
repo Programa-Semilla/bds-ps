@@ -28,6 +28,15 @@
             <small class="form-hint">Texto libre (p. ej. <em>Crocus 2025</em>, <em>Nexo 2026</em>).</small>
         </div>
 
+        @* Spec 029 / FR-002 — required Fund (only Active Funds are selectable). *@
+        <div class="col-md-6 mb-3">
+            <label class="form-label" asp-for="FundId">Fondo @await Html.PartialAsync("_RequiredMark")</label>
+            <select asp-for="FundId" asp-items="Model.FundOptions" class="form-select" data-testid="admin-process-fund-select">
+                <option value="">— Seleccione un fondo —</option>
+            </select>
+            <span asp-validation-for="FundId" class="text-danger" data-testid="admin-process-fund-error"></span>
+        </div>
+
         <div class="d-flex justify-content-end gap-2 mt-2">
             <a class="btn btn-secondary" href="@Url.Action("Index", "AdminProcesses")">Cancelar</a>
             <button type="submit" class="btn btn-primary" data-testid="admin-process-create-submit">

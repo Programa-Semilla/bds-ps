@@ -20,6 +20,10 @@ public interface IProcessService
     /// attached via Groups. Writes audit event <c>ProcessClosed</c>.</summary>
     Task CloseAsync(CloseProcessCommand command, string actorUserId, CancellationToken ct);
 
+    /// <summary>Spec 029 / FR-009 — reassigns the Process to another Active Fund.
+    /// Rejects a missing/Archived target Fund and a Closed Process.</summary>
+    Task ReassignFundAsync(ReassignProcessFundCommand command, string actorUserId, CancellationToken ct);
+
     /// <summary>FR-006 / OQ-3 — sets or clears a per-Process stage-window override.
     /// Writes audit event <c>ProcessStageWindowOverridden</c>.</summary>
     Task OverrideStageWindowAsync(OverrideStageWindowCommand command, string actorUserId, CancellationToken ct);
@@ -41,6 +45,9 @@ public sealed record CreateProcessCommand(string Name, int FundId);
 
 /// <summary>Spec 021 / T077 — record carrying the Close payload.</summary>
 public sealed record CloseProcessCommand(int ProcessId);
+
+/// <summary>Spec 029 / FR-009 — record carrying the Fund-reassignment payload.</summary>
+public sealed record ReassignProcessFundCommand(int ProcessId, int FundId);
 
 /// <summary>Spec 021 / T077 — record carrying the stage-window override payload.
 /// <paramref name="Days"/> null = revert to platform default.</summary>

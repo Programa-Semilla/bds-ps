@@ -95,6 +95,33 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task ReassignFundAsync(
+        ReassignProcessFundCommand command, string actorUserId, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
+
+        var process = await _db.Processes.FirstOrDefaultAsync(p => p.Id == command.ProcessId, ct)
+            ?? throw new KeyNotFoundException($"Process {command.ProcessId} not found.");
+
+        // Spec 029 / FR-009 — only Active Funds are valid reassignment targets.
+        var fund = await _db.Funds.FirstOrDefaultAsync(f => f.Id == command.FundId, ct)
+            ?? throw new KeyNotFoundException($"Fund {command.FundId} not found.");
+        if (fund.Status != FundStatus.Active)
+        {
+            throw new InvalidOperationException("Debe seleccionar un fondo activo.");
+        }
+
+        process.SetFund(command.FundId); // guarded against Closed (ProcessClosedException)
+
+        await _audit.WriteAsync(
+            AdminAuditEvent.ActionProcessFundReassigned,
+            actorUserId,
+            JsonSerializer.Serialize(new { processId = process.Id, fundId = command.FundId }),
+            ct);
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task OverrideStageWindowAsync(
         OverrideStageWindowCommand command, string actorUserId, CancellationToken ct)
     {
@@ -198,12 +225,17 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
     // -------------------- Queries ------------------------------------------
 
     public async Task<IReadOnlyList<ProcessListRow>> ListAsync(
-        ProcessStatus? statusFilter, CancellationToken ct)
+        ProcessStatus? statusFilter, int? fundFilter, CancellationToken ct)
     {
         var query = _db.Processes.AsNoTracking();
         if (statusFilter is { } status)
         {
             query = query.Where(p => p.Status == status);
+        }
+        // Spec 029 / FR-011 — optional Fund filter.
+        if (fundFilter is { } fundId)
+        {
+            query = query.Where(p => p.FundId == fundId);
         }
 
         // Join the snapshot to expose its source Plantilla name when present.
@@ -217,6 +249,8 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
                 p.Status,
                 p.CreatedAt,
                 p.ClosedAt,
+                p.FundId,
+                FundName = p.Fund!.Name,
                 GroupCount = _db.Groups.AsNoTracking().Count(g => g.ProcessId == p.Id),
                 PlantillaName = (
                     from pp in _db.ProcessPlantillas.AsNoTracking()
@@ -227,13 +261,15 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
             .ToListAsync(ct);
 
         return rows.Select(r => new ProcessListRow(
-            r.Id, r.Name, r.Status, r.CreatedAt, r.ClosedAt, r.GroupCount, r.PlantillaName)).ToList();
+            r.Id, r.Name, r.Status, r.CreatedAt, r.ClosedAt, r.GroupCount, r.PlantillaName,
+            r.FundId, r.FundName)).ToList();
     }
 
     public async Task<ProcessDetail?> GetDetailAsync(int processId, CancellationToken ct)
     {
         var process = await _db.Processes
             .AsNoTracking()
+            .Include(p => p.Fund)
             .FirstOrDefaultAsync(p => p.Id == processId, ct);
         if (process is null) return null;
 
@@ -294,7 +330,9 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
             process.RevisionWindowDays,
             process.FacturacionWindowDays,
             snapshotDto,
-            groups);
+            groups,
+            process.FundId,
+            process.Fund?.Name ?? string.Empty);
     }
 
     private static List<int> ParseCsv(string csv)

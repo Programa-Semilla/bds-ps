@@ -55,6 +55,9 @@ public class AdminAuditEvent
     /// <summary>Spec 029 — target-type discriminator for Fund mutations.</summary>
     public const string TargetTypeFund = "fund";
 
+    /// <summary>Spec 029 / FR-009 — admin reassigned a Process to a different Fund.</summary>
+    public const string ActionProcessFundReassigned = "process.fund_reassigned";
+
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string ActorUserId { get; private set; } = string.Empty;

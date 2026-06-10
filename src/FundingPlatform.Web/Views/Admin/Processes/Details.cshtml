@@ -44,6 +44,37 @@
     }
 
     <div class="row g-3">
+        @* Spec 029 / FR-002 / FR-009 — Fund the Process belongs to + reassignment. *@
+        <div class="col-12">
+            <div class="card" data-testid="admin-process-fund-card">
+                <div class="card-header"><h3 class="card-title">Fondo</h3></div>
+                <div class="card-body d-flex flex-wrap align-items-center gap-3">
+                    <div>
+                        <div class="text-secondary small">Fondo actual</div>
+                        <a data-testid="admin-process-fund-current"
+                           href="@Url.Action("Details", "AdminFunds", new { id = detail.FundId })">@detail.FundName</a>
+                    </div>
+                    @if (detail.Status != ProcessStatus.Closed)
+                    {
+                        <form method="post" asp-action="ChangeFund" asp-route-id="@detail.Id"
+                              class="d-flex gap-2 align-items-end ms-auto" data-testid="admin-process-fund-reassign-form">
+                            @Html.AntiForgeryToken()
+                            <div>
+                                <label class="form-label small mb-1">Reasignar a (fondos activos)</label>
+                                <select name="fundId" class="form-select" data-testid="admin-process-fund-reassign-select" style="min-width: 220px;">
+                                    @foreach (var f in Model.FundOptions)
+                                    {
+                                        <option value="@f.Value" selected="@(f.Value == detail.FundId.ToString())">@f.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary" data-testid="admin-process-fund-reassign-submit">Reasignar</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+
         @* Plantilla snapshot panel. *@
         <div class="col-md-6">
             <div class="card" data-testid="admin-process-plantilla-card">

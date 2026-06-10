@@ -156,7 +156,7 @@ public class AdminSuppliersController : Controller
 
         var (items, total) = await _supplierRepository.ListForSupplierAdminAsync(filter, page, pageSize);
 
-        var processOptions = await _processQuery.ListAsync(null, ct);
+        var processOptions = await _processQuery.ListAsync(null, null, ct);
 
         var vm = new AdminSupplierListViewModel
         {
