@@ -259,6 +259,12 @@ public class ApplicationController : Controller
             return NotFound();
         }
 
+        if (await IsApplicationFrozenAsync(id))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         if (!model.SelectedTemplateId.HasValue)
         {
             ModelState.AddModelError(nameof(model.SelectedTemplateId), "Seleccione una plantilla de impacto.");
@@ -339,6 +345,12 @@ public class ApplicationController : Controller
             return NotFound();
         }
 
+        if (await IsApplicationFrozenAsync(id))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         if (string.IsNullOrWhiteSpace(productName)
             || categoryId == 0
             || string.IsNullOrWhiteSpace(technicalSpecifications))
@@ -367,6 +379,12 @@ public class ApplicationController : Controller
         if (application is null || application.ApplicantId != applicantId)
         {
             return NotFound();
+        }
+
+        if (await IsApplicationFrozenAsync(id))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         await _applicationService.RemoveItemAsync(new RemoveItemCommand(itemId, id));
@@ -410,6 +428,12 @@ public class ApplicationController : Controller
             return NotFound();
         }
 
+        if (await IsApplicationFrozenAsync(id))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         try
         {
             // Spec 021 / T091 — route through the stage-aware submit handler so
@@ -446,6 +470,12 @@ public class ApplicationController : Controller
         if (string.IsNullOrEmpty(userId))
         {
             return Forbid();
+        }
+
+        if (await IsApplicationFrozenAsync(id))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction(nameof(Index));
         }
 
         var result = await _applicationService.RemoveByApplicantAsync(
@@ -508,6 +538,23 @@ public class ApplicationController : Controller
             return BadRequest();
         }
         var applicantId = await GetCurrentApplicantIdAsync();
+
+        // Spec 029 / FR-021 — reject autosaves to an archived-Fund application.
+        FundingPlatform.Domain.ValueObjects.PublicCode? canonical = null;
+        try { canonical = new FundingPlatform.Domain.ValueObjects.PublicCode(publicCode); }
+        catch { /* malformed code → let the handler resolve/404 below */ }
+        if (canonical is not null && await _dbContext.Applications.AnyAsync(a =>
+                a.PublicCode == canonical
+                && a.Group!.Process!.Fund!.Status == FundingPlatform.Domain.Enums.FundStatus.Archived))
+        {
+            return UnprocessableEntity(new ProblemDetails
+            {
+                Title = "Fondo archivado",
+                Detail = FrozenToast,
+                Status = StatusCodes.Status422UnprocessableEntity,
+            });
+        }
+
         try
         {
             var result = await _autosaveHandler.HandleAsync(
@@ -634,6 +681,19 @@ public class ApplicationController : Controller
             ViewData["RegulationFundId"] = null;
         }
     }
+
+    /// <summary>Spec 029 / FR-021 — es-CR message when a frozen application is mutated.</summary>
+    private const string FrozenToast =
+        "El fondo que rige esta postulación está archivado. No se permiten cambios.";
+
+    /// <summary>
+    /// Spec 029 / FR-021 — controller-boundary freeze guard: true when the
+    /// application's anchored Fund is Archived. Primary enforcement for mutation
+    /// (the domain guard is defense-in-depth). Applicants are never admins here.
+    /// </summary>
+    private Task<bool> IsApplicationFrozenAsync(int applicationId)
+        => _dbContext.Applications.AnyAsync(a => a.Id == applicationId
+            && a.Group!.Process!.Fund!.Status == FundingPlatform.Domain.Enums.FundStatus.Archived);
 
     /// <summary>Spec 029 / FR-018 — one eligible Group for the create-flow anchor.</summary>
     private sealed record EligibleGroup(int GroupId, string ProcessName, string GroupName);

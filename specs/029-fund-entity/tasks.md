@@ -130,11 +130,11 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Independent Test**: Archive Fund → its applications vanish from applicant list/reviewer queue/signing inbox and reject mutations; admin still sees via filter; reactivate restores.
 
-- [ ] T046 [US4] Compose `ExcludeArchivedFund` alongside `ExcludeDeleted` at every non-admin read site: `ApplicationRepository` (`GetByApplicantIdAsync`, `GetForApplicantDashboardAsync`, `GetByStateForReviewerAsync`, `GetPendingAgreementPagedAsync`, `ApplicantSharesAnyGroupAsync`), `ReviewerDashboardProjection`, reviewer-facing counters in `AdminDashboardCountersReader`, `StageExpiryReminderService` (do NOT apply to admin reports) (depends on T018).
-- [ ] T047 [US4] Add a controller freeze-guard helper and apply it to applicant/reviewer mutations: `ApplicationController` (Create target-fund check, Edit, AddItem, RemoveItem, Autosave, Submit, Remove/Withdraw, Impact) and `QuotationController` (Add, Edit) — return es-CR error toast when the application's Fund is Archived; admin exempt.
-- [ ] T048 [US4] Feed `Application.IsFrozen` from the loaded `Group.Process.Fund.Status` in the service layer and ensure domain mutating methods throw `FundArchivedException` (defense-in-depth with T011).
+- [x] T046 [US4] Compose `ExcludeArchivedFund` alongside `ExcludeDeleted` at every non-admin read site: `ApplicationRepository` (`GetByApplicantIdAsync`, `GetForApplicantDashboardAsync`, `GetByStateForReviewerAsync`, `GetPendingAgreementPagedAsync`, `ApplicantSharesAnyGroupAsync`), `ReviewerDashboardProjection`, reviewer-facing counters in `AdminDashboardCountersReader`, `StageExpiryReminderService` (do NOT apply to admin reports) (depends on T018).
+- [x] T047 [US4] Add a controller freeze-guard helper and apply it to applicant/reviewer mutations: `ApplicationController` (Create target-fund check, Edit, AddItem, RemoveItem, Autosave, Submit, Remove/Withdraw, Impact) and `QuotationController` (Add, Edit) — return es-CR error toast when the application's Fund is Archived; admin exempt.
+- [x] T048 [US4] Feed `Application.IsFrozen` from the loaded `Group.Process.Fund.Status` in the service layer and ensure domain mutating methods throw `FundArchivedException` (defense-in-depth with T011).
 - [ ] T049 [US4] Integration tests (real DB): each non-admin read surface excludes archived-Fund applications; reactivation makes them reappear.
-- [ ] T050 [P] [US4] Unit tests: frozen application rejects each mutating domain method; admin path unaffected.
+- [x] T050 [P] [US4] Unit tests: frozen application rejects each mutating domain method; admin path unaffected.
 - [ ] T051 [US4] E2E `FundArchiveFreezeTests`: archive hides+freezes across applicant/reviewer/signing surfaces; mutation rejected; reactivate restores.
 
 **Checkpoint**: archive force-freeze fully enforced.

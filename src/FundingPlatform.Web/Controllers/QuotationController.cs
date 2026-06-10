@@ -206,6 +206,12 @@ public class QuotationController : Controller
     {
         await VerifyOwnershipAsync(appId);
 
+        if (await IsApplicationFrozenAsync(appId))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction("Edit", "Application", new { id = appId });
+        }
+
         // Anchor the route params back onto the VM so re-renders carry them through.
         vm.ApplicationId = appId;
         vm.ItemId = itemId;
@@ -308,6 +314,12 @@ public class QuotationController : Controller
     {
         await VerifyOwnershipAsync(appId);
 
+        if (await IsApplicationFrozenAsync(appId))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction("Edit", "Application", new { id = appId });
+        }
+
         if (quotationFile is null || quotationFile.Length == 0)
         {
             TempData["ErrorMessage"] = QuotationFileRequiredMessage;
@@ -343,6 +355,12 @@ public class QuotationController : Controller
     public async Task<IActionResult> Delete(int appId, int itemId, int quotationId)
     {
         await VerifyOwnershipAsync(appId);
+
+        if (await IsApplicationFrozenAsync(appId))
+        {
+            TempData["ErrorMessage"] = FrozenToast;
+            return RedirectToAction("Edit", "Application", new { id = appId });
+        }
 
         await _applicationService.RemoveQuotationAsync(appId, itemId, quotationId);
 
@@ -444,4 +462,13 @@ public class QuotationController : Controller
             throw new UnauthorizedAccessException("You do not own this application.");
         }
     }
+
+    /// <summary>Spec 029 / FR-021 — es-CR message when a frozen application is mutated.</summary>
+    private const string FrozenToast =
+        "El fondo que rige esta postulación está archivado. No se permiten cambios.";
+
+    /// <summary>Spec 029 / FR-021 — true when the application's anchored Fund is Archived.</summary>
+    private Task<bool> IsApplicationFrozenAsync(int appId)
+        => _dbContext.Applications.AnyAsync(a => a.Id == appId
+            && a.Group!.Process!.Fund!.Status == FundingPlatform.Domain.Enums.FundStatus.Archived);
 }

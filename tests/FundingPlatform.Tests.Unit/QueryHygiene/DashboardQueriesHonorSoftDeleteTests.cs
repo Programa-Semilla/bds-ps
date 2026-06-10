@@ -97,6 +97,14 @@ public class DashboardQueriesHonorSoftDeleteTests
             ["src/FundingPlatform.Web/Controllers/ApplicationController.cs"] =
                 "T152 — single-row by-Id / by-PublicCode reads; not dashboard lists.",
 
+            // QuotationController (spec 029 / FR-021) — the only `.Applications.`
+            // match is the archived-Fund freeze guard (IsApplicationFrozenAsync),
+            // a single-row existence predicate on the owning application. Not a
+            // dashboard list; a soft-deleted application is unreachable here
+            // because VerifyOwnershipAsync already gates on ownership upstream.
+            ["src/FundingPlatform.Web/Controllers/QuotationController.cs"] =
+                "Spec 029 / FR-021 — single-row freeze guard, not a dashboard surface.",
+
             // Review controller — single-row banner-builder lookup
             // (BuildStageBannersAsync). The reviewer queue / signing inbox
             // lists themselves are sourced from projection helpers that DO

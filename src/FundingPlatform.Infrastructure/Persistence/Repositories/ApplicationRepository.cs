@@ -105,7 +105,9 @@ public class ApplicationRepository : IApplicationRepository
     {
         // Spec 021 / FR-021 / T152 — applicant dashboard list source for
         // Application/Index. Soft-deleted rows MUST NOT surface (SC-011).
-        var source = _queryFilter.ExcludeDeleted(_context.Applications);
+        // Spec 029 / FR-020 — archived-Fund applications are also hidden.
+        var source = _queryFilter.ExcludeArchivedFund(
+            _queryFilter.ExcludeDeleted(_context.Applications));
         return await source
             .Include(a => a.Items)
             .Where(a => a.ApplicantId == applicantId)
@@ -119,7 +121,9 @@ public class ApplicationRepository : IApplicationRepository
         // (ApplicantDashboardProjection) source. Drives the Solicitudes activas
         // counter + the "borrador listo para enviar" awaiting-action prompt
         // (FR-021 / SC-011 — the meeting-PDF defect path).
-        var source = _queryFilter.ExcludeDeleted(_context.Applications);
+        // Spec 029 / FR-020 — archived-Fund applications are also hidden.
+        var source = _queryFilter.ExcludeArchivedFund(
+            _queryFilter.ExcludeDeleted(_context.Applications));
         return await source
             .Include(a => a.Items)
             .Include(a => a.VersionHistory)
@@ -168,7 +172,9 @@ public class ApplicationRepository : IApplicationRepository
     {
         // Spec 021 / FR-021 / T152 — reviewer queue source. Soft-deleted rows
         // must never appear on the reviewer's worklist (SC-011).
-        IQueryable<AppEntity> query = _queryFilter.ExcludeDeleted(_context.Applications)
+        // Spec 029 / FR-020 — archived-Fund applications drop off the reviewer queue.
+        IQueryable<AppEntity> query = _queryFilter.ExcludeArchivedFund(
+                _queryFilter.ExcludeDeleted(_context.Applications))
             .Include(a => a.Applicant)
             .Include(a => a.Items)
             .Where(a => a.State == state);
@@ -222,7 +228,10 @@ public class ApplicationRepository : IApplicationRepository
         // Spec 021 / FR-021 / T152 — reviewer detail-page authorization mirrors
         // the listing predicate; a soft-deleted Application is not "shared" with
         // any reviewer because it is no longer reachable via the queue.
-        var apps = _queryFilter.ExcludeDeleted(_context.Applications.AsNoTracking());
+        // Spec 029 / FR-020 — an archived-Fund application is not "shared" with
+        // any reviewer (it has left the queue).
+        var apps = _queryFilter.ExcludeArchivedFund(
+            _queryFilter.ExcludeDeleted(_context.Applications.AsNoTracking()));
         return await (
             from a in apps
             where a.Id == applicationId
@@ -239,7 +248,9 @@ public class ApplicationRepository : IApplicationRepository
         // Spec 021 / FR-021 / T152 / T153 — Generate Agreement queue is a
         // reviewer dashboard surface (Review/GenerateAgreement). Soft-deleted
         // rows must never reach it.
-        var query = _queryFilter.ExcludeDeleted(_context.Applications.AsNoTracking())
+        // Spec 029 / FR-020 — archived-Fund applications drop off the signing inbox.
+        var query = _queryFilter.ExcludeArchivedFund(
+                _queryFilter.ExcludeDeleted(_context.Applications.AsNoTracking()))
             .Include(a => a.Applicant)
             .Include(a => a.ApplicantResponses)
             .Where(a => a.State == Domain.Enums.ApplicationState.ResponseFinalized
