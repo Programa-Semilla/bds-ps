@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-05-27
+Last updated: 2026-06-09
 
 ## Sessions
 
@@ -31,8 +31,15 @@ Last updated: 2026-05-27
 | 23 | 2026-05-22 | toast-confirm-dialogs | spec-created | 024 |
 | 24 | 2026-05-24 | input-masks | spec-created | 026 |
 | 25 | 2026-05-26 | review-funding-ux | spec-created | 027 |
+| 26 | 2026-06-09 | fund-entity | spec-created | 029 |
 
 ## Open Threads
+
+- Exact set of create/edit/submit/review actions disabled when a Fund is archived — deferred to plan; scoped to the Process state model (from #26)
+- "Participant under a Fund" semantics — Group holds reviewers (spec 016), not applicants; a future Fund→participant report must define which population it counts (from #26)
+- Whether Processes-per-Fund reporting is sufficient for v1, or stakeholders expect the seed's Fund→Groups/Participants drill-down (from #26)
+- Process Fund selector ordering (by name?) and how archived-Fund Processes render in admin views — read-only badge vs hidden toggle (from #26)
+- New `fund-regulations` spec-014 FileCategory size cap value — pin during planning (from #26)
 
 - Per-applicant vs per-application scope for the reviewer-assigned code — spec 027 assumes per-applicant (reuses `CodigoPersonal`); confirm at planning (from #25)
 - Final placement of sidebar items absent from the stakeholder example (Usuarios, Configuración, Plantillas de impacto, Cotizaciones pendientes) — confirm in plan (from #25)
