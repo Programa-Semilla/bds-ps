@@ -203,8 +203,11 @@ public class AdminProcessesController : Controller
 
     [HttpPost("{id:int}/Rename")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Rename(int id, string newName, CancellationToken ct)
+    public async Task<IActionResult> Rename(int id, string? newName, CancellationToken ct)
     {
+        // Nullable param: avoid the implicit [Required] on a non-nullable string,
+        // whose English message ("The newName field is required.") would override
+        // the es-CR validation below (FR-008).
         // Spec 030 / FR-004 / FR-008 — validate required/≤120 with es-CR copy
         // (mirrors the Create ViewModel messages) so the inline message is
         // Spanish; the domain Rename() remains the backstop.

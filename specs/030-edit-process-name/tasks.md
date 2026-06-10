@@ -76,9 +76,9 @@ inline; Closed Process renames too.
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 - [X] T011 Run `dotnet test tests/FundingPlatform.Tests.Unit` and `dotnet test tests/FundingPlatform.Tests.Integration`; fix until green
-- [ ] T012 Run the **full** `dotnet test tests/FundingPlatform.Tests.E2E` suite and confirm green (delivery bar per CLAUDE.md — partial runs do not count)
-- [ ] T013 [P] Walk `specs/030-edit-process-name/quickstart.md` manual steps against a running AppHost (rename Active, rename Closed, duplicate, empty, no-op, audit-log entry)
-- [ ] T014 [P] Update CLAUDE.md "Recent Changes" with a `030-edit-process-name` entry and flip the `<!-- SPECKIT -->` marker to "last shipped" (do at ship time, after E2E green)
+- [X] T012 Run the **full** `dotnet test tests/FundingPlatform.Tests.E2E` suite and confirm green (delivery bar per CLAUDE.md — partial runs do not count)
+- [X] T013 [P] Walk `specs/030-edit-process-name/quickstart.md` manual steps against a running AppHost (rename Active, rename Closed, duplicate, empty, no-op, audit-log entry)
+- [X] T014 [P] Update CLAUDE.md "Recent Changes" with a `030-edit-process-name` entry and flip the `<!-- SPECKIT -->` marker to "last shipped" (do at ship time, after E2E green)
 
 ---
 
