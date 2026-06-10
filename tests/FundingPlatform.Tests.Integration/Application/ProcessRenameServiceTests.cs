@@ -14,10 +14,12 @@ namespace FundingPlatform.Tests.Integration.Application;
 /// <c>FundServiceTests</c> InMemory pattern).
 ///
 /// NOTE: the duplicate-name path (FR-005) surfaces as a <c>DbUpdateException</c>
-/// from the <c>UX_Processes_Name</c> unique index. The EF InMemory provider does
-/// NOT enforce unique indexes, so that path is exercised end-to-end against the
-/// real dacpac-deployed SQL Server in the E2E suite (<c>RenameProcessTests</c>),
-/// not here.
+/// from the <c>UX_Processes_Name</c> unique index, and the concurrent-collision
+/// edge case (spec Edge Cases) relies on that same index plus the
+/// <c>RowVersion</c> token. The EF InMemory provider enforces neither, so the
+/// (sequential) duplicate path is exercised end-to-end against the real
+/// dacpac-deployed SQL Server in the E2E suite (<c>RenameProcessTests</c>); a
+/// deterministic concurrent-collision test is not reproducible here.
 /// </summary>
 [TestFixture]
 public class ProcessRenameServiceTests
@@ -125,5 +127,62 @@ public class ProcessRenameServiceTests
         Assert.ThrowsAsync<KeyNotFoundException>(() =>
             NewService(ctx).RenameAsync(
                 new RenameProcessCommand(999_999, "Nuevo"), Actor, CancellationToken.None));
+    }
+
+    [Test]
+    public async Task Rename_OverLength_Throws_PersistsNothing()
+    {
+        var db = $"proc-rename-overlen-{Guid.NewGuid():N}";
+        int id;
+        using (var ctx = CreateContext(db))
+            id = await SeedProcessAsync(ctx, "Crocus 2025");
+
+        var overLength = new string('x', Process.MaxNameLength + 1); // 121
+
+        using (var ctx = CreateContext(db))
+            Assert.ThrowsAsync<ArgumentException>(() =>
+                NewService(ctx).RenameAsync(
+                    new RenameProcessCommand(id, overLength), Actor, CancellationToken.None));
+
+        using (var ctx = CreateContext(db))
+        {
+            Assert.That((await ctx.Processes.FirstAsync(p => p.Id == id)).Name, Is.EqualTo("Crocus 2025"),
+                "Over-length rename must not change the stored name (FR-004 / SC-003).");
+            Assert.That(
+                await ctx.AdminAuditEvents.AnyAsync(a => a.Action == AdminAuditEvent.ProcessRenamed),
+                Is.False, "A rejected rename must write no audit row.");
+        }
+    }
+
+    [Test]
+    public async Task Rename_ClosedProcess_PersistsName_AndWritesAuditRow()
+    {
+        // Spec 030 / FR-002 / FR-003 / SC-004 — rename (and its audit) succeed on a
+        // Closed Process exactly as on an Active one (no status guard).
+        var db = $"proc-rename-closed-{Guid.NewGuid():N}";
+        int id;
+        using (var ctx = CreateContext(db))
+        {
+            var process = Process.Create("Nexo 2025", 1);
+            process.Close();
+            ctx.Processes.Add(process);
+            await ctx.SaveChangesAsync();
+            id = process.Id;
+        }
+
+        using (var ctx = CreateContext(db))
+            await NewService(ctx).RenameAsync(
+                new RenameProcessCommand(id, "Nexo 2025-II"), Actor, CancellationToken.None);
+
+        using (var ctx = CreateContext(db))
+        {
+            var loaded = await ctx.Processes.FirstAsync(p => p.Id == id);
+            Assert.That(loaded.Name, Is.EqualTo("Nexo 2025-II"));
+            Assert.That(loaded.Status, Is.EqualTo(FundingPlatform.Domain.Enums.ProcessStatus.Closed),
+                "Rename must not change the Closed status.");
+            Assert.That(
+                await ctx.AdminAuditEvents.CountAsync(a => a.Action == AdminAuditEvent.ProcessRenamed),
+                Is.EqualTo(1), "A Closed-Process rename still writes exactly one audit row (FR-003).");
+        }
     }
 }

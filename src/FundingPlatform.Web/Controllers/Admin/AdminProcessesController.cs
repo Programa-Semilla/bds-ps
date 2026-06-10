@@ -218,7 +218,8 @@ public class AdminProcessesController : Controller
         }
         else if (trimmed.Length > Process.MaxNameLength)
         {
-            ModelState.AddModelError(nameof(newName), "El nombre debe tener 120 caracteres o menos.");
+            ModelState.AddModelError(
+                nameof(newName), $"El nombre debe tener {Process.MaxNameLength} caracteres o menos.");
         }
 
         if (ModelState.IsValid)
@@ -240,6 +241,14 @@ public class AdminProcessesController : Controller
                 // Defensive backstop (es-CR) — pre-validation already covers the
                 // required/≤120 cases the domain rejects.
                 ModelState.AddModelError(nameof(newName), "El nombre es obligatorio.");
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Another admin modified this Process concurrently (RowVersion).
+                // Caught BEFORE DbUpdateException (its base type) so the collision
+                // is not mislabeled as a duplicate-name error.
+                ModelState.AddModelError(
+                    nameof(newName), "El proceso fue modificado por otra persona; vuelva a intentarlo.");
             }
             catch (DbUpdateException)
             {
