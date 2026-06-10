@@ -87,7 +87,7 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [x] T033 [P] [US1] Add sidebar entry `new("funds","Fondos","/Admin/Funds","ti ti-coin", new[]{"Admin"})` to `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml`.
 - [x] T034 [US1] Register `IFundService`/`FundService` in DI composition root.
 - [x] T035 [P] [US1] Unit tests: Fund domain behavior (archive/reactivate idempotency, regulation set/remove all-or-nothing, name/description validation).
-- [ ] T036 [US1] Integration tests (real DB): FundService create/edit/archive persistence, unique-name violation, audit-row emission, regulation columns set/cleared.
+- [x] T036 [US1] Integration tests (real DB): FundService create/edit/archive persistence, unique-name violation, audit-row emission, regulation columns set/cleared.
 - [ ] T037 [US1] E2E `FundAdminCrudTests`: create (no PDF), upload/replace/remove PDF, reject non-PDF + dup-name + blank, archive/reactivate, audit visible.
 
 **Checkpoint**: Fund catalog fully usable by admins.
@@ -133,7 +133,7 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [x] T046 [US4] Compose `ExcludeArchivedFund` alongside `ExcludeDeleted` at every non-admin read site: `ApplicationRepository` (`GetByApplicantIdAsync`, `GetForApplicantDashboardAsync`, `GetByStateForReviewerAsync`, `GetPendingAgreementPagedAsync`, `ApplicantSharesAnyGroupAsync`), `ReviewerDashboardProjection`, reviewer-facing counters in `AdminDashboardCountersReader`, `StageExpiryReminderService` (do NOT apply to admin reports) (depends on T018).
 - [x] T047 [US4] Add a controller freeze-guard helper and apply it to applicant/reviewer mutations: `ApplicationController` (Create target-fund check, Edit, AddItem, RemoveItem, Autosave, Submit, Remove/Withdraw, Impact) and `QuotationController` (Add, Edit) — return es-CR error toast when the application's Fund is Archived; admin exempt.
 - [x] T048 [US4] Feed `Application.IsFrozen` from the loaded `Group.Process.Fund.Status` in the service layer and ensure domain mutating methods throw `FundArchivedException` (defense-in-depth with T011).
-- [ ] T049 [US4] Integration tests (real DB): each non-admin read surface excludes archived-Fund applications; reactivation makes them reappear.
+- [x] T049 [US4] Integration tests (real DB): each non-admin read surface excludes archived-Fund applications; reactivation makes them reappear.
 - [x] T050 [P] [US4] Unit tests: frozen application rejects each mutating domain method; admin path unaffected.
 - [ ] T051 [US4] E2E `FundArchiveFreezeTests`: archive hides+freezes across applicant/reviewer/signing surfaces; mutation rejected; reactivate restores.
 

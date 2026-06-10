@@ -73,6 +73,13 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
         {
             return (AdminAuditEvent.TargetTypeGroup, "0");
         }
+        // Spec 029 — Fund (Fondo) mutations (fund.create/edit/archive/…). The
+        // real fund id is carried in the payload JSON (TargetId stays the "0"
+        // sentinel, matching the process.* pattern above).
+        if (eventKind.StartsWith("fund.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeFund, "0");
+        }
         if (eventKind.StartsWith("user.", StringComparison.Ordinal))
         {
             return (AdminAuditEvent.TargetTypeUser, "0");
