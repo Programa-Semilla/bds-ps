@@ -7,11 +7,14 @@ using FundingPlatform.Application.Processes;
 using FundingPlatform.Application.Processes.Queries;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
+using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Web.Controllers.Admin;
 
@@ -31,19 +34,33 @@ public class AdminProcessesController : Controller
     private readonly IPlantillaService _plantillas;
     private readonly IGroupService _groups;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly AppDbContext _db;
 
     public AdminProcessesController(
         IProcessService processes,
         IProcessQueryService processQuery,
         IPlantillaService plantillas,
         IGroupService groups,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        AppDbContext db)
     {
         _processes = processes;
         _processQuery = processQuery;
         _plantillas = plantillas;
         _groups = groups;
         _userManager = userManager;
+        _db = db;
+    }
+
+    /// <summary>Spec 029 / FR-002 — Active Funds for the Process Fund selector.</summary>
+    private async Task PopulateFundOptionsAsync(AdminProcessCreateViewModel vm, CancellationToken ct)
+    {
+        vm.FundOptions = await _db.Funds
+            .Where(f => f.Status == FundStatus.Active)
+            .OrderBy(f => f.Name)
+            .Select(f => new SelectListItem(
+                f.Name, f.Id.ToString()))
+            .ToListAsync(ct);
     }
 
     [HttpGet("")]
@@ -58,9 +75,11 @@ public class AdminProcessesController : Controller
     }
 
     [HttpGet("Create")]
-    public IActionResult Create()
+    public async Task<IActionResult> Create(CancellationToken ct)
     {
-        return View(new AdminProcessCreateViewModel());
+        var vm = new AdminProcessCreateViewModel();
+        await PopulateFundOptionsAsync(vm, ct);
+        return View(vm);
     }
 
     [HttpPost("Create")]
@@ -69,22 +88,38 @@ public class AdminProcessesController : Controller
     {
         if (!ModelState.IsValid)
         {
+            await PopulateFundOptionsAsync(vm, ct);
             return View(vm);
         }
 
         var actorId = _userManager.GetUserId(User) ?? string.Empty;
         try
         {
-            await _processes.CreateAsync(new CreateProcessCommand(vm.Name), actorId, ct);
+            await _processes.CreateAsync(new CreateProcessCommand(vm.Name, vm.FundId ?? 0), actorId, ct);
         }
         catch (ArgumentException ex)
         {
             ModelState.AddModelError(nameof(vm.Name), ex.Message);
+            await PopulateFundOptionsAsync(vm, ct);
+            return View(vm);
+        }
+        catch (KeyNotFoundException)
+        {
+            ModelState.AddModelError(nameof(vm.FundId), "Debe seleccionar un fondo activo.");
+            await PopulateFundOptionsAsync(vm, ct);
+            return View(vm);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Spec 029 — Fund missing/Archived.
+            ModelState.AddModelError(nameof(vm.FundId), ex.Message);
+            await PopulateFundOptionsAsync(vm, ct);
             return View(vm);
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateException)
         {
             ModelState.AddModelError(nameof(vm.Name), "Ya existe un proceso con ese nombre.");
+            await PopulateFundOptionsAsync(vm, ct);
             return View(vm);
         }
 

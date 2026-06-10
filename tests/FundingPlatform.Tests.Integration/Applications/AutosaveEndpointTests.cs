@@ -57,7 +57,7 @@ public class AutosaveEndpointTests
         await _ctx.SaveChangesAsync();
         _applicantId = applicant.Id;
 
-        _application = new AppEntity(_applicantId, "Sazón Vegetariano");
+        _application = new AppEntity(_applicantId, 1, "Sazón Vegetariano");
         _application.AssignPublicCode(new PublicCode("A7K2-9XF3"));
         _ctx.Applications.Add(_application);
         await _ctx.SaveChangesAsync();

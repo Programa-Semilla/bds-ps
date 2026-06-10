@@ -78,7 +78,7 @@ public class AdminDashboardProjectionTests
                 ctx.Applicants.Add(applicant);
                 await ctx.SaveChangesAsync();
 
-                var app = new AppEntity(applicant.Id, $"Co {i}");
+                var app = new AppEntity(applicant.Id, 1, $"Co {i}");
                 app.AssignPublicCode(NextPublicCode());
                 app.AddItem(new Item("Server", category.Id, "specs"));
                 ctx.Applications.Add(app);
@@ -121,7 +121,7 @@ public class AdminDashboardProjectionTests
                 email: "live@example.com", phone: null, performanceScore: null);
             ctx.Applicants.Add(live);
             await ctx.SaveChangesAsync();
-            var liveApp = new AppEntity(live.Id, "Live Co");
+            var liveApp = new AppEntity(live.Id, 1, "Live Co");
             liveApp.AssignPublicCode(NextPublicCode());
             liveApp.AddItem(new Item("Server", category.Id, "specs"));
             ctx.Applications.Add(liveApp);
@@ -136,7 +136,7 @@ public class AdminDashboardProjectionTests
             await ctx.SaveChangesAsync();
             deletedApplicantId = ghost.Id;
 
-            var deletedApp = new AppEntity(ghost.Id, "Ghost Co");
+            var deletedApp = new AppEntity(ghost.Id, 1, "Ghost Co");
             deletedApp.AssignPublicCode(NextPublicCode());
             deletedApp.AddItem(new Item("Server", category.Id, "specs"));
             ctx.Applications.Add(deletedApp);
@@ -259,7 +259,7 @@ public class AdminDashboardProjectionTests
         await ctx.SaveChangesAsync();
         var branchId = supplier.Branches.First().Id;
 
-        var app = new AppEntity(applicant.Id, $"Co {label}");
+        var app = new AppEntity(applicant.Id, 1, $"Co {label}");
         app.AssignPublicCode(NextPublicCode());
         var item = new Item($"Item {label}", categoryId, "specs");
         app.AddItem(item);

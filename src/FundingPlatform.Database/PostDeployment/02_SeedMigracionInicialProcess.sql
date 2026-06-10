@@ -13,15 +13,35 @@
 */
 
 -- =============================================================================
--- 1. Seed the "Migración inicial" Process row (idempotent MERGE).
+-- 0. Resolve the seed Fund (spec 029). 00_SeedFunds.sql runs first and creates
+--    "Fondo General"; Processes.FundId is a required FK so every seeded Process
+--    must carry it.
+-- =============================================================================
+DECLARE @FundId INT = (
+    SELECT [Id] FROM [dbo].[Funds] WHERE [Name] = N'Fondo General'
+);
+
+IF @FundId IS NULL
+    THROW 50029, 'Seed 029: "Fondo General" not found. 00_SeedFunds.sql must run before 02_SeedMigracionInicialProcess.sql.', 1;
+
+-- =============================================================================
+-- 1. Seed the "Migración inicial" Process row (idempotent MERGE), anchored to
+--    the seed Fund.
 -- =============================================================================
 MERGE INTO [dbo].[Processes] AS tgt
 USING (VALUES
-    (N'Migración inicial', CAST(0 AS TINYINT))
-) AS src ([Name], [Status])
+    (N'Migración inicial', CAST(0 AS TINYINT), @FundId)
+) AS src ([Name], [Status], [FundId])
 ON tgt.[Name] = src.[Name]
 WHEN NOT MATCHED THEN
-    INSERT ([Name], [Status]) VALUES (src.[Name], src.[Status]);
+    INSERT ([Name], [Status], [FundId]) VALUES (src.[Name], src.[Status], src.[FundId]);
+
+-- Spec 029 — defensive backfill: any Process whose FundId does not reference an
+-- existing Fund row is repointed at the seed Fund (idempotent; touches nothing
+-- on a fresh deploy where every Process was inserted with a valid FundId).
+UPDATE [dbo].[Processes]
+SET    [FundId] = @FundId
+WHERE  [FundId] NOT IN (SELECT [Id] FROM [dbo].[Funds]);
 
 DECLARE @MigracionInicialId INT = (
     SELECT [Id] FROM [dbo].[Processes] WHERE [Name] = N'Migración inicial'

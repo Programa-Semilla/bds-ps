@@ -24,4 +24,15 @@ public interface IApplicationQueryFilter
     /// is a no-op at the SQL level once EF folds the duplicate <c>WHERE</c>.
     /// </summary>
     IQueryable<AppEntity> ExcludeDeleted(IQueryable<AppEntity> source);
+
+    /// <summary>
+    /// Spec 029 / FR-020 — returns <paramref name="source"/> filtered to
+    /// applications whose governing Fund (via <c>Group.Process.Fund</c>) is NOT
+    /// Archived. Composed alongside <see cref="ExcludeDeleted"/> at every
+    /// non-admin read site so an archived Fund's applications vanish from
+    /// applicant lists, the reviewer queue, the signing inbox, and reviewer
+    /// counters. Admin reports deliberately do NOT apply this filter (admins
+    /// retain visibility into archived Funds). Idempotent.
+    /// </summary>
+    IQueryable<AppEntity> ExcludeArchivedFund(IQueryable<AppEntity> source);
 }

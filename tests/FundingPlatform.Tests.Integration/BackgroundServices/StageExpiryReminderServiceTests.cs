@@ -163,7 +163,7 @@ public class StageExpiryReminderServiceTests
         // 1-day override, StageEnteredAt > 24h ago lands in the expired bucket
         // even though the platform default is 30 days.
 
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
         process.OverrideStageWindow(StageKind.Facturacion, 1);
         _ctx.Processes.Add(process);
         await _ctx.SaveChangesAsync();
@@ -187,7 +187,7 @@ public class StageExpiryReminderServiceTests
         await _ctx.SaveChangesAsync();
 
         // Application in ResponseFinalized state with StageEnteredAt = 2 days ago.
-        var app = new AppEntity(applicant.Id, "Sazón Crocus");
+        var app = new AppEntity(applicant.Id, 1, "Sazón Crocus");
         app.AssignPublicCode(new PublicCode("EEEE-6666"));
         _ctx.Applications.Add(app);
         await _ctx.SaveChangesAsync();
@@ -229,7 +229,7 @@ public class StageExpiryReminderServiceTests
         _ctx.Applicants.Add(applicant);
         await _ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, $"Co-{userId}");
+        var app = new AppEntity(applicant.Id, 1, $"Co-{userId}");
         app.AssignPublicCode(new PublicCode(publicCode));
         _ctx.Applications.Add(app);
         await _ctx.SaveChangesAsync();

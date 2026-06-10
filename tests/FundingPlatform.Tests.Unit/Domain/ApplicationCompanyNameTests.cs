@@ -14,7 +14,7 @@ public class ApplicationCompanyNameTests
     [Test]
     public void Constructor_PersistsTrimmedCompanyName()
     {
-        var app = new AppEntity(applicantId: 1, companyName: "  Sazón Vegetariano  ");
+        var app = new AppEntity(applicantId: 1, 1, companyName: "  Sazón Vegetariano  ");
 
         Assert.That(app.CompanyName, Is.EqualTo("Sazón Vegetariano"));
     }
@@ -26,7 +26,7 @@ public class ApplicationCompanyNameTests
     public void Constructor_RejectsNullOrWhitespaceCompanyName(string? blank)
     {
         Assert.That(
-            () => new AppEntity(applicantId: 1, companyName: blank!),
+            () => new AppEntity(applicantId: 1, 1, companyName: blank!),
             Throws.ArgumentException);
     }
 
@@ -36,7 +36,7 @@ public class ApplicationCompanyNameTests
         var name = new string('a', 200);
 
         Assert.That(
-            () => new AppEntity(applicantId: 1, companyName: name),
+            () => new AppEntity(applicantId: 1, 1, companyName: name),
             Throws.Nothing);
     }
 
@@ -46,14 +46,14 @@ public class ApplicationCompanyNameTests
         var name = new string('a', 201);
 
         Assert.That(
-            () => new AppEntity(applicantId: 1, companyName: name),
+            () => new AppEntity(applicantId: 1, 1, companyName: name),
             Throws.ArgumentException);
     }
 
     [Test]
     public void SetCompanyName_AcceptsExactly200CharsAfterTrim()
     {
-        var app = new AppEntity(applicantId: 1, companyName: "Initial");
+        var app = new AppEntity(applicantId: 1, 1, companyName: "Initial");
         var name = "  " + new string('a', 200) + "  ";
 
         Assert.That(() => app.SetCompanyName(name), Throws.Nothing);
@@ -63,7 +63,7 @@ public class ApplicationCompanyNameTests
     [Test]
     public void SetCompanyName_BumpsUpdatedAt()
     {
-        var app = new AppEntity(applicantId: 1, companyName: "Initial");
+        var app = new AppEntity(applicantId: 1, 1, companyName: "Initial");
         var beforeTouch = DateTime.UtcNow.AddSeconds(-1);
 
         app.SetCompanyName("Sazón Vegetariano");

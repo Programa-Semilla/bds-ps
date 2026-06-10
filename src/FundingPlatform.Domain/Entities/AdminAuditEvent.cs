@@ -38,6 +38,23 @@ public class AdminAuditEvent
     public const string TargetTypePlantilla = "plantilla";
     public const string TargetTypeAdminRoute = "admin_route";
 
+    // ---------- Spec 029 — Fund (Fondo) catalog mutations. ----------
+    /// <summary>Spec 029 — admin created a Fund.</summary>
+    public const string ActionFundCreate = "fund.create";
+    /// <summary>Spec 029 — admin edited a Fund's name/description.</summary>
+    public const string ActionFundEdit = "fund.edit";
+    /// <summary>Spec 029 — admin archived a Fund (freeze takes effect).</summary>
+    public const string ActionFundArchive = "fund.archive";
+    /// <summary>Spec 029 — admin reactivated an archived Fund.</summary>
+    public const string ActionFundReactivate = "fund.reactivate";
+    /// <summary>Spec 029 — admin uploaded/replaced a Fund's regulation PDF.</summary>
+    public const string ActionFundRegulationSet = "fund.regulation.set";
+    /// <summary>Spec 029 — admin removed a Fund's regulation PDF.</summary>
+    public const string ActionFundRegulationRemove = "fund.regulation.remove";
+
+    /// <summary>Spec 029 — target-type discriminator for Fund mutations.</summary>
+    public const string TargetTypeFund = "fund";
+
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string ActorUserId { get; private set; } = string.Empty;

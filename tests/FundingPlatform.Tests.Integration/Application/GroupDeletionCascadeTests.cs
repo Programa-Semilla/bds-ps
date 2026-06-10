@@ -46,7 +46,7 @@ public class GroupDeletionCascadeTests
     /// <summary>Spec 021 / FR-001 — Groups require an owning Process.</summary>
     private static async Task<int> SeedProcessAsync(AppDbContext ctx)
     {
-        var process = Process.Create("Crocus 2025");
+        var process = Process.Create("Crocus 2025", 1);
         ctx.Processes.Add(process);
         await ctx.SaveChangesAsync();
         return process.Id;

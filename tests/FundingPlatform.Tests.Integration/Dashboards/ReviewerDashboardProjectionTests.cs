@@ -44,14 +44,14 @@ public class ReviewerDashboardProjectionTests
             await ctx.SaveChangesAsync();
 
             // One SUBMITTED application: one item, TWO competing quotations.
-            var submitted = new AppEntity(applicant.Id, "Submitted Co");
+            var submitted = new AppEntity(applicant.Id, 1, "Submitted Co");
             submitted.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             submitted.AddItem(new Item("Widget", category.Id, "specs"));
             typeof(AppEntity).GetProperty("State")!.SetValue(submitted, ApplicationState.Submitted);
             ctx.Applications.Add(submitted);
 
             // One DRAFT application — must be excluded from the pending count.
-            var draft = new AppEntity(applicant.Id, "Draft Co");
+            var draft = new AppEntity(applicant.Id, 1, "Draft Co");
             draft.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             draft.AddItem(new Item("Gadget", category.Id, "specs"));
             ctx.Applications.Add(draft);

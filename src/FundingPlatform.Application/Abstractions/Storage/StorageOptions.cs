@@ -90,6 +90,14 @@ public sealed class StorageCategoriesOptions
         UrlExpirySeconds = 300,
     };
 
+    // Spec 029 / OI-2 — per-Fund regulation PDF. 20 MiB cap matches the
+    // signed-funding-agreement cap; 5 min SAS expiry default.
+    public StorageCategoryOptions FundRegulation { get; set; } = new()
+    {
+        MaxSizeBytes = StorageOptions.DefaultMaxSizeBytes20Mib,
+        UrlExpirySeconds = 300,
+    };
+
     public StorageCategoryOptions For(FileCategory category) => category switch
     {
         FileCategory.SignedFundingAgreement => SignedFundingAgreement,
@@ -97,6 +105,7 @@ public sealed class StorageCategoriesOptions
         FileCategory.ApplicationAttachment => ApplicationAttachment,
         FileCategory.GeneratedArtifact => GeneratedArtifact,
         FileCategory.PublicLandingFile => PublicLandingFile,
+        FileCategory.FundRegulation => FundRegulation,
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
     };
 }

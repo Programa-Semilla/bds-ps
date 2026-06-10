@@ -26,6 +26,11 @@ public enum FileCategory
     // upload/download surfaces stay aligned with the spec 014 abstraction.
     [Description("public-landing-files")]
     PublicLandingFile,
+
+    // Spec 029 / D3 — per-Fund applicant-downloadable regulation PDF (single
+    // optional document per Fund). Reuses the spec-014 IObjectStorage path.
+    [Description("fund-regulations")]
+    FundRegulation,
 }
 
 public static class FileCategoryExtensions
@@ -37,6 +42,7 @@ public static class FileCategoryExtensions
         FileCategory.ApplicationAttachment => "application-attachments",
         FileCategory.GeneratedArtifact => "generated-artifacts",
         FileCategory.PublicLandingFile => "public-landing-files",
+        FileCategory.FundRegulation => "fund-regulations",
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
     };
 
@@ -49,5 +55,6 @@ public static class FileCategoryExtensions
         "application-attachments",
         "generated-artifacts",
         "public-landing-files",
+        "fund-regulations",
     ];
 }

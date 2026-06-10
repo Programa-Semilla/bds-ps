@@ -155,7 +155,7 @@ internal sealed class NotificationsTestHarness : IAsyncDisposable
 
     public async Task<Domain.Entities.Application> SeedApplicationAsync(string companyName = "Test Co")
     {
-        var app = new Domain.Entities.Application(Applicant.Id, companyName);
+        var app = new Domain.Entities.Application(Applicant.Id, 1, companyName);
         app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         var vh = new Domain.Entities.VersionHistory(ApplicantUser.Id, "Submitted", null);
         app.AddVersionHistory(vh);

@@ -41,7 +41,19 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
         ArgumentNullException.ThrowIfNull(command);
         ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
 
-        var entity = Process.Create(command.Name);
+        // Spec 029 / FR-002 / FR-008 — a Process must be anchored to an Active
+        // Fund. Reject a missing/Archived Fund before constructing the entity.
+        var fund = await _db.Funds.FirstOrDefaultAsync(f => f.Id == command.FundId, ct);
+        if (fund is null)
+        {
+            throw new KeyNotFoundException($"Fund {command.FundId} not found.");
+        }
+        if (fund.Status != FundStatus.Active)
+        {
+            throw new InvalidOperationException("Debe seleccionar un fondo activo.");
+        }
+
+        var entity = Process.Create(command.Name, command.FundId);
 
         _db.Processes.Add(entity);
         await _db.SaveChangesAsync(ct);

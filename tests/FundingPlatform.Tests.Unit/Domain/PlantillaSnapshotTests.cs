@@ -13,7 +13,7 @@ public class PlantillaSnapshotTests
 {
     private static Process MakeProcess(int id = 100)
     {
-        var process = Process.Create($"Process {id}");
+        var process = Process.Create($"Process {id}", 1);
         // Process.Id has a private setter — bump it via reflection so the
         // snapshot constructor accepts processId > 0 (required by guard).
         typeof(Process).GetProperty("Id")!.SetValue(process, id);

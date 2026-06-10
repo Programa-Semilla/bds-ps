@@ -93,7 +93,7 @@ public class CompanyNameRequiredTests
     public async Task Create_BlankCompanyName_ReturnsCompanyNameRequired()
     {
         var result = await _service.CreateApplicationAsync(
-            new CreateApplicationCommand(_applicantId, ""), userId: "applicant-user");
+            new CreateApplicationCommand(_applicantId, "", 1), userId: "applicant-user");
 
         Assert.That(result.Error, Is.Not.Null);
         Assert.That(result.Error!.Code, Is.EqualTo(UserFacingErrorCode.CompanyNameRequired));
@@ -105,7 +105,7 @@ public class CompanyNameRequiredTests
     public async Task Create_WhitespaceOnly_ReturnsCompanyNameRequired()
     {
         var result = await _service.CreateApplicationAsync(
-            new CreateApplicationCommand(_applicantId, "    "), userId: "applicant-user");
+            new CreateApplicationCommand(_applicantId, "    ", 1), userId: "applicant-user");
 
         Assert.That(result.Error, Is.Not.Null);
         Assert.That(result.Error!.Code, Is.EqualTo(UserFacingErrorCode.CompanyNameRequired));
@@ -117,7 +117,7 @@ public class CompanyNameRequiredTests
         var name = new string('a', 201);
 
         var result = await _service.CreateApplicationAsync(
-            new CreateApplicationCommand(_applicantId, name), userId: "applicant-user");
+            new CreateApplicationCommand(_applicantId, name, 1), userId: "applicant-user");
 
         Assert.That(result.Error, Is.Not.Null);
         Assert.That(result.Error!.Code, Is.EqualTo(UserFacingErrorCode.CompanyNameTooLong));
@@ -127,7 +127,7 @@ public class CompanyNameRequiredTests
     public async Task Create_TrimsLeadingTrailingWhitespace_PersistsTrimmedValue()
     {
         var result = await _service.CreateApplicationAsync(
-            new CreateApplicationCommand(_applicantId, "  Sazón Vegetariano  "),
+            new CreateApplicationCommand(_applicantId, "  Sazón Vegetariano  ", 1),
             userId: "applicant-user");
 
         Assert.That(result.Error, Is.Null);
@@ -143,7 +143,7 @@ public class CompanyNameRequiredTests
         var name = new string('a', 200);
 
         var result = await _service.CreateApplicationAsync(
-            new CreateApplicationCommand(_applicantId, name), userId: "applicant-user");
+            new CreateApplicationCommand(_applicantId, name, 1), userId: "applicant-user");
 
         Assert.That(result.Error, Is.Null);
         Assert.That(result.ApplicationId, Is.GreaterThan(0));

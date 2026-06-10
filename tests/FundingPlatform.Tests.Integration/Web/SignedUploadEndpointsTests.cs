@@ -477,7 +477,7 @@ public class SignedUploadEndpointsTests
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new AppEntity(applicant.Id, "Test Company");
+        var application = new AppEntity(applicant.Id, 1, "Test Company");
         application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         application.AddItem(new Item("Laptop", category.Id, "specs"));
         typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Resolved);

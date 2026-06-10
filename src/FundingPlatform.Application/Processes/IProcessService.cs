@@ -34,8 +34,10 @@ public interface IProcessService
     Task<IReadOnlyList<string>> ListBlockingActiveApplicationPublicCodesAsync(int processId, CancellationToken ct);
 }
 
-/// <summary>Spec 021 / T077 — record carrying the Create payload.</summary>
-public sealed record CreateProcessCommand(string Name);
+/// <summary>Spec 021 / T077 — record carrying the Create payload. Spec 029 /
+/// FR-002 adds the required <paramref name="FundId"/> (the Active Fund the new
+/// Process is anchored to).</summary>
+public sealed record CreateProcessCommand(string Name, int FundId);
 
 /// <summary>Spec 021 / T077 — record carrying the Close payload.</summary>
 public sealed record CloseProcessCommand(int ProcessId);

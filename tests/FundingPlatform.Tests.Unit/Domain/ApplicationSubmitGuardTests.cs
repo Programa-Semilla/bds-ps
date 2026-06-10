@@ -14,7 +14,7 @@ namespace FundingPlatform.Tests.Unit.Domain;
 public class ApplicationSubmitGuardTests
 {
     private static AppEntity NewApp(string companyName = "Sazón Vegetariano")
-        => new AppEntity(applicantId: 1, companyName: companyName);
+        => new AppEntity(applicantId: 1, 1, companyName: companyName);
 
     private static Item NewItem(int id = 1, string productName = "Producto A")
     {

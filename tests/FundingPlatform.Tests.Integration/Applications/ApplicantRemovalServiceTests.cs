@@ -61,7 +61,7 @@ public class ApplicantRemovalServiceTests
 
         if (withMembership)
         {
-            var process = Process.Create("Crocus 2025");
+            var process = Process.Create("Crocus 2025", 1);
             ctx.Processes.Add(process);
             await ctx.SaveChangesAsync();
             var g = Group.Create("Norte", process.Id);
@@ -71,7 +71,7 @@ public class ApplicantRemovalServiceTests
             await ctx.SaveChangesAsync();
         }
 
-        var app = new AppEntity(ap.Id, "Test Company");
+        var app = new AppEntity(ap.Id, 1, "Test Company");
         app.AssignPublicCode(TestPublicCodes.Next());
         if (state != ApplicationState.Draft)
         {

@@ -46,7 +46,7 @@ public class GenerateFundingAgreementCommandLoggingTests
         var logger = Substitute.For<ILogger<FundingAgreementService>>();
         var service = new FundingAgreementService(repo, logger, Substitute.For<IUserStoreReader>(), Substitute.For<FundingPlatform.Application.Notifications.INotificationOutboxWriter>());
 
-        var application = new AppEntity(applicantId: 1, companyName: "Test Company");
+        var application = new AppEntity(applicantId: 1, 1, companyName: "Test Company");
         // Application is in Draft — preconditions fail.
 
         var result = await service.PersistGenerationAsync(
@@ -68,7 +68,7 @@ public class GenerateFundingAgreementCommandLoggingTests
 
     private static AppEntity BuildReadyApplication()
     {
-        var application = new AppEntity(applicantId: 1, companyName: "Test Company");
+        var application = new AppEntity(applicantId: 1, 1, companyName: "Test Company");
         var item = new Item("Widget", 1, "specs");
         typeof(Item).GetProperty("Id")!.SetValue(item, 100);
         application.AddItem(item);

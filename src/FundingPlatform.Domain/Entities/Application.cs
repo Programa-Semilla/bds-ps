@@ -16,6 +16,16 @@ public class Application
 
     public int Id { get; private set; }
     public int ApplicantId { get; private set; }
+
+    /// <summary>
+    /// Spec 029 / FR-017 — authoritative anchor captured at creation. The Group
+    /// fixes the application's Process (<c>Group.Process</c>) and Fund
+    /// (<c>Group.Process.Fund</c>) exactly, replacing the prior nondeterministic
+    /// group-membership inference. Immutable post-creation (FR-018; re-anchoring
+    /// is out of scope).
+    /// </summary>
+    public int GroupId { get; private set; }
+    public Group? Group { get; private set; }
     /// <summary>
     /// Spec 018 / FR-015 / FR-016 — commercial entity name (`Empresa solicitante`)
     /// distinct from the applicant representative's legal name. Required (non-nullable),
@@ -82,6 +92,17 @@ public class Application
     /// <summary>True when the row has been soft-deleted (FR-021).</summary>
     public bool IsDeleted => DeletedAt is not null;
 
+    /// <summary>
+    /// Spec 029 / FR-021 — freeze overlay: true when the governing Fund (via the
+    /// anchored <c>Group.Process.Fund</c>) is Archived. Derived from the loaded
+    /// navigation chain, so the service layer must Include
+    /// <c>Group.Process.Fund</c> for the domain guard to fire (T048); the
+    /// controller boundary guard is the primary enforcement (defense-in-depth, D6).
+    /// Orthogonal to the Draft→Submitted→… state machine — it gates mutation
+    /// without changing the persisted <see cref="State"/>.
+    /// </summary>
+    public bool IsFrozen => Group?.Process?.Fund?.Status == FundStatus.Archived;
+
     public ApplicationState State { get; private set; } = ApplicationState.Draft;
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
@@ -98,14 +119,33 @@ public class Application
 
     private Application() { }
 
-    public Application(int applicantId, string companyName)
+    public Application(int applicantId, int groupId, string companyName)
     {
+        if (groupId <= 0)
+        {
+            throw new ArgumentException("An application must be anchored to a Group.", nameof(groupId));
+        }
         ApplicantId = applicantId;
+        GroupId = groupId;
         State = ApplicationState.Draft;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
         StageEnteredAt = DateTimeOffset.UtcNow;
         SetCompanyName(companyName);
+    }
+
+    /// <summary>
+    /// Spec 029 / FR-021 — guard invoked by every applicant/reviewer-facing
+    /// mutating method. Throws <see cref="FundArchivedException"/> when the
+    /// governing Fund is Archived. No-op when the navigation chain is not loaded
+    /// (the controller boundary guard remains the primary enforcement).
+    /// </summary>
+    private void EnsureNotFrozen()
+    {
+        if (IsFrozen)
+        {
+            throw new FundArchivedException();
+        }
     }
 
     /// <summary>
@@ -136,6 +176,7 @@ public class Application
     /// </summary>
     public void SetImpact(ImpactTemplate template, IEnumerable<ImpactParameterValue> values)
     {
+        EnsureNotFrozen();
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(values);
 
@@ -170,6 +211,7 @@ public class Application
     /// <exception cref="InvalidOperationException">The Application is past the point an applicant may remove it.</exception>
     public ApplicantRemovalOutcome RemoveByApplicant()
     {
+        EnsureNotFrozen();
         if (IsDeleted)
         {
             return new ApplicantRemovalOutcome(ApplicantRemovalKind.NoOp, NotifyReviewers: false, PriorState: State);
@@ -232,6 +274,7 @@ public class Application
     /// </exception>
     public void SetCompanyName(string companyName)
     {
+        EnsureNotFrozen();
         if (companyName is null)
         {
             var ex = new ArgumentException("Company name is required.", nameof(companyName));
@@ -266,6 +309,7 @@ public class Application
     /// </summary>
     public void AddItem(Item item)
     {
+        EnsureNotFrozen();
         _items.Add(item);
         UpdatedAt = DateTime.UtcNow;
     }
@@ -314,6 +358,7 @@ public class Application
     /// </summary>
     public void RemoveItem(int itemId)
     {
+        EnsureNotFrozen();
         var item = _items.FirstOrDefault(i => i.Id == itemId);
         if (item is not null)
         {
@@ -329,6 +374,7 @@ public class Application
     /// <exception cref="InvalidOperationException">Thrown when the application fails validation.</exception>
     public void Submit(int minQuotations)
     {
+        EnsureNotFrozen();
         var errors = Validate(minQuotations);
 
         if (errors.Count > 0)

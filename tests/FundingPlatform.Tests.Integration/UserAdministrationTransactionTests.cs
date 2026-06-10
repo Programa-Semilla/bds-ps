@@ -193,7 +193,7 @@ public class UserAdministrationTransactionTests
         var process = ctx.Processes.FirstOrDefault();
         if (process is null)
         {
-            process = Process.Create("Migración inicial");
+            process = Process.Create("Migración inicial", 1);
             ctx.Processes.Add(process);
             await ctx.SaveChangesAsync();
         }

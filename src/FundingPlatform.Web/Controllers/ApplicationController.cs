@@ -92,29 +92,50 @@ public class ApplicationController : Controller
     }
 
     [HttpGet]
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
-        return View(new CreateApplicationViewModel());
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var model = new CreateApplicationViewModel();
+        await PopulateEligibleGroupsAsync(model, userId);
+        return View(model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateApplicationViewModel model)
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        // Spec 029 / FR-018 — resolve the applicant's eligible Groups and validate
+        // the chosen anchor against that set (defense against tampering + the
+        // 0/1/many rendering rules). Re-populate for redisplay on any failure.
+        var eligible = await ResolveEligibleGroupsAsync(userId);
+        if (eligible.Count == 0)
+        {
+            PopulateEligibleGroupsFrom(model, eligible);
+            return View(model);
+        }
+        if (model.GroupId is null || eligible.All(g => g.GroupId != model.GroupId.Value))
+        {
+            ModelState.AddModelError(nameof(CreateApplicationViewModel.GroupId),
+                "Debe seleccionar un proceso activo válido para postular.");
+        }
+
         if (!ModelState.IsValid)
         {
+            PopulateEligibleGroupsFrom(model, eligible);
             return View(model);
         }
 
         var applicantId = await GetCurrentApplicantIdAsync();
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var command = new CreateApplicationCommand(applicantId, model.CompanyName);
+        var command = new CreateApplicationCommand(applicantId, model.CompanyName, model.GroupId!.Value);
         var result = await _applicationService.CreateApplicationAsync(command, userId);
 
         if (result.Error is not null)
         {
             ModelState.AddModelError(nameof(CreateApplicationViewModel.CompanyName),
                 _errorTranslator.Translate(result.Error));
+            PopulateEligibleGroupsFrom(model, eligible);
             return View(model);
         }
 
@@ -581,6 +602,53 @@ public class ApplicationController : Controller
             .FirstOrDefaultAsync(a => a.UserId == userId);
 
         return applicant?.Id ?? throw new InvalidOperationException("Applicant not found for current user.");
+    }
+
+    /// <summary>Spec 029 / FR-018 — one eligible Group for the create-flow anchor.</summary>
+    private sealed record EligibleGroup(int GroupId, string ProcessName, string GroupName);
+
+    /// <summary>
+    /// Spec 029 / FR-018 — the Groups the applicant's user is a member of whose
+    /// Process is Active AND whose Fund is Active. These are the only valid
+    /// anchors for a new application.
+    /// </summary>
+    private async Task<IReadOnlyList<EligibleGroup>> ResolveEligibleGroupsAsync(string userId)
+    {
+        return await _dbContext.UserGroupMemberships
+            .Where(m => m.UserId == userId
+                && m.Group!.Process!.Status == Domain.Enums.ProcessStatus.Active
+                && m.Group!.Process!.Fund!.Status == Domain.Enums.FundStatus.Active)
+            .OrderBy(m => m.Group!.Process!.Name)
+            .ThenBy(m => m.Group!.Name)
+            .Select(m => new EligibleGroup(m.GroupId, m.Group!.Process!.Name, m.Group!.Name))
+            .ToListAsync();
+    }
+
+    /// <summary>Resolves the applicant's eligible groups then fills the view model.</summary>
+    private async Task PopulateEligibleGroupsAsync(CreateApplicationViewModel model, string userId)
+        => PopulateEligibleGroupsFrom(model, await ResolveEligibleGroupsAsync(userId));
+
+    /// <summary>
+    /// Spec 029 / FR-018 — applies the 0/1/many rendering rules to the view model.
+    /// When ambiguous (≥2 eligible) each option is disambiguated by its Group name.
+    /// </summary>
+    private static void PopulateEligibleGroupsFrom(
+        CreateApplicationViewModel model, IReadOnlyList<EligibleGroup> eligible)
+    {
+        model.HasNoEligibleGroups = eligible.Count == 0;
+        model.IsSingleEligibleGroup = eligible.Count == 1;
+
+        var ambiguous = eligible.Count > 1;
+        model.EligibleGroups = eligible
+            .Select(g => new SelectListItem(
+                ambiguous ? $"{g.ProcessName} — {g.GroupName}" : g.ProcessName,
+                g.GroupId.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            .ToList();
+
+        if (eligible.Count == 1 && model.GroupId is null)
+        {
+            model.GroupId = eligible[0].GroupId;
+        }
     }
 
     /// <summary>

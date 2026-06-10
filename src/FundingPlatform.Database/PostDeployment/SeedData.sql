@@ -326,6 +326,9 @@ GO
 -- =============================================================================
 
 :r .\01_SeedProvincesCantons.sql
+-- Spec 029 — seed Fund MUST precede the Process seed (Processes.FundId is a
+-- required FK satisfied by "Fondo General").
+:r .\00_SeedFunds.sql
 :r .\02_SeedMigracionInicialProcess.sql
 :r .\03_SeedSupplierAdminRole.sql
 

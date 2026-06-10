@@ -51,6 +51,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<NotificationOutbox> NotificationOutbox => Set<NotificationOutbox>();
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
 
+    // Spec 029 — Fund (Fondo) aggregate above Process.
+    public DbSet<Fund> Funds => Set<Fund>();
+
     // Spec 021-feedback-session-may13 — Process / Plantilla aggregates,
     // Province/Cantón catalog, PasswordResetToken single-use marker.
     public DbSet<Process> Processes => Set<Process>();

@@ -16,6 +16,15 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<AppEntity>
         builder.Property(a => a.ApplicantId).IsRequired();
         builder.HasIndex(a => a.ApplicantId).HasDatabaseName("IX_Applications_ApplicantId");
 
+        // Spec 029 / FR-017 — authoritative Group anchor (→ Process → Fund).
+        // Required; reviewer visibility is unchanged (the anchor is additive).
+        builder.Property(a => a.GroupId).IsRequired();
+        builder.HasOne(a => a.Group)
+            .WithMany()
+            .HasForeignKey(a => a.GroupId)
+            .OnDelete(DeleteBehavior.NoAction);
+        builder.HasIndex(a => a.GroupId).HasDatabaseName("IX_Applications_GroupId");
+
         // Spec 018 / FR-015 / FR-016 — required commercial entity name, ≤200 chars.
         builder.Property(a => a.CompanyName).IsRequired().HasMaxLength(200);
 

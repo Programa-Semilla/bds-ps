@@ -1,6 +1,7 @@
 // Spec 021 — see specs/021-feedback-session-may13/research.md R-10.
 
 using FundingPlatform.Application.Abstractions;
+using FundingPlatform.Domain.Enums;
 
 namespace FundingPlatform.Infrastructure.Persistence;
 
@@ -23,5 +24,12 @@ public sealed class ApplicationQueryFilter : IApplicationQueryFilter
     {
         ArgumentNullException.ThrowIfNull(source);
         return source.Where(a => a.DeletedAt == null);
+    }
+
+    /// <inheritdoc />
+    public IQueryable<AppEntity> ExcludeArchivedFund(IQueryable<AppEntity> source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return source.Where(a => a.Group!.Process!.Fund!.Status != FundStatus.Archived);
     }
 }

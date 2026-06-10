@@ -15,7 +15,7 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm branch `029-fund-entity` builds green as a baseline: `dotnet build FundingPlatform.slnx`.
+- [x] T001 Confirm branch `029-fund-entity` builds green as a baseline: `dotnet build FundingPlatform.slnx`.
 
 ---
 
@@ -25,29 +25,29 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 ### Schema (dacpac — Constitution IV)
 
-- [ ] T002 [P] Create `src/FundingPlatform.Database/Tables/dbo.Funds.sql` per data-model.md (columns, `PK_Funds`, `UX_Funds_Name`).
-- [ ] T003 Add `FundId INT NOT NULL`, `CONSTRAINT FK_Processes_Funds ... ON DELETE NO ACTION`, and `IX_Processes_FundId` to `src/FundingPlatform.Database/Tables/dbo.Processes.sql`.
-- [ ] T004 Add `GroupId INT NOT NULL`, `CONSTRAINT FK_Applications_Groups ... ON DELETE NO ACTION`, and `IX_Applications_GroupId` to `src/FundingPlatform.Database/Tables/dbo.Applications.sql`.
-- [ ] T005 Create `src/FundingPlatform.Database/PostDeployment/0X_SeedFunds.sql` (idempotent MERGE: upsert `Fondo General` Active → capture id → set `FundId` on seed Processes → ensure seed Applications have `GroupId`); reference it in the post-deploy entry script BEFORE the Process/Group seeds.
+- [x] T002 [P] Create `src/FundingPlatform.Database/Tables/dbo.Funds.sql` per data-model.md (columns, `PK_Funds`, `UX_Funds_Name`).
+- [x] T003 Add `FundId INT NOT NULL`, `CONSTRAINT FK_Processes_Funds ... ON DELETE NO ACTION`, and `IX_Processes_FundId` to `src/FundingPlatform.Database/Tables/dbo.Processes.sql`.
+- [x] T004 Add `GroupId INT NOT NULL`, `CONSTRAINT FK_Applications_Groups ... ON DELETE NO ACTION`, and `IX_Applications_GroupId` to `src/FundingPlatform.Database/Tables/dbo.Applications.sql`.
+- [x] T005 Create `src/FundingPlatform.Database/PostDeployment/0X_SeedFunds.sql` (idempotent MERGE: upsert `Fondo General` Active → capture id → set `FundId` on seed Processes → ensure seed Applications have `GroupId`); reference it in the post-deploy entry script BEFORE the Process/Group seeds.
 
 ### Domain (Constitution II)
 
-- [ ] T006 [P] Create `src/FundingPlatform.Domain/Enums/FundStatus.cs` (`Active = 0`, `Archived = 1`).
-- [ ] T007 [P] Create `src/FundingPlatform.Domain/Exceptions/FundArchivedException.cs`.
-- [ ] T008 Create `src/FundingPlatform.Domain/Entities/Fund.cs` aggregate with factory + behavior methods (`Create`, `Rename`, `EditDescription`, `Archive`, `Reactivate`, `SetRegulation`, `RemoveRegulation`, `HasRegulation`) and invariants per data-model.md (depends on T006).
-- [ ] T009 [P] Add `fund.create/edit/archive/reactivate/regulation.set/regulation.remove` action constants + `fund` target-type constant to `src/FundingPlatform.Domain/Entities/AdminAuditEvent.cs`.
-- [ ] T010 Edit `src/FundingPlatform.Domain/Entities/Process.cs`: add `FundId`, `Fund` nav; extend `Create` to take `fundId`; add `SetFund(int)` guarded against Closed.
-- [ ] T011 Edit `src/FundingPlatform.Domain/Entities/Application.cs`: add `GroupId`, `Group` nav, `bool IsFrozen` (service-fed), and throw `FundArchivedException` from each applicant/reviewer-facing mutating method when frozen (depends on T007).
+- [x] T006 [P] Create `src/FundingPlatform.Domain/Enums/FundStatus.cs` (`Active = 0`, `Archived = 1`).
+- [x] T007 [P] Create `src/FundingPlatform.Domain/Exceptions/FundArchivedException.cs`.
+- [x] T008 Create `src/FundingPlatform.Domain/Entities/Fund.cs` aggregate with factory + behavior methods (`Create`, `Rename`, `EditDescription`, `Archive`, `Reactivate`, `SetRegulation`, `RemoveRegulation`, `HasRegulation`) and invariants per data-model.md (depends on T006).
+- [x] T009 [P] Add `fund.create/edit/archive/reactivate/regulation.set/regulation.remove` action constants + `fund` target-type constant to `src/FundingPlatform.Domain/Entities/AdminAuditEvent.cs`.
+- [x] T010 Edit `src/FundingPlatform.Domain/Entities/Process.cs`: add `FundId`, `Fund` nav; extend `Create` to take `fundId`; add `SetFund(int)` guarded against Closed.
+- [x] T011 Edit `src/FundingPlatform.Domain/Entities/Application.cs`: add `GroupId`, `Group` nav, `bool IsFrozen` (service-fed), and throw `FundArchivedException` from each applicant/reviewer-facing mutating method when frozen (depends on T007).
 
 ### Application + Infrastructure wiring
 
-- [ ] T012 [P] Add `FundRegulation` ([Description("fund-regulations")]) to `src/FundingPlatform.Application/Abstractions/Storage/FileCategory.cs`; add a `FundRegulation` category to `StorageCategoriesOptions` + the `For()` switch in `StorageOptions.cs` (MaxSizeBytes 20 MiB, UrlExpirySeconds 300, RetentionPolicy "none"); add `Storage:Categories:FundRegulation:*` defaults to `appsettings`.
-- [ ] T013 [P] Add `IQueryable<Application> ExcludeArchivedFund(IQueryable<Application> source)` to `src/FundingPlatform.Application/Abstractions/IApplicationQueryFilter.cs`.
-- [ ] T014 Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/FundConfiguration.cs` (table, name/desc lengths, status `HasConversion<byte>`, `UX_Funds_Name`, RowVersion, one-to-many to Process) (depends on T008).
-- [ ] T015 Edit `ProcessConfiguration.cs`: map `Fund` FK (`HasOne(p=>p.Fund).WithMany(f=>f.Processes).HasForeignKey(p=>p.FundId).OnDelete(NoAction)`) (depends on T010).
-- [ ] T016 Edit `ApplicationConfiguration.cs`: map `Group` FK (`HasOne(a=>a.Group).WithMany().HasForeignKey(a=>a.GroupId).OnDelete(NoAction)`) (depends on T011).
-- [ ] T017 Register `DbSet<Fund>` in the EF `DbContext` and apply `FundConfiguration`.
-- [ ] T018 Implement `ExcludeArchivedFund` in `src/FundingPlatform.Infrastructure/Persistence/ApplicationQueryFilter.cs` (`source.Where(a => a.Group.Process.Fund.Status != FundStatus.Archived)`) (depends on T013, T016).
+- [x] T012 [P] Add `FundRegulation` ([Description("fund-regulations")]) to `src/FundingPlatform.Application/Abstractions/Storage/FileCategory.cs`; add a `FundRegulation` category to `StorageCategoriesOptions` + the `For()` switch in `StorageOptions.cs` (MaxSizeBytes 20 MiB, UrlExpirySeconds 300, RetentionPolicy "none"); add `Storage:Categories:FundRegulation:*` defaults to `appsettings`.
+- [x] T013 [P] Add `IQueryable<Application> ExcludeArchivedFund(IQueryable<Application> source)` to `src/FundingPlatform.Application/Abstractions/IApplicationQueryFilter.cs`.
+- [x] T014 Create `src/FundingPlatform.Infrastructure/Persistence/Configurations/FundConfiguration.cs` (table, name/desc lengths, status `HasConversion<byte>`, `UX_Funds_Name`, RowVersion, one-to-many to Process) (depends on T008).
+- [x] T015 Edit `ProcessConfiguration.cs`: map `Fund` FK (`HasOne(p=>p.Fund).WithMany(f=>f.Processes).HasForeignKey(p=>p.FundId).OnDelete(NoAction)`) (depends on T010).
+- [x] T016 Edit `ApplicationConfiguration.cs`: map `Group` FK (`HasOne(a=>a.Group).WithMany().HasForeignKey(a=>a.GroupId).OnDelete(NoAction)`) (depends on T011).
+- [x] T017 Register `DbSet<Fund>` in the EF `DbContext` and apply `FundConfiguration`.
+- [x] T018 Implement `ExcludeArchivedFund` in `src/FundingPlatform.Infrastructure/Persistence/ApplicationQueryFilter.cs` (`source.Where(a => a.Group.Process.Fund.Status != FundStatus.Archived)`) (depends on T013, T016).
 - [ ] T019 Foundational checkpoint: `dotnet build FundingPlatform.slnx` green; dacpac deploys cleanly via `dotnet run --project src/FundingPlatform.AppHost` (new objects created, seed Fund present).
 
 **Checkpoint**: schema + domain + EF ready. User stories can proceed.
@@ -60,9 +60,9 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Independent Test**: Applicant with one eligible group auto-anchors; with several must choose; with none is blocked; submit validation uses the anchored Process's Plantilla.
 
-- [ ] T020 [US6] Add `GroupId` to `CreateApplicationCommand`; in `src/FundingPlatform.Application/Services/ApplicationService.cs` resolve the applicant's eligible groups (member of group whose `Process.Status==Active` AND `Process.Fund.Status==Active`), validate the chosen `GroupId` against that set, and set `Application.GroupId`.
-- [ ] T021 [US6] In `src/FundingPlatform.Web/Controllers/ApplicationController.cs` (`Create` GET/POST) + `CreateApplicationViewModel`: add required `GroupId`; implement 0-eligible (block with es-CR message), 1-eligible (auto, hidden), ≥2 (required select) logic.
-- [ ] T022 [US6] Update `src/FundingPlatform.Web/Views/Application/Create.cshtml` to render the Process/convocatoria selector (labelled by Process name; Group when ambiguous) and the blocked-state message.
+- [x] T020 [US6] Add `GroupId` to `CreateApplicationCommand`; in `src/FundingPlatform.Application/Services/ApplicationService.cs` resolve the applicant's eligible groups (member of group whose `Process.Status==Active` AND `Process.Fund.Status==Active`), validate the chosen `GroupId` against that set, and set `Application.GroupId`.
+- [x] T021 [US6] In `src/FundingPlatform.Web/Controllers/ApplicationController.cs` (`Create` GET/POST) + `CreateApplicationViewModel`: add required `GroupId`; implement 0-eligible (block with es-CR message), 1-eligible (auto, hidden), ≥2 (required select) logic.
+- [x] T022 [US6] Update `src/FundingPlatform.Web/Views/Application/Create.cshtml` to render the Process/convocatoria selector (labelled by Process name; Group when ambiguous) and the blocked-state message.
 - [ ] T023 [US6] Replace the nondeterministic group-membership Plantilla lookup with the anchor in `src/FundingPlatform.Infrastructure/Services/GetApplicationReviewProjection.cs` (`ResolveMinimumQuotationsAsync`) and `src/FundingPlatform.Infrastructure/Services/SubmitApplicationHandler.cs` (use `application.Group.Process.Plantilla`).
 - [ ] T024 [US6] Ensure seed Applications carry a valid `GroupId` (extend T005 seed or demo-seed) so existing E2E create/submit flows pass.
 - [ ] T025 [P] [US6] Unit tests in `tests/FundingPlatform.Tests.Unit`: eligible-group resolution (0/1/many), invalid-group rejection, Plantilla-via-anchor determinism.
