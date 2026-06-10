@@ -59,6 +59,6 @@ public class AdminReportsApplicationsTests : AuthenticatedTestBase
             "App Id", "Applicant Name", "Applicant Legal Id", "State",
             "Created", "Submitted", "Resolved", "Item Count",
             "Approved Amount", "Currency", "Has Agreement", "Has Active Appeal",
-            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount", "Fund");
     }
 }

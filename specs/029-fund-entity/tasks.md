@@ -151,7 +151,7 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [x] T053 [US5] In `src/FundingPlatform.Infrastructure/Persistence/Reports/ReportQueryService.cs`: add the filter clause `a.Group.Process.FundId == req.FundId` and project `FundName` via the anchor in the relevant base queries.
 - [x] T054 [US5] Add the Fund column to CSV header + row lines in `AdminReportsService` export methods.
 - [x] T055 [US5] Add a Fund `<select>` (all Funds incl. Archived) to `Views/Admin/Reports/{Applications,FundedItems,Aging}.cshtml` and bind `FundId` in `AdminReportsController`.
-- [ ] T056 [US5] E2E `FundReportFilterTests`: report filter limits rows; Fund column present in table + CSV.
+- [x] T056 [US5] E2E `FundReportFilterTests`: report filter limits rows; Fund column present in table + CSV.
 
 **Checkpoint**: reports pivot by Fund exactly.
 

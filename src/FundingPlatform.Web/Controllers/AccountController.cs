@@ -664,6 +664,27 @@ public class AccountController : Controller
             "UPDATE dbo.Suppliers SET VerificationStatus = 2, IsCompliantCCSS = 1, IsCompliantHacienda = 1, IsCompliantSICOP = 1, HasElectronicInvoice = 1;");
         await _dbContext.Database.ExecuteSqlRawAsync(
             "UPDATE dbo.Quotations SET LegacyNeedsReview = 0 WHERE LegacyNeedsReview = 1;");
+
+        // Spec 029 — Applications now carry a NOT NULL FK to Groups
+        // (Applications.GroupId), so the Groups delete below fails unless the
+        // referencing Applications are removed first. Wipe the full Application
+        // subtree in FK-safe order (children → parents). This also zeroes the
+        // dashboard KPIs the ZeroOfEverything fixture asserts on.
+        foreach (var table in new[]
+        {
+            "SigningReviewDecisions", "SignedUploads", "FundingAgreements",
+            "AppealMessages", "Appeals", "ItemResponses", "ApplicantResponses",
+            "ComparisonArtifacts", "ComparisonJobs", "Quotations", "Items",
+            // NotificationOutbox.VersionHistoryId → VersionHistory (NO ACTION),
+            // and NotificationDelivery → NotificationOutbox, so delete deliveries,
+            // then outbox, then VersionHistory.
+            "NotificationDelivery", "NotificationOutbox", "VersionHistory",
+            "ImpactParameterValues", "Applications",
+        })
+        {
+            await _dbContext.Database.ExecuteSqlRawAsync($"DELETE FROM dbo.{table};");
+        }
+
         // UserGroupMemberships → Groups: ON DELETE CASCADE wipes memberships.
         // Spec 021-feedback-session-may13 — Groups carry a NOT NULL FK to
         // Processes. Deleting Groups does not touch Processes (child→parent),
@@ -709,13 +730,22 @@ public class AccountController : Controller
         // NOT NULL with a real FK to dbo.Processes. The 02_SeedMigracionInicial
         // post-deploy script provides the bootstrap row; resolve it here and
         // attach the demo groups to it so the insert satisfies the FK.
+        // Spec 029 — Processes.FundId is a required FK; resolve the seed
+        // "Fondo General" Fund (dacpac post-deploy plants it; the reset leaves
+        // Funds in place) so a re-inserted Process satisfies the constraint.
         await _dbContext.Database.ExecuteSqlRawAsync(@"
+DECLARE @FundId INT = (SELECT TOP 1 [Id] FROM [dbo].[Funds] WHERE [Name] = N'Fondo General' ORDER BY [Id]);
+IF @FundId IS NULL
+BEGIN
+    INSERT INTO [dbo].[Funds] ([Name], [Description], [Status]) VALUES (N'Fondo General', N'Fondo general del Programa Semilla.', 0);
+    SET @FundId = SCOPE_IDENTITY();
+END;
 DECLARE @ProcessId INT = (
     SELECT [Id] FROM [dbo].[Processes] WHERE [Name] = N'Migración inicial'
 );
 IF @ProcessId IS NULL
 BEGIN
-    INSERT INTO [dbo].[Processes] ([Name], [Status]) VALUES (N'Migración inicial', 0);
+    INSERT INTO [dbo].[Processes] ([Name], [Status], [FundId]) VALUES (N'Migración inicial', 0, @FundId);
     SET @ProcessId = SCOPE_IDENTITY();
 END;
 MERGE INTO dbo.Groups AS tgt

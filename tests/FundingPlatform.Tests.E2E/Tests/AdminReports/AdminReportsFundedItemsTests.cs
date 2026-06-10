@@ -41,6 +41,6 @@ public class AdminReportsFundedItemsTests : AuthenticatedTestBase
         CsvAssertions.AssertHeaderEquals(bytes,
             "App Id", "Applicant Name", "Item Product Name", "Category", "Supplier", "Supplier Legal Id",
             "Price", "Currency", "App State", "App Submitted", "Approved At", "Has Agreement", "Executed",
-            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount", "Fund");
     }
 }
