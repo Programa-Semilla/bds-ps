@@ -2,8 +2,22 @@
 
 **Feature Branch**: `029-fund-entity`
 **Created**: 2026-06-09
-**Status**: Draft
+**Status**: Draft (evolved during planning 2026-06-10)
 **Input**: User description: "Introduce a Fund (Fondo) as the top-level container above Process, carrying name, description, and an optional regulation PDF; each Process must belong to exactly one Fund."
+
+## Planning Evolution (2026-06-10)
+
+During `/speckit-plan` research two architectural facts surfaced that the original brainstorm assumed away:
+
+1. **An `Application` has no stored link to a `Process`.** Today an application is tied only to its `Applicant`; its Process/Plantilla/Fund is *derived* through the applicant's reviewer-scoping group memberships, which can span multiple Processes — so the mapping is ambiguous (Plantilla validation even resolves it with `FirstOrDefault`).
+2. **`Process.Close()` blocks rather than freezes:** the existing lifecycle refuses to close a Process while active applications exist; it has no "freeze in-flight work" mechanism.
+
+The product owner chose the stronger options on both, which **evolves** this spec beyond the original "Group/Plantilla wiring unchanged" stance:
+
+- **Authoritative anchor** — an `Application` gains a required link to the **Group** it is filed under (captured at application creation), making its Process and Fund an exact derivation (`Application → Group → Process → Fund`). This also makes Plantilla resolution deterministic. See **FR-017..FR-019**.
+- **Force-freeze** — archiving a Fund immediately makes its Processes and their in-flight applications read-only for non-admins (a new query/mutation guard), rather than blocking the archive. See **FR-005** (amended) and **FR-020..FR-021**.
+
+These additions are reflected in the requirements, edge cases, and entities below.
 
 ## Overview
 
@@ -77,10 +91,28 @@ An administrator archives a Fund that is no longer in use. Archiving freezes all
 
 **Acceptance Scenarios**:
 
-1. **Given** an Active Fund with Processes, **When** the admin archives it, **Then** its Processes are frozen (read-only) and hidden from non-admin users.
-2. **Given** a just-archived Fund, **When** an admin opens the Process create Fund selector, **Then** that Fund no longer appears as a choice.
-3. **Given** an Archived Fund, **When** an admin filters the Fund list by Archived, **Then** the Fund is listed and can be reactivated.
-4. **Given** an Archived Fund, **When** the admin reactivates it, **Then** it becomes Active, its Processes become actionable again, and it reappears in the Process Fund selector.
+1. **Given** an Active Fund with Processes and in-flight applications anchored under it, **When** the admin archives it, **Then** those applications become read-only and disappear from applicant lists, the reviewer queue, and the signing inbox.
+2. **Given** an application anchored to a now-Archived Fund, **When** its applicant attempts to edit, add an item/quotation, submit, or withdraw it, **Then** the action is rejected with an es-CR message.
+3. **Given** a just-archived Fund, **When** an admin opens the Process create Fund selector, **Then** that Fund no longer appears as a choice.
+4. **Given** an Archived Fund, **When** an admin filters the Fund list by Archived, **Then** the Fund is listed and can be reactivated.
+5. **Given** an Archived Fund with frozen applications, **When** the admin reactivates it, **Then** it becomes Active and its Processes and anchored applications return to their prior actionable, visible state.
+
+---
+
+### User Story 6 - Anchor each application to its Fund at creation (Priority: P1)
+
+When an applicant creates an application, it is anchored to exactly one Group (and therefore one Process and Fund). If the applicant is eligible for a single Group it is chosen automatically; if eligible for several, the applicant chooses; if eligible for none, they cannot start an application. This authoritative anchor is what makes Fund-scoped reporting and the archive freeze exact.
+
+**Why this priority**: P1 — it is the prerequisite that makes FR-012 (exact Fund on reports) and US4 (force-freeze) implementable, and it removes the existing nondeterministic Plantilla resolution. Without it, US4 and US5's report filter cannot be exact.
+
+**Independent Test**: As an applicant eligible for one Group, create an application and confirm it is anchored to that Group's Process/Fund; as an applicant eligible for multiple Groups, confirm the create form requires a choice; confirm submission validation uses the anchored Process's Plantilla.
+
+**Acceptance Scenarios**:
+
+1. **Given** an applicant eligible for exactly one Group, **When** they create an application, **Then** it is anchored to that Group's Process and Fund with no extra prompt.
+2. **Given** an applicant eligible for two or more Groups, **When** they create an application, **Then** they must select the Group/Process and the application is anchored to the selection.
+3. **Given** an applicant eligible for no Group, **When** they attempt to create an application, **Then** they are blocked with a clear es-CR message.
+4. **Given** an anchored application, **When** it is submitted, **Then** the minimum-quotations/required-field validation uses the Plantilla of the anchored Process (deterministic).
 
 ---
 
@@ -104,11 +136,13 @@ An administrator filters the Process list and existing admin reports/exports by 
 
 - **Fund without a regulation PDF**: allowed; applicants simply see no download link.
 - **Invalid regulation upload**: a non-PDF or over-cap file is rejected with an es-CR validation message and nothing is stored.
-- **Archiving a Fund mid-application**: in-flight Processes/applications under it freeze immediately; only admins can still view them.
+- **Archiving a Fund mid-application**: every application anchored to it freezes immediately (read-only) and disappears from non-admin lists/queues; only admins can still view them. Reactivating the Fund restores them.
+- **Applicant eligible for multiple Groups**: at application creation the applicant must choose which Group/Process (hence Fund) they are applying under; the choice is fixed for that application.
+- **Applicant eligible for no Group**: cannot start an application; shown a clear es-CR message.
 - **Replacing the regulation PDF**: the new document is served going forward and the prior reference is superseded (no version history kept).
 - **Duplicate Fund name**: rejected case-insensitively against existing Funds.
-- **Seed/legacy data**: no production data exists; seed data creates a Fund and attaches seed Processes to it so the required association holds from first run.
-- **Unaffected invariants**: existing rules (a Process must have at least one Group; a member must belong to a Group) are unchanged and out of scope.
+- **Seed/legacy data**: no production data exists; seed data creates a Fund, attaches seed Processes, and anchors seed applications to a seed Group so the required associations hold from first run.
+- **Unaffected invariants**: existing rules (a Process must have at least one Group; a member must belong to a Group) still hold.
 
 ## Requirements *(mandatory)*
 
@@ -120,7 +154,7 @@ An administrator filters the Process list and existing admin reports/exports by 
 - **FR-002**: Admins MUST be able to edit a Fund's Name and Description.
 - **FR-003**: Admins MUST be able to upload, replace, or remove a Fund's regulation document. A Fund has at most one regulation document; it MUST be a PDF and within the configured size cap for the regulation category.
 - **FR-004**: Admins MUST be able to archive an Active Fund and reactivate an Archived Fund.
-- **FR-005**: Archiving a Fund MUST freeze all activity beneath it — no new Process may be attached, and its Processes (and their submissions, edits, and reviewer actions) MUST become read-only. Archived Funds and their Processes MUST be hidden from non-admin users; admins MUST be able to reach them via a status filter.
+- **FR-005**: Archiving a Fund MUST **immediately freeze all activity beneath it** regardless of in-flight state — no new Process may be attached, and every application anchored (via its Group → Process) to that Fund MUST become read-only: applicant create/edit/add-item/add-quotation/submit/withdraw and reviewer decision/signing actions MUST be rejected. Archived Funds, their Processes, and their anchored applications MUST be hidden from non-admin read surfaces (applicant lists, reviewer queues, signing inbox, dashboards); admins MUST be able to reach them via a status filter. (See FR-020/FR-021 for the freeze mechanism.)
 - **FR-006**: Funds MUST NOT be hard-deletable; archiving is the retirement path.
 
 **Process ↔ Fund association**
@@ -136,7 +170,7 @@ An administrator filters the Process list and existing admin reports/exports by 
 **Reporting / queries**
 
 - **FR-011**: The admin Process list MUST display each Process's owning Fund and MUST support filtering by Fund.
-- **FR-012**: Existing admin reports/exports MUST support filtering by Fund, and process-scoped rows MUST identify the owning Fund.
+- **FR-012**: Existing admin reports/exports MUST support filtering by Fund, and application/process-scoped rows MUST identify the owning Fund. The owning Fund MUST be derived exactly via the authoritative `Application → Group → Process → Fund` link (FR-017), not approximated through group-membership overlap.
 - **FR-013**: A Fund detail view MUST list all Processes belonging to that Fund.
 
 **Validation & audit**
@@ -145,10 +179,22 @@ An administrator filters the Process list and existing admin reports/exports by 
 - **FR-015**: Administrative changes to Funds (create, edit, archive, reactivate, regulation upload/replace/remove) MUST be recorded in the existing admin audit trail.
 - **FR-016**: All new and modified user-facing copy MUST be in es-CR.
 
+**Application anchoring (added during planning — see Planning Evolution)**
+
+- **FR-017**: Every `Application` MUST carry an authoritative reference to the **Group** it is filed under (and therefore, transitively, a single Process and Fund). This reference MUST be captured when the application is created.
+- **FR-018**: When an applicant who is eligible for exactly one Group creates an application, the system MUST anchor it to that Group automatically. When the applicant is eligible for more than one Group, the create experience MUST require the applicant to choose the Group/Process they are applying under. An applicant eligible for no Group MUST NOT be able to start an application (with a clear es-CR message).
+- **FR-019**: Plantilla-driven submission validation (minimum quotations, required fields) and the Fund regulation shown to the applicant MUST resolve through the application's authoritative anchor (FR-017), replacing the prior nondeterministic group-membership lookup.
+
+**Archive freeze mechanism (added during planning — see Planning Evolution)**
+
+- **FR-020**: A reusable application read filter MUST exclude applications anchored to an Archived Fund from every non-admin read surface (applicant lists/dashboard, reviewer queue, signing inbox, reviewer/admin dashboards), composed alongside the existing soft-delete exclusion. Admin read surfaces MUST be able to opt out of this exclusion to retain visibility.
+- **FR-021**: Every applicant- and reviewer-facing mutation on an application anchored to an Archived Fund MUST be rejected (defense-in-depth: enforced both at the controller boundary and at the domain entity), returning an es-CR message. Admin actions are exempt.
+
 ### Key Entities
 
 - **Fund (Fondo)**: The new top-level container above Process. Attributes: Name (unique, required), Description (required), Status (Active | Archived), and an optional reference to a single regulation document. A Fund owns one or more Processes. A Fund never directly contains Groups or members — those relationships hang off its Processes.
-- **Process** (existing): Gains a required association to exactly one Fund. All other Process relationships (Groups, Plantilla) are unchanged.
+- **Process** (existing): Gains a required association to exactly one Fund.
+- **Application** (existing): Gains a required authoritative association to the **Group** it is filed under (captured at creation), making its Process and Fund an exact derivation. This replaces the previous behavior where an application's Process/Plantilla was inferred nondeterministically from the applicant's group memberships.
 - **Regulation document**: A single PDF governing a Fund, stored via the platform's existing object-storage mechanism and served to applicants through a time-limited link. Replaceable and removable; not versioned.
 
 ## Success Criteria *(mandatory)*
@@ -161,6 +207,8 @@ An administrator filters the Process list and existing admin reports/exports by 
 - **SC-004**: Archiving a Fund removes it and its Processes from every non-admin view, and an administrator can still locate it within the Fund list using the status filter.
 - **SC-005**: An administrator can answer "which Processes belong to this Fund?" from the Fund detail view and constrain the Process list / existing reports to a single Fund.
 - **SC-006**: Invalid Fund inputs (duplicate name, blank name/description, non-PDF or over-size regulation) are rejected with a clear es-CR message and leave no partial data.
+- **SC-007**: Every application created after this feature ships has exactly one authoritative Group anchor, so its Process and Fund are derivable with a single deterministic query (no ambiguity).
+- **SC-008**: When a Fund is archived, none of its anchored applications can be read or mutated by applicants or reviewers, and every such application returns to its prior behavior verbatim when the Fund is reactivated.
 
 ## Assumptions
 
@@ -168,7 +216,9 @@ An administrator filters the Process list and existing admin reports/exports by 
 - The system is **not in production**; no data migration is required. Seed/demo data creates a Fund and attaches existing seed Processes so the required Process→Fund association holds from first run.
 - The regulation document reuses the platform's existing object-storage and time-limited-link serving; a new storage category governs its PDF-only constraint and size cap.
 - Fund administration reuses the existing admin audit trail, in-app toast/dialog conventions, and es-CR localization approach already established in the platform.
-- "Freeze all activity" on archive means existing read paths remain for admins while all create/edit/submit/review actions under the Fund are disabled; the exact set of affected actions follows the Process's existing state model.
+- "Freeze all activity" on archive means existing read paths remain for admins while all applicant/reviewer create/edit/submit/review actions on anchored applications are disabled, enforced by a reusable query filter plus controller/domain guards (FR-020/FR-021).
+- The authoritative `Application → Group` anchor is captured at application creation. Pre-feature applications do not exist in production; seed data anchors any seed applications to a seed Group.
+- The reviewer queue's existing group-overlap visibility predicate is retained as-is for *which reviewers* see an application; the new anchor is additive (it does not narrow reviewer visibility), except that the archive-freeze filter (FR-020) additionally hides archived-Fund applications from everyone non-admin.
 - No new third-party/managed dependencies are introduced.
 
 ## Out of Scope
@@ -178,3 +228,5 @@ An administrator filters the Process list and existing admin reports/exports by 
 - Per-Fund permission scoping or non-admin Fund management.
 - Surfacing the regulation across additional applicant surfaces (landing page, emails).
 - Hard deletion of Funds.
+- Re-anchoring an existing application to a different Group/Process after creation (the anchor is fixed at creation; admin re-anchoring is a possible follow-up).
+- Replacing or tightening the reviewer group-overlap visibility predicate to use the new anchor (kept as-is; potential follow-up).

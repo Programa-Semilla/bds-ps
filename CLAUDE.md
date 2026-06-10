@@ -154,5 +154,5 @@ Per-spec architectural seams (interfaces, aggregates, tables) are summarized in 
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-No active plan. (Spec 028 post-resolution-notifications shipped to main via PR #38, squash commit `5b965fb`. The leftover `028-post-resolution-notifications` branch is the already-merged source branch — stale.)
+Active plan: **029-fund-entity** — `specs/029-fund-entity/plan.md`. Adds a `Fund` (Fondo) aggregate above `Process` (required `Process.FundId`), an optional applicant-downloadable regulation PDF (spec-014 storage), Active/Archived lifecycle, admin Fund CRUD, and Fund filtering on the Process list + reports. Evolved during planning (see spec → *Planning Evolution*): adds an authoritative `Application.GroupId` anchor (exact Process/Fund derivation, fixes Plantilla `FirstOrDefault`) and a force-freeze of archived-Fund applications (`IApplicationQueryFilter.ExcludeArchivedFund` + controller/domain guards). Branch `029-fund-entity`; spec approved SOUND. Next: `/speckit-tasks`.
 <!-- SPECKIT END -->
