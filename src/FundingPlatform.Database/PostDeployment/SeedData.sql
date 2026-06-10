@@ -337,6 +337,12 @@ GO
 -- against already exist. ~488 rows, idempotent MERGE.
 :r .\04_SeedDistricts.sql
 
+-- Spec 029 — finalize the Fund anchors (backfill placeholder FundId/GroupId on
+-- pre-existing rows, then add FK_Processes_Funds + FK_Applications_Groups). MUST
+-- run LAST: after Funds (00), the Migración inicial Process (02), and the
+-- Norte/Sur/Centro Groups (inline MERGE above) all exist.
+:r .\05_Fund029Anchors.sql
+
 -- =============================================================================
 -- Spec 021 / data-model.md — SystemConfiguration rows for stage windows and the
 -- public-landing slot StorageKeys (admins upload via the AdminPublicLandingFiles
