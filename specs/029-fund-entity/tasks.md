@@ -147,10 +147,10 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Independent Test**: Filter Applications/Funded Items/Aging by Fund → only that Fund's rows; Fund column in table + CSV.
 
-- [ ] T052 [US5] Add `int? FundId` to `ListApplicationsRequest`, `ListFundedItemsRequest`, `ListAgingApplicationsRequest`; add `FundName` to `ApplicationRowDto`, `FundedItemRowDto`, and the aging row DTO.
-- [ ] T053 [US5] In `src/FundingPlatform.Infrastructure/Persistence/Reports/ReportQueryService.cs`: add the filter clause `a.Group.Process.FundId == req.FundId` and project `FundName` via the anchor in the relevant base queries.
-- [ ] T054 [US5] Add the Fund column to CSV header + row lines in `AdminReportsService` export methods.
-- [ ] T055 [US5] Add a Fund `<select>` (all Funds incl. Archived) to `Views/Admin/Reports/{Applications,FundedItems,Aging}.cshtml` and bind `FundId` in `AdminReportsController`.
+- [x] T052 [US5] Add `int? FundId` to `ListApplicationsRequest`, `ListFundedItemsRequest`, `ListAgingApplicationsRequest`; add `FundName` to `ApplicationRowDto`, `FundedItemRowDto`, and the aging row DTO.
+- [x] T053 [US5] In `src/FundingPlatform.Infrastructure/Persistence/Reports/ReportQueryService.cs`: add the filter clause `a.Group.Process.FundId == req.FundId` and project `FundName` via the anchor in the relevant base queries.
+- [x] T054 [US5] Add the Fund column to CSV header + row lines in `AdminReportsService` export methods.
+- [x] T055 [US5] Add a Fund `<select>` (all Funds incl. Archived) to `Views/Admin/Reports/{Applications,FundedItems,Aging}.cshtml` and bind `FundId` in `AdminReportsController`.
 - [ ] T056 [US5] E2E `FundReportFilterTests`: report filter limits rows; Fund column present in table + CSV.
 
 **Checkpoint**: reports pivot by Fund exactly.

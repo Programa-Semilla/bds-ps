@@ -10,6 +10,9 @@ public sealed class ListApplicationsRequest
     public string? Search { get; set; }
     public bool? HasAgreement { get; set; }
     public bool? HasActiveAppeal { get; set; }
+    /// <summary>Spec 029 / FR-012 — optional Fund filter (null = all Funds).</summary>
+    public int? FundId { get; set; }
+
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 25;
     public string Sort { get; set; } = "updated-desc";

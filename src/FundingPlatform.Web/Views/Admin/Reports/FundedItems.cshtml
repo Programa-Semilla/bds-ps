@@ -32,6 +32,7 @@
                            checked="@req.ExecutedOnly" data-testid="funded-items-filter-executedonly" />
                     <label for="executedOnly" class="form-check-label">Solo ejecutados</label>
                 </div>
+                @await Html.PartialAsync("_FundFilter")
                 <div class="col-md-3">
                     <button type="submit" class="btn btn-primary" data-testid="funded-items-filter-apply">Aplicar</button>
                     <a class="btn btn-outline-secondary"
@@ -71,6 +72,7 @@
                         <tr>
                             <th>N.º solicitud</th>
                             <th>Solicitante</th>
+                            <th>Fondo</th>
                             <th>Ítem</th>
                             <th>Categoría</th>
                             <th>Proveedor</th>
@@ -89,6 +91,7 @@
                             <tr data-testid="funded-items-row" data-app-id="@row.AppId">
                                 <td>@row.AppId</td>
                                 <td>@row.ApplicantFullName</td>
+                                <td data-testid="funded-items-row-fund">@row.FundName</td>
                                 <td>@row.ItemProductName</td>
                                 <td>@row.CategoryName</td>
                                 <td>@row.SupplierName</td>

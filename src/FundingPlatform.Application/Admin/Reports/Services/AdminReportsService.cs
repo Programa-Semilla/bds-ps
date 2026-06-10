@@ -56,7 +56,8 @@ public sealed class AdminReportsService : IAdminReportsService
             ItemCount: p.ItemCount,
             TotalApproved: totals.TryGetValue(p.AppId, out var stack) ? stack : Array.Empty<CurrencyAmount>(),
             HasAgreement: p.HasAgreement,
-            HasActiveAppeal: p.HasActiveAppeal)).ToList();
+            HasActiveAppeal: p.HasActiveAppeal,
+            FundName: p.FundName)).ToList();
 
         return new ListApplicationsResult(rows, total, req);
     }
@@ -74,7 +75,7 @@ public sealed class AdminReportsService : IAdminReportsService
             "App Id", "Applicant Name", "Applicant Legal Id", "State",
             "Created", "Submitted", "Resolved", "Item Count",
             "Approved Amount", "Currency", "Has Agreement", "Has Active Appeal",
-            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount", "Fund");
 
         const int batchSize = 200;
         var skip = 0;
@@ -104,7 +105,8 @@ public sealed class AdminReportsService : IAdminReportsService
                         string.Empty,
                         p.HasAgreement ? "true" : "false",
                         p.HasActiveAppeal ? "true" : "false",
-                        string.Empty, string.Empty, string.Empty);
+                        string.Empty, string.Empty, string.Empty,
+                        p.FundName);
                 }
                 else
                 {
@@ -125,7 +127,8 @@ public sealed class AdminReportsService : IAdminReportsService
                             p.HasActiveAppeal ? "true" : "false",
                             ca.Currency,
                             ca.Amount.ToString(CultureInfo.InvariantCulture),
-                            ca.ConvertedCrcAmount.ToString(CultureInfo.InvariantCulture));
+                            ca.ConvertedCrcAmount.ToString(CultureInfo.InvariantCulture),
+                            p.FundName);
                     }
                 }
             }
@@ -280,7 +283,7 @@ public sealed class AdminReportsService : IAdminReportsService
         yield return CsvLine(
             "App Id", "Applicant Name", "Item Product Name", "Category", "Supplier", "Supplier Legal Id",
             "Price", "Currency", "App State", "App Submitted", "Approved At", "Has Agreement", "Executed",
-            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount", "Fund");
 
         const int batchSize = 200;
         var skip = 0;
@@ -310,7 +313,8 @@ public sealed class AdminReportsService : IAdminReportsService
                     r.Executed ? "true" : "false",
                     r.Currency,
                     r.Price.ToString(CultureInfo.InvariantCulture),
-                    convertedCrc);
+                    convertedCrc,
+                    r.FundName);
             }
             skip += batch.Count;
         }
@@ -329,7 +333,7 @@ public sealed class AdminReportsService : IAdminReportsService
             "App Id", "Applicant Name", "Email", "Legal Id", "State",
             "Days In Current State", "Last Transition", "Last Actor", "Item Count",
             "Approved Amount", "Currency",
-            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
+            "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount", "Fund");
 
         const int batchSize = 200;
         var skip = 0;
@@ -382,7 +386,8 @@ public sealed class AdminReportsService : IAdminReportsService
             currency,
             originalCurrencyCode,
             originalAmount,
-            convertedCrcAmount);
+            convertedCrcAmount,
+            r.FundName);
     }
 
     private static void ValidateAgingThreshold(int thresholdDays)

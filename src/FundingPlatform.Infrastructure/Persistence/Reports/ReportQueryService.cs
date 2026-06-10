@@ -209,6 +209,7 @@ public sealed class ReportQueryService : IReportQueryService
                 (DateTime?)x.A.UpdatedAt, // approximation — research §5 fallback uses application timestamp
                 x.A.FundingAgreement != null,
                 x.A.State == ApplicationState.AgreementExecuted,
+                x.A.Group!.Process!.Fund!.Name, // Spec 029 / FR-012
                 x.Q.ConvertedCrcAmount))
             .ToListAsync(ct);
     }
@@ -270,6 +271,12 @@ public sealed class ReportQueryService : IReportQueryService
             rows = rows.Where(x => x.A.UpdatedAt <= toUtc);
         }
 
+        // Spec 029 / FR-012 — exact Fund filter via the anchor.
+        if (req.FundId is { } fundId)
+        {
+            rows = rows.Where(x => x.A.Group!.Process!.FundId == fundId);
+        }
+
         return rows;
     }
 
@@ -320,6 +327,12 @@ public sealed class ReportQueryService : IReportQueryService
             .Where(a => states.Contains(a.State))
             .Where(a => a.UpdatedAt <= thresholdCutoff);
 
+        // Spec 029 / FR-012 — exact Fund filter via the anchor.
+        if (req.FundId is { } fundId)
+        {
+            q = q.Where(a => a.Group!.Process!.FundId == fundId);
+        }
+
         if (!string.IsNullOrWhiteSpace(req.Search))
         {
             var pattern = $"%{req.Search.Trim()}%";
@@ -343,7 +356,8 @@ public sealed class ReportQueryService : IReportQueryService
             (DateTime?)a.UpdatedAt,
             (string?)null,
             a.Items.Count,
-            (IReadOnlyList<CurrencyAmount>)Array.Empty<CurrencyAmount>()
+            (IReadOnlyList<CurrencyAmount>)Array.Empty<CurrencyAmount>(),
+            a.Group!.Process!.Fund!.Name // Spec 029 / FR-012
         ));
 
     private static IQueryable<ApplicationEntity> ApplyAgingSort(IQueryable<ApplicationEntity> q, string? sort)
@@ -508,6 +522,12 @@ public sealed class ReportQueryService : IReportQueryService
                 : q.Where(a => !a.Appeals.Any(ap => ap.Status == AppealStatus.Open));
         }
 
+        // Spec 029 / FR-012 — exact Fund filter via the anchor.
+        if (req.FundId is { } fundId)
+        {
+            q = q.Where(a => a.Group!.Process!.FundId == fundId);
+        }
+
         return q;
     }
 
@@ -522,7 +542,8 @@ public sealed class ReportQueryService : IReportQueryService
             a.UpdatedAt,
             a.Items.Count,
             a.FundingAgreement != null,
-            a.Appeals.Any(ap => ap.Status == AppealStatus.Open)
+            a.Appeals.Any(ap => ap.Status == AppealStatus.Open),
+            a.Group!.Process!.Fund!.Name // Spec 029 / FR-012 — exact Fund via the anchor.
         ));
 
     private IQueryable<Applicant> BuildApplicantsBaseQuery(ListApplicantsRequest req)

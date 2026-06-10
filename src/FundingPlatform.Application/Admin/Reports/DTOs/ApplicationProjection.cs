@@ -17,4 +17,5 @@ public sealed record ApplicationProjection(
     DateTime UpdatedAt,
     int ItemCount,
     bool HasAgreement,
-    bool HasActiveAppeal);
+    bool HasActiveAppeal,
+    string FundName);
