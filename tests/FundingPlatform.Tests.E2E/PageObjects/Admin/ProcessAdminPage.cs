@@ -30,6 +30,8 @@ public class ProcessAdminPage : AdminBasePage
     // ---------- Create ----------
 
     public ILocator NameInput => Page.Locator("[data-testid=\"admin-process-name-input\"]");
+    // Spec 029 / FR-002 — the Process create form now requires a Fund.
+    public ILocator FundSelect => Page.Locator("[data-testid=\"admin-process-fund-select\"]");
     public ILocator NameError => Page.Locator("[data-testid=\"admin-process-name-error\"]");
     public ILocator CreateSubmit => Page.Locator("[data-testid=\"admin-process-create-submit\"]");
 
@@ -75,6 +77,12 @@ public class ProcessAdminPage : AdminBasePage
     public async Task CreateProcessAsync(string name)
     {
         await NameInput.FillAsync(name);
+        // Spec 029 / FR-002 — anchor the Process to the first Active Fund
+        // (the seed "Fondo General" is always present).
+        if (await FundSelect.CountAsync() > 0)
+        {
+            await FundSelect.SelectOptionAsync(new Microsoft.Playwright.SelectOptionValue { Index = 1 });
+        }
         await CreateSubmit.ClickAsync();
     }
 

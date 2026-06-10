@@ -66,7 +66,7 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [x] T023 [US6] Replace the nondeterministic group-membership Plantilla lookup with the anchor in `src/FundingPlatform.Infrastructure/Services/GetApplicationReviewProjection.cs` (`ResolveMinimumQuotationsAsync`) and `src/FundingPlatform.Infrastructure/Services/SubmitApplicationHandler.cs` (use `application.Group.Process.Plantilla`).
 - [x] T024 [US6] Ensure seed Applications carry a valid `GroupId` (extend T005 seed or demo-seed) so existing E2E create/submit flows pass.
 - [x] T025 [P] [US6] Unit tests in `tests/FundingPlatform.Tests.Unit`: eligible-group resolution (0/1/many), invalid-group rejection, Plantilla-via-anchor determinism.
-- [ ] T026 [US6] E2E `ApplicationFundAnchorTests` in `tests/FundingPlatform.Tests.E2E` (POM): auto-anchor, choose, blocked-no-group, submit uses anchored Plantilla.
+- [x] T026 [US6] E2E `ApplicationFundAnchorTests` in `tests/FundingPlatform.Tests.E2E` (POM): auto-anchor, choose, blocked-no-group, submit uses anchored Plantilla.
 
 **Checkpoint**: applications anchor deterministically; create/submit work again end-to-end.
 
@@ -88,7 +88,7 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [x] T034 [US1] Register `IFundService`/`FundService` in DI composition root.
 - [x] T035 [P] [US1] Unit tests: Fund domain behavior (archive/reactivate idempotency, regulation set/remove all-or-nothing, name/description validation).
 - [x] T036 [US1] Integration tests (real DB): FundService create/edit/archive persistence, unique-name violation, audit-row emission, regulation columns set/cleared.
-- [ ] T037 [US1] E2E `FundAdminCrudTests`: create (no PDF), upload/replace/remove PDF, reject non-PDF + dup-name + blank, archive/reactivate, audit visible.
+- [x] T037 [US1] E2E `FundAdminCrudTests`: create (no PDF), upload/replace/remove PDF, reject non-PDF + dup-name + blank, archive/reactivate, audit visible.
 
 **Checkpoint**: Fund catalog fully usable by admins.
 
@@ -104,7 +104,7 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [x] T039 [US2] Update `src/FundingPlatform.Web/Views/Admin/Processes/Create.cshtml` with the required Fund selector.
 - [x] T040 [US2] Update `src/FundingPlatform.Web/Views/Admin/Processes/Index.cshtml` with a Fund column + Fund filter dropdown (alongside the existing ProcessStatus filter).
 - [x] T041 [US2] Wire `Process.Create(fundId)` / `SetFund` through the Process create/edit service path (`ProcessService`).
-- [ ] T042 [US2] E2E `ProcessRequiresFundTests`: create blocked without Fund; Active-only selector; reassign; list filter/column.
+- [x] T042 [US2] E2E `ProcessRequiresFundTests`: create blocked without Fund; Active-only selector; reassign; list filter/column.
 
 **Checkpoint**: every Process belongs to a Fund; admin can pivot the Process list by Fund.
 
