@@ -126,8 +126,8 @@ Both deviations were surfaced to and chosen by the product owner during planning
 - **Reviewer visibility regression**: anchor must not narrow what reviewers see. Mitigation: keep the group-overlap predicate; anchor is additive (Out of Scope note).
 - **Seed ordering**: Fund must exist before Processes (required FK). Mitigation: post-deploy script ordered first; idempotent MERGE.
 
-## Open items (non-blocking, for plan review)
+## Open items — RESOLVED at plan review (2026-06-10)
 
-- OI-1: applicant create Group/"convocatoria" selector flow (defaulted per FR-018).
-- OI-2: `fund-regulations` size cap (defaulted 20 MiB).
-- OI-3: report Fund filter includes archived Funds for admin visibility (defaulted yes).
+- OI-1: ✅ applicant create selector = **auto (1 eligible) / choose (many) / block (none)** per FR-018.
+- OI-2: ✅ `fund-regulations` size cap = **20 MiB** (matches signed-agreement cap).
+- OI-3: ✅ report Fund filter **includes archived Funds** for admin visibility.

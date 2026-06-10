@@ -80,8 +80,8 @@ All `NEEDS CLARIFICATION` items resolved. Decisions below are grounded in a read
 - **IV Schema-first dacpac**: all schema via `.sql` (new `dbo.Funds`, `Processes.FundId`, `Applications.GroupId`); no EF migrations.
 - **Conventions**: es-CR copy, reuse spec-014/024/audit, no new NuGet dependencies.
 
-## Open items for plan review (non-blocking)
+## Open items — RESOLVED at plan review (2026-06-10)
 
-- **OI-1**: Confirm the application-creation Group selector label/flow (a "convocatoria"/Process selector) is acceptable as the new applicant-facing step (defaulted per FR-018).
-- **OI-2**: `fund-regulations` size cap value (defaulted 20 MiB) — confirm.
-- **OI-3**: Whether admin reports should let admins *also* filter to "only archived-Fund" applications (defaulted: Fund filter offers all Funds incl. archived; no separate flag).
+- **OI-1**: ✅ Application-creation selector = auto when one eligible group / required choice when many / block when none (FR-018). Labeled by Process ("convocatoria").
+- **OI-2**: ✅ `fund-regulations` size cap = 20 MiB.
+- **OI-3**: ✅ Admin report Fund filter lists all Funds including Archived (admins retain reporting visibility into archived Funds).
