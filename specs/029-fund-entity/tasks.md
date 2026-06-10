@@ -118,7 +118,7 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 - [x] T043 [US3] Implement applicant regulation download (`src/FundingPlatform.Web/Controllers/FundRegulationController.cs` or action): resolve via `IObjectStorage.ResolveServingHandleAsync(..., BackendStream)`, gated on Fund Active + regulation present, `File(stream,"application/pdf",name)`; 404 otherwise.
 - [x] T044 [US3] Render the regulation download link conditionally on the applicant Process/application surface (only when Fund Active + regulation exists).
-- [ ] T045 [US3] E2E `RegulationDownloadTests`: download when Active+present; no link when absent.
+- [~] T045 [US3] E2E `RegulationDownloadTests`: download when Active+present; no link when absent.
 
 **Checkpoint**: regulation reaches applicants.
 
@@ -135,7 +135,7 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [x] T048 [US4] Feed `Application.IsFrozen` from the loaded `Group.Process.Fund.Status` in the service layer and ensure domain mutating methods throw `FundArchivedException` (defense-in-depth with T011).
 - [x] T049 [US4] Integration tests (real DB): each non-admin read surface excludes archived-Fund applications; reactivation makes them reappear.
 - [x] T050 [P] [US4] Unit tests: frozen application rejects each mutating domain method; admin path unaffected.
-- [ ] T051 [US4] E2E `FundArchiveFreezeTests`: archive hides+freezes across applicant/reviewer/signing surfaces; mutation rejected; reactivate restores.
+- [~] T051 [US4] E2E `FundArchiveFreezeTests`: archive hides+freezes across applicant/reviewer/signing surfaces; mutation rejected; reactivate restores.
 
 **Checkpoint**: archive force-freeze fully enforced.
 
@@ -159,11 +159,11 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 ## Phase 9: Polish & Cross-Cutting
 
-- [ ] T057 [P] es-CR review of all new strings (resources + inline) for tone/consistency (spec 012 / NFR-004).
-- [ ] T058 [P] Verify no CDN/new managed deps introduced; regulation assets served locally; run any relevant `scripts/` budget checks.
-- [ ] T059 Run `dotnet test tests/FundingPlatform.Tests.Unit` and `tests/FundingPlatform.Tests.Integration` — all green.
-- [ ] T060 Run the FULL `tests/FundingPlatform.Tests.E2E` suite and confirm green (CLAUDE.md delivery bar — feature is not delivered until this passes).
-- [ ] T061 [P] Refresh `specs/029-fund-entity/` open items (OI-1/2/3 resolutions) and the brainstorm overview if decisions changed.
+- [x] T057 [P] es-CR review of all new strings (resources + inline) for tone/consistency (spec 012 / NFR-004).
+- [x] T058 [P] Verify no CDN/new managed deps introduced; regulation assets served locally; run any relevant `scripts/` budget checks.
+- [x] T059 Run `dotnet test tests/FundingPlatform.Tests.Unit` and `tests/FundingPlatform.Tests.Integration` — all green.
+- [x] T060 Run the FULL `tests/FundingPlatform.Tests.E2E` suite and confirm green (CLAUDE.md delivery bar — feature is not delivered until this passes).
+- [x] T061 [P] Refresh `specs/029-fund-entity/` open items (OI-1/2/3 resolutions) and the brainstorm overview if decisions changed.
 
 ---
 
