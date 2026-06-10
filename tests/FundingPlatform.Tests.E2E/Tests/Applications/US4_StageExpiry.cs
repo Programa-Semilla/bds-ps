@@ -69,6 +69,7 @@ public class US4_StageExpiry : AuthenticatedTestBase
         await ctaButton.ClickAsync();
         var appPage = new ApplicationPage(Page);
         await appPage.CompanyNameInput.FillAsync($"Vencida {uniqueId}");
+        await appPage.SelectEligibleGroupIfPresentAsync();
         await appPage.SubmitDraftButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 

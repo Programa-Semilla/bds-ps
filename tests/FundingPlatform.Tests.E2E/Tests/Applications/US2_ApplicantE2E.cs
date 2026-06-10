@@ -55,6 +55,7 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
         // 4. Create the draft — opens straight in the draft editor (US2).
         var appPage = new ApplicationPage(Page);
         await appPage.CompanyNameInput.FillAsync($"Sazón {uniqueId}");
+        await appPage.SelectEligibleGroupIfPresentAsync();
         await appPage.SubmitDraftButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
         var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
