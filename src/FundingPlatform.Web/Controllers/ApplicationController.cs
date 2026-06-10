@@ -156,6 +156,7 @@ public class ApplicationController : Controller
             return NotFound();
         }
 
+        await PopulateRegulationLinkAsync(id);
         var viewModel = MapToViewModel(application);
         return View(viewModel);
     }
@@ -182,6 +183,7 @@ public class ApplicationController : Controller
         // banner ViewModel so the partial in Edit.cshtml can render the live
         // window (or the "Vencido" red state when closed).
         await PopulateStageBannerAsync(id);
+        await PopulateRegulationLinkAsync(id);
 
         var viewModel = MapToViewModel(application);
         var categories = await _categoryRepository.GetAllActiveAsync();
@@ -602,6 +604,35 @@ public class ApplicationController : Controller
             .FirstOrDefaultAsync(a => a.UserId == userId);
 
         return applicant?.Id ?? throw new InvalidOperationException("Applicant not found for current user.");
+    }
+
+    /// <summary>
+    /// Spec 029 / FR-013 — when the application's anchored Fund is Active and
+    /// carries a regulation, stash the download target in ViewData so the
+    /// applicant Edit/Details surfaces can render the link (and nothing otherwise).
+    /// </summary>
+    private async Task PopulateRegulationLinkAsync(int applicationId)
+    {
+        var reg = await _dbContext.Applications
+            .Where(a => a.Id == applicationId)
+            .Select(a => new
+            {
+                FundId = a.Group!.Process!.Fund!.Id,
+                a.Group!.Process!.Fund!.Status,
+                HasRegulation = a.Group!.Process!.Fund!.RegulationBlobKey != null,
+            })
+            .FirstOrDefaultAsync();
+
+        if (reg is not null
+            && reg.Status == FundingPlatform.Domain.Enums.FundStatus.Active
+            && reg.HasRegulation)
+        {
+            ViewData["RegulationFundId"] = reg.FundId;
+        }
+        else
+        {
+            ViewData["RegulationFundId"] = null;
+        }
     }
 
     /// <summary>Spec 029 / FR-018 — one eligible Group for the create-flow anchor.</summary>

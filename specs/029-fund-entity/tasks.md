@@ -116,8 +116,8 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Independent Test**: Active Fund with PDF → applicant downloads; remove PDF → link gone.
 
-- [ ] T043 [US3] Implement applicant regulation download (`src/FundingPlatform.Web/Controllers/FundRegulationController.cs` or action): resolve via `IObjectStorage.ResolveServingHandleAsync(..., BackendStream)`, gated on Fund Active + regulation present, `File(stream,"application/pdf",name)`; 404 otherwise.
-- [ ] T044 [US3] Render the regulation download link conditionally on the applicant Process/application surface (only when Fund Active + regulation exists).
+- [x] T043 [US3] Implement applicant regulation download (`src/FundingPlatform.Web/Controllers/FundRegulationController.cs` or action): resolve via `IObjectStorage.ResolveServingHandleAsync(..., BackendStream)`, gated on Fund Active + regulation present, `File(stream,"application/pdf",name)`; 404 otherwise.
+- [x] T044 [US3] Render the regulation download link conditionally on the applicant Process/application surface (only when Fund Active + regulation exists).
 - [ ] T045 [US3] E2E `RegulationDownloadTests`: download when Active+present; no link when absent.
 
 **Checkpoint**: regulation reaches applicants.
