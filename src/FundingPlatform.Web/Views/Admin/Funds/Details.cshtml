@@ -1,0 +1,174 @@
+@*
+    Spec 029 / US1 — Fund (Fondo) detail: edit, regulation management, Processes list,
+    archive/reactivate. Confirmations use the spec-024 data-confirm dialog.
+*@
+@using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
+@using FundingPlatform.Domain.Enums
+@model FundingPlatform.Web.ViewModels.Admin.AdminFundDetailsViewModel
+@{
+    ViewData["Title"] = AdminFundsResources.Breadcrumb_Details;
+    var d = Model.Detail;
+    var isArchived = d.Status == FundStatus.Archived;
+}
+
+<div data-testid="admin-fund-details-area" data-fund-id="@d.Id">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: d.Name,
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem(AdminFundsResources.Breadcrumb_Index, Url.Action("Index", "AdminFunds")),
+                new BreadcrumbItem(d.Name),
+            }))
+
+    <div class="row">
+        <div class="col-lg-7">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3 class="card-title">@AdminFundsResources.Breadcrumb_Edit</h3>
+                    <div class="card-actions">
+                        @if (isArchived)
+                        {
+                            <span class="badge bg-secondary" data-testid="admin-fund-status">@AdminFundsResources.Status_Archived</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-green-lt" data-testid="admin-fund-status">@AdminFundsResources.Status_Active</span>
+                        }
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (isArchived)
+                    {
+                        <div class="alert alert-warning" data-testid="admin-fund-archived-notice">
+                            Este fondo está archivado. Reactívelo para editar su nombre o descripción.
+                        </div>
+                    }
+                    <form method="post" asp-action="Edit" asp-route-id="@d.Id" data-testid="admin-fund-edit-form">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label">@AdminFundsResources.Field_Name @await Html.PartialAsync("_RequiredMark")</label>
+                            <input name="Name" value="@d.Name" class="form-control" maxlength="120"
+                                   data-testid="admin-fund-edit-name" @(isArchived ? "disabled" : "") />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">@AdminFundsResources.Field_Description @await Html.PartialAsync("_RequiredMark")</label>
+                            <textarea name="Description" class="form-control" rows="4" maxlength="2000"
+                                      data-testid="admin-fund-edit-description" @(isArchived ? "disabled" : "")>@d.Description</textarea>
+                        </div>
+                        @if (!isArchived)
+                        {
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary" data-testid="admin-fund-edit-submit">
+                                    @AdminFundsResources.Action_Save
+                                </button>
+                            </div>
+                        }
+                    </form>
+                </div>
+            </div>
+
+            @* Regulation management *@
+            <div class="card mb-3" data-testid="admin-fund-regulation-card">
+                <div class="card-header"><h3 class="card-title">@AdminFundsResources.Column_Regulation</h3></div>
+                <div class="card-body">
+                    @if (d.HasRegulation)
+                    {
+                        <p data-testid="admin-fund-regulation-present">
+                            <i class="ti ti-file-text me-1"></i>@(d.RegulationFileName ?? AdminFundsResources.Regulation_Present)
+                        </p>
+                        <div class="btn-list">
+                            <a class="btn btn-sm btn-outline-primary"
+                               href="@Url.Action("Download", "FundRegulation", new { fundId = d.Id })"
+                               data-testid="admin-fund-regulation-download">
+                                <i class="ti ti-download"></i> @AdminFundsResources.Action_DownloadRegulation
+                            </a>
+                            <form method="post" asp-action="RemoveRegulation" asp-route-id="@d.Id" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        data-confirm="@AdminFundsResources.Confirm_RemoveRegulation"
+                                        data-testid="admin-fund-regulation-remove">
+                                    <i class="ti ti-trash"></i> @AdminFundsResources.Action_RemoveRegulation
+                                </button>
+                            </form>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-secondary" data-testid="admin-fund-regulation-none">@AdminFundsResources.Regulation_None</p>
+                    }
+
+                    <form method="post" asp-action="Regulation" asp-route-id="@d.Id" enctype="multipart/form-data" class="mt-3">
+                        @Html.AntiForgeryToken()
+                        <label class="form-label">@(d.HasRegulation ? AdminFundsResources.Action_ReplaceRegulation : AdminFundsResources.Action_UploadRegulation)</label>
+                        <div class="input-group">
+                            <input type="file" name="regulationFile" accept="application/pdf,.pdf" class="form-control"
+                                   data-testid="admin-fund-regulation-upload-input" />
+                            <button type="submit" class="btn btn-primary" data-testid="admin-fund-regulation-upload-submit">
+                                <i class="ti ti-upload"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            @* Lifecycle *@
+            <div class="card mb-3">
+                <div class="card-header"><h3 class="card-title">Ciclo de vida</h3></div>
+                <div class="card-body">
+                    @if (isArchived)
+                    {
+                        <form method="post" asp-action="Reactivate" asp-route-id="@d.Id">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-success w-100"
+                                    data-confirm="@AdminFundsResources.Confirm_Reactivate"
+                                    data-testid="admin-fund-reactivate">
+                                <i class="ti ti-rotate"></i> @AdminFundsResources.Action_Reactivate
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <form method="post" asp-action="Archive" asp-route-id="@d.Id">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-danger w-100"
+                                    data-confirm="@AdminFundsResources.Confirm_Archive"
+                                    data-testid="admin-fund-archive">
+                                <i class="ti ti-archive"></i> @AdminFundsResources.Action_Archive
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+
+            @* Processes under this Fund *@
+            <div class="card" data-testid="admin-fund-processes-card">
+                <div class="card-header"><h3 class="card-title">@AdminFundsResources.Column_ProcessCount</h3></div>
+                <div class="card-body">
+                    @if (d.Processes.Count == 0)
+                    {
+                        <p class="text-secondary" data-testid="admin-fund-processes-empty">@AdminFundsResources.Details_NoProcesses</p>
+                    }
+                    else
+                    {
+                        <ul class="list-unstyled" data-testid="admin-fund-processes-list">
+                            @foreach (var p in d.Processes)
+                            {
+                                <li class="mb-1">
+                                    <a href="@Url.Action("Details", "AdminProcesses", new { id = p.Id })">@p.Name</a>
+                                    @if (p.Status == ProcessStatus.Closed)
+                                    {
+                                        <span class="badge bg-secondary ms-1">Cerrado</span>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

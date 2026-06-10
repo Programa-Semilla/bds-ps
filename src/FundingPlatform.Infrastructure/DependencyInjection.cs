@@ -165,6 +165,9 @@ public static class DependencyInjection
             sp => sp.GetRequiredService<Services.ProcessService>());
         services.AddScoped<Application.Plantillas.IPlantillaService, Services.PlantillaService>();
 
+        // Spec 029 / US1 — Fund (Fondo) admin CRUD + lifecycle + regulation storage.
+        services.AddScoped<Application.Funds.IFundService, Services.FundService>();
+
         // Spec 020 — AI quote comparison wiring.
         services.AddAiComparison(configuration);
 

@@ -78,15 +78,15 @@ Clean Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Independent Test**: Create Fund (no PDF) → Active in list; upload/replace/remove PDF; reject non-PDF/dup-name/blank; audit rows written.
 
-- [ ] T027 [US1] Create `src/FundingPlatform.Application/Abstractions/IFundService.cs` + command records (Create/Edit/Archive/Reactivate/SetRegulation/RemoveRegulation).
-- [ ] T028 [US1] Implement `src/FundingPlatform.Infrastructure/Services/FundService.cs`: CRUD + lifecycle; unique-name pre-check (es-CR); regulation store/replace/remove via `IObjectStorage` (ObjectKey.Build with `FileCategory.FundRegulation`, delete superseded blob); write `AdminAuditEvent` for each mutation (depends on T008, T012, T027).
-- [ ] T029 [P] [US1] Create `src/FundingPlatform.Web/ViewModels/Admin/AdminFundViewModels.cs` (Index rows + status filter, Create, Edit, Details with Processes list).
-- [ ] T030 [P] [US1] Create `src/FundingPlatform.Web/Resources/AdminFundsResources.cs` (all es-CR strings, NFR-004).
-- [ ] T031 [US1] Implement `src/FundingPlatform.Web/Controllers/Admin/AdminFundsController.cs` (`/Admin/Funds`): Index(status filter), Create GET/POST, Edit POST, Details, Regulation POST + Remove POST, Archive POST, Reactivate POST; `[Authorize(Roles="Admin")]` + `[SupplierAdminDenied]`; `[UploadSizeGuard(FileCategory.FundRegulation)]` + `%PDF-` magic-byte validation; TempData toasts (depends on T028, T029, T030).
-- [ ] T032 [US1] Create `src/FundingPlatform.Web/Views/Admin/Funds/{Index,Create,Edit,Details}.cshtml` (status badge, spec-024 `data-confirm` on archive/reactivate/remove, regulation upload control, Processes list on Details).
-- [ ] T033 [P] [US1] Add sidebar entry `new("funds","Fondos","/Admin/Funds","ti ti-coin", new[]{"Admin"})` to `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml`.
-- [ ] T034 [US1] Register `IFundService`/`FundService` in DI composition root.
-- [ ] T035 [P] [US1] Unit tests: Fund domain behavior (archive/reactivate idempotency, regulation set/remove all-or-nothing, name/description validation).
+- [x] T027 [US1] Create `src/FundingPlatform.Application/Abstractions/IFundService.cs` + command records (Create/Edit/Archive/Reactivate/SetRegulation/RemoveRegulation).
+- [x] T028 [US1] Implement `src/FundingPlatform.Infrastructure/Services/FundService.cs`: CRUD + lifecycle; unique-name pre-check (es-CR); regulation store/replace/remove via `IObjectStorage` (ObjectKey.Build with `FileCategory.FundRegulation`, delete superseded blob); write `AdminAuditEvent` for each mutation (depends on T008, T012, T027).
+- [x] T029 [P] [US1] Create `src/FundingPlatform.Web/ViewModels/Admin/AdminFundViewModels.cs` (Index rows + status filter, Create, Edit, Details with Processes list).
+- [x] T030 [P] [US1] Create `src/FundingPlatform.Web/Resources/AdminFundsResources.cs` (all es-CR strings, NFR-004).
+- [x] T031 [US1] Implement `src/FundingPlatform.Web/Controllers/Admin/AdminFundsController.cs` (`/Admin/Funds`): Index(status filter), Create GET/POST, Edit POST, Details, Regulation POST + Remove POST, Archive POST, Reactivate POST; `[Authorize(Roles="Admin")]` + `[SupplierAdminDenied]`; `[UploadSizeGuard(FileCategory.FundRegulation)]` + `%PDF-` magic-byte validation; TempData toasts (depends on T028, T029, T030).
+- [x] T032 [US1] Create `src/FundingPlatform.Web/Views/Admin/Funds/{Index,Create,Edit,Details}.cshtml` (status badge, spec-024 `data-confirm` on archive/reactivate/remove, regulation upload control, Processes list on Details).
+- [x] T033 [P] [US1] Add sidebar entry `new("funds","Fondos","/Admin/Funds","ti ti-coin", new[]{"Admin"})` to `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml`.
+- [x] T034 [US1] Register `IFundService`/`FundService` in DI composition root.
+- [x] T035 [P] [US1] Unit tests: Fund domain behavior (archive/reactivate idempotency, regulation set/remove all-or-nothing, name/description validation).
 - [ ] T036 [US1] Integration tests (real DB): FundService create/edit/archive persistence, unique-name violation, audit-row emission, regulation columns set/cleared.
 - [ ] T037 [US1] E2E `FundAdminCrudTests`: create (no PDF), upload/replace/remove PDF, reject non-PDF + dup-name + blank, archive/reactivate, audit visible.
 
