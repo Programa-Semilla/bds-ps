@@ -164,8 +164,18 @@ public class AdminProcessesController : Controller
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Details(int id, CancellationToken ct)
     {
+        var vm = await BuildDetailsViewModelAsync(id, ct);
+        if (vm is null) return NotFound();
+        return View(vm);
+    }
+
+    /// <summary>Builds the <see cref="AdminProcessDetailsViewModel"/> the Details
+    /// view renders. Shared by the GET and by the spec-030 Rename error
+    /// re-render so the inline-error path shows an identical page.</summary>
+    private async Task<AdminProcessDetailsViewModel?> BuildDetailsViewModelAsync(int id, CancellationToken ct)
+    {
         var detail = await _processQuery.GetDetailAsync(id, ct);
-        if (detail is null) return NotFound();
+        if (detail is null) return null;
 
         // Only surface assignable base Plantillas when no snapshot exists
         // (OQ-1: one-to-one — the form widget would otherwise be confusing).
@@ -181,14 +191,64 @@ public class AdminProcessesController : Controller
             .Select(f => new SelectListItem(f.Name, f.Id.ToString()))
             .ToListAsync(ct);
 
-        return View(new AdminProcessDetailsViewModel
+        return new AdminProcessDetailsViewModel
         {
             Detail = detail,
             AssignableBasePlantillas = assignable,
             CloseBlockingPublicCodes = TempData["CloseBlockingPublicCodes"] as string[]
                 ?? Array.Empty<string>(),
             FundOptions = fundOptions,
-        });
+        };
+    }
+
+    [HttpPost("{id:int}/Rename")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Rename(int id, string newName, CancellationToken ct)
+    {
+        // Spec 030 / FR-004 / FR-008 — validate required/≤120 with es-CR copy
+        // (mirrors the Create ViewModel messages) so the inline message is
+        // Spanish; the domain Rename() remains the backstop.
+        var trimmed = (newName ?? string.Empty).Trim();
+        if (trimmed.Length == 0)
+        {
+            ModelState.AddModelError(nameof(newName), "El nombre es obligatorio.");
+        }
+        else if (trimmed.Length > Process.MaxNameLength)
+        {
+            ModelState.AddModelError(nameof(newName), "El nombre debe tener 120 caracteres o menos.");
+        }
+
+        if (ModelState.IsValid)
+        {
+            var actorId = _userManager.GetUserId(User) ?? string.Empty;
+            try
+            {
+                // newName is non-null here: pre-validation rejected null/empty.
+                await _processes.RenameAsync(new RenameProcessCommand(id, newName!), actorId, ct);
+                TempData["SuccessMessage"] = "Nombre del proceso actualizado.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (ArgumentException)
+            {
+                // Defensive backstop (es-CR) — pre-validation already covers the
+                // required/≤120 cases the domain rejects.
+                ModelState.AddModelError(nameof(newName), "El nombre es obligatorio.");
+            }
+            catch (DbUpdateException)
+            {
+                // Spec 030 / FR-005 — duplicate name (UX_Processes_Name); reuse the
+                // same es-CR message the Create flow surfaces.
+                ModelState.AddModelError(nameof(newName), "Ya existe un proceso con ese nombre.");
+            }
+        }
+
+        var vm = await BuildDetailsViewModelAsync(id, ct);
+        if (vm is null) return NotFound();
+        return View(nameof(Details), vm);
     }
 
     [HttpPost("{id:int}/AssignPlantilla")]

@@ -52,6 +52,12 @@ public class ProcessAdminPage : AdminBasePage
     public ILocator DetachPlantillaForm => Page.Locator("[data-testid=\"admin-process-detach-plantilla-form\"]");
     public ILocator DetachPlantillaSubmit => Page.Locator("[data-testid=\"admin-process-detach-plantilla-submit\"]");
 
+    // Spec 030 / FR-001 — inline Process-name rename on the detail page.
+    public ILocator RenameForm => Page.Locator("[data-testid=\"admin-process-rename-form\"]");
+    public ILocator RenameInput => Page.Locator("[data-testid=\"admin-process-rename-input\"]");
+    public ILocator RenameSubmit => Page.Locator("[data-testid=\"admin-process-rename-submit\"]");
+    public ILocator RenameError => Page.Locator("[data-testid=\"admin-process-rename-error\"]");
+
     public ILocator GroupsCard => Page.Locator("[data-testid=\"admin-process-groups-card\"]");
     public ILocator GroupRow(string name) =>
         Page.Locator("tr[data-testid^=\"admin-process-group-row-\"]").Filter(new() { HasText = name });
@@ -107,6 +113,24 @@ public class ProcessAdminPage : AdminBasePage
     {
         await GroupNameInput.FillAsync(name);
         await GroupCreateSubmit.ClickAsync();
+    }
+
+    /// <summary>Spec 030 / FR-001 — renames the currently-open Process via the
+    /// inline Name card on the detail page.</summary>
+    public async Task RenameAsync(string newName)
+    {
+        await RenameInput.FillAsync(newName);
+        await RenameSubmit.ClickAsync();
+    }
+
+    public ILocator CloseSubmit => Page.Locator("[data-testid=\"admin-process-close-submit\"]");
+
+    /// <summary>Closes the currently-open (Active) Process via the Close card and
+    /// the spec-024 shared confirm modal.</summary>
+    public async Task CloseAsync()
+    {
+        await CloseSubmit.ClickAsync();
+        await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
     }
 
     public async Task AssignPlantillaAsync(string plantillaOptionTextFragment)
