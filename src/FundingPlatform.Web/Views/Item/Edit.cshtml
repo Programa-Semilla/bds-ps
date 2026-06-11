@@ -31,7 +31,7 @@
 
             <div class="mb-3" data-testid="form-section" data-field="CategoryId">
                 <label asp-for="CategoryId" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
-                <select asp-for="CategoryId" asp-items="Model.Categories" class="form-select">
+                <select asp-for="CategoryId" asp-items="Model.Categories" class="form-select" data-searchable>
                     <option value="">-- Seleccione una categoría --</option>
                 </select>
                 <span asp-validation-for="CategoryId" class="invalid-feedback d-block"></span>

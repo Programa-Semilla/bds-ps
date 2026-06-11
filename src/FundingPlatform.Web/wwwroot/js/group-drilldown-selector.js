@@ -22,6 +22,20 @@
 (function () {
     'use strict';
 
+    // Spec 031 — accent/case fold for the group-options filter (mirrors the
+    // searchable-select.js matcher). U+0300–U+036F built from char codes so the
+    // source stays pure-ASCII.
+    var COMBINING_MARKS = new RegExp('[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g');
+    function fold(text) {
+        return (text || '')
+            .normalize('NFD')
+            .replace(COMBINING_MARKS, '')
+            .toLocaleLowerCase('es');
+    }
+    function searchPlaceholder() {
+        return (document.body && document.body.getAttribute('data-searchable-placeholder')) || '';
+    }
+
     function init(root) {
         var catalog, selected;
         try { catalog = JSON.parse(root.getAttribute('data-catalog') || '[]'); } catch (e) { catalog = []; }
@@ -38,6 +52,28 @@
         var chipsBox = root.querySelector('[data-role="chips"]');
         var hiddenBox = root.querySelector('[data-role="hidden"]');
         if (!fundSel || !procSel || !optionsBox || !chipsBox || !hiddenBox) return;
+
+        // Spec 031 — in-place text filter over the group checkbox list (FR-007).
+        // Hidden until a process with groups is shown; never touches checked state.
+        var filterInput = document.createElement('input');
+        filterInput.type = 'text';
+        filterInput.className = 'form-control form-control-sm mb-2';
+        filterInput.placeholder = searchPlaceholder();
+        filterInput.setAttribute('data-role', 'group-filter');
+        filterInput.setAttribute('data-testid', 'group-selector-filter');
+        filterInput.setAttribute('aria-label', searchPlaceholder());
+        filterInput.hidden = true;
+        optionsBox.parentNode.insertBefore(filterInput, optionsBox);
+        filterInput.addEventListener('input', function () { applyGroupFilter(filterInput.value); });
+
+        function applyGroupFilter(query) {
+            var folded = fold(query);
+            var labels = optionsBox.querySelectorAll('label.form-check');
+            for (var i = 0; i < labels.length; i++) {
+                var hay = labels[i].getAttribute('data-filter-text') || '';
+                labels[i].hidden = folded.length > 0 && hay.indexOf(folded) === -1;
+            }
+        }
 
         // Ordered map id -> name (string keys).
         var selectedMap = new Map();
@@ -75,6 +111,9 @@
 
         function buildGroupOptions() {
             optionsBox.innerHTML = '';
+            // Reset the filter each rebuild so a fresh process starts unfiltered.
+            filterInput.value = '';
+            filterInput.hidden = true;
             var fund = findFund(fundSel.value);
             var proc = findProcess(fund, procSel.value);
             if (!proc) {
@@ -86,10 +125,12 @@
                 appendPlaceholder(placeholderGroups);
                 return;
             }
+            filterInput.hidden = false;
             groups.forEach(function (g) {
                 var id = String(g.id);
                 var label = document.createElement('label');
                 label.className = 'form-check';
+                label.setAttribute('data-filter-text', fold(g.name));
 
                 var cb = document.createElement('input');
                 cb.type = 'checkbox';

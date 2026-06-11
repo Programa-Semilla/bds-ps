@@ -134,7 +134,10 @@
     <link rel="stylesheet" href="~/lib/tabler/dist/css/tabler-icons.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body>
+@* Spec 031 — es-CR defaults for the searchable-dropdown enhancer, surfaced via
+   markup so searchable-select.js carries no Spanish literals (FR-010). *@
+<body data-searchable-placeholder="@FundingPlatform.Web.Resources.SearchableDropdownResources.SearchPlaceholder"
+      data-searchable-empty="@FundingPlatform.Web.Resources.SearchableDropdownResources.NoMatchMessage">
     <div class="page">
         @if (User?.Identity?.IsAuthenticated == true)
         {
@@ -386,6 +389,8 @@
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/confirm-dialog.js" asp-append-version="true"></script>
     <script src="~/js/hint-tooltip.js" asp-append-version="true"></script>
+    @* Spec 031 — global searchable-dropdown enhancer; opt-in per <select data-searchable>. *@
+    <script src="~/js/searchable-select.js" asp-append-version="true" defer></script>
     <script src="~/lib/canvas-confetti/canvas-confetti.min.js" defer></script>
     <script src="~/js/motion.js" asp-append-version="true" defer></script>
     <script src="~/js/facelift-init.js" asp-append-version="true" defer></script>

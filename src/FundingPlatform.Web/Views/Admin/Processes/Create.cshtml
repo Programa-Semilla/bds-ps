@@ -31,7 +31,7 @@
         @* Spec 029 / FR-002 — required Fund (only Active Funds are selectable). *@
         <div class="col-md-6 mb-3">
             <label class="form-label" asp-for="FundId">Fondo @await Html.PartialAsync("_RequiredMark")</label>
-            <select asp-for="FundId" asp-items="Model.FundOptions" class="form-select" data-testid="admin-process-fund-select">
+            <select asp-for="FundId" asp-items="Model.FundOptions" class="form-select" data-testid="admin-process-fund-select" data-searchable>
                 <option value="">— Seleccione un fondo —</option>
             </select>
             <span asp-validation-for="FundId" class="text-danger" data-testid="admin-process-fund-error"></span>

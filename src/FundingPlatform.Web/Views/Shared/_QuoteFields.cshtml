@@ -15,7 +15,7 @@
         <label asp-for="Currency" class="form-label"></label> @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Supplier.Currency"))
         @if (Model.EnabledCurrencies.Count > 0)
         {
-            <select asp-for="Currency" class="form-select" data-testid="quotation-currency-input">
+            <select asp-for="Currency" class="form-select" data-testid="quotation-currency-input" data-searchable>
                 @foreach (var option in Model.EnabledCurrencies)
                 {
                     <option value="@option.Code">@option.Symbol @option.DisplayName (@option.Code)</option>

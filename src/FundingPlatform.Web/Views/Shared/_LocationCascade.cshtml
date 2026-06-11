@@ -34,6 +34,8 @@
                 class="form-select"
                 name="@Model.ProvinceFieldName"
                 required
+                data-testid="@provinceSelectId"
+                data-searchable
                 data-cascade-source="province"
                 data-cascade-endpoint="/api/cantons"
                 data-cascade-param="provinceId"
@@ -59,6 +61,8 @@
                 class="form-select"
                 name="@Model.CantonFieldName"
                 required
+                data-testid="@cantonSelectId"
+                data-searchable
                 data-cascade-source="canton"
                 data-cascade-endpoint="/api/districts"
                 data-cascade-param="cantonId"
@@ -85,6 +89,8 @@
                 class="form-select"
                 name="@Model.DistrictFieldName"
                 required
+                data-testid="@districtSelectId"
+                data-searchable
                 data-cascade-current="@(Model.SelectedDistrictId?.ToString() ?? string.Empty)">
             <option value="">Seleccione un distrito</option>
             @foreach (var district in Model.Districts)

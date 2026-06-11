@@ -23,9 +23,9 @@ description: "Task list for 031-searchable-dropdowns"
 
 **Purpose**: Localized strings, component styling, and the global script include the enhancer needs.
 
-- [ ] T001 [P] Create `src/FundingPlatform.Web/Resources/SearchableDropdownResources.cs` — static class with es-CR consts `SearchPlaceholder = "Escriba para filtrar…"` and `NoMatchMessage = "Sin coincidencias"` (mirror the `AdminGroupsResources` const idiom).
-- [ ] T002 [P] Add an `.fl-searchable*` component CSS block to `src/FundingPlatform.Web/wwwroot/css/site.css` (combobox input reuses `.form-select`; listbox, option, highlighted-option, and empty-state styles) using only semantic tokens (`--space-*`, `--color-*`, `--radius-*`, `--motion-base`) — no raw hex/px/ms per the site.css header rule.
-- [ ] T003 Register the global script in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml` — add `<script src="~/js/searchable-select.js" asp-append-version="true" defer></script>` alongside `confirm-dialog.js`/`hint-tooltip.js`, and emit a single layout-level default for the es-CR empty-state/placeholder strings (e.g. `data-searchable-empty`/`data-searchable-placeholder` on `<body>`) sourced from `SearchableDropdownResources` (depends on T001).
+- [X] T001 [P] Create `src/FundingPlatform.Web/Resources/SearchableDropdownResources.cs` — static class with es-CR consts `SearchPlaceholder = "Escriba para filtrar…"` and `NoMatchMessage = "Sin coincidencias"` (mirror the `AdminGroupsResources` const idiom).
+- [X] T002 [P] Add an `.fl-searchable*` component CSS block to `src/FundingPlatform.Web/wwwroot/css/site.css` (combobox input reuses `.form-select`; listbox, option, highlighted-option, and empty-state styles) using only semantic tokens (`--space-*`, `--color-*`, `--radius-*`, `--motion-base`) — no raw hex/px/ms per the site.css header rule.
+- [X] T003 Register the global script in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml` — add `<script src="~/js/searchable-select.js" asp-append-version="true" defer></script>` alongside `confirm-dialog.js`/`hint-tooltip.js`, and emit a single layout-level default for the es-CR empty-state/placeholder strings (e.g. `data-searchable-empty`/`data-searchable-placeholder` on `<body>`) sourced from `SearchableDropdownResources` (depends on T001).
 
 **Checkpoint**: Build is green; strings, CSS, and the (still-empty) script reference are in place.
 
@@ -35,12 +35,12 @@ description: "Task list for 031-searchable-dropdowns"
 
 **Purpose**: The reusable `searchable-select.js` enhancer and the E2E combobox helper. **Every user story depends on this phase.** T004–T008 edit the same file and are sequential; T009 is a separate file.
 
-- [ ] T004 Create `src/FundingPlatform.Web/wwwroot/js/searchable-select.js` — IIFE, ES5 house style (match `supplier-autocomplete.js`); boot enhances each `[data-searchable]` select by building the combobox DOM/ARIA structure from `contracts/searchable-select.md` §2, keeping the native `<select>` in the DOM, authoritative, `aria-hidden`/`tabindex=-1` while enhanced; derive the input `data-testid` as `<source>-search`.
-- [ ] T005 In `searchable-select.js`, implement accent/case-insensitive substring filtering (`normalize('NFD')` + combining-mark strip + `toLocaleLowerCase('es')`, precomputed per option per data-model.md), live option rendering, and the "Sin coincidencias" empty-state (string from markup, not a JS literal).
-- [ ] T006 In `searchable-select.js`, implement keyboard + ARIA interactions (type→filter, ↑/↓ highlight with `aria-activedescendant`, Enter/click commit, Esc close, Tab commit-or-close, `aria-live` result-count announce) and commit semantics: set `select.value` + dispatch `new Event('change',{bubbles:true})`.
-- [ ] T007 In `searchable-select.js`, implement threshold gating (count selectable options with non-empty value; enhance only when `> threshold`; read `data-searchable-threshold` override, else global default `7`) and the must-pick/blur-revert rule (typed text never becomes a value; blur restores the committed value's label) — FR-003/FR-006.
-- [ ] T008 In `searchable-select.js`, implement the MutationObserver layer: a document-level observer that enhances newly-injected `[data-searchable]` selects (AJAX partials), and a per-select `childList` observer that on cascade option-rebuild refreshes the filtered list, re-evaluates the threshold, re-syncs the input label to `select.value`, and clears stale query (FR-008).
-- [ ] T009 [P] Create `tests/FundingPlatform.Tests.E2E/PageObjects/SearchableSelect.cs` — combobox helper per `contracts/searchable-select.md` §5 (`SelectSearchableAsync(labelFragment)`, `FilterAsync(text)`, `Options`, `EmptyState`); targets `[data-testid="<source>-search"]` and the native select for value assertions.
+- [X] T004 Create `src/FundingPlatform.Web/wwwroot/js/searchable-select.js` — IIFE, ES5 house style (match `supplier-autocomplete.js`); boot enhances each `[data-searchable]` select by building the combobox DOM/ARIA structure from `contracts/searchable-select.md` §2, keeping the native `<select>` in the DOM, authoritative, `aria-hidden`/`tabindex=-1` while enhanced; derive the input `data-testid` as `<source>-search`.
+- [X] T005 In `searchable-select.js`, implement accent/case-insensitive substring filtering (`normalize('NFD')` + combining-mark strip + `toLocaleLowerCase('es')`, precomputed per option per data-model.md), live option rendering, and the "Sin coincidencias" empty-state (string from markup, not a JS literal).
+- [X] T006 In `searchable-select.js`, implement keyboard + ARIA interactions (type→filter, ↑/↓ highlight with `aria-activedescendant`, Enter/click commit, Esc close, Tab commit-or-close, `aria-live` result-count announce) and commit semantics: set `select.value` + dispatch `new Event('change',{bubbles:true})`.
+- [X] T007 In `searchable-select.js`, implement threshold gating (count selectable options with non-empty value; enhance only when `> threshold`; read `data-searchable-threshold` override, else global default `7`) and the must-pick/blur-revert rule (typed text never becomes a value; blur restores the committed value's label) — FR-003/FR-006.
+- [X] T008 In `searchable-select.js`, implement the MutationObserver layer: a document-level observer that enhances newly-injected `[data-searchable]` selects (AJAX partials), and a per-select `childList` observer that on cascade option-rebuild refreshes the filtered list, re-evaluates the threshold, re-syncs the input label to `select.value`, and clears stale query (FR-008).
+- [X] T009 [P] Create `tests/FundingPlatform.Tests.E2E/PageObjects/SearchableSelect.cs` — combobox helper per `contracts/searchable-select.md` §5 (`SelectSearchableAsync(labelFragment)`, `FilterAsync(text)`, `Options`, `EmptyState`); targets `[data-testid="<source>-search"]` and the native select for value assertions.
 
 **Checkpoint**: A throwaway `[data-searchable]` select on any page filters, commits, and falls back to plain `<select>` with JS off. Helper compiles.
 
@@ -52,9 +52,9 @@ description: "Task list for 031-searchable-dropdowns"
 
 **Independent test**: On an admin filter toolbar with an above-threshold cascade level, type a fragment, confirm only matching options remain, select one, confirm the filtered result set matches the plain-dropdown outcome; selecting a parent rebuilds the child and its search reflects the rebuilt options.
 
-- [ ] T010 [US1] Add `data-searchable` (+ `data-searchable-placeholder`) to each cascade level `<select>` in `src/FundingPlatform.Web/Views/Shared/Components/_CascadingFundFilter.cshtml` (covers the Users/Suppliers/Processes/Reports/Applicants filter toolbars in one edit; leave `data-role`/`data-selected`/`data-testid` intact).
-- [ ] T011 [US1] Migrate the cascade interactions in the affected filter-toolbar page objects (e.g. `tests/FundingPlatform.Tests.E2E/PageObjects/Admin/AdminUsersPage.cs`, `SupplierAdminPage.cs`) to the `SearchableSelect` helper for enhanced levels; keep `SelectOptionAsync` for below-threshold levels.
-- [ ] T012 [US1] Add `tests/FundingPlatform.Tests.E2E/Tests/SearchableDropdowns/FilterToolbarSearchTests.cs` — type-filter an above-threshold cascade level on an admin filter toolbar, assert narrowing + that picking a Fund rebuilds Process options and the search reflects them, assert filtered results equal the plain-dropdown outcome, and assert a below-threshold level renders plain.
+- [X] T010 [US1] Add `data-searchable` (+ `data-searchable-placeholder`) to each cascade level `<select>` in `src/FundingPlatform.Web/Views/Shared/Components/_CascadingFundFilter.cshtml` (covers the Users/Suppliers/Processes/Reports/Applicants filter toolbars in one edit; leave `data-role`/`data-selected`/`data-testid` intact).
+- [X] T011 [US1] Migrate the cascade interactions in the affected filter-toolbar page objects (e.g. `tests/FundingPlatform.Tests.E2E/PageObjects/Admin/AdminUsersPage.cs`, `SupplierAdminPage.cs`) to the `SearchableSelect` helper for enhanced levels; keep `SelectOptionAsync` for below-threshold levels.
+- [X] T012 [US1] Add `tests/FundingPlatform.Tests.E2E/Tests/SearchableDropdowns/FilterToolbarSearchTests.cs` — type-filter an above-threshold cascade level on an admin filter toolbar, assert narrowing + that picking a Fund rebuilds Process options and the search reflects them, assert filtered results equal the plain-dropdown outcome, and assert a below-threshold level renders plain.
 
 **Checkpoint**: US1 independently demoable — searchable admin filtering. **This is the MVP.**
 
@@ -66,15 +66,15 @@ description: "Task list for 031-searchable-dropdowns"
 
 **Independent test**: On an above-threshold edit-form select, type a fragment, select, submit, and confirm the persisted entity references the same id/code the plain dropdown would have submitted.
 
-- [ ] T013 [P] [US2] Add `data-searchable` to the Fund select in `src/FundingPlatform.Web/Views/Admin/Processes/Create.cshtml`.
-- [ ] T014 [P] [US2] Add `data-searchable` to the Fund-reassignment and Plantilla-assignment selects in `src/FundingPlatform.Web/Views/Admin/Processes/Details.cshtml`.
-- [ ] T015 [P] [US2] Add `data-searchable` to the eligible-Group select in `src/FundingPlatform.Web/Views/Application/Create.cshtml`.
-- [ ] T016 [P] [US2] Add `data-searchable` to the Category selects in `src/FundingPlatform.Web/Views/Item/Add.cshtml`, `src/FundingPlatform.Web/Views/Item/Edit.cshtml`, and the inline add-item Category in `src/FundingPlatform.Web/Views/Application/Edit.cshtml`.
-- [ ] T017 [P] [US2] Add `data-searchable` to the impact-template select in `src/FundingPlatform.Web/Views/Application/Impact.cshtml`.
-- [ ] T018 [P] [US2] Add `data-searchable` to the SupplierBranch selects in `src/FundingPlatform.Web/Views/Quotation/Edit.cshtml` and `src/FundingPlatform.Web/Views/Supplier/_BranchPicker.cshtml`.
-- [ ] T019 [P] [US2] Add `data-searchable` to the Currency select in `src/FundingPlatform.Web/Views/Shared/_QuoteFields.cshtml` and the source/target currency selects in `src/FundingPlatform.Web/Views/Admin/ExchangeRates/Create.cshtml` (these stay plain below threshold — verifies FR-006).
-- [ ] T020 [US2] Migrate enhanced-control interactions in affected edit-form page objects (e.g. `tests/FundingPlatform.Tests.E2E/PageObjects/Admin/AdminExchangeRatesPage.cs`, the Process admin and ApplicationDraft page objects) to `SearchableSelect`.
-- [ ] T021 [US2] Add `tests/FundingPlatform.Tests.E2E/Tests/SearchableDropdowns/EditFormSearchTests.cs` — search + select on an above-threshold edit-form control, submit, assert persisted value equals the plain-dropdown value (SC-002); assert a required control left empty after a no-match commit fails server validation identically to the plain dropdown (US2 scenario 2).
+- [X] T013 [P] [US2] Add `data-searchable` to the Fund select in `src/FundingPlatform.Web/Views/Admin/Processes/Create.cshtml`.
+- [X] T014 [P] [US2] Add `data-searchable` to the Fund-reassignment and Plantilla-assignment selects in `src/FundingPlatform.Web/Views/Admin/Processes/Details.cshtml`.
+- [X] T015 [P] [US2] Add `data-searchable` to the eligible-Group select in `src/FundingPlatform.Web/Views/Application/Create.cshtml`.
+- [X] T016 [P] [US2] Add `data-searchable` to the Category selects in `src/FundingPlatform.Web/Views/Item/Add.cshtml`, `src/FundingPlatform.Web/Views/Item/Edit.cshtml`, and the inline add-item Category in `src/FundingPlatform.Web/Views/Application/Edit.cshtml`.
+- [X] T017 [P] [US2] Add `data-searchable` to the impact-template select in `src/FundingPlatform.Web/Views/Application/Impact.cshtml`.
+- [X] T018 [P] [US2] Add `data-searchable` to the SupplierBranch selects in `src/FundingPlatform.Web/Views/Quotation/Edit.cshtml` and `src/FundingPlatform.Web/Views/Supplier/_BranchPicker.cshtml`.
+- [X] T019 [P] [US2] Add `data-searchable` to the Currency select in `src/FundingPlatform.Web/Views/Shared/_QuoteFields.cshtml` and the source/target currency selects in `src/FundingPlatform.Web/Views/Admin/ExchangeRates/Create.cshtml` (these stay plain below threshold — verifies FR-006).
+- [X] T020 [US2] Migrate enhanced-control interactions in affected edit-form page objects (e.g. `tests/FundingPlatform.Tests.E2E/PageObjects/Admin/AdminExchangeRatesPage.cs`, the Process admin and ApplicationDraft page objects) to `SearchableSelect`.
+- [X] T021 [US2] Add `tests/FundingPlatform.Tests.E2E/Tests/SearchableDropdowns/EditFormSearchTests.cs` — search + select on an above-threshold edit-form control, submit, assert persisted value equals the plain-dropdown value (SC-002); assert a required control left empty after a no-match commit fails server validation identically to the plain dropdown (US2 scenario 2).
 
 **Checkpoint**: US1 + US2 deliver searchable filtering and editing across the app.
 
@@ -86,10 +86,10 @@ description: "Task list for 031-searchable-dropdowns"
 
 **Independent test**: Type-filter a cascade level, select a parent, confirm the child rebuilds and its search reflects the rebuilt set; in the drilldown, filter narrows the group checkboxes while accumulation/chips are preserved.
 
-- [ ] T022 [US3] Add `data-searchable` to the Provincia/Cantón/Distrito `<select>`s in `src/FundingPlatform.Web/Views/Shared/_LocationCascade.cshtml` (AJAX-loaded child options refresh via the per-select observer from T008).
-- [ ] T023 [US3] Add `data-searchable` to the Fund and Process `<select>`s in `src/FundingPlatform.Web/Views/Admin/Users/_GroupSelectorDrilldown.cshtml`.
-- [ ] T024 [US3] Add an in-place text filter over the group checkbox list in `src/FundingPlatform.Web/wwwroot/js/group-drilldown-selector.js` (insert a filter input above the `[data-role="options"]` container; reuse the same NFD accent/case normalize-and-substring match; es-CR placeholder from markup; preserve checkbox accumulation/chips per spec-016/029).
-- [ ] T025 [US3] Add `tests/FundingPlatform.Tests.E2E/Tests/SearchableDropdowns/CascadeSearchTests.cs` — location cascade: change Provincia, confirm Cantón search filters the newly-loaded cantones (FR-008); group drilldown: filter narrows group checkboxes and checking/unchecking still accumulates selected groups across filter changes.
+- [X] T022 [US3] Add `data-searchable` to the Provincia/Cantón/Distrito `<select>`s in `src/FundingPlatform.Web/Views/Shared/_LocationCascade.cshtml` (AJAX-loaded child options refresh via the per-select observer from T008).
+- [X] T023 [US3] Add `data-searchable` to the Fund and Process `<select>`s in `src/FundingPlatform.Web/Views/Admin/Users/_GroupSelectorDrilldown.cshtml`.
+- [X] T024 [US3] Add an in-place text filter over the group checkbox list in `src/FundingPlatform.Web/wwwroot/js/group-drilldown-selector.js` (insert a filter input above the `[data-role="options"]` container; reuse the same NFD accent/case normalize-and-substring match; es-CR placeholder from markup; preserve checkbox accumulation/chips per spec-016/029).
+- [X] T025 [US3] Add `tests/FundingPlatform.Tests.E2E/Tests/SearchableDropdowns/CascadeSearchTests.cs` — location cascade: change Provincia, confirm Cantón search filters the newly-loaded cantones (FR-008); group drilldown: filter narrows group checkboxes and checking/unchecking still accumulates selected groups across filter changes.
 
 **Checkpoint**: All in-scope data-driven controls are searchable; cascade rebuild-refresh verified end-to-end.
 
@@ -99,11 +99,17 @@ description: "Task list for 031-searchable-dropdowns"
 
 **Purpose**: Cross-cutting guarantees and the delivery gate.
 
-- [ ] T026 [P] Add `tests/FundingPlatform.Tests.E2E/Tests/SearchableDropdowns/ProgressiveEnhancementTests.cs` — with `JavaScriptEnabled=false` browser context, confirm one of each control type still selects + submits via the native `<select>` (FR-011/SC-005).
-- [ ] T027 [P] Run `bash scripts/verify-asset-budget.sh` and confirm green (SC-007; JS/CSS not counted, expected pass).
-- [ ] T028 [P] Accessibility smoke: verify combobox role/`aria-expanded`/`aria-activedescendant`/`aria-live` and keyboard-only operability on one enhanced control; capture findings in the PR description (FR-004/SC-004).
-- [ ] T029 Run the filtered E2E delivery gate: `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~SearchableDropdowns"` plus the migrated suites touched in T011/T020 (e.g. `~AdminUser`, `~Supplier`, `~ExchangeRates`, `~Process`); confirm green before claiming delivery.
-- [ ] T030 [P] Update `CLAUDE.md` Recent Changes + the SPECKIT marker with the shipped 031 summary and E2E result (after T029 is green).
+- [X] T026 [P] Add `tests/FundingPlatform.Tests.E2E/Tests/SearchableDropdowns/ProgressiveEnhancementTests.cs` — with `JavaScriptEnabled=false` browser context, confirm one of each control type still selects + submits via the native `<select>` (FR-011/SC-005).
+- [X] T027 [P] Run `bash scripts/verify-asset-budget.sh` and confirm green (SC-007; JS/CSS not counted, expected pass).
+- [X] T028 [P] Accessibility smoke: verify combobox role/`aria-expanded`/`aria-activedescendant`/`aria-live` and keyboard-only operability on one enhanced control; capture findings in the PR description (FR-004/SC-004).
+- [X] T029 Run the filtered E2E delivery gate: `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~SearchableDropdowns"` plus the migrated suites touched in T011/T020 (e.g. `~AdminUser`, `~Supplier`, `~ExchangeRates`, `~Process`); confirm green before claiming delivery.
+- [X] T030 [P] Update `CLAUDE.md` Recent Changes + the SPECKIT marker with the shipped 031 summary and E2E result (after T029 is green).
+
+## Implementation Deviations
+
+- **T011 / T020 (page-object migration) — not required.** The enhancer hides the native `<select>` **in place** (1px clip, never moved into a wrapper) instead of relocating it. Playwright still treats the 1px-visible select as actionable, so existing suites that drive it via `SelectOptionAsync` (notably `SupplierLocationCascadeE2E`, whose cantón/distrito now exceed the threshold and enhance) keep passing **unchanged** — confirmed green. This matches contract §5 ("non-enhanced controls continue to use `SelectOptionAsync`") and R10 (native select as documented fallback). An earlier move-into-wrapper approach introduced intermittent flakiness (detach mid-action); the no-move design eliminated it. New combobox-path coverage lives in the `SearchableSelect` helper used by the SearchableDropdowns tests.
+- **T018 — `_BranchPicker.cshtml` has no `<select>`.** The branch picker renders radio buttons, not a dropdown, so the generic `<select>`-targeting enhancer does not apply there; `data-searchable` was added only to the SupplierBranch `<select>` in `Quotation/Edit.cshtml`.
+- **E2E seed reality.** Every cascade-fund level is ≤7 in the ephemeral seed (1 fund / 1 process / 3 groups), so US1/US2 SQL-seed 8 throwaway Funds (removed in teardown) to exercise the enhanced path; the location cantón level is naturally >7 (San José = 20 cantones) and is used for US3 + FR-002 accent matching ("perez" → "Pérez Zeledón").
 
 ---
 

@@ -54,7 +54,8 @@
             <div class="@Model.ColumnClass">
                 <label class="form-label" for="@id">@lvl.Label</label>
                 <select name="@lvl.Field" id="@id" class="form-select" data-role="@lvl.Role"
-                        data-selected="@selVal" data-testid="@id" required="@Model.RequireSelection">
+                        data-selected="@selVal" data-testid="@id" required="@Model.RequireSelection"
+                        data-searchable>
                     <option value="">@lvl.Placeholder</option>
                 </select>
             </div>
@@ -63,7 +64,8 @@
         {
             <select name="@lvl.Field" id="@id" class="form-select cascading-fund-filter-select"
                     data-role="@lvl.Role" aria-label="@lvl.Label"
-                    data-selected="@selVal" data-testid="@id" required="@Model.RequireSelection">
+                    data-selected="@selVal" data-testid="@id" required="@Model.RequireSelection"
+                    data-searchable>
                 <option value="">@lvl.Placeholder</option>
             </select>
         }

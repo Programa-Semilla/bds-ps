@@ -40,7 +40,8 @@
                         <select asp-for="SupplierBranchId"
                                 asp-items="Model.BranchOptions"
                                 class="form-select"
-                                data-testid="quotation-branch-input">
+                                data-testid="quotation-branch-input"
+                                data-searchable>
                         </select>
                         <span asp-validation-for="SupplierBranchId" class="text-danger"></span>
                     </div>
