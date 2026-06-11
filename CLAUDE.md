@@ -156,7 +156,7 @@ Per-spec architectural seams (interfaces, aggregates, tables) are summarized in 
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-No active plan. Ready for the next `/speckit-specify`.
+Active plan: **031-searchable-dropdowns** — [specs/031-searchable-dropdowns/plan.md](specs/031-searchable-dropdowns/plan.md). Type-to-filter autocomplete over data-driven dropdowns via an in-house vanilla `searchable-select.js` enhancer (opt-in `data-searchable`, native `<select>` stays authoritative, threshold-gated default 7, accent/case-insensitive es-CR matching, MutationObserver-driven cascade refresh). No schema/DTO/route change, no new deps. Branch also carries pre-existing admin cascade-filter + group-drilldown WIP. Next: `/speckit-tasks`.
 
 Last shipped: **030-edit-process-name** (see Recent Changes above) — implemented on branch `030-edit-process-name`; full E2E 302/0/5. Awaiting PR/merge.
 <!-- SPECKIT END -->
