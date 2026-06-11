@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-10
+Last updated: 2026-06-11
 
 ## Sessions
 
@@ -33,8 +33,13 @@ Last updated: 2026-06-10
 | 25 | 2026-05-26 | review-funding-ux | spec-created | 027 |
 | 26 | 2026-06-09 | fund-entity | spec-created | 029 |
 | 27 | 2026-06-10 | edit-process-name | spec-created | 030 |
+| 28 | 2026-06-11 | searchable-dropdowns | spec-created | 031 |
 
 ## Open Threads
+
+- Exact opt-in mechanism for searchable dropdowns (`data-searchable` attribute vs. auto-detecting data-driven selects) — deferred to plan.md (from #28)
+- Whether affected Playwright page objects target the retained native `<select>` or the combobox input after enhancement — deferred to plan.md (from #28)
+
 
 - RowVersion / optimistic-concurrency handling on the Process rename happy path — duplicate-name races covered by `UX_Processes_Name`; lost-update on the name field is the residual (low risk, admin-only single field) — pin in plan (from #27)
 - Closed-Process rename policy — shipped as "allowed at any status"; revisit only if audit integrity of historical cycle names is challenged (mitigated by the `process.renamed` audit entry) (from #27)
