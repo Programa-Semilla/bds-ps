@@ -103,6 +103,12 @@
         return '';
     };
 
+    // Label to show in the input: empty for the empty/"all" option so the
+    // placeholder ("Escriba para filtrar…") shows instead of the prompt text.
+    Controller.prototype.displayLabel = function () {
+        return this.select.value === '' ? '' : this.committedLabel();
+    };
+
     // Decide enhance / refresh / revert based on the current option count.
     Controller.prototype.evaluate = function () {
         this.snapshot();
@@ -158,6 +164,7 @@
         var emptyEl = document.createElement('li');
         emptyEl.className = 'fl-searchable-empty';
         emptyEl.hidden = true;
+        emptyEl.setAttribute('aria-live', 'polite');
         emptyEl.textContent = this.emptyText;
 
         // Visually-hidden polite live region for the filtered result count.
@@ -176,12 +183,21 @@
         this.statusEl = statusEl;
         this.enhanced = true;
 
-        input.value = this.committedLabel();
+        input.value = this.displayLabel();
 
         input.addEventListener('focus', function () { self.onFocus(); });
         input.addEventListener('input', function () { self.onInput(); });
         input.addEventListener('keydown', function (e) { self.onKeydown(e); });
         input.addEventListener('blur', function () { self.onBlur(); });
+
+        // Keep the combobox label in sync when the authoritative value is changed
+        // by something other than our own commit (e.g. a cascade restoring a value
+        // without a childList rebuild). Re-snapshot first so the lookup is fresh.
+        select.addEventListener('change', function () {
+            if (!self.enhanced || self._committing) { return; }
+            self.snapshot();
+            self.input.value = self.displayLabel();
+        });
 
         // Commit via mousedown so it beats the input's blur teardown.
         list.addEventListener('mousedown', function (e) {
@@ -225,7 +241,16 @@
     Controller.prototype.refresh = function () {
         if (!this.input) { return; }
         this.closeList();
-        this.input.value = this.committedLabel();
+        this.input.value = this.displayLabel();
+    };
+
+    // Disconnect observers + clear registry flags when the host subtree is
+    // discarded (AJAX partial swap), so detached controllers/observers don't leak.
+    Controller.prototype.dispose = function () {
+        if (this.observer) { this.observer.disconnect(); }
+        this.select.__searchableManaged = false;
+        this.select.__searchableController = null;
+        this.enhanced = false;
     };
 
     Controller.prototype.openList = function () {
@@ -326,8 +351,10 @@
 
     // The only writer of select.value: an explicit option commit.
     Controller.prototype.commit = function (opt) {
+        this._committing = true;
         this.select.value = opt.value;
         this.select.dispatchEvent(new Event('change', { bubbles: true }));
+        this._committing = false;
         this.input.value = opt.label;
         this.closeList();
     };
@@ -365,7 +392,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     this.closeList();
-                    this.input.value = this.committedLabel();
+                    this.input.value = this.displayLabel();
                 }
                 break;
             case 'Tab':
@@ -380,7 +407,7 @@
     Controller.prototype.onBlur = function () {
         // Restore the committed label; typed-but-uncommitted text is discarded.
         this.closeList();
-        this.input.value = this.committedLabel();
+        this.input.value = this.displayLabel();
     };
 
     Controller.prototype.observe = function () {
@@ -415,6 +442,21 @@
         for (var i = 0; i < selects.length; i++) { manage(selects[i]); }
     }
 
+    // Dispose any managed select inside a removed subtree (AJAX partial swap) so
+    // its per-select observer + controller don't leak with the detached DOM.
+    function disposeIn(node) {
+        if (node.nodeType !== 1) { return; }
+        if (node.matches && node.matches('select[data-searchable]') && node.__searchableController) {
+            node.__searchableController.dispose();
+        }
+        if (node.querySelectorAll) {
+            var found = node.querySelectorAll('select[data-searchable]');
+            for (var i = 0; i < found.length; i++) {
+                if (found[i].__searchableController) { found[i].__searchableController.dispose(); }
+            }
+        }
+    }
+
     function watchDocument() {
         if (typeof MutationObserver !== 'function' || !document.body) { return; }
         var observer = new MutationObserver(function (records) {
@@ -427,6 +469,10 @@
                         manage(node);
                     }
                     if (node.querySelectorAll) { scan(node); }
+                }
+                var removed = records[i].removedNodes;
+                for (var k = 0; k < removed.length; k++) {
+                    disposeIn(removed[k]);
                 }
             }
         });

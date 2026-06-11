@@ -36,6 +36,12 @@ public class EditFormSearchTests : AuthenticatedTestBase
         }
     }
 
+    // Backstop: purge any Spec031-prefixed throwaway funds if a per-test teardown
+    // was skipped (host crash), so they can't pollute the shared fixture.
+    [OneTimeTearDown]
+    public async Task PurgeSpec031Funds() =>
+        await SearchableSeed.RemoveFundsAsync(ConnectionString, "Spec031");
+
     [Test]
     public async Task ProcessCreate_FundSearch_CommitsAndPersistsSelectedFund()
     {

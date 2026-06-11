@@ -37,6 +37,12 @@ public class FilterToolbarSearchTests : AuthenticatedTestBase
         }
     }
 
+    // Backstop: if a per-test teardown was skipped (host crash), purge any
+    // Spec031-prefixed throwaway funds so they can't pollute the shared fixture.
+    [OneTimeTearDown]
+    public async Task PurgeSpec031Funds() =>
+        await SearchableSeed.RemoveFundsAsync(ConnectionString, "Spec031");
+
     [Test]
     public async Task FundFilterLevel_AboveThreshold_FiltersNarrowsCommitsAndCascades()
     {
@@ -75,10 +81,10 @@ public class FilterToolbarSearchTests : AuthenticatedTestBase
         Assert.That(await fund.CommittedValueAsync(), Is.EqualTo(expectedValue));
 
         // Picking a Fund WITHOUT processes rebuilds Process to empty (cascade reflects it)…
+        // Poll (not a one-shot snapshot) so a not-yet-rebuilt list can't false-pass.
         await fund.SelectSearchableAsync($"{_fundPrefix} 03");
-        var emptyProc = await Page.Locator("[data-testid=\"admin-users-cascade-process\"] option").AllTextContentsAsync();
-        Assert.That(emptyProc.Any(t => t.Contains("Migración inicial")), Is.False,
-            "A fund with no processes should leave the Process list without the seed process.");
+        await Expect(Page.Locator("[data-testid=\"admin-users-cascade-process\"] option")
+            .Filter(new LocatorFilterOptions { HasText = "Migración inicial" })).ToHaveCountAsync(0);
 
         // …and re-picking Fondo General brings its process back.
         await fund.SelectSearchableAsync("Fondo General");
@@ -108,15 +114,58 @@ public class FilterToolbarSearchTests : AuthenticatedTestBase
         // Opening sets aria-expanded; the active option is tracked via aria-activedescendant.
         await fund.Input.ClickAsync();
         await Expect(fund.Input).ToHaveAttributeAsync("aria-expanded", "true");
+
+        // FR-004 — Arrow keys move the highlight (the full list is shown, >1 option).
+        await fund.Input.PressAsync("ArrowDown");
+        var firstActive = await fund.Input.GetAttributeAsync("aria-activedescendant");
+        await fund.Input.PressAsync("ArrowDown");
+        var secondActive = await fund.Input.GetAttributeAsync("aria-activedescendant");
+        Assert.That(secondActive, Is.Not.Null.And.Not.Empty);
+        Assert.That(secondActive, Is.Not.EqualTo(firstActive), "ArrowDown must move the highlight.");
+
+        // FR-004 — Escape closes without committing (value stays empty).
+        await fund.Input.PressAsync("Escape");
+        await Expect(fund.Input).ToHaveAttributeAsync("aria-expanded", "false");
+        Assert.That(await fund.CommittedValueAsync(), Is.EqualTo(string.Empty));
+
+        // FR-004 — keyboard-only commit: type to filter, Enter on the highlighted match.
         await fund.Input.FillAsync("General");
         await Expect(fund.Input).ToHaveAttributeAsync("aria-activedescendant", new Regex(".+"));
-
-        // FR-004 — keyboard-only commit: Enter on the highlighted match.
         var expectedValue = await fund.NativeSelect.Locator("option")
             .Filter(new LocatorFilterOptions { HasText = "Fondo General" })
             .First.GetAttributeAsync("value");
         await fund.Input.PressAsync("Enter");
         Assert.That(await fund.CommittedValueAsync(), Is.EqualTo(expectedValue));
         await Expect(fund.Input).ToHaveAttributeAsync("aria-expanded", "false");
+    }
+
+    [Test]
+    public async Task Combobox_BlurAfterNoMatch_RevertsToCommittedValue()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..6];
+        _fundPrefix = $"Spec031US1b {suffix}";
+        await SignInAsAdminAsync(suffix);
+        await SearchableSeed.SeedFundsAsync(ConnectionString, _fundPrefix, 8);
+
+        await Page.GotoAsync($"{BaseUrl}/Admin/Users");
+        await Page.Locator("[data-testid=\"admin-users-cascade\"][data-ready=\"true\"]").WaitForAsync();
+
+        var fund = new SearchableSelect(Page, "admin-users-cascade-fund");
+        await Expect(fund.Input).ToBeVisibleAsync();
+
+        // Commit a real value first.
+        await fund.SelectSearchableAsync("Fondo General");
+        var committed = await fund.CommittedValueAsync();
+        Assert.That(committed, Is.Not.Empty);
+
+        // FR-003 — type a no-match fragment, then blur. Typed text must NOT become
+        // the value, and the input must revert to the committed option's label.
+        await fund.FilterAsync("zzznomatch");
+        await Expect(fund.EmptyState).ToBeVisibleAsync();
+        await fund.Input.BlurAsync();
+
+        Assert.That(await fund.CommittedValueAsync(), Is.EqualTo(committed),
+            "Blur after a no-match must keep the previously committed value (FR-003).");
+        await Expect(fund.Input).ToHaveValueAsync("Fondo General");
     }
 }

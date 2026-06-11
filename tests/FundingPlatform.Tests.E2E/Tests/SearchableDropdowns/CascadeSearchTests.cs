@@ -67,6 +67,11 @@ public class CascadeSearchTests : AuthenticatedTestBase
         var canton = new SearchableSelect(Page, "canton-NewSupplier-FirstBranch-CantonId");
         await Expect(canton.Input).ToBeVisibleAsync();
 
+        // FR-006 — Provincia has exactly 7 options (at threshold, NOT above) → it
+        // stays a plain native select with no combobox.
+        await Expect(Page.Locator("[data-testid=\"province-NewSupplier-FirstBranch-ProvinceId-search\"]"))
+            .ToHaveCountAsync(0);
+
         // Accent-insensitive filter over the freshly-loaded cantones (FR-002/FR-008):
         // "perez" matches "Pérez Zeledón" despite the missing accent.
         await canton.FilterAsync("perez");
