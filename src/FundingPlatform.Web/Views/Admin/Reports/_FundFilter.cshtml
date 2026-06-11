@@ -1,20 +1,27 @@
+@using FundingPlatform.Application.Admin.Filters
+@using FundingPlatform.Web.ViewModels.Admin
 @*
-    Spec 029 / FR-012 / OI-3 — shared Fund filter dropdown for the report filter
-    forms. Reads ViewData["FundOptions"] (all Funds incl. Archived) +
-    ViewData["FundFilter"] (selected id). Posts ?FundId= via GET.
+    Fondo → Proceso → Grupo cascading drill-down filter for the report filter
+    forms. Reads ViewData["FundHierarchy"] (all Funds incl. Archived so admins can
+    report on archived-Fund history) + the selected fund/process/group ids. Posts
+    ?FundId=&ProcessId=&GroupId= via GET. The component's IdPrefix keeps the
+    historical `report-filter-fund` testid.
 *@
 @{
-    var fundOpts = ViewData["FundOptions"] as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
-        ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
-    var fundSel = ViewData["FundFilter"] as int?;
+    var funds = ViewData["FundHierarchy"] as IReadOnlyList<FundHierarchyNode>
+        ?? Array.Empty<FundHierarchyNode>();
 }
-<div class="col-md-3">
-    <label class="form-label" for="fundId">Fondo</label>
-    <select name="FundId" id="fundId" class="form-select" data-testid="report-filter-fund">
-        <option value="">Todos los fondos</option>
-        @foreach (var f in fundOpts)
-        {
-            <option value="@f.Value" selected="@(fundSel?.ToString() == f.Value)">@f.Text</option>
-        }
-    </select>
-</div>
+@await Html.PartialAsync("Components/_CascadingFundFilter", new CascadingFundFilterModel
+{
+    Funds = funds,
+    Depth = CascadeFilterDepth.Group,
+    FundFieldName = "FundId",
+    ProcessFieldName = "ProcessId",
+    GroupFieldName = "GroupId",
+    SelectedFundId = ViewData["FundFilter"] as int?,
+    SelectedProcessId = ViewData["ProcessFilter"] as int?,
+    SelectedGroupId = ViewData["GroupFilter"] as int?,
+    IdPrefix = "report-filter",
+    ColumnClass = "col-md-3",
+})
+<script src="~/js/cascading-fund-filter.js" asp-append-version="true" defer></script>

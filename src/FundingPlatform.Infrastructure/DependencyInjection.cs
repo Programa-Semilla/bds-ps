@@ -78,6 +78,10 @@ public static class DependencyInjection
         services.AddScoped<Application.Admin.Groups.IGroupService, Services.GroupService>();
         services.AddScoped<Application.Reviewer.IReviewerScopeProvider, ReviewerScopeProvider>();
 
+        // Fondo → Proceso → Grupo cascading-filter catalog (Users/Suppliers/
+        // Processes/Reports filter drill-downs).
+        services.AddScoped<Application.Admin.Filters.IFundHierarchyProvider, Services.FundHierarchyProvider>();
+
         // Spec 017 — admin dashboard reader + activity feed source + user-store reader.
         services.AddScoped<Application.Services.IAdminAuditEventReader, Persistence.AdminAuditEventReader>();
         services.AddScoped<Application.Services.IUserStoreReader, Identity.UserStoreReader>();

@@ -66,6 +66,13 @@ public sealed class SupplierAdminFilter
     public int? ProcessId { get; init; }
 
     /// <summary>
+    /// Restrict the list to suppliers referenced by Applications whose
+    /// Applicant's Group belongs to a Process under the given Fund (Fondo). When
+    /// null, the filter is omitted. Composes with <see cref="ProcessId"/>.
+    /// </summary>
+    public int? FundId { get; init; }
+
+    /// <summary>
     /// Spec 021 / FR-009 — single search term applied to both Name and
     /// CédulaJurídica (legalId). When set, supersedes the legacy
     /// <see cref="LegalIdContains"/> + <see cref="NameContains"/> pair.

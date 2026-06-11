@@ -6,6 +6,13 @@ namespace FundingPlatform.Application.Admin.Groups;
 /// owning Process (FR-001) is projected on every row so the Groups index can
 /// surface it as a column.
 /// </summary>
-public sealed record GroupRow(int Id, string Name, int MemberCount, int ProcessId, string ProcessName);
+public sealed record GroupRow(
+    int Id,
+    string Name,
+    int MemberCount,
+    int ProcessId,
+    string ProcessName,
+    int FundId,
+    string FundName);
 
 public sealed record GroupDetail(int Id, string Name, int ProcessId);

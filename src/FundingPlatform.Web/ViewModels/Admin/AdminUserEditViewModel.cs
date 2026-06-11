@@ -45,9 +45,16 @@ public class AdminUserEditViewModel
     /// <summary>Spec 016 / FR-008 / FR-010 — selected group ids.</summary>
     public int[] GroupIds { get; set; } = Array.Empty<int>();
 
-    /// <summary>Spec 016 — populated by the controller; not posted back.</summary>
+    /// <summary>Spec 016 — populated by the controller; resolves selected-group
+    /// names for the chips and drives the empty state. Includes archived-Fund
+    /// groups so an existing membership is never dropped on re-render. Not posted back.</summary>
     public IReadOnlyList<AdminUserGroupOption> AvailableGroups { get; set; }
         = Array.Empty<AdminUserGroupOption>();
+
+    /// <summary>Drill-down catalog (Fondo → Proceso → Grupo) for the group
+    /// selector. Active Funds only. Populated by the controller; not posted back.</summary>
+    public IReadOnlyList<AdminUserFundCatalogOption> FundCatalog { get; set; }
+        = Array.Empty<AdminUserFundCatalogOption>();
 
     /// <summary>Spec 016 — round-trips the existing
     /// <c>IdentityUser.ConcurrencyStamp</c> for optimistic concurrency.</summary>

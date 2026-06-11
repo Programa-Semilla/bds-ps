@@ -2,6 +2,7 @@ using FundingPlatform.Application.Admin.Groups;
 using FundingPlatform.Application.Admin.Users;
 using FundingPlatform.Application.Admin.Users.DTOs;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Exceptions;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.Filters;
@@ -23,47 +24,20 @@ public class AdminUsersController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IGroupService _groups;
     private readonly AppDbContext _db;
+    private readonly Application.Admin.Filters.IFundHierarchyProvider _fundHierarchy;
 
     public AdminUsersController(
         IUserAdministrationService service,
         UserManager<ApplicationUser> userManager,
         IGroupService groups,
-        AppDbContext db)
+        AppDbContext db,
+        Application.Admin.Filters.IFundHierarchyProvider fundHierarchy)
     {
         _service = service;
         _userManager = userManager;
         _groups = groups;
         _db = db;
-    }
-
-    /// <summary>Spec 021 / FR-034 / T082 — loads the Process → Groups catalog
-    /// the cascading filter widget on the Index view consumes.</summary>
-    private async Task<IReadOnlyList<AdminUsersProcessFilterOption>> LoadProcessFilterCatalogAsync(CancellationToken ct)
-    {
-        // Two small round-trips: every Process, and every Group. The catalog is
-        // small (a handful of Processes × ~3-10 Groups each) so no pagination.
-        // FR-034 — the filter MUST list every Process, including ones with zero
-        // groups (a freshly-created Process has none until groups are attached).
-        // An inner join on Groups would hide those, so we left-join in memory.
-        var processes = await _db.Processes.AsNoTracking()
-            .OrderBy(p => p.Name)
-            .Select(p => new { p.Id, p.Name })
-            .ToListAsync(ct);
-
-        var groups = await _db.Groups.AsNoTracking()
-            .OrderBy(g => g.Name)
-            .Select(g => new { g.ProcessId, g.Id, g.Name })
-            .ToListAsync(ct);
-
-        return processes
-            .Select(p => new AdminUsersProcessFilterOption(
-                p.Id,
-                p.Name,
-                groups
-                    .Where(g => g.ProcessId == p.Id)
-                    .Select(g => new AdminUsersGroupFilterOption(g.Id, g.Name))
-                    .ToList()))
-            .ToList();
+        _fundHierarchy = fundHierarchy;
     }
 
     private async Task<IReadOnlyList<AdminUserGroupOption>> LoadGroupOptionsAsync(CancellationToken ct)
@@ -72,20 +46,70 @@ public class AdminUsersController : Controller
         return rows.Select(r => new AdminUserGroupOption(r.Id, r.Name)).ToList();
     }
 
+    /// <summary>
+    /// Builds the Fondo → Proceso → Grupo drill-down catalog for the user-form
+    /// group selector. Active Funds only (FR — archived Funds are excluded from
+    /// the picker, mirroring spec 029's freeze philosophy). Three small
+    /// round-trips assembled in memory so a Fund/Process with zero children still
+    /// appears (an inner join would hide those). Any existing membership in an
+    /// archived Fund is preserved separately by <see cref="LoadGroupOptionsAsync"/>
+    /// (which is Fund-status-agnostic), so the selected chips never silently drop.
+    /// </summary>
+    private async Task<IReadOnlyList<AdminUserFundCatalogOption>> LoadFundCatalogAsync(CancellationToken ct)
+    {
+        var funds = await _db.Funds.AsNoTracking()
+            .Where(f => f.Status == FundStatus.Active)
+            .OrderBy(f => f.Name)
+            .Select(f => new { f.Id, f.Name })
+            .ToListAsync(ct);
+
+        var processes = await _db.Processes.AsNoTracking()
+            .OrderBy(p => p.Name)
+            .Select(p => new { p.Id, p.Name, p.FundId })
+            .ToListAsync(ct);
+
+        var groups = await _db.Groups.AsNoTracking()
+            .OrderBy(g => g.Name)
+            .Select(g => new { g.Id, g.Name, g.ProcessId })
+            .ToListAsync(ct);
+
+        return funds
+            .Select(f => new AdminUserFundCatalogOption(
+                f.Id,
+                f.Name,
+                processes
+                    .Where(p => p.FundId == f.Id)
+                    .Select(p => new AdminUserFundProcessOption(
+                        p.Id,
+                        p.Name,
+                        groups
+                            .Where(g => g.ProcessId == p.Id)
+                            .Select(g => new AdminUserGroupOption(g.Id, g.Name))
+                            .ToList()))
+                    .ToList()))
+            .ToList();
+    }
+
     [HttpGet("")]
     public async Task<IActionResult> Index(
         string? roleFilter,
         string? statusFilter,
         string? search,
+        int? fundFilter,
         int? processFilter,
         int? groupFilter,
         int page = 1,
         int pageSize = 20,
         CancellationToken ct = default)
     {
+        // The status filter defaults to "Active" on first load (statusFilter
+        // absent from the query string → null). An explicit empty value
+        // (?statusFilter=) is the "Todos los estados" choice and is honored.
+        var effectiveStatus = statusFilter ?? "Active";
+
         var actorId = _userManager.GetUserId(User);
         var result = await _service.ListUsersAsync(
-            new ListUsersRequest(roleFilter, statusFilter, search, page, pageSize), ct);
+            new ListUsersRequest(roleFilter, effectiveStatus, search, page, pageSize), ct);
 
         var rows = result.Items.Select(i => new AdminUserSummaryRowViewModel
         {
@@ -104,13 +128,15 @@ public class AdminUsersController : Controller
         // untouched (US1 scope); a future P2/P3 pass can push this into the
         // service-layer query for paging fidelity. We resolve the user-id set
         // for the chosen filter and intersect with the displayed rows.
-        if (processFilter is { } pid || groupFilter is { } gid)
+        if (fundFilter is { } || processFilter is { } || groupFilter is { })
         {
             var memberQuery =
                 from m in _db.UserGroupMemberships.AsNoTracking()
                 join g in _db.Groups.AsNoTracking() on m.GroupId equals g.Id
+                join p in _db.Processes.AsNoTracking() on g.ProcessId equals p.Id
                 where (!groupFilter.HasValue || m.GroupId == groupFilter.Value)
                    && (!processFilter.HasValue || g.ProcessId == processFilter.Value)
+                   && (!fundFilter.HasValue || p.FundId == fundFilter.Value)
                 select m.UserId;
             var allowedUserIds = await memberQuery.ToHashSetAsync(ct);
             rows = rows.Where(r => allowedUserIds.Contains(r.Id)).ToList();
@@ -123,9 +149,11 @@ public class AdminUsersController : Controller
             Page = result.Page,
             PageSize = result.PageSize,
             RoleFilter = roleFilter,
-            StatusFilter = statusFilter,
+            StatusFilter = effectiveStatus,
             Search = search,
-            Processes = await LoadProcessFilterCatalogAsync(ct),
+            // Active Funds only on the assignment-adjacent Users filter (exclude archived).
+            FundHierarchy = await _fundHierarchy.GetAsync(includeArchived: false, ct),
+            FundFilter = fundFilter,
             ProcessFilter = processFilter,
             GroupFilter = groupFilter,
         };
@@ -138,6 +166,7 @@ public class AdminUsersController : Controller
         return View(new AdminUserCreateViewModel
         {
             AvailableGroups = await LoadGroupOptionsAsync(ct),
+            FundCatalog = await LoadFundCatalogAsync(ct),
         });
     }
 
@@ -168,6 +197,7 @@ public class AdminUsersController : Controller
         if (!ModelState.IsValid)
         {
             vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
             return View(vm);
         }
 
@@ -185,6 +215,7 @@ public class AdminUsersController : Controller
             {
                 AddDomainErrors(result.Errors);
                 vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
                 return View(vm);
             }
             TempData["SuccessMessage"] = $"Usuario '{vm.Email}' creado.";
@@ -194,18 +225,21 @@ public class AdminUsersController : Controller
         {
             ModelState.AddModelError(string.Empty, AdminErrorMessages.SentinelImmutable);
             vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
             return View(vm);
         }
         catch (LastAdministratorException)
         {
             ModelState.AddModelError(string.Empty, AdminErrorMessages.LastAdminProtected);
             vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
             return View(vm);
         }
         catch (SelfModificationException ex)
         {
             ModelState.AddModelError(string.Empty, ResolveSelfMessage(ex.Action));
             vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
             return View(vm);
         }
     }
@@ -228,6 +262,7 @@ public class AdminUsersController : Controller
             GroupIds = detail.GroupIds.ToArray(),
             ConcurrencyStamp = detail.ConcurrencyStamp,
             AvailableGroups = await LoadGroupOptionsAsync(ct),
+            FundCatalog = await LoadFundCatalogAsync(ct),
         };
         return View(vm);
     }
@@ -259,6 +294,7 @@ public class AdminUsersController : Controller
         if (!ModelState.IsValid)
         {
             vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
             return View(vm);
         }
 
@@ -282,6 +318,7 @@ public class AdminUsersController : Controller
                     _ => null,
                 });
                 vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
                 // Refresh the concurrency stamp so the user can re-submit cleanly.
                 if (result.Errors.Any(e => e.Code == "CONCURRENCY_CONFLICT"))
                 {
@@ -300,18 +337,21 @@ public class AdminUsersController : Controller
         {
             ModelState.AddModelError(string.Empty, AdminErrorMessages.SentinelImmutable);
             vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
             return View(vm);
         }
         catch (LastAdministratorException)
         {
             ModelState.AddModelError(string.Empty, AdminErrorMessages.LastAdminProtected);
             vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
             return View(vm);
         }
         catch (SelfModificationException ex)
         {
             ModelState.AddModelError(string.Empty, ResolveSelfMessage(ex.Action));
             vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
             return View(vm);
         }
     }

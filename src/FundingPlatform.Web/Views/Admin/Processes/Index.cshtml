@@ -4,6 +4,7 @@
 *@
 @using FundingPlatform.Domain.Enums
 @using FundingPlatform.Web.Models
+@using FundingPlatform.Web.ViewModels.Admin
 @model FundingPlatform.Web.ViewModels.Admin.AdminProcessesIndexViewModel
 @{
     ViewData["Title"] = "Procesos";
@@ -37,16 +38,21 @@
             <option value="@ProcessStatus.Active" selected="@(Model.StatusFilter == ProcessStatus.Active)">@StatusLabel(ProcessStatus.Active)</option>
             <option value="@ProcessStatus.Closed" selected="@(Model.StatusFilter == ProcessStatus.Closed)">@StatusLabel(ProcessStatus.Closed)</option>
         </select>
-        @* Spec 029 / FR-011 — filter the Process list by Fund. *@
-        <select name="fundId" class="form-select" data-testid="admin-processes-fund-filter" style="max-width: 220px;">
-            <option value="">Todos los fondos</option>
-            @foreach (var f in Model.FundOptions)
-            {
-                <option value="@f.Value" selected="@(Model.FundFilter?.ToString() == f.Value)">@f.Text</option>
-            }
-        </select>
+        @* Spec 029 / FR-011 — filter the Process list by Fund. The shared
+           cascading component renders the Fondo level only (Proceso/Grupo do not
+           narrow a Process list); includes archived Funds per FR-011. *@
+        @await Html.PartialAsync("Components/_CascadingFundFilter", new CascadingFundFilterModel
+        {
+            Funds = Model.FundHierarchy,
+            Depth = CascadeFilterDepth.Fund,
+            FundFieldName = "fundId",
+            SelectedFundId = Model.FundFilter,
+            IdPrefix = "admin-processes-cascade",
+        })
         <button type="submit" class="btn btn-secondary" data-testid="admin-processes-filter-submit">Aplicar</button>
     </form>
+
+    <script src="~/js/cascading-fund-filter.js" asp-append-version="true"></script>
 
     @if (Model.Rows.Count == 0)
     {

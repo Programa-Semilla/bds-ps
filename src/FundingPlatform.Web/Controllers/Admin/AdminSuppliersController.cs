@@ -38,19 +38,22 @@ public class AdminSuppliersController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly AppDbContext _dbContext;
     private readonly ILocationCatalogReader _locationCatalog;
+    private readonly Application.Admin.Filters.IFundHierarchyProvider _fundHierarchy;
 
     public AdminSuppliersController(
         ISupplierRepository supplierRepository,
         IProcessQueryService processQuery,
         UserManager<ApplicationUser> userManager,
         AppDbContext dbContext,
-        ILocationCatalogReader locationCatalog)
+        ILocationCatalogReader locationCatalog,
+        Application.Admin.Filters.IFundHierarchyProvider fundHierarchy)
     {
         _supplierRepository = supplierRepository;
         _processQuery = processQuery;
         _userManager = userManager;
         _dbContext = dbContext;
         _locationCatalog = locationCatalog;
+        _fundHierarchy = fundHierarchy;
     }
 
     // ---- Spec 025 — admin branch-edit location cascade ----
@@ -125,6 +128,7 @@ public class AdminSuppliersController : Controller
         string? legalId,
         string? name,
         string? search,
+        int? fundId,
         int? processId,
         bool? hasIncompleteCompliance,
         int page = 1,
@@ -150,13 +154,14 @@ public class AdminSuppliersController : Controller
             LegalIdContains = legalId,
             NameContains = name,
             HasIncompleteCompliance = hasIncompleteCompliance,
+            FundId = fundId,
             ProcessId = processId,
             SearchTerm = search,
         };
 
         var (items, total) = await _supplierRepository.ListForSupplierAdminAsync(filter, page, pageSize);
 
-        var processOptions = await _processQuery.ListAsync(null, null, ct);
+        var fundHierarchy = await _fundHierarchy.GetAsync(includeArchived: false, ct);
 
         var vm = new AdminSupplierListViewModel
         {
@@ -177,10 +182,9 @@ public class AdminSuppliersController : Controller
             NameFilter = name,
             HasIncompleteCompliance = hasIncompleteCompliance == true,
             SearchTerm = search,
+            FundFilter = fundId,
             ProcessIdFilter = processId,
-            ProcessOptions = processOptions
-                .Select(p => (p.Id, p.Name))
-                .ToList(),
+            FundHierarchy = fundHierarchy,
         };
 
         return View(vm);

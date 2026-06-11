@@ -271,10 +271,19 @@ public sealed class ReportQueryService : IReportQueryService
             rows = rows.Where(x => x.A.UpdatedAt <= toUtc);
         }
 
-        // Spec 029 / FR-012 — exact Fund filter via the anchor.
+        // Spec 029 / FR-012 — exact Fund filter via the anchor. Fondo → Proceso →
+        // Grupo drill-down: narrow to a Process and/or Group when supplied.
         if (req.FundId is { } fundId)
         {
             rows = rows.Where(x => x.A.Group!.Process!.FundId == fundId);
+        }
+        if (req.ProcessId is { } procId)
+        {
+            rows = rows.Where(x => x.A.Group!.ProcessId == procId);
+        }
+        if (req.GroupId is { } grpId)
+        {
+            rows = rows.Where(x => x.A.GroupId == grpId);
         }
 
         return rows;
@@ -327,10 +336,19 @@ public sealed class ReportQueryService : IReportQueryService
             .Where(a => states.Contains(a.State))
             .Where(a => a.UpdatedAt <= thresholdCutoff);
 
-        // Spec 029 / FR-012 — exact Fund filter via the anchor.
+        // Spec 029 / FR-012 — exact Fund filter via the anchor. Fondo → Proceso →
+        // Grupo drill-down: narrow to a Process and/or Group when supplied.
         if (req.FundId is { } fundId)
         {
             q = q.Where(a => a.Group!.Process!.FundId == fundId);
+        }
+        if (req.ProcessId is { } procId)
+        {
+            q = q.Where(a => a.Group!.ProcessId == procId);
+        }
+        if (req.GroupId is { } grpId)
+        {
+            q = q.Where(a => a.GroupId == grpId);
         }
 
         if (!string.IsNullOrWhiteSpace(req.Search))
@@ -522,10 +540,19 @@ public sealed class ReportQueryService : IReportQueryService
                 : q.Where(a => !a.Appeals.Any(ap => ap.Status == AppealStatus.Open));
         }
 
-        // Spec 029 / FR-012 — exact Fund filter via the anchor.
+        // Spec 029 / FR-012 — exact Fund filter via the anchor. Fondo → Proceso →
+        // Grupo drill-down: narrow to a Process and/or Group when supplied.
         if (req.FundId is { } fundId)
         {
             q = q.Where(a => a.Group!.Process!.FundId == fundId);
+        }
+        if (req.ProcessId is { } procId)
+        {
+            q = q.Where(a => a.Group!.ProcessId == procId);
+        }
+        if (req.GroupId is { } grpId)
+        {
+            q = q.Where(a => a.GroupId == grpId);
         }
 
         return q;

@@ -1,0 +1,73 @@
+@using FundingPlatform.Web.ViewModels.Admin
+@model CascadingFundFilterModel
+@{
+    var catalogJson = System.Text.Json.JsonSerializer.Serialize(
+        Model.Funds.Select(f => new
+        {
+            id = f.Id,
+            name = f.Name,
+            processes = f.Processes.Select(p => new
+            {
+                id = p.Id,
+                name = p.Name,
+                groups = p.Groups.Select(g => new { id = g.Id, name = g.Name }),
+            }),
+        }));
+    var labelled = !string.IsNullOrEmpty(Model.ColumnClass);
+
+    // (role, fieldName, label, placeholder, selected) per rendered level. In
+    // RequireSelection mode the empty option is a "Seleccione un …" prompt (an
+    // invalid submit value); otherwise it is the "Todos los …" filter-all value.
+    var levels = new List<(string Role, string Field, string Label, string Placeholder, int? Sel)>
+    {
+        ("fund", Model.FundFieldName, "Fondo",
+            Model.RequireSelection ? "Seleccione un fondo" : "Todos los fondos", Model.SelectedFundId),
+    };
+    if (Model.ShowProcess)
+    {
+        levels.Add(("process", Model.ProcessFieldName, "Proceso",
+            Model.RequireSelection ? "Seleccione un proceso" : "Todos los procesos", Model.SelectedProcessId));
+    }
+    if (Model.ShowGroup)
+    {
+        levels.Add(("group", Model.GroupFieldName, "Grupo",
+            Model.RequireSelection ? "Seleccione un grupo" : "Todos los grupos", Model.SelectedGroupId));
+    }
+}
+
+@* Root is display:contents (see site.css .cascading-fund-filter) so each level
+   select participates directly in the parent layout (flex toolbar or grid row).
+   Filter mode: each empty value = "all". RequireSelection mode (editing forms):
+   the empty option is a prompt and the select is HTML5-required so the browser
+   blocks submission until a real value is chosen. The cascade JS narrows Proceso
+   when Fondo changes and Grupo when Proceso changes, restoring server selections. *@
+<div class="cascading-fund-filter"
+     data-testid="@(Model.IdPrefix)"
+     data-depth="@((int)Model.Depth)"
+     data-catalog="@catalogJson">
+    @foreach (var lvl in levels)
+    {
+        var id = $"{Model.IdPrefix}-{lvl.Role}";
+        var selVal = lvl.Sel?.ToString() ?? string.Empty;
+        if (labelled)
+        {
+            <div class="@Model.ColumnClass">
+                <label class="form-label" for="@id">@lvl.Label</label>
+                <select name="@lvl.Field" id="@id" class="form-select" data-role="@lvl.Role"
+                        data-selected="@selVal" data-testid="@id" required="@Model.RequireSelection"
+                        data-searchable>
+                    <option value="">@lvl.Placeholder</option>
+                </select>
+            </div>
+        }
+        else
+        {
+            <select name="@lvl.Field" id="@id" class="form-select cascading-fund-filter-select"
+                    data-role="@lvl.Role" aria-label="@lvl.Label"
+                    data-selected="@selVal" data-testid="@id" required="@Model.RequireSelection"
+                    data-searchable>
+                <option value="">@lvl.Placeholder</option>
+            </select>
+        }
+    }
+</div>

@@ -35,6 +35,7 @@ public class AdminProcessesController : Controller
     private readonly IGroupService _groups;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly AppDbContext _db;
+    private readonly Application.Admin.Filters.IFundHierarchyProvider _fundHierarchy;
 
     public AdminProcessesController(
         IProcessService processes,
@@ -42,7 +43,8 @@ public class AdminProcessesController : Controller
         IPlantillaService plantillas,
         IGroupService groups,
         UserManager<ApplicationUser> userManager,
-        AppDbContext db)
+        AppDbContext db,
+        Application.Admin.Filters.IFundHierarchyProvider fundHierarchy)
     {
         _processes = processes;
         _processQuery = processQuery;
@@ -50,6 +52,7 @@ public class AdminProcessesController : Controller
         _groups = groups;
         _userManager = userManager;
         _db = db;
+        _fundHierarchy = fundHierarchy;
     }
 
     /// <summary>Spec 029 / FR-002 — Active Funds for the Process Fund selector.</summary>
@@ -69,17 +72,12 @@ public class AdminProcessesController : Controller
         var rows = await _processQuery.ListAsync(statusFilter, fundId, ct);
         // Spec 029 / FR-011 — Fund filter lists every Fund (incl. Archived) so an
         // admin can still find Processes under an archived Fund.
-        var fundOptions = await _db.Funds
-            .OrderBy(f => f.Name)
-            .Select(f => new SelectListItem(f.Name, f.Id.ToString()))
-            .ToListAsync(ct);
-
         return View(new AdminProcessesIndexViewModel
         {
             Rows = rows,
             StatusFilter = statusFilter,
             FundFilter = fundId,
-            FundOptions = fundOptions,
+            FundHierarchy = await _fundHierarchy.GetAsync(includeArchived: true, ct),
         });
     }
 

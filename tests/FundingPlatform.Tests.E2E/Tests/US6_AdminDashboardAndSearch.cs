@@ -80,10 +80,11 @@ public class US6_AdminDashboardAndSearch : AuthenticatedTestBase
         await LoginAsync(Page, adminEmail, Password);
 
         await Page.GotoAsync($"{BaseUrl}/Admin/Users");
-        await Expect(Page.Locator("[data-testid=\"admin-users-process-group-cascade\"]"))
-            .ToBeVisibleAsync();
-        await Expect(Page.Locator("[data-testid=\"admin-users-process-filter\"]")).ToBeVisibleAsync();
-        await Expect(Page.Locator("[data-testid=\"admin-users-group-filter\"]")).ToBeVisibleAsync();
+        // Fondo → Proceso → Grupo drill-down. The container is display:contents
+        // (no box), so assert the three level selects render.
+        await Expect(Page.Locator("[data-testid=\"admin-users-cascade-fund\"]")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid=\"admin-users-cascade-process\"]")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid=\"admin-users-cascade-group\"]")).ToBeVisibleAsync();
     }
 
     [Test]
@@ -98,7 +99,7 @@ public class US6_AdminDashboardAndSearch : AuthenticatedTestBase
         await Page.GotoAsync($"{BaseUrl}/Admin/Suppliers");
         await Expect(Page.Locator("[data-testid=\"admin-suppliers-area\"]")).ToBeVisibleAsync();
         await Expect(Page.Locator("[data-testid=\"admin-suppliers-search-input\"]")).ToBeVisibleAsync();
-        await Expect(Page.Locator("[data-testid=\"admin-suppliers-process-filter\"]")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid=\"admin-suppliers-cascade-process\"]")).ToBeVisibleAsync();
         // FR-011 — the Último uso column header is rendered on the Admin path.
         await Expect(Page.Locator("[data-testid=\"admin-suppliers-col-last-used\"]"))
             .ToBeVisibleAsync();

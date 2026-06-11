@@ -1,3 +1,5 @@
+using FundingPlatform.Application.Admin.Filters;
+
 namespace FundingPlatform.Web.ViewModels.Admin;
 
 public class AdminUsersListViewModel
@@ -10,16 +12,18 @@ public class AdminUsersListViewModel
     public string? StatusFilter { get; init; }
     public string? Search { get; init; }
 
-    /// <summary>Spec 021 / FR-034 / T082 — Process catalog for the cascading
-    /// Process → Group group selector. Each process carries its own groups
-    /// so the client-side cascade JS can narrow the Group dropdown.</summary>
-    public IReadOnlyList<AdminUsersProcessFilterOption> Processes { get; init; }
-        = Array.Empty<AdminUsersProcessFilterOption>();
+    /// <summary>Fondo → Proceso → Grupo catalog (active Funds only) for the
+    /// cascading drill-down filter.</summary>
+    public IReadOnlyList<FundHierarchyNode> FundHierarchy { get; init; }
+        = Array.Empty<FundHierarchyNode>();
 
-    /// <summary>Spec 021 / FR-034 — currently selected Process filter (null = all).</summary>
+    /// <summary>Currently selected Fund filter (null = all).</summary>
+    public int? FundFilter { get; init; }
+
+    /// <summary>Currently selected Process filter (null = all).</summary>
     public int? ProcessFilter { get; init; }
 
-    /// <summary>Spec 021 / FR-034 — currently selected Group filter (null = all).</summary>
+    /// <summary>Currently selected Group filter (null = all).</summary>
     public int? GroupFilter { get; init; }
 
     public int TotalPages =>
@@ -28,14 +32,3 @@ public class AdminUsersListViewModel
     public bool HasPreviousPage => Page > 1;
     public bool HasNextPage => Page < TotalPages;
 }
-
-/// <summary>Spec 021 / FR-034 — option-row carrying a Process + its Groups.
-/// The view emits each Group as a child option under the Process, and the
-/// cascade JS rebuilds the Group dropdown when the Process selection changes.</summary>
-public sealed record AdminUsersProcessFilterOption(
-    int Id,
-    string Name,
-    IReadOnlyList<AdminUsersGroupFilterOption> Groups);
-
-/// <summary>Spec 021 / FR-034 — option-row for a Group within a Process.</summary>
-public sealed record AdminUsersGroupFilterOption(int Id, string Name);

@@ -39,7 +39,10 @@ public sealed class GroupService : IGroupService
                 g.Name,
                 g.Memberships.Count(),
                 g.ProcessId,
-                _db.Processes.Where(p => p.Id == g.ProcessId).Select(p => p.Name).FirstOrDefault() ?? ""))
+                _db.Processes.Where(p => p.Id == g.ProcessId).Select(p => p.Name).FirstOrDefault() ?? "",
+                // Spec 029 — surface the owning Fund (via the Process anchor) on each row.
+                _db.Processes.Where(p => p.Id == g.ProcessId).Select(p => p.FundId).FirstOrDefault(),
+                _db.Processes.Where(p => p.Id == g.ProcessId).Select(p => p.Fund!.Name).FirstOrDefault() ?? ""))
             .ToListAsync(ct);
     }
 

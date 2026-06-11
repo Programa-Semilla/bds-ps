@@ -38,7 +38,8 @@
                            the server normalises and validates instead. *@
                         <select asp-for="SourceCurrencyCode"
                                 class="form-select"
-                                data-testid="source-currency-select">
+                                data-testid="source-currency-select"
+                                data-searchable>
                             @foreach (var c in Model.AvailableCurrencies)
                             {
                                 <option value="@c.Code" selected="@(c.Code == Model.SourceCurrencyCode)">
@@ -53,7 +54,8 @@
                         <label asp-for="TargetCurrencyCode" class="form-label">Moneda destino @await Html.PartialAsync("_RequiredMark")</label>
                         <select asp-for="TargetCurrencyCode"
                                 class="form-select"
-                                data-testid="target-currency-select">
+                                data-testid="target-currency-select"
+                                data-searchable>
                             @foreach (var c in Model.AvailableCurrencies)
                             {
                                 <option value="@c.Code" selected="@(c.Code == Model.TargetCurrencyCode)">

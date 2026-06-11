@@ -62,8 +62,9 @@ public class ProcessRequiresFundTests : AuthenticatedTestBase
         await Expect(row).ToBeVisibleAsync();
         await Expect(row.Locator("[data-testid=admin-process-fund]")).ToContainTextAsync(fundName);
 
-        // Filter the Process list by the Fund → the row is still shown.
-        await Page.Locator("[data-testid=admin-processes-fund-filter]").SelectOptionAsync(new SelectOptionValue { Label = fundName });
+        // Filter the Process list by the Fund (cascading component, Fondo level)
+        // → the row is still shown.
+        await Page.Locator("[data-testid=admin-processes-cascade-fund]").SelectOptionAsync(new SelectOptionValue { Label = fundName });
         await Page.Locator("[data-testid=admin-processes-filter-submit]").ClickAsync();
         await Expect(Page.Locator("tr[data-testid^=admin-process-row-]").Filter(new() { HasText = procName })).ToBeVisibleAsync();
     }

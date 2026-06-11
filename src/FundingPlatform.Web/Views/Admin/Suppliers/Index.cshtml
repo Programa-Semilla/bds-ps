@@ -1,5 +1,6 @@
 @using FundingPlatform.Domain.Enums
 @using FundingPlatform.Web.Resources
+@using FundingPlatform.Web.ViewModels.Admin
 @model FundingPlatform.Web.ViewModels.Admin.AdminSupplierListViewModel
 @{
     ViewData["Title"] = AdminSuppliersResources.Page_Title;
@@ -45,14 +46,18 @@
                    autocomplete="off" />
             <input type="hidden" id="admin-suppliers-supplier-id" name="supplierId" value="" />
         </div>
-        <select name="processId" class="form-select admin-suppliers-filter-control"
-                data-testid="admin-suppliers-process-filter">
-            <option value="">Todos los procesos</option>
-            @foreach (var p in Model.ProcessOptions)
-            {
-                <option value="@p.Id" selected="@(Model.ProcessIdFilter == p.Id)">@p.Name</option>
-            }
-        </select>
+        @* Fondo → Proceso cascading drill-down filter (active Funds only;
+           suppliers are not Group-scoped, so no Grupo level). *@
+        @await Html.PartialAsync("Components/_CascadingFundFilter", new CascadingFundFilterModel
+        {
+            Funds = Model.FundHierarchy,
+            Depth = CascadeFilterDepth.Process,
+            FundFieldName = "fundId",
+            ProcessFieldName = "processId",
+            SelectedFundId = Model.FundFilter,
+            SelectedProcessId = Model.ProcessIdFilter,
+            IdPrefix = "admin-suppliers-cascade",
+        })
         @if (!supplierAdminOnly)
         {
             <select name="status" class="form-select admin-suppliers-filter-control" data-testid="admin-suppliers-status-filter">
@@ -201,4 +206,5 @@
        /api/suppliers/search (SuppliersApiController, T109). The shared
        vendored module handles debounce, render, and selection. *@
     <script src="~/js/supplier-autocomplete.js" asp-append-version="true" defer></script>
+    <script src="~/js/cascading-fund-filter.js" asp-append-version="true" defer></script>
 }

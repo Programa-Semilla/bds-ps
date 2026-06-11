@@ -91,7 +91,7 @@
                             @Html.AntiForgeryToken()
                             <div>
                                 <label class="form-label small mb-1">Reasignar a (fondos activos)</label>
-                                <select name="fundId" class="form-select" data-testid="admin-process-fund-reassign-select" style="min-width: 220px;">
+                                <select name="fundId" class="form-select" data-testid="admin-process-fund-reassign-select" style="min-width: 220px;" data-searchable>
                                     @foreach (var f in Model.FundOptions)
                                     {
                                         <option value="@f.Value" selected="@(f.Value == detail.FundId.ToString())">@f.Text</option>
@@ -203,7 +203,7 @@
                             @Html.AntiForgeryToken()
                             <div class="input-group">
                                 <select name="plantillaId" class="form-select" required
-                                        data-testid="admin-process-assign-plantilla-select">
+                                        data-testid="admin-process-assign-plantilla-select" data-searchable>
                                     <option value="">Seleccione una plantilla base</option>
                                     @foreach (var p in Model.AssignableBasePlantillas)
                                     {

@@ -49,7 +49,7 @@
                 <div class="col-md-3">
                     <button type="submit" class="btn btn-primary" data-testid="aging-filter-apply">Aplicar</button>
                     <a class="btn btn-outline-secondary"
-                       href="@Url.Action("ExportAging", new { threshold = req.Threshold, search = req.Search, sort = req.Sort, states = req.States.Select(s => s.ToString()).ToArray() })"
+                       href="@Url.Action("ExportAging", new { threshold = req.Threshold, search = req.Search, sort = req.Sort, FundId = req.FundId, ProcessId = req.ProcessId, GroupId = req.GroupId, states = req.States.Select(s => s.ToString()).ToArray() })"
                        data-testid="aging-export-csv">Descargar CSV</a>
                 </div>
             </div>

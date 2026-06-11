@@ -43,8 +43,11 @@ public class SupplierAdminPage : AdminBasePage
         Page.Locator("[data-testid=\"admin-suppliers-area\"]");
     public ILocator SearchInput =>
         Page.Locator("[data-testid=\"admin-suppliers-search-input\"]");
+    // Fondo → Proceso cascading drill-down (shared component). The process level.
+    public ILocator FundFilter =>
+        Page.Locator("[data-testid=\"admin-suppliers-cascade-fund\"]");
     public ILocator ProcessFilter =>
-        Page.Locator("[data-testid=\"admin-suppliers-process-filter\"]");
+        Page.Locator("[data-testid=\"admin-suppliers-cascade-process\"]");
     public ILocator LastUsedColumnHeader =>
         Page.Locator("[data-testid=\"admin-suppliers-col-last-used\"]");
     public ILocator FilterForm =>

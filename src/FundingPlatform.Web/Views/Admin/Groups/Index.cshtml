@@ -1,5 +1,6 @@
 @using FundingPlatform.Web.Models
 @using FundingPlatform.Web.Resources
+@using FundingPlatform.Web.ViewModels.Admin
 @model FundingPlatform.Web.ViewModels.Admin.AdminGroupsIndexViewModel
 @{
     ViewData["Title"] = AdminGroupsResources.Page_Title;
@@ -23,7 +24,7 @@
 
     @* Spec 024 — flash messages surface as toasts via _ToastContainer (success-banner / error-banner). *@
 
-    @if (Model.Groups.Count == 0)
+    @if (!Model.HasAnyGroups)
     {
         <div data-testid="admin-groups-empty">
             @await Html.PartialAsync("Components/_EmptyState",
@@ -41,38 +42,85 @@
     }
     else
     {
-        <div class="card" data-testid="admin-groups-table">
-            <div class="table-responsive">
-                <table class="fl-table" data-density="reviewer">
-                    <thead>
-                        <tr>
-                            <th>@AdminGroupsResources.Column_Name</th>
-                            <th>@AdminGroupsResources.Column_Process</th>
-                            <th class="w-1">@AdminGroupsResources.Column_MemberCount</th>
-                            <th class="text-end">@AdminGroupsResources.Column_Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var row in Model.Groups)
-                        {
-                            <tr data-testid="admin-group-row-@row.Id">
-                                <td data-testid="admin-group-name">@row.Name</td>
-                                <td data-testid="admin-group-process">@row.ProcessName</td>
-                                <td data-testid="admin-group-member-count">@row.MemberCount</td>
-                                <td class="text-end">
-                                    <div class="btn-list justify-content-end">
-                                        <a class="btn btn-sm btn-outline-secondary"
-                                           data-testid="admin-group-edit"
-                                           href="@Url.Action("Edit", "AdminGroups", new { id = row.Id })">
-                                            <i class="ti ti-edit"></i> @AdminGroupsResources.Action_Edit
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+        @* Fondo → Proceso cascading drill-down filter + name search. *@
+        <form method="get" asp-action="Index" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-groups-filter-form">
+            <input type="search" name="search" value="@Model.Search"
+                   placeholder="@AdminGroupsResources.Filter_SearchPlaceholder"
+                   class="form-control admin-users-filter-search" data-testid="admin-groups-search" />
+            @await Html.PartialAsync("Components/_CascadingFundFilter", new CascadingFundFilterModel
+            {
+                Funds = Model.FundHierarchy,
+                Depth = CascadeFilterDepth.Process,
+                FundFieldName = "fundId",
+                ProcessFieldName = "processId",
+                SelectedFundId = Model.FundFilter,
+                SelectedProcessId = Model.ProcessFilter,
+                IdPrefix = "admin-groups-cascade",
+            })
+            <button type="submit" class="btn btn-secondary" data-testid="admin-groups-filter-submit">@AdminGroupsResources.Filter_Apply</button>
+        </form>
+
+        <script src="~/js/cascading-fund-filter.js" asp-append-version="true"></script>
+
+        if (Model.Groups.Count == 0)
+        {
+            <div data-testid="admin-groups-no-match">
+                @await Html.PartialAsync("Components/_EmptyState",
+                    new EmptyStateViewModel(
+                        Headline: AdminGroupsResources.Filter_NoMatch_Title,
+                        Body: AdminGroupsResources.Filter_NoMatch_Body,
+                        Icon: "ti ti-search",
+                        IllustrationSceneKey: "magnifier-on-empty"))
             </div>
-        </div>
+        }
+        else
+        {
+            <div class="card" data-testid="admin-groups-table">
+                <div class="table-responsive">
+                    <table class="fl-table" data-density="reviewer">
+                        <thead>
+                            <tr>
+                                <th>@AdminGroupsResources.Column_Name</th>
+                                <th>@AdminGroupsResources.Column_Fund</th>
+                                <th>@AdminGroupsResources.Column_Process</th>
+                                <th class="w-1">@AdminGroupsResources.Column_MemberCount</th>
+                                <th class="text-end">@AdminGroupsResources.Column_Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.Groups)
+                            {
+                                <tr data-testid="admin-group-row-@row.Id">
+                                    <td data-testid="admin-group-name">@row.Name</td>
+                                    <td data-testid="admin-group-fund">
+                                        @if (row.FundId > 0)
+                                        {
+                                            <a href="@Url.Action("Details", "AdminFunds", new { id = row.FundId })">@row.FundName</a>
+                                        }
+                                        else
+                                        {
+                                            @row.FundName
+                                        }
+                                    </td>
+                                    <td data-testid="admin-group-process">
+                                        <a href="@Url.Action("Details", "AdminProcesses", new { id = row.ProcessId })">@row.ProcessName</a>
+                                    </td>
+                                    <td data-testid="admin-group-member-count">@row.MemberCount</td>
+                                    <td class="text-end">
+                                        <div class="btn-list justify-content-end">
+                                            <a class="btn btn-sm btn-outline-secondary"
+                                               data-testid="admin-group-edit"
+                                               href="@Url.Action("Edit", "AdminGroups", new { id = row.Id })">
+                                                <i class="ti ti-edit"></i> @AdminGroupsResources.Action_Edit
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
     }
 </div>

@@ -31,13 +31,19 @@ public class AdminGroupsPage : AdminBasePage
     public ILocator RowProcess(string name) =>
         RowFor(name).Locator("[data-testid=\"admin-group-process\"]");
 
+    /// <summary>Spec 029 — the owning-Fund column on a Groups-index row.</summary>
+    public ILocator RowFund(string name) =>
+        RowFor(name).Locator("[data-testid=\"admin-group-fund\"]");
+
     // Edit form. Spec 021 / FR-001 — Group *creation* moved to the Process
     // detail page (see ProcessAdminPage.CreateGroupAsync); this POM keeps the
     // rename / reparent / delete surface only.
     public ILocator NameInput => Page.Locator("[data-testid=\"admin-group-name-input\"]");
     public ILocator NameError => Page.Locator("[data-testid=\"admin-group-name-error\"]");
     public ILocator ValidationSummary => Page.Locator("[data-testid=\"admin-group-validation-summary\"]");
-    public ILocator ProcessSelect => Page.Locator("[data-testid=\"admin-group-process-select\"]");
+    // Edit reparent drill-down (Fondo → Proceso). The Proceso select posts ProcessId.
+    public ILocator FundSelect => Page.Locator("[data-testid=\"admin-group-reparent-fund\"]");
+    public ILocator ProcessSelect => Page.Locator("[data-testid=\"admin-group-reparent-process\"]");
     public ILocator ProcessError => Page.Locator("[data-testid=\"admin-group-process-error\"]");
     public ILocator EditSubmit => Page.Locator("[data-testid=\"admin-group-edit-submit\"]");
     public ILocator DeleteSubmit => Page.Locator("[data-testid=\"admin-group-delete-submit\"]");

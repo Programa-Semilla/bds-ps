@@ -65,7 +65,7 @@
                     <div class="mb-3">
                         <label asp-for="GroupId" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
                         <select asp-for="GroupId" asp-items="Model.EligibleGroups"
-                                class="form-select" data-testid="application-create-group">
+                                class="form-select" data-testid="application-create-group" data-searchable>
                             <option value="">— Seleccione un proceso —</option>
                         </select>
                         <span asp-validation-for="GroupId" class="invalid-feedback d-block"

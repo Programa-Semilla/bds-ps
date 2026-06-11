@@ -1,3 +1,4 @@
+using FundingPlatform.Application.Admin.Filters;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 
@@ -26,11 +27,14 @@ public class AdminSupplierListViewModel
     /// </summary>
     public int? ProcessIdFilter { get; init; }
 
-    /// <summary>
-    /// Spec 021 / T108 — Process catalog for the filter dropdown.
-    /// </summary>
-    public IReadOnlyList<(int Id, string Name)> ProcessOptions { get; init; }
-        = Array.Empty<(int, string)>();
+    /// <summary>Currently selected Fund filter (null = all).</summary>
+    public int? FundFilter { get; init; }
+
+    /// <summary>Fondo → Proceso catalog (active Funds only) for the cascading
+    /// drill-down filter. Suppliers are not Group-scoped, so the Group level is
+    /// not rendered here.</summary>
+    public IReadOnlyList<FundHierarchyNode> FundHierarchy { get; init; }
+        = Array.Empty<FundHierarchyNode>();
 
     public int TotalPages =>
         PageSize <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);

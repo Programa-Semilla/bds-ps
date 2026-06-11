@@ -37,19 +37,6 @@
                     Icon: "ti ti-user-plus")
             }))
 
-    @{
-        // Spec 021 / FR-034 / T082 / T083 — Process → Group cascade catalog.
-        // Emitted as a JSON blob the cascade JS consumes; the server side
-        // already validated the catalog shape (no PII).
-        var cascadeCatalog = System.Text.Json.JsonSerializer.Serialize(
-            Model.Processes.Select(p => new
-            {
-                id = p.Id,
-                name = p.Name,
-                groups = p.Groups.Select(g => new { id = g.Id, name = g.Name })
-            }));
-    }
-
     <form method="get" asp-action="Index" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-users-filter-form">
         <input type="search" name="search" value="@Model.Search" placeholder="Buscar por nombre o correo"
                class="form-control admin-users-filter-search" data-testid="admin-users-search" />
@@ -68,44 +55,24 @@
             }
         </select>
 
-        <div data-testid="admin-users-process-group-cascade"
-             data-process-catalog="@cascadeCatalog"
-             class="d-flex gap-2 flex-wrap">
-            <select name="processFilter" id="admin-users-process-filter"
-                    class="form-select admin-users-filter-select"
-                    data-testid="admin-users-process-filter">
-                <option value="">Todos los procesos</option>
-                @foreach (var p in Model.Processes)
-                {
-                    <option value="@p.Id" selected="@(Model.ProcessFilter == p.Id)">@p.Name</option>
-                }
-            </select>
-            <select name="groupFilter" id="admin-users-group-filter"
-                    class="form-select admin-users-filter-select"
-                    data-current-value="@(Model.GroupFilter?.ToString() ?? string.Empty)"
-                    data-testid="admin-users-group-filter">
-                <option value="">Todos los grupos</option>
-                @* The cascade JS rebuilds these options client-side based on the
-                   selected Process. The server still emits the catalog as JSON
-                   on the wrapper element. *@
-                @foreach (var p in Model.Processes)
-                {
-                    foreach (var g in p.Groups)
-                    {
-                        // Only render groups for the currently selected process (or all, when none chosen).
-                        if (Model.ProcessFilter is null || Model.ProcessFilter == p.Id)
-                        {
-                            <option value="@g.Id" selected="@(Model.GroupFilter == g.Id)">@g.Name</option>
-                        }
-                    }
-                }
-            </select>
-        </div>
+        @* Fondo → Proceso → Grupo cascading drill-down filter (active Funds only). *@
+        @await Html.PartialAsync("Components/_CascadingFundFilter", new CascadingFundFilterModel
+        {
+            Funds = Model.FundHierarchy,
+            Depth = CascadeFilterDepth.Group,
+            FundFieldName = "fundFilter",
+            ProcessFieldName = "processFilter",
+            GroupFieldName = "groupFilter",
+            SelectedFundId = Model.FundFilter,
+            SelectedProcessId = Model.ProcessFilter,
+            SelectedGroupId = Model.GroupFilter,
+            IdPrefix = "admin-users-cascade",
+        })
 
         <button type="submit" class="btn btn-secondary" data-testid="admin-users-filter-submit">Aplicar</button>
     </form>
 
-    <script src="~/js/process-group-cascade.js" asp-append-version="true"></script>
+    <script src="~/js/cascading-fund-filter.js" asp-append-version="true"></script>
 
     @if (Model.Rows.Count == 0)
     {
@@ -221,14 +188,14 @@
                 <ul class="pagination">
                     <li class="page-item @(Model.HasPreviousPage ? null : "disabled")">
                         <a class="page-link"
-                           href="@Url.Action("Index", new { roleFilter = Model.RoleFilter, statusFilter = Model.StatusFilter, search = Model.Search, page = Model.Page - 1, pageSize = Model.PageSize })">
+                           href="@Url.Action("Index", new { roleFilter = Model.RoleFilter, statusFilter = Model.StatusFilter, search = Model.Search, fundFilter = Model.FundFilter, processFilter = Model.ProcessFilter, groupFilter = Model.GroupFilter, page = Model.Page - 1, pageSize = Model.PageSize })">
                             Anterior
                         </a>
                     </li>
                     <li class="page-item active"><span class="page-link">@Model.Page / @Model.TotalPages</span></li>
                     <li class="page-item @(Model.HasNextPage ? null : "disabled")">
                         <a class="page-link"
-                           href="@Url.Action("Index", new { roleFilter = Model.RoleFilter, statusFilter = Model.StatusFilter, search = Model.Search, page = Model.Page + 1, pageSize = Model.PageSize })">
+                           href="@Url.Action("Index", new { roleFilter = Model.RoleFilter, statusFilter = Model.StatusFilter, search = Model.Search, fundFilter = Model.FundFilter, processFilter = Model.ProcessFilter, groupFilter = Model.GroupFilter, page = Model.Page + 1, pageSize = Model.PageSize })">
                             Siguiente
                         </a>
                     </li>

@@ -18,7 +18,6 @@
         "Admin" => "Administrador",
         _ => r,
     };
-    var selectedIds = new HashSet<int>(Model.GroupIds ?? Array.Empty<int>());
 }
 
 <div data-testid="admin-area">
@@ -87,22 +86,14 @@
 
         <div class="col-md-12 mb-3" data-testid="admin-user-groups-field" id="groupsField">
             <label class="form-label" asp-for="GroupIds">@AdminUsersResources.GroupSelectorLabel</label>
-            @if (Model.AvailableGroups.Count == 0)
+            @await Html.PartialAsync("_GroupSelectorDrilldown", new GroupSelectorModel
             {
-                <div class="text-muted" data-testid="admin-user-groups-empty">
-                    @AdminUsersResources.GroupSelectorEmptyOption
-                </div>
-            }
-            else
-            {
-                <select asp-for="GroupIds" class="form-select" multiple size="@Math.Min(8, Model.AvailableGroups.Count)"
-                        data-testid="admin-user-groups-select">
-                    @foreach (var opt in Model.AvailableGroups)
-                    {
-                        <option value="@opt.Id" selected="@selectedIds.Contains(opt.Id)">@opt.Name</option>
-                    }
-                </select>
-            }
+                FundCatalog = Model.FundCatalog,
+                SelectedGroups = Model.AvailableGroups
+                    .Where(g => (Model.GroupIds ?? Array.Empty<int>()).Contains(g.Id))
+                    .ToList(),
+                FieldName = nameof(Model.GroupIds),
+            })
             <small class="form-text text-muted">@AdminUsersResources.GroupSelectorHelpText</small>
             <span asp-validation-for="GroupIds" class="text-danger" data-testid="admin-user-groups-error"></span>
         </div>
@@ -146,3 +137,4 @@
     })();
 </script>
 <script src="~/js/input-masks.js" asp-append-version="true" defer></script>
+<script src="~/js/group-drilldown-selector.js" asp-append-version="true" defer></script>

@@ -161,7 +161,7 @@ else
                     Categoría <span class="text-danger">*</span>
                 </label>
                 <select id="add-item-category" name="CategoryId" class="form-select" required
-                        data-testid="application-edit-item-category">
+                        data-testid="application-edit-item-category" data-searchable>
                     <option value="">-- Seleccione --</option>
                     @foreach (var cat in Model.Categories)
                     {

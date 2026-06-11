@@ -1,5 +1,6 @@
 @using FundingPlatform.Web.Models
 @using FundingPlatform.Web.Resources
+@using FundingPlatform.Web.ViewModels.Admin
 @model FundingPlatform.Web.ViewModels.Admin.AdminGroupEditViewModel
 @{
     ViewData["Title"] = AdminGroupsResources.Breadcrumb_Edit;
@@ -29,15 +30,23 @@
             <span asp-validation-for="Name" class="text-danger" data-testid="admin-group-name-error"></span>
         </div>
 
-        @* Spec 021 / FR-001 — owning Process. Changing it reparents the group. *@
-        <div class="col-md-6 mb-3">
-            <label class="form-label" asp-for="ProcessId">@AdminGroupsResources.Label_Process @await Html.PartialAsync("_RequiredMark")</label>
-            <select asp-for="ProcessId" class="form-select" data-testid="admin-group-process-select">
-                @foreach (var p in Model.ProcessOptions)
-                {
-                    <option value="@p.Id" selected="@(p.Id == Model.ProcessId)">@p.Name</option>
-                }
-            </select>
+        @* Spec 021 / FR-001 + spec 029 — owning Process via a Fondo → Proceso
+           drill-down. Changing it reparents the group. The Fondo level narrows the
+           Proceso options; the Proceso select posts ProcessId. Archived Funds are
+           included so the current Process is always reachable. *@
+        @await Html.PartialAsync("Components/_CascadingFundFilter", new CascadingFundFilterModel
+        {
+            Funds = Model.FundHierarchy,
+            Depth = CascadeFilterDepth.Process,
+            FundFieldName = "fundId",
+            ProcessFieldName = nameof(Model.ProcessId),
+            SelectedFundId = Model.SelectedFundId,
+            SelectedProcessId = Model.ProcessId,
+            IdPrefix = "admin-group-reparent",
+            ColumnClass = "col-md-6",
+            RequireSelection = true,
+        })
+        <div class="col-12 mb-3">
             <small class="form-hint">@AdminGroupsResources.Hint_Process</small>
             <span asp-validation-for="ProcessId" class="text-danger" data-testid="admin-group-process-error"></span>
         </div>
@@ -70,3 +79,5 @@
         </div>
     </form>
 </div>
+
+<script src="~/js/cascading-fund-filter.js" asp-append-version="true" defer></script>
