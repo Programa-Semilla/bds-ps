@@ -122,6 +122,38 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task RenameAsync(
+        RenameProcessCommand command, string actorUserId, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
+
+        var process = await _db.Processes.FirstOrDefaultAsync(p => p.Id == command.ProcessId, ct)
+            ?? throw new KeyNotFoundException($"Process {command.ProcessId} not found.");
+
+        // Spec 030 / FR-002 — rename allowed at any status (no Closed guard); the
+        // domain validates (required/trim/≤120) and no-ops when unchanged.
+        var oldName = process.Name;
+        process.Rename(command.NewName); // ArgumentException on invalid name
+
+        // Spec 030 / FR-006 / SC-005 — a no-op (trimmed new name == current name)
+        // persists nothing and writes no audit row. The domain short-circuits, so
+        // Name is unchanged here.
+        if (string.Equals(process.Name, oldName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        await _audit.WriteAsync(
+            AdminAuditEvent.ProcessRenamed,
+            actorUserId,
+            JsonSerializer.Serialize(new { processId = process.Id, oldName, newName = process.Name }),
+            ct);
+        // Duplicate name surfaces as DbUpdateException via UX_Processes_Name;
+        // RowVersion guards concurrent edits (research.md R-1).
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task OverrideStageWindowAsync(
         OverrideStageWindowCommand command, string actorUserId, CancellationToken ct)
     {

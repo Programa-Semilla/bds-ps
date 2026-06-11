@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-09
+Last updated: 2026-06-10
 
 ## Sessions
 
@@ -32,8 +32,14 @@ Last updated: 2026-06-09
 | 24 | 2026-05-24 | input-masks | spec-created | 026 |
 | 25 | 2026-05-26 | review-funding-ux | spec-created | 027 |
 | 26 | 2026-06-09 | fund-entity | spec-created | 029 |
+| 27 | 2026-06-10 | edit-process-name | spec-created | 030 |
 
 ## Open Threads
+
+- RowVersion / optimistic-concurrency handling on the Process rename happy path — duplicate-name races covered by `UX_Processes_Name`; lost-update on the name field is the residual (low risk, admin-only single field) — pin in plan (from #27)
+- Closed-Process rename policy — shipped as "allowed at any status"; revisit only if audit integrity of historical cycle names is challenged (mitigated by the `process.renamed` audit entry) (from #27)
+- Stable `data-testid` hooks for the new inline rename form so the E2E rewrite has reliable selectors (from #27)
+
 
 - Exact set of create/edit/submit/review actions disabled when a Fund is archived — deferred to plan; scoped to the Process state model (from #26)
 - "Participant under a Fund" semantics — Group holds reviewers (spec 016), not applicants; a future Fund→participant report must define which population it counts (from #26)

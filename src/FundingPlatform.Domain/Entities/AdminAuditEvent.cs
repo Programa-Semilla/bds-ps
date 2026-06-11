@@ -58,6 +58,11 @@ public class AdminAuditEvent
     /// <summary>Spec 029 / FR-009 — admin reassigned a Process to a different Fund.</summary>
     public const string ActionProcessFundReassigned = "process.fund_reassigned";
 
+    /// <summary>Spec 030 / FR-003 — admin renamed a Process. Payload carries the
+    /// old and new name. The <c>process.</c> prefix routes to the Process target
+    /// in <c>AdminAuditEventWriter</c>.</summary>
+    public const string ProcessRenamed = "process.renamed";
+
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string ActorUserId { get; private set; } = string.Empty;

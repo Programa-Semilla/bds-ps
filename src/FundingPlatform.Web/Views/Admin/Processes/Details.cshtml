@@ -44,6 +44,36 @@
     }
 
     <div class="row g-3">
+        @* Spec 030 / FR-001 / FR-002 — inline rename of the Process Name. Rendered
+           regardless of status (Active AND Closed can be renamed). *@
+        <div class="col-12">
+            <div class="card" data-testid="admin-process-name-card">
+                <div class="card-header"><h3 class="card-title">Nombre del proceso</h3></div>
+                <div class="card-body">
+                    <form method="post" asp-action="Rename" asp-route-id="@detail.Id"
+                          class="d-flex flex-wrap gap-2 align-items-end" data-testid="admin-process-rename-form">
+                        @Html.AntiForgeryToken()
+                        <div class="flex-grow-1">
+                            <label class="form-label" for="admin-process-rename-input">Nombre</label>
+                            <input name="newName" id="admin-process-rename-input" class="form-control"
+                                   value="@detail.Name" maxlength="120" required
+                                   data-testid="admin-process-rename-input" />
+                            @{
+                                var nameError = ViewData.ModelState["newName"]?.Errors.FirstOrDefault()?.ErrorMessage;
+                            }
+                            @if (!string.IsNullOrEmpty(nameError))
+                            {
+                                <div class="invalid-feedback d-block" data-testid="admin-process-rename-error">@nameError</div>
+                            }
+                        </div>
+                        <button type="submit" class="btn btn-primary" data-testid="admin-process-rename-submit">
+                            <i class="ti ti-device-floppy"></i> Guardar nombre
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         @* Spec 029 / FR-002 / FR-009 — Fund the Process belongs to + reassignment. *@
         <div class="col-12">
             <div class="card" data-testid="admin-process-fund-card">

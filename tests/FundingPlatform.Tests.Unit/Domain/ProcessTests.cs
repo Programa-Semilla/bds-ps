@@ -161,4 +161,59 @@ public class ProcessTests
 
         Assert.That(process.Name, Is.EqualTo("Crocus 2026"));
     }
+
+    // ----- Spec 030 / FR-004 / FR-006 — rename boundary cases. -----
+
+    [TestCase("")]
+    [TestCase("   ")]
+    [TestCase(null)]
+    public void Rename_RejectsEmptyOrWhitespace(string? raw)
+    {
+        var process = Process.Create("Crocus 2025", 1);
+
+        Assert.Throws<ArgumentException>(() => process.Rename(raw!));
+        Assert.That(process.Name, Is.EqualTo("Crocus 2025"), "Name must be unchanged on rejection.");
+    }
+
+    [Test]
+    public void Rename_AcceptsMaxLength()
+    {
+        var process = Process.Create("Crocus 2025", 1);
+        var name = new string('x', Process.MaxNameLength);
+
+        process.Rename(name);
+
+        Assert.That(process.Name, Is.EqualTo(name));
+    }
+
+    [Test]
+    public void Rename_RejectsOverLength()
+    {
+        var process = Process.Create("Crocus 2025", 1);
+        var name = new string('x', Process.MaxNameLength + 1);
+
+        Assert.Throws<ArgumentException>(() => process.Rename(name));
+        Assert.That(process.Name, Is.EqualTo("Crocus 2025"), "Name must be unchanged on rejection.");
+    }
+
+    [Test]
+    public void Rename_EqualName_IsNoOp()
+    {
+        var process = Process.Create("Crocus 2025", 1);
+
+        process.Rename("Crocus 2025");
+
+        Assert.That(process.Name, Is.EqualTo("Crocus 2025"));
+    }
+
+    [Test]
+    public void Rename_TrimmedEqualName_IsNoOp()
+    {
+        var process = Process.Create("Crocus 2025", 1);
+
+        // After trim this equals the current name → no-op (FR-006 / SC-005).
+        process.Rename("  Crocus 2025  ");
+
+        Assert.That(process.Name, Is.EqualTo("Crocus 2025"));
+    }
 }
