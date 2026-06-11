@@ -156,7 +156,8 @@ public class US1_ProcessAdmin : AuthenticatedTestBase
         // ----- (7) Cascading Process → Group filter on /Admin/Users. -----
         var usersPage = new AdminUsersPage(Page);
         await usersPage.GoToIndexAsync(BaseUrl);
-        await Expect(usersPage.CascadeContainer).ToBeVisibleAsync();
+        // Root carries display:contents (no box) — assert the level selects.
+        await Expect(usersPage.FundFilter).ToBeVisibleAsync();
         await Expect(usersPage.ProcessFilter).ToBeVisibleAsync();
         await Expect(usersPage.GroupFilter).ToBeVisibleAsync();
 

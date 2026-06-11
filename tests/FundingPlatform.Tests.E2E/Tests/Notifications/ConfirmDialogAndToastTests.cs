@@ -92,10 +92,10 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
         // FR-004 — the success toast auto-dismisses (~5s; well within the 15s timeout).
         await Expect(SuccessToast).Not.ToBeVisibleAsync();
 
-        // The action proceeded. The post-disable redirect drops the search filter,
-        // so re-search before asserting the row flipped to "Enable" (robust under
-        // shared-fixture load where the unfiltered list spans many pages).
-        await listPage.SearchAsync(targetEmail);
+        // The action proceeded. The post-disable redirect drops the search filter
+        // and the status filter now defaults to "Activo", so load the disabled
+        // user explicitly before asserting the row flipped to "Enable".
+        await Page.GotoAsync($"{BaseUrl}/Admin/Users?statusFilter=Disabled&search={targetEmail}");
         await Expect(listPage.RowEnableButton(targetEmail)).ToBeVisibleAsync();
     }
 }

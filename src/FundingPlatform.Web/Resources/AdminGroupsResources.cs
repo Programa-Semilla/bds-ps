@@ -22,9 +22,16 @@ public static class AdminGroupsResources
 
     // Table headers
     public const string Column_Name = "Nombre";
+    public const string Column_Fund = "Fondo";
     public const string Column_Process = "Proceso";
     public const string Column_MemberCount = "Miembros";
     public const string Column_Actions = "Acciones";
+
+    // Filters
+    public const string Filter_SearchPlaceholder = "Buscar por nombre";
+    public const string Filter_Apply = "Aplicar";
+    public const string Filter_NoMatch_Title = "Sin coincidencias";
+    public const string Filter_NoMatch_Body = "Pruebe con otros filtros o quite los aplicados.";
 
     // Form labels
     public const string Label_Name = "Nombre del grupo";
@@ -48,6 +55,7 @@ public static class AdminGroupsResources
     public static string NameRequired => "El nombre del grupo es obligatorio.";
     public static string NameTooLong => "El nombre del grupo debe tener máximo 100 caracteres.";
     public static string NameAlreadyInUse => "Ya existe un grupo con ese nombre.";
+    public const string ProcessRequired = "Debe seleccionar un proceso.";
 
     // Flash messages
     public const string FlashCreated = "Grupo creado.";

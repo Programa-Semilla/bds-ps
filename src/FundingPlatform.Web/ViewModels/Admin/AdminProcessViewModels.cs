@@ -18,8 +18,10 @@ public sealed class AdminProcessesIndexViewModel
     /// <summary>Spec 029 / FR-011 — selected Fund filter (null = all Funds).</summary>
     public int? FundFilter { get; init; }
 
-    /// <summary>Spec 029 / FR-011 — Fund options for the filter dropdown (all Funds).</summary>
-    public IReadOnlyList<SelectListItem> FundOptions { get; init; } = Array.Empty<SelectListItem>();
+    /// <summary>Spec 029 / FR-011 — Fund hierarchy (all Funds incl. Archived) for
+    /// the cascading filter component, rendered Fund-only on the process list.</summary>
+    public IReadOnlyList<FundingPlatform.Application.Admin.Filters.FundHierarchyNode> FundHierarchy { get; init; }
+        = Array.Empty<FundingPlatform.Application.Admin.Filters.FundHierarchyNode>();
 }
 
 /// <summary>Spec 021 / US1 — ViewModel for <c>/Admin/Processes/Create</c>.

@@ -53,23 +53,18 @@ public class AdminUserCreatePage : AdminBasePage
 
         // Spec 016 / FR-008 — every Applicant or Reviewer MUST have at least
         // one group. Existing pre-016 tests pass only the basic fields; the
-        // POM defaults to selecting all visible groups so legacy callers stay
-        // green. Tests that need to assert group-scoped behavior call
-        // SelectGroupsAsync explicitly *after* this and overwrite the default.
+        // POM defaults to selecting all groups in the Fondo → Proceso → Grupo
+        // drill-down so legacy callers stay green. Tests that need to assert
+        // group-scoped behavior call SelectGroupsAsync explicitly *after* this
+        // and add to the default. Skipped for the groupless roles (Admin /
+        // SupplierAdmin) whose group field is JS-hidden.
         if (!string.Equals(role, "Admin", System.StringComparison.Ordinal))
         {
             var formPage = new AdminUserFormPage(Page);
-            if (await formPage.GroupsSelect.CountAsync() > 0)
+            if (await formPage.GroupsField.IsVisibleAsync()
+                && await formPage.GroupSelector.CountAsync() > 0)
             {
-                var allValues = await formPage.GroupsSelect.EvaluateAsync<string[]>(
-                    "el => Array.from(el.options).map(o => o.value)");
-                if (allValues is { Length: > 0 })
-                {
-                    var optionValues = allValues
-                        .Select(v => new SelectOptionValue { Value = v })
-                        .ToArray();
-                    await formPage.GroupsSelect.SelectOptionAsync(optionValues);
-                }
+                await formPage.SelectAllGroupsAsync();
             }
         }
     }

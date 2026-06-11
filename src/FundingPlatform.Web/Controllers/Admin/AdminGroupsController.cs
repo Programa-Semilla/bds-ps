@@ -29,26 +29,43 @@ public class AdminGroupsController : Controller
     private readonly IGroupService _groups;
     private readonly IProcessQueryService _processQuery;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly Application.Admin.Filters.IFundHierarchyProvider _fundHierarchy;
 
     public AdminGroupsController(
         IGroupService groups,
         IProcessQueryService processQuery,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        Application.Admin.Filters.IFundHierarchyProvider fundHierarchy)
     {
         _groups = groups;
         _processQuery = processQuery;
         _userManager = userManager;
+        _fundHierarchy = fundHierarchy;
     }
 
     [HttpGet("")]
-    public async Task<IActionResult> Index(CancellationToken ct)
+    public async Task<IActionResult> Index(int? fundId, int? processId, string? search, CancellationToken ct)
     {
         var rows = await _groups.ListAsync(ct);
+
+        var filtered = rows.Where(g =>
+            (!fundId.HasValue || g.FundId == fundId.Value)
+            && (!processId.HasValue || g.ProcessId == processId.Value)
+            && (string.IsNullOrWhiteSpace(search)
+                || g.Name.Contains(search.Trim(), StringComparison.CurrentCultureIgnoreCase)));
+
         var vm = new AdminGroupsIndexViewModel
         {
-            Groups = rows
-                .Select(g => new AdminGroupRow(g.Id, g.Name, g.MemberCount, g.ProcessName))
+            Groups = filtered
+                .Select(g => new AdminGroupRow(
+                    g.Id, g.Name, g.MemberCount, g.ProcessId, g.ProcessName, g.FundId, g.FundName))
                 .ToList(),
+            HasAnyGroups = rows.Count > 0,
+            Search = search,
+            // Include archived Funds so an admin can still find groups under one.
+            FundHierarchy = await _fundHierarchy.GetAsync(includeArchived: true, ct),
+            FundFilter = fundId,
+            ProcessFilter = processId,
         };
         return View(vm);
     }
@@ -61,14 +78,15 @@ public class AdminGroupsController : Controller
         var rows = await _groups.ListAsync(ct);
         var memberCount = rows.FirstOrDefault(r => r.Id == id)?.MemberCount ?? 0;
 
-        return View(new AdminGroupEditViewModel
+        var vm = new AdminGroupEditViewModel
         {
             Id = detail.Id,
             Name = detail.Name,
             ProcessId = detail.ProcessId,
             MemberCount = memberCount,
-            ProcessOptions = await LoadProcessOptionsAsync(ct),
-        });
+        };
+        await PopulateReparentCatalogAsync(vm, ct);
+        return View(vm);
     }
 
     [HttpPost("{id:int}/Edit")]
@@ -79,9 +97,14 @@ public class AdminGroupsController : Controller
         {
             return BadRequest();
         }
+        // The drill-down posts an empty Process as 0; a Group must belong to a Process.
+        if (vm.ProcessId <= 0)
+        {
+            ModelState.AddModelError(nameof(vm.ProcessId), AdminGroupsResources.ProcessRequired);
+        }
         if (!ModelState.IsValid)
         {
-            vm.ProcessOptions = await LoadProcessOptionsAsync(ct);
+            await PopulateReparentCatalogAsync(vm, ct);
             return View(vm);
         }
 
@@ -101,21 +124,21 @@ public class AdminGroupsController : Controller
         catch (DuplicateGroupNameException)
         {
             ModelState.AddModelError(nameof(vm.Name), AdminGroupsResources.NameAlreadyInUse);
-            vm.ProcessOptions = await LoadProcessOptionsAsync(ct);
+            await PopulateReparentCatalogAsync(vm, ct);
             return View(vm);
         }
         catch (ArgumentException)
         {
             // NFR-004 — localized fallback for the defensive domain-validation path.
             ModelState.AddModelError(nameof(vm.Name), AdminGroupsResources.NameRequired);
-            vm.ProcessOptions = await LoadProcessOptionsAsync(ct);
+            await PopulateReparentCatalogAsync(vm, ct);
             return View(vm);
         }
         catch (InvalidOperationException ex)
         {
             // Reparenting into a closed Process (Spec 021 / FR-001).
             ModelState.AddModelError(nameof(vm.ProcessId), ex.Message);
-            vm.ProcessOptions = await LoadProcessOptionsAsync(ct);
+            await PopulateReparentCatalogAsync(vm, ct);
             return View(vm);
         }
 
@@ -140,12 +163,14 @@ public class AdminGroupsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task<IReadOnlyList<AdminGroupProcessOption>> LoadProcessOptionsAsync(CancellationToken ct)
+    /// <summary>Populates the Fondo → Proceso reparent drill-down: the Fund
+    /// hierarchy (incl. Archived so the current Process is always reachable) plus
+    /// the Fund of the currently-selected Process (pre-selecting the Fondo level).</summary>
+    private async Task PopulateReparentCatalogAsync(AdminGroupEditViewModel vm, CancellationToken ct)
     {
-        var processes = await _processQuery.ListAsync(statusFilter: null, fundFilter: null, ct);
-        return processes
-            .OrderBy(p => p.Name, StringComparer.CurrentCulture)
-            .Select(p => new AdminGroupProcessOption(p.Id, p.Name))
-            .ToList();
+        var hierarchy = await _fundHierarchy.GetAsync(includeArchived: true, ct);
+        vm.FundHierarchy = hierarchy;
+        vm.SelectedFundId = hierarchy
+            .FirstOrDefault(f => f.Processes.Any(p => p.Id == vm.ProcessId))?.Id;
     }
 }

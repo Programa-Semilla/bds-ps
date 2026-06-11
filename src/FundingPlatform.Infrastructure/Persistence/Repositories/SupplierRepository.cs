@@ -200,6 +200,24 @@ public class SupplierRepository : ISupplierRepository
             query = query.Where(s => supplierIdsInProcess.Contains(s.Id));
         }
 
+        if (filter.FundId is int fundId)
+        {
+            // Restrict to suppliers used by Applications whose Applicant's Group
+            // belongs to a Process under this Fund. Same join chain as the
+            // Process filter, extended Group → Process → FundId.
+            var supplierIdsInFund =
+                from q in _context.Quotations
+                join i in _context.Items on q.ItemId equals i.Id
+                join a in _context.Applications on i.ApplicationId equals a.Id
+                join app in _context.Applicants on a.ApplicantId equals app.Id
+                join m in _context.UserGroupMemberships on app.UserId equals m.UserId
+                join g in _context.Groups on m.GroupId equals g.Id
+                join p in _context.Processes on g.ProcessId equals p.Id
+                where p.FundId == fundId
+                select q.SupplierId;
+            query = query.Where(s => supplierIdsInFund.Contains(s.Id));
+        }
+
         // Compute LastUsedAt via correlated subquery — translates to SQL Server
         // OUTER APPLY (max). Null when the supplier has no quotations yet.
         var projected = query.Select(s => new

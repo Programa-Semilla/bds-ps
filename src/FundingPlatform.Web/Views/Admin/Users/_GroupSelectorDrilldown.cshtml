@@ -1,0 +1,72 @@
+@using FundingPlatform.Web.Resources
+@using FundingPlatform.Web.ViewModels.Admin
+@model GroupSelectorModel
+@{
+    var catalogJson = System.Text.Json.JsonSerializer.Serialize(
+        Model.FundCatalog.Select(f => new
+        {
+            id = f.Id,
+            name = f.Name,
+            processes = f.Processes.Select(p => new
+            {
+                id = p.Id,
+                name = p.Name,
+                groups = p.Groups.Select(g => new { id = g.Id, name = g.Name }),
+            }),
+        }));
+    var selectedJson = System.Text.Json.JsonSerializer.Serialize(
+        Model.SelectedGroups.Select(g => new { id = g.Id, name = g.Name }));
+}
+
+@if (!Model.HasGroups)
+{
+    <div class="text-muted" data-testid="admin-user-groups-empty">
+        @AdminUsersResources.GroupSelectorEmptyOption
+    </div>
+}
+else
+{
+    @* Spec 029 — Fondo → Proceso → Grupo drill-down. Funds + processes are
+       cascading filters; the Group level is a multi-select whose checked items
+       accumulate as chips below, preserved across filter changes. The posted
+       value is the set of hidden `@Model.FieldName` inputs the JS maintains. *@
+    <div data-testid="group-drilldown-selector"
+         class="card card-sm"
+         data-field-name="@Model.FieldName"
+         data-catalog="@catalogJson"
+         data-selected="@selectedJson"
+         data-placeholder-groups="@AdminUsersResources.GroupSelectorGroupsPlaceholder"
+         data-empty-label="@AdminUsersResources.GroupSelectorNoneSelected"
+         data-remove-label="@AdminUsersResources.GroupSelectorRemoveLabel">
+        <div class="card-body">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label class="form-label">@AdminUsersResources.GroupSelectorFundLabel</label>
+                    <select class="form-select" data-role="fund" data-testid="group-selector-fund">
+                        <option value="">@AdminUsersResources.GroupSelectorFundPlaceholder</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">@AdminUsersResources.GroupSelectorProcessLabel</label>
+                    <select class="form-select" data-role="process" data-testid="group-selector-process" disabled>
+                        <option value="">@AdminUsersResources.GroupSelectorProcessPlaceholder</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">@AdminUsersResources.GroupSelectorGroupsLabel</label>
+                    <div class="border rounded p-2 overflow-auto" style="max-height: 9rem;"
+                         data-role="options" data-testid="group-selector-options">
+                        <div class="text-muted small">@AdminUsersResources.GroupSelectorGroupsPlaceholder</div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <span class="form-label d-block">@AdminUsersResources.GroupSelectorSelectedLabel</span>
+                <div class="d-flex flex-wrap gap-1" data-role="chips" data-testid="group-selector-chips">
+                    <span class="text-muted small">@AdminUsersResources.GroupSelectorNoneSelected</span>
+                </div>
+            </div>
+            <div data-role="hidden" hidden></div>
+        </div>
+    </div>
+}

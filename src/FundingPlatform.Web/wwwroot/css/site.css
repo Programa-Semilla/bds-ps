@@ -11,6 +11,12 @@
 .admin-users-filter-select { max-width: 12rem; }
 .admin-suppliers-filter-control { max-width: 14rem; }
 
+/* Cascading Fondo → Proceso → Grupo filter (shared component). The root is
+   transparent to layout so each level select sits directly in the parent
+   toolbar (flex) or grid row, exactly like a standalone control. */
+.cascading-fund-filter { display: contents; }
+.cascading-fund-filter-select { max-width: 12rem; }
+
 /* Spec 011 — facelift wiring already lives in tokens.css; site.css
    intentionally adds nothing else. */
 

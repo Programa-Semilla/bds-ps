@@ -50,10 +50,32 @@ public class AdminUserCreateViewModel
     /// multi-select. Empty when the resulting role is Admin (FR-009).</summary>
     public int[] GroupIds { get; set; } = Array.Empty<int>();
 
-    /// <summary>Spec 016 — populated by the controller from the Group catalog
-    /// to render the multi-select. Not posted back.</summary>
+    /// <summary>Spec 016 — populated by the controller from the Group catalog.
+    /// Used to resolve the names of the currently-selected groups (for the chips)
+    /// and to detect the empty state. Includes groups under archived Funds so an
+    /// existing membership is never silently dropped on re-render. Not posted back.</summary>
     public IReadOnlyList<AdminUserGroupOption> AvailableGroups { get; set; }
         = Array.Empty<AdminUserGroupOption>();
+
+    /// <summary>Drill-down catalog for the Fondo → Proceso → Grupo group selector.
+    /// Active Funds only (archived Funds are excluded from the picker). Populated
+    /// by the controller; not posted back — the posted value is still
+    /// <see cref="GroupIds"/>.</summary>
+    public IReadOnlyList<AdminUserFundCatalogOption> FundCatalog { get; set; }
+        = Array.Empty<AdminUserFundCatalogOption>();
 }
 
 public sealed record AdminUserGroupOption(int Id, string Name);
+
+/// <summary>One Fund (Fondo) node of the group-selector drill-down, carrying its
+/// Processes (which in turn carry their Groups).</summary>
+public sealed record AdminUserFundCatalogOption(
+    int Id,
+    string Name,
+    IReadOnlyList<AdminUserFundProcessOption> Processes);
+
+/// <summary>One Process (Proceso) node under a Fund, carrying its Groups.</summary>
+public sealed record AdminUserFundProcessOption(
+    int Id,
+    string Name,
+    IReadOnlyList<AdminUserGroupOption> Groups);

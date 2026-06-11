@@ -44,6 +44,9 @@
                            approvedFrom = req.ApprovedFrom?.ToString("yyyy-MM-dd"),
                            approvedTo   = req.ApprovedTo?.ToString("yyyy-MM-dd"),
                            executedOnly = req.ExecutedOnly,
+                           FundId      = req.FundId,
+                           ProcessId   = req.ProcessId,
+                           GroupId     = req.GroupId,
                            sort = req.Sort
                        })"
                        data-testid="funded-items-export-csv">Descargar CSV</a>

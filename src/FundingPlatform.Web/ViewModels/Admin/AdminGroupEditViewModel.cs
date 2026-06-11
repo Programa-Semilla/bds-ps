@@ -26,6 +26,15 @@ public class AdminGroupEditViewModel
     /// <summary>Catalog of Processes for the reparent dropdown.</summary>
     public IReadOnlyList<AdminGroupProcessOption> ProcessOptions { get; set; } = Array.Empty<AdminGroupProcessOption>();
 
+    /// <summary>Spec 029 — Fondo → Proceso catalog for the reparent drill-down
+    /// (all Funds incl. Archived so the current Process is always reachable).</summary>
+    public IReadOnlyList<FundingPlatform.Application.Admin.Filters.FundHierarchyNode> FundHierarchy { get; set; }
+        = Array.Empty<FundingPlatform.Application.Admin.Filters.FundHierarchyNode>();
+
+    /// <summary>The Fund of the currently-selected Process, pre-selecting the
+    /// Fondo level of the drill-down.</summary>
+    public int? SelectedFundId { get; set; }
+
     /// <summary>Pre-deletion member count, used to render the delete-confirm copy.</summary>
     public int MemberCount { get; set; }
 }

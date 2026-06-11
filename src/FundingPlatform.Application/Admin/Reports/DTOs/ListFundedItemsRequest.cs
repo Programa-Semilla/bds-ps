@@ -12,6 +12,10 @@ public sealed class ListFundedItemsRequest
     public bool ExecutedOnly { get; set; }
     /// <summary>Spec 029 / FR-012 — optional Fund filter (null = all Funds).</summary>
     public int? FundId { get; set; }
+    /// <summary>Optional Process filter via the Group anchor (null = all).</summary>
+    public int? ProcessId { get; set; }
+    /// <summary>Optional Group filter via the Group anchor (null = all).</summary>
+    public int? GroupId { get; set; }
 
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 25;

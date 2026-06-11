@@ -218,7 +218,9 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
         await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
         await Expect(Page.Locator("[data-testid=\"success-banner\"]")).ToBeVisibleAsync();
 
-        await listPage.SearchAsync(targetEmail);
+        // The status filter now defaults to "Activo"; load the just-disabled
+        // user explicitly so it is listed before re-enabling.
+        await Page.GotoAsync($"{BaseUrl}/Admin/Users?statusFilter=Disabled&search={targetEmail}");
         await listPage.RowEnableButton(targetEmail).ClickAsync();
         await Expect(Page.Locator("[data-testid=\"success-banner\"]")).ToBeVisibleAsync();
 
