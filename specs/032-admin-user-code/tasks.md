@@ -105,9 +105,9 @@
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T042 SC-001 sweep: re-run the T001 greps → confirm zero residual `Register` references; fix any straggler links/usings.
-- [ ] T043 Run the filtered E2E classes green and capture counts: `RegistrationRemovedTests`, `AdminUserCodeTests`, `UserCodeSearchTests` (`dotnet test tests/FundingPlatform.Tests.E2E --filter ...`). Run Unit + Integration suites green.
-- [ ] T044 Update `CLAUDE.md` Recent Changes with the `032-admin-user-code` summary + delivery counts; flip the SPECKIT marker to "implemented".
+- [X] T042 SC-001 sweep: re-run the T001 greps → confirm zero residual `Register` references; fix any straggler links/usings.
+- [X] T043 Run the filtered E2E classes green and capture counts: `RegistrationRemovedTests`, `AdminUserCodeTests`, `UserCodeSearchTests` (`dotnet test tests/FundingPlatform.Tests.E2E --filter ...`). Run Unit + Integration suites green.
+- [X] T044 Update `CLAUDE.md` Recent Changes with the `032-admin-user-code` summary + delivery counts; flip the SPECKIT marker to "implemented".
 
 ---
 
