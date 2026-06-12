@@ -42,7 +42,7 @@ public class AdminReportsApplicantsTests : AuthenticatedTestBase
         // admin-reports CSV so legacy consumers see the same prefix and new
         // consumers can read the original-currency / converted-CRC pair.
         CsvAssertions.AssertHeaderEquals(bytes,
-            "Full Name", "Legal Id", "Email",
+            "Full Name", "Legal Id", "Email", "User Code",
             "Total Apps", "Resolved Count", "Response Finalized Count", "Agreement Executed Count",
             "Approval Rate", "Approved Amount", "Executed Amount", "Currency", "Last Activity",
             "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");

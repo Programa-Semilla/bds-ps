@@ -1,7 +1,10 @@
 // Spec 031 / FR-009 + SC-006 — static enum dropdowns are excluded from the
-// enhancement (no opt-in attribute, no combobox). The Register form's
-// Identification-type select is an enum explicitly named in FR-009's exclusion
-// list, so it must remain a plain native dropdown with no search box.
+// enhancement (no opt-in attribute, no combobox). The Identification-type select
+// is an enum explicitly named in FR-009's exclusion list, so it must remain a
+// plain native dropdown with no search box.
+//
+// Spec 032 — public registration was removed; this assertion now runs against the
+// same IdentificationType enum select on the admin user-create form.
 
 using FundingPlatform.Tests.E2E.Fixtures;
 using Microsoft.Playwright;
@@ -13,8 +16,10 @@ public class EnumExclusionTests : AuthenticatedTestBase
     [Test]
     public async Task EnumDropdown_IsNotEnhanced_NoSearchBox()
     {
-        await Page.GotoAsync($"{BaseUrl}/Account/Register");
+        await LoginAsync(Page, "admin@programa-semilla.test", "Sentinel123!");
+        await Page.GotoAsync($"{BaseUrl}/Admin/Users/Create");
 
+        // Default role is Applicant, so the identification-type enum select renders.
         var idType = Page.Locator("[name=IdentificationType]");
         await Expect(idType).ToBeVisibleAsync();
 
@@ -24,7 +29,8 @@ public class EnumExclusionTests : AuthenticatedTestBase
         Assert.That(await idType.GetAttributeAsync("data-searchable-enhanced"), Is.Null,
             "An enum dropdown must never be enhanced into a combobox.");
 
-        // SC-006 — no combobox input is rendered anywhere on this enum-only form.
-        await Expect(Page.Locator(".fl-searchable-input")).ToHaveCountAsync(0);
+        // The enum select is not replaced by a generated combobox input.
+        Assert.That(await Page.Locator("[data-testid=\"IdentificationType-search\"]").CountAsync(), Is.EqualTo(0),
+            "The enum select must not be replaced by a searchable combobox input.");
     }
 }
