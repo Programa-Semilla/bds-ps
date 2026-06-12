@@ -159,7 +159,7 @@ Per-spec architectural seams (interfaces, aggregates, tables) are summarized in 
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-Active plan: **033-user-invite-email** — implemented (branch `033-user-invite-email`, not yet merged). Emailed 72h single-use **set-password invitation** replaces the spec-032 admin-typed temp password; see the Recent Changes entry above for the full surface. Delivered: Unit 529/0, Integration 355/0, filtered E2E 46/0. Next: code-review gate → PR.
+Active plan: **034-batch-user-create** — planned (branch `feature/batch-user-create`). Admin-only **CSV bulk provisioning** of ≤200 Solicitante accounts under `/Admin/Users/Batch`; per-row validate→create (reusing `CreateUserAsync` + the spec-033 invitation), succeeded/errored report. `Grupo` → membership (by name); `Proceso`/`Fondo` validate the spec-029 chain only. No schema change, no new deps; in-house CSV parser + phone normalizer (Application). See `specs/034-batch-user-create/plan.md`. Next: `/speckit-tasks`.
 
-Last shipped: **032-admin-user-code** (merged, PR #59) — admin-only provisioning, removed public registration, unique applicant UserCode, widened search. Prior: **031-searchable-dropdowns**; **030-edit-process-name**.
+Last shipped: **033-user-invite-email** (merged to main, PR #60) — emailed 72h single-use set-password invitation replaces the admin-typed temp password. Prior: **032-admin-user-code** (PR #59); **031-searchable-dropdowns**; **030-edit-process-name**.
 <!-- SPECKIT END -->
