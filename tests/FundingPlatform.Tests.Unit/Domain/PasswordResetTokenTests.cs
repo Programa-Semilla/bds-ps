@@ -47,6 +47,24 @@ public class PasswordResetTokenTests
         Assert.That(PasswordResetToken.DefaultLifetime, Is.EqualTo(TimeSpan.FromMinutes(60)));
     }
 
+    [Test]
+    public void InvitationLifetime_Is72Hours()
+    {
+        // Spec 033 / FR-006 — the emailed set-password invitation lives for 72h.
+        Assert.That(PasswordResetToken.InvitationLifetime, Is.EqualTo(TimeSpan.FromHours(72)));
+    }
+
+    [Test]
+    public void Issue_WithInvitationLifetime_StampsExpiresAtAsNowPlus72h()
+    {
+        var now = new DateTimeOffset(2026, 6, 12, 10, 0, 0, TimeSpan.Zero);
+
+        var token = PasswordResetToken.Issue(
+            "user-1", new byte[] { 1 }, now, PasswordResetToken.InvitationLifetime);
+
+        Assert.That(token.ExpiresAt, Is.EqualTo(now.AddHours(72)));
+    }
+
     [TestCase(null)]
     [TestCase("")]
     [TestCase("   ")]

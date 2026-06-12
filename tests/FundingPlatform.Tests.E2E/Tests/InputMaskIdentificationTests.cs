@@ -109,7 +109,7 @@ public class InputMaskIdentificationTests : AuthenticatedTestBase
         await createPage.FirstName.FillAsync("Mask");
         await createPage.LastName.FillAsync("Bad");
         await createPage.Email.FillAsync(email);
-        await createPage.InitialPassword.FillAsync("TempPass1!");
+        // Spec 033 — no password field on the create form anymore.
         await createPage.IdentificationTypeSelect.SelectOptionAsync("CedulaFisica");
         // Strip the client mask so a malformed value reaches the server unmodified
         // (FR-014 — the client mask is never trusted).

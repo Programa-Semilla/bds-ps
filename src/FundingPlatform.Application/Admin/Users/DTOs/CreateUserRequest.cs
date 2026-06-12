@@ -8,6 +8,8 @@ namespace FundingPlatform.Application.Admin.Users.DTOs;
 /// ignores any posted GroupIds (FR-009 edge case).
 /// Spec 026 — adds <c>IdentificationType</c> for the Applicant legal-ID kind.
 /// Spec 032 — adds <c>UserCode</c>, the admin-assigned unique code (required for Solicitante).
+/// Spec 033 — <c>InitialPassword</c> removed: accounts are created with no password and
+/// the user sets their own via an emailed 72h invitation (the controller issues + sends it).
 /// </summary>
 public record CreateUserRequest(
     string FirstName,
@@ -15,7 +17,6 @@ public record CreateUserRequest(
     string Email,
     string? Phone,
     string Role,
-    string InitialPassword,
     string? LegalId,
     IReadOnlyList<int> GroupIds,
     IdentificationType? IdentificationType = null,

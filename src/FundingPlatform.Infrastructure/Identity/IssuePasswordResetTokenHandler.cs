@@ -56,10 +56,19 @@ public sealed class IssuePasswordResetTokenHandler : IIssuePasswordResetTokenHan
             return IssuePasswordResetTokenResult.UnknownUser();
         }
 
+        // Spec 033 / FR-007 — resend supersedes: drop the user's prior unused
+        // links before issuing so only the newest invitation is valid. Scoped
+        // to the invite path via the flag; forgot-password leaves it false.
+        if (command.InvalidatePriorUnused)
+        {
+            await _tokenStore.InvalidateUnusedAsync(user.Id, ct).ConfigureAwait(false);
+        }
+
         var rawToken = await _userManager.GeneratePasswordResetTokenAsync(user).ConfigureAwait(false);
 
         // Persist the SHA-256 marker so a replay within the TTL is rejected.
-        await _tokenStore.IssueAsync(user.Id, rawToken, PasswordResetToken.DefaultLifetime, ct)
+        // Spec 033 — the invite passes a 72h TTL; forgot-password defaults to 60 min.
+        await _tokenStore.IssueAsync(user.Id, rawToken, command.Ttl ?? PasswordResetToken.DefaultLifetime, ct)
             .ConfigureAwait(false);
 
         return IssuePasswordResetTokenResult.Issued(user.Id, user.Email!, user.FirstName, rawToken);

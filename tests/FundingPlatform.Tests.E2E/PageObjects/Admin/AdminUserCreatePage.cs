@@ -14,7 +14,8 @@ public class AdminUserCreatePage : AdminBasePage
     public ILocator Email => Page.Locator("input[name=\"Email\"]");
     public ILocator Phone => Page.Locator("input[name=\"Phone\"]");
     public ILocator Role => Page.Locator("select[name=\"Role\"]");
-    public ILocator InitialPassword => Page.Locator("input[name=\"InitialPassword\"]");
+    // Spec 033 — the create form no longer has a password field; accounts are
+    // created with no password and the user sets it via an emailed invitation.
     // Spec 026 — identification type selector + masked value input.
     public ILocator IdentificationTypeSelect => Page.Locator("select[name=\"IdentificationType\"]");
     public ILocator LegalId => Page.Locator("input[name=\"LegalId\"]");
@@ -51,6 +52,10 @@ public class AdminUserCreatePage : AdminBasePage
         string identificationType = "CedulaFisica",
         string? userCode = null)
     {
+        // Spec 033 — `initialPassword` is retained for call-site compatibility but
+        // ignored: the admin create form no longer carries a password field (the
+        // user sets their own via the emailed set-password invitation).
+        _ = initialPassword;
         await FirstName.FillAsync(firstName);
         await LastName.FillAsync(lastName);
         await Email.FillAsync(email);
@@ -59,7 +64,6 @@ public class AdminUserCreatePage : AdminBasePage
             await Phone.FillAsync(phone);
         }
         await Role.SelectOptionAsync(role);
-        await InitialPassword.FillAsync(initialPassword);
         if (legalId is not null)
         {
             // Spec 026 — select the type then fill the masked value.

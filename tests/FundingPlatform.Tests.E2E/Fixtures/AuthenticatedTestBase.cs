@@ -214,6 +214,56 @@ public class AuthenticatedTestBase : PageTest
         response.EnsureSuccessStatusCode();
     }
 
+    /// <summary>
+    /// Spec 033 — completes onboarding for an admin-invited user: follows the
+    /// set-password invite link (from the InvitationSent confirmation or the
+    /// email), sets a password on <c>/Account/ResetPassword</c>, and lands back
+    /// on the Login page. After this, <see cref="LoginAsync"/> with the same
+    /// password signs the user in (no forced change-password — invited users
+    /// have MustChangePassword=false).
+    /// </summary>
+    protected async Task SetPasswordViaInviteAsync(string inviteLink, string newPassword)
+    {
+        await Page.GotoAsync(inviteLink);
+        var reset = new ResetPasswordPage(Page);
+        await Expect(reset.FormRoot).ToBeVisibleAsync();
+        await reset.SubmitAsync(newPassword, newPassword);
+        await Expect(Page).ToHaveURLAsync(new Regex("/Account/Login"));
+    }
+
+    /// <summary>
+    /// Spec 033 — onboards an admin-created (passwordless) user and signs them in.
+    /// Admin create no longer assigns a password (the user is emailed a
+    /// set-password invitation), so tests that create a user via the admin UI and
+    /// then log in as them can no longer use a temp password + first-login
+    /// change-password. This helper obtains a set-password link via the dev-only
+    /// <c>LatestPasswordResetLink</c> seam — a SEPARATE token issuer (60-min reset
+    /// lifetime, no supersede), NOT the admin-create-issued invite token. It is used
+    /// by lifecycle/scope tests that only need an onboarded, signed-in user; the real
+    /// create-issued invitation path (72h, supersede-on-resend) is covered end-to-end
+    /// by <c>UserInvitationTests</c>, which follows the link rendered on the
+    /// create/resend confirmation. The result here is equivalent for the caller's
+    /// purpose: authenticated as the user, with no forced change-password.
+    /// </summary>
+    protected async Task OnboardAndLoginAsync(string email, string password)
+    {
+        string link;
+        using (var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+        })
+        using (var client = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) })
+        {
+            var response = await client.GetAsync(
+                $"/Account/LatestPasswordResetLink?email={Uri.EscapeDataString(email)}");
+            response.EnsureSuccessStatusCode();
+            link = (await response.Content.ReadAsStringAsync()).Trim();
+        }
+
+        await SetPasswordViaInviteAsync(link, password);
+        await LoginAsync(Page, email, password);
+    }
+
     protected async Task LoginAsync(IPage page, string email, string password)
     {
         await page.GotoAsync($"{BaseUrl}/Account/Login");

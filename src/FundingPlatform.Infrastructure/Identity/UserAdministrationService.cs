@@ -165,12 +165,17 @@ public class UserAdministrationService : IUserAdministrationService
                     "Email already in use by another account."));
         }
 
+        // Spec 033 / D4 / FR-005 — invited users are created with NO password and
+        // MustChangePassword = false. The account cannot authenticate until the
+        // user consumes the emailed invitation and sets their own password (the
+        // consume path keeps MustChangePassword false), so there is no temp
+        // password to force a change of.
         var user = new ApplicationUser(request.Email, request.FirstName, request.LastName, request.Phone)
         {
-            MustChangePassword = true,
+            MustChangePassword = false,
         };
 
-        var createResult = await _userManager.CreateAsync(user, request.InitialPassword);
+        var createResult = await _userManager.CreateAsync(user);
         if (!createResult.Succeeded)
         {
             return Result<UserDetailDto>.Failure(MapIdentityErrors(createResult.Errors));
@@ -733,11 +738,12 @@ public class UserAdministrationService : IUserAdministrationService
             }
             if (code.StartsWith("Password", StringComparison.Ordinal))
             {
-                // No field name — the infrastructure layer cannot know which
-                // form field the caller used (Create-user form: "InitialPassword";
-                // admin reset form: "NewTemporaryPassword"). A wrong key renders
-                // nowhere and silently swallows the error. Null routes it to the
-                // model-level validation summary, which every caller's form has.
+                // No field name. Since spec 033 removed the create-form password,
+                // the only password-bearing caller is the admin reset form
+                // ("NewTemporaryPassword"); other callers (e.g. invited set-password)
+                // never reach this path. Keying to a specific field that a given
+                // form lacks would render nowhere and silently swallow the error, so
+                // null routes it to the model-level validation summary every form has.
                 return new DomainError("WEAK_PASSWORD", null, e.Description);
             }
             return new DomainError("INVALID_INPUT", null, e.Description);

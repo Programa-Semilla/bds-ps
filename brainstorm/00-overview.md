@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-11 (session #29)
+Last updated: 2026-06-12 (session #30)
 
 ## Sessions
 
@@ -35,9 +35,14 @@ Last updated: 2026-06-11 (session #29)
 | 27 | 2026-06-10 | edit-process-name | spec-created | 030 |
 | 28 | 2026-06-11 | searchable-dropdowns | spec-created | 031 |
 | 29 | 2026-06-11 | admin-user-code | spec-created | 032 |
+| 30 | 2026-06-12 | user-invite-email | spec-created | 033 |
 
 ## Open Threads
 
+- Reuse the existing password-reset token (72h-parameterized) vs a dedicated invitation token for spec 033 — pin in plan; "resend supersedes prior unused" (FR-007) is the constraint (from #30)
+- Spec 033 delivery path: direct-send (`ForgotPasswordEmail` pattern) vs spec-021 outbox — pin in plan, leaning direct-send (from #30)
+- Spec 033 "no usable password" technique + the admin-create-then-login E2E ripple (SeedUser keeps passwords) — pin in plan (from #30)
+- Whether to retire/convert the existing admin temp-password "reset password" action for coherence with the invite model — out of scope for 033; future pass (from #30)
 - Long-term reconciliation of the two free-text codes `UserCode` (new, spec 032) vs `CodigoPersonal` (spec 021) — keep both or merge later (from #29; relates to #25)
 - `UserCode` storage placement (Applicant vs account) — pin in plan; admin users list joins Applicant either way (from #29)
 - Filtered unique index over nullable `UserCode` + es-CR duplicate-message path is E2E-only (in-memory won't enforce; mirrors spec 030 `UX_Processes_Name`) — pin in plan (from #29)

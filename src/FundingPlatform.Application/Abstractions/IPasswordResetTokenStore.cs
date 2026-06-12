@@ -32,4 +32,13 @@ public interface IPasswordResetTokenStore
     /// fabricated token).
     /// </summary>
     Task<bool> ConsumeAsync(string userId, string rawToken, CancellationToken ct);
+
+    /// <summary>
+    /// Spec 033 / FR-007 — deletes every un-consumed marker row for
+    /// <paramref name="userId"/> (DELETE WHERE <c>UserId=@id AND ConsumedAt IS NULL</c>).
+    /// Called before issuing a fresh invitation so a resent invite supersedes
+    /// any prior unused link (the older link then fails to consume). Consumed
+    /// rows are left intact as the single-use audit trail.
+    /// </summary>
+    Task InvalidateUnusedAsync(string userId, CancellationToken ct);
 }

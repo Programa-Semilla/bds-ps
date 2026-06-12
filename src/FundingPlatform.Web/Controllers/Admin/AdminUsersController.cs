@@ -1,10 +1,14 @@
+using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Admin.Groups;
 using FundingPlatform.Application.Admin.Users;
 using FundingPlatform.Application.Admin.Users.DTOs;
+using FundingPlatform.Application.Identity;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Exceptions;
+using FundingPlatform.Infrastructure.Email;
 using FundingPlatform.Infrastructure.Persistence;
+using FundingPlatform.Web.Controllers;
 using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.Resources;
 using FundingPlatform.Web.ViewModels.Admin;
@@ -25,19 +29,132 @@ public class AdminUsersController : Controller
     private readonly IGroupService _groups;
     private readonly AppDbContext _db;
     private readonly Application.Admin.Filters.IFundHierarchyProvider _fundHierarchy;
+    private readonly IIssuePasswordResetTokenHandler _issueInvite;
+    private readonly IEmailSender _emailSender;
+    private readonly InvitationEmailFactory _invitationEmailFactory;
+    private readonly IConfiguration _configuration;
+    private readonly IWebHostEnvironment _environment;
+    private readonly ILogger<AdminUsersController> _logger;
+
+    // Bound the best-effort invite send so a slow/unreachable relay cannot hold
+    // the admin's request thread (the SMTP path does not reliably honor the
+    // ambient token during connect). The admin-visible link (FR-008) is the fallback.
+    private static readonly TimeSpan InviteSendTimeout = TimeSpan.FromSeconds(10);
 
     public AdminUsersController(
         IUserAdministrationService service,
         UserManager<ApplicationUser> userManager,
         IGroupService groups,
         AppDbContext db,
-        Application.Admin.Filters.IFundHierarchyProvider fundHierarchy)
+        Application.Admin.Filters.IFundHierarchyProvider fundHierarchy,
+        IIssuePasswordResetTokenHandler issueInvite,
+        IEmailSender emailSender,
+        InvitationEmailFactory invitationEmailFactory,
+        IConfiguration configuration,
+        IWebHostEnvironment environment,
+        ILogger<AdminUsersController> logger)
     {
         _service = service;
         _userManager = userManager;
         _groups = groups;
         _db = db;
         _fundHierarchy = fundHierarchy;
+        _issueInvite = issueInvite;
+        _emailSender = emailSender;
+        _invitationEmailFactory = invitationEmailFactory;
+        _configuration = configuration;
+        _environment = environment;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Spec 033 / FR-001 / FR-007 / C4 — issues a fresh 72h single-use
+    /// set-password invitation for <paramref name="email"/> (superseding any
+    /// prior unused link), composes the absolute <c>/Account/ResetPassword</c>
+    /// link, and best-effort sends the es-CR invitation email. Returns the raw
+    /// link so the caller can render the FR-008 admin-visible fallback, or
+    /// <c>null</c> when the user could not be resolved / the link could not be
+    /// composed. Email transport failures are swallowed (logged) — the
+    /// admin-visible link is the resilience mechanism, not delivery retry (D5).
+    /// </summary>
+    private async Task<string?> IssueAndSendInvitationAsync(string email, CancellationToken ct)
+    {
+        var result = await _issueInvite.HandleAsync(
+            new IssuePasswordResetTokenCommand(
+                email,
+                Ttl: PasswordResetToken.InvitationLifetime,
+                InvalidatePriorUnused: true),
+            ct);
+
+        if (!result.UserFound || string.IsNullOrEmpty(result.RawToken) || string.IsNullOrEmpty(result.UserId))
+        {
+            return null;
+        }
+
+        var inviteLink = ComposeResetLink(result.UserId, result.RawToken);
+        if (string.IsNullOrEmpty(inviteLink))
+        {
+            return null;
+        }
+
+        var expiresAt = DateTimeOffset.UtcNow.Add(PasswordResetToken.InvitationLifetime);
+        var envelope = _invitationEmailFactory.Build(
+            toAddress: result.Email!,
+            firstName: result.FirstName,
+            inviteLink: inviteLink,
+            expiresAt: expiresAt);
+
+        // Bounded best-effort send: cancel after InviteSendTimeout so a stalled
+        // relay cannot pin the request thread; a timeout is treated like any other
+        // transport failure (the admin-visible link is the onboarding fallback, D5).
+        using var sendCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        sendCts.CancelAfter(InviteSendTimeout);
+        try
+        {
+            await _emailSender.SendAsync(envelope, sendCts.Token);
+        }
+        catch (Exception ex)
+        {
+            // D5 — best-effort delivery; the admin-visible copyable link (FR-008)
+            // is the fallback, so a transport failure must not block onboarding.
+            _logger.LogWarning(ex,
+                "Failed to send set-password invitation email to user {UserId} ({Email}); the admin-visible link remains the onboarding fallback.",
+                result.UserId,
+                email);
+        }
+
+        return inviteLink;
+    }
+
+    /// <summary>
+    /// Composes the absolute <c>/Account/ResetPassword</c> link. In deployed
+    /// (non-Development) environments it builds the link from the trusted,
+    /// env-pinned <c>Notifications:BaseUrl</c> (the same base the notification
+    /// subsystem uses for CTA deep links) so the set-password link — a single-use
+    /// account-takeover credential for a new account — cannot be
+    /// host-header-poisoned. In Development/test the host is dynamic
+    /// (Aspire-assigns the port), so it falls back to the request scheme/host.
+    /// </summary>
+    private string? ComposeResetLink(string userId, string rawToken)
+    {
+        var configuredBase = _configuration["Notifications:BaseUrl"];
+        if (!_environment.IsDevelopment()
+            && !string.IsNullOrWhiteSpace(configuredBase)
+            && Uri.TryCreate(configuredBase, UriKind.Absolute, out var baseUri))
+        {
+            var path = Url.Action(
+                action: nameof(AccountController.ResetPassword),
+                controller: "Account",
+                values: new { userId, token = rawToken });
+            return string.IsNullOrEmpty(path) ? null : new Uri(baseUri, path).ToString();
+        }
+
+        return Url.Action(
+            action: nameof(AccountController.ResetPassword),
+            controller: "Account",
+            values: new { userId, token = rawToken },
+            protocol: Request.Scheme,
+            host: Request.Host.Value);
     }
 
     private async Task<IReadOnlyList<AdminUserGroupOption>> LoadGroupOptionsAsync(CancellationToken ct)
@@ -213,7 +330,7 @@ public class AdminUsersController : Controller
             var result = await _service.CreateUserAsync(
                 new CreateUserRequest(
                     vm.FirstName, vm.LastName, vm.Email, vm.Phone, vm.Role,
-                    vm.InitialPassword, vm.LegalId,
+                    vm.LegalId,
                     GroupIds: vm.GroupIds ?? Array.Empty<int>(),
                     IdentificationType: vm.IdentificationType,
                     UserCode: vm.UserCode),
@@ -227,8 +344,19 @@ public class AdminUsersController : Controller
             vm.FundCatalog = await LoadFundCatalogAsync(ct);
                 return View(vm);
             }
-            TempData["SuccessMessage"] = $"Usuario '{vm.Email}' creado.";
-            return RedirectToAction(nameof(Index));
+
+            // Spec 033 / FR-001 / FR-008 — the account was created with no password.
+            // Issue + send the set-password invitation and render the confirmation
+            // with the copyable admin-visible link (the onboarding-resilience fallback).
+            var inviteLink = await IssueAndSendInvitationAsync(vm.Email, ct);
+            if (inviteLink is null)
+            {
+                // Defensive: the user was just created so this is highly unlikely.
+                // Fall back to the list with a generic success rather than 500.
+                TempData["SuccessMessage"] = $"Usuario '{vm.Email}' creado.";
+                return RedirectToAction(nameof(Index));
+            }
+            return View("InvitationSent", new AdminUserInvitationSentViewModel(vm.Email, inviteLink));
         }
         catch (DbUpdateException ex) when (ex.GetBaseException().Message.Contains("UX_Applicants_UserCode"))
         {
@@ -490,6 +618,35 @@ public class AdminUsersController : Controller
             ModelState.AddModelError(string.Empty, ResolveSelfMessage(ex.Action));
             return View(vm);
         }
+    }
+
+    [HttpPost("{id}/ResendInvitation")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResendInvitation(string id, CancellationToken ct)
+    {
+        // Spec 033 / US2 / C3 — issue a fresh 72h invite (superseding the prior
+        // unused link) and re-render the confirmation with the new copyable link.
+        var user = await _userManager.FindByIdAsync(id);
+        if (user is null)
+        {
+            return NotFound();
+        }
+        // Mirror the sentinel-immutability guard the other mutating actions enforce
+        // (Disable/Edit/ResetPassword): never mint a fresh set-password link for the
+        // protected system sentinel.
+        if (user.IsSystemSentinel)
+        {
+            TempData["ErrorMessage"] = AdminErrorMessages.SentinelImmutable;
+            return RedirectToAction(nameof(Index));
+        }
+
+        var inviteLink = await IssueAndSendInvitationAsync(user.Email!, ct);
+        if (inviteLink is null)
+        {
+            TempData["ErrorMessage"] = "No se pudo generar la invitación. Intente de nuevo.";
+            return RedirectToAction(nameof(Index));
+        }
+        return View("InvitationSent", new AdminUserInvitationSentViewModel(user.Email!, inviteLink));
     }
 
     private void AddDomainErrors(IReadOnlyList<DomainError> errors, Func<string, string?, string?>? mapping = null)

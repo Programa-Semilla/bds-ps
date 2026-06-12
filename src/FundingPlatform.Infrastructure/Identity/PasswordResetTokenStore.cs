@@ -121,6 +121,29 @@ public sealed class PasswordResetTokenStore : IPasswordResetTokenStore
         return true;
     }
 
+    /// <inheritdoc />
+    public async Task InvalidateUnusedAsync(string userId, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+
+        // Spec 033 / FR-007 — supersede prior unused invites/links. Load the
+        // un-consumed rows and remove them via the tracked-entity path (no
+        // ExecuteDeleteAsync, which the SQLite integration provider does not
+        // translate for this model — mirrors ConsumeAsync's tracked flow).
+        var rows = await _db.Set<PasswordResetToken>()
+            .Where(t => t.UserId == userId && t.ConsumedAt == null)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        _db.Set<PasswordResetToken>().RemoveRange(rows);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Single-shot SHA-256 of the UTF-8 encoded raw token. The raw token never
     /// touches the DB — only this 32-byte digest does.

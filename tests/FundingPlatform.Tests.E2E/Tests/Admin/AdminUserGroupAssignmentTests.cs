@@ -100,8 +100,10 @@ public class AdminUserGroupAssignmentTests : AuthenticatedTestBase
         await formPage.SelectGroupsAsync($"AS-{unique}-A", $"AS-{unique}-B");
         await createPage.SubmitAsync();
 
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        // Spec 033 — create lands on the invitation confirmation; go to the list.
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
         var listPage = new AdminUsersListPage(Page);
+        await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(applicantEmail);
         await Expect(listPage.RowFor(applicantEmail)).ToBeVisibleAsync();
     }
@@ -133,8 +135,9 @@ public class AdminUserGroupAssignmentTests : AuthenticatedTestBase
         await formPage.SelectGroupsAsync($"PR-{unique}-A");
         await createPage.SubmitAsync();
 
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
         var listPage = new AdminUsersListPage(Page);
+        await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(reviewerEmail);
         await listPage.RowEditLink(reviewerEmail).ClickAsync();
 
@@ -180,9 +183,10 @@ public class AdminUserGroupAssignmentTests : AuthenticatedTestBase
             initialPassword: TempUserPassword,
             legalId: null);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         var listPage = new AdminUsersListPage(Page);
+        await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(adminEmail);
         await listPage.RowEditLink(adminEmail).ClickAsync();
 

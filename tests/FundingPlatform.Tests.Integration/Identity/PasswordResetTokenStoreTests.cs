@@ -152,6 +152,64 @@ public class PasswordResetTokenStoreTests
         Assert.That(consumed, Is.False, "Hash mismatch MUST reject the consume");
     }
 
+    // -----------------------------------------------------------------------
+    // Spec 033 — 72h invite TTL + supersede-on-resend (InvalidateUnusedAsync).
+    // -----------------------------------------------------------------------
+
+    [Test]
+    public async Task IssueAsync_With72hTtl_PersistsExpiresAtPlus72h()
+    {
+        // Spec 033 / FR-006 — an invite is just a row with a 72h ExpiresAt.
+        await _store.IssueAsync("user-1", "invite-token", PasswordResetToken.InvitationLifetime, CancellationToken.None);
+
+        var row = await _ctx.Set<PasswordResetToken>().AsNoTracking().FirstAsync();
+        Assert.That(row.ExpiresAt, Is.EqualTo(_now.AddHours(72)));
+    }
+
+    [Test]
+    public async Task InvalidateUnusedAsync_DeletesUnconsumedRows_LeavesConsumed()
+    {
+        const string userId = "user-1";
+
+        // One token that we consume, then a second still-unused token.
+        await _store.IssueAsync(userId, "first-token", PasswordResetToken.InvitationLifetime, CancellationToken.None);
+        _clock.UtcNow = _now.AddMinutes(5);
+        Assert.That(await _store.ConsumeAsync(userId, "first-token", CancellationToken.None), Is.True);
+        await _store.IssueAsync(userId, "second-token", PasswordResetToken.InvitationLifetime, CancellationToken.None);
+
+        // A different user's unused token must survive.
+        await _store.IssueAsync("other-user", "other-token", PasswordResetToken.InvitationLifetime, CancellationToken.None);
+
+        await _store.InvalidateUnusedAsync(userId, CancellationToken.None);
+
+        var remaining = await _ctx.Set<PasswordResetToken>().AsNoTracking().ToListAsync();
+        // The consumed first-token row (audit trail) and the other user's row survive;
+        // the user's unused second-token row is deleted.
+        Assert.That(remaining.Count(r => r.UserId == userId), Is.EqualTo(1));
+        Assert.That(remaining.Single(r => r.UserId == userId).ConsumedAt, Is.Not.Null,
+            "Only the consumed row should remain for the user.");
+        Assert.That(remaining.Any(r => r.UserId == "other-user"), Is.True,
+            "Another user's unused token MUST NOT be touched.");
+    }
+
+    [Test]
+    public async Task InvalidateUnusedAsync_ThenConsumePriorToken_ReturnsFalse()
+    {
+        const string userId = "user-1";
+
+        await _store.IssueAsync(userId, "stale-token", PasswordResetToken.InvitationLifetime, CancellationToken.None);
+
+        // Resend supersedes: invalidate the prior unused token before issuing afresh.
+        await _store.InvalidateUnusedAsync(userId, CancellationToken.None);
+        await _store.IssueAsync(userId, "fresh-token", PasswordResetToken.InvitationLifetime, CancellationToken.None);
+
+        _clock.UtcNow = _now.AddMinutes(5);
+        Assert.That(await _store.ConsumeAsync(userId, "stale-token", CancellationToken.None), Is.False,
+            "The superseded link MUST be rejected.");
+        Assert.That(await _store.ConsumeAsync(userId, "fresh-token", CancellationToken.None), Is.True,
+            "The freshly issued link MUST still work.");
+    }
+
     private sealed class FakeClock : IStageExpiryClock
     {
         public FakeClock(DateTimeOffset now) { UtcNow = now; }

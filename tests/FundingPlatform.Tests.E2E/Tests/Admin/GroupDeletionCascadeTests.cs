@@ -61,7 +61,7 @@ public class GroupDeletionCascadeTests : AuthenticatedTestBase
         var formPage = new AdminUserFormPage(Page);
         await formPage.SelectGroupsAsync(groupA, groupB);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         // Create a reviewer in ONLY group A.
         var aOnlyEmail = $"casc_aonly_{unique}@example.com";
@@ -69,7 +69,7 @@ public class GroupDeletionCascadeTests : AuthenticatedTestBase
         await createPage.FillAsync("AOnly", "Member", aOnlyEmail, null, "Reviewer", TempPwd, null);
         await formPage.SelectGroupsAsync(groupA);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         // Delete group A through the Edit screen.
         await groupsPage.GoToIndexAsync(BaseUrl);

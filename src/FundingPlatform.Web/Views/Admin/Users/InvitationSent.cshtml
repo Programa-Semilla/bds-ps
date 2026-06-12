@@ -1,0 +1,78 @@
+@using FundingPlatform.Web.Resources
+@using FundingPlatform.Web.ViewModels
+@using FundingPlatform.Web.ViewModels.Admin
+@model AdminUserInvitationSentViewModel
+@{
+    ViewData["Title"] = AdminUsersResources.InvitationSentTitle;
+}
+
+<div data-testid="admin-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: AdminUsersResources.InvitationSentTitle,
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem("Usuarios", Url.Action("Index", "AdminUsers")),
+                new BreadcrumbItem(AdminUsersResources.InvitationSentTitle),
+            }))
+
+    <div class="card" data-testid="invitation-sent">
+        <div class="card-body">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <i class="ti ti-mail-check text-success" style="font-size: 1.5rem;"></i>
+                <h3 class="card-title mb-0" data-testid="invitation-sent-headline">
+                    @string.Format(AdminUsersResources.InvitationSentToFormat, Model.Email)
+                </h3>
+            </div>
+
+            <p class="text-muted">@AdminUsersResources.InvitationSentHelp</p>
+
+            <label class="form-label" for="invitation-link-input">@AdminUsersResources.InvitationLinkLabel</label>
+            <div class="input-group mb-2">
+                <input id="invitation-link-input" type="text" class="form-control" readonly
+                       data-testid="invitation-link" value="@Model.InviteLink" />
+                <button type="button" class="btn btn-outline-secondary"
+                        data-testid="invitation-link-copy"
+                        data-copy-target="#invitation-link-input"
+                        data-copied-label="@AdminUsersResources.InvitationLinkCopiedLabel">
+                    <i class="ti ti-copy"></i> @AdminUsersResources.InvitationLinkCopyLabel
+                </button>
+            </div>
+            <p class="form-text text-warning">@AdminUsersResources.InvitationLinkOnceWarning</p>
+
+            <div class="mt-3">
+                <a class="btn btn-primary" data-testid="invitation-back-to-users"
+                   href="@Url.Action("Index", "AdminUsers")">
+                    @AdminUsersResources.InvitationBackToUsers
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var btn = document.querySelector('[data-testid="invitation-link-copy"]');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            var target = document.querySelector(btn.getAttribute('data-copy-target'));
+            if (!target) return;
+            target.select();
+            target.setSelectionRange(0, target.value.length);
+            var done = function () {
+                var original = btn.innerHTML;
+                btn.innerHTML = btn.getAttribute('data-copied-label');
+                setTimeout(function () { btn.innerHTML = original; }, 1500);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(target.value).then(done, function () {
+                    try { document.execCommand('copy'); } catch (e) { /* no-op */ }
+                    done();
+                });
+            } else {
+                try { document.execCommand('copy'); } catch (e) { /* no-op */ }
+                done();
+            }
+        });
+    })();
+</script>

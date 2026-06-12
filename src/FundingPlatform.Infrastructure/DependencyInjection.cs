@@ -137,6 +137,9 @@ public static class DependencyInjection
         // Spec 021 / T129 — template loader for the password-reset email.
         services.AddSingleton<ForgotPasswordEmailFactory>();
 
+        // Spec 033 / T006 — template loader for the set-password invitation email.
+        services.AddSingleton<InvitationEmailFactory>();
+
         // Spec 021 / T117 — hourly stage-expiry reminder hosted service.
         services.AddHostedService<StageExpiryReminderService>();
 

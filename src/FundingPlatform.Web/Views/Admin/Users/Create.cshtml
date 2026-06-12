@@ -106,10 +106,13 @@
             <span asp-validation-for="GroupIds" class="text-danger" data-testid="admin-user-groups-error"></span>
         </div>
 
-        <div class="col-md-6 mb-3">
-            <label class="form-label" asp-for="InitialPassword">Contraseña inicial @await Html.PartialAsync("_RequiredMark")</label>
-            <input asp-for="InitialPassword" class="form-control" type="password" />
-            <span asp-validation-for="InitialPassword" class="text-danger"></span>
+        @* Spec 033 — no password field. On submit, the account is created with no
+           password and an emailed set-password invitation is sent; the next screen
+           shows a copyable invite link. *@
+        <div class="col-md-12 mb-3">
+            <p class="text-muted mb-0" data-testid="admin-user-invite-note">
+                Al crear el usuario se enviará una invitación por correo para que establezca su contraseña. No se asigna una contraseña inicial.
+            </p>
         </div>
 
         <div class="d-flex justify-content-end gap-2 mt-2">
