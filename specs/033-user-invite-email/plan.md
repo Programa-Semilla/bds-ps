@@ -69,6 +69,7 @@ src/FundingPlatform.Infrastructure/
 └── Email/InvitationEmailFactory.cs            # NEW — es-CR EmailMessage (mirror ForgotPasswordEmailFactory)
 
 src/FundingPlatform.Web/
+├── Program.cs                                 # bump DataProtectionTokenProviderOptions.TokenLifespan 60min → 72h (the Identity crypto-token gate; per-row TTL keeps forgot-password at 60min — see research D2)
 ├── Controllers/Admin/AdminUsersController.cs  # Create POST: issue 72h invite token + compose link + send + render confirmation; new ResendInvitation POST
 ├── ViewModels/Admin/AdminUserCreateViewModel.cs   # − InitialPassword
 ├── ViewModels/Admin/AdminUserInvitationSentViewModel.cs  # NEW — { Email, InviteLink }

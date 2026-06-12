@@ -21,11 +21,19 @@ All open threads from the spec/brainstorm are resolved below. No `NEEDS CLARIFIC
 
 ---
 
-## D2. TTL parameterization (72h for invites, 60min for forgot-password)
+## D2. TTL parameterization (72h for invites, 60min for forgot-password) — TWO gates
 
-**Decision**: Add an optional `TimeSpan? Ttl` to `IssuePasswordResetTokenCommand` (default `null` → `PasswordResetToken.DefaultLifetime` = 60 min). The invite path passes **72h**; the existing forgot-password path passes nothing (unchanged).
+**Decision**: There are **two** expiry gates on the set-password path, and BOTH must allow 72h for invites:
+1. **Our row TTL** (`PasswordResetTokens.ExpiresAt`, checked by `ConsumeAsync`). Make this per-purpose: add `Ttl` to `IssuePasswordResetTokenCommand` (default `null` → `DefaultLifetime` 60 min; invite passes `InvitationLifetime` 72h).
+2. **ASP.NET Identity's DataProtector crypto token** (checked by `ResetPasswordAsync` in the consume path) — its lifetime is the **global** `DataProtectionTokenProviderOptions.TokenLifespan`, currently set to **60 minutes** at `src/FundingPlatform.Web/Program.cs:79`. Left as-is, this caps every invite at 60 min regardless of the row TTL. **Fix: bump `TokenLifespan` to 72h.**
 
-**Rationale**: The TTL is currently hard-coded at `IssuePasswordResetTokenHandler` (`IssueAsync(..., PasswordResetToken.DefaultLifetime, ct)`). The store's `IssueAsync(userId, rawToken, ttl, ct)` already accepts a `TimeSpan ttl` — so only the handler/command need a pass-through. The 72h value is added as a named constant (e.g., `PasswordResetToken.InvitationLifetime = TimeSpan.FromHours(72)`).
+**Why bumping the global lifespan is correct AND safe**:
+- The consume path is a **dual gate** (`ConsumeAsync` row check, then `ResetPasswordAsync` Identity-token check). The **stricter** of the two binds. So with the global token at 72h: forgot-password (row 60 min) is still gated at 60 min by its row (the looser 72h Identity token does not loosen it); invite (row 72h) is allowed for the full 72h by both gates. → forgot-password behavior is **unchanged**, invites get a true 72h.
+- **No side effects**: `SignIn.RequireConfirmedAccount = false` and there are **no** email-confirmation / change-email / change-phone token flows — password-reset is the *only* consumer of the DataProtector token provider, so raising its lifespan affects nothing else.
+
+**Constant**: add `PasswordResetToken.InvitationLifetime = TimeSpan.FromHours(72)`; set `DataProtectionTokenProviderOptions.TokenLifespan = TimeSpan.FromHours(72)` in `Program.cs`.
+
+**Alternative considered**: a dedicated named 72h token provider for invites (so the global stays 60 min) — rejected as more complex (a parallel generate/verify path that bypasses `ResetPasswordAsync`); the dual-gate + per-row TTL already gives correct per-purpose expiry with a one-line global change.
 
 ---
 
@@ -88,7 +96,7 @@ All open threads from the spec/brainstorm are resolved below. No `NEEDS CLARIFIC
 | # | Topic | Decision |
 |---|-------|----------|
 | D1 | Token | Reuse the password-reset token/flow + `/Account/ResetPassword` |
-| D2 | TTL | Optional `Ttl` on the issue command; invite = 72h, forgot-password = 60min |
+| D2 | TTL (two gates) | Per-row `Ttl` (invite 72h / forgot 60min) **AND** bump the global Identity `DataProtectionTokenProviderOptions.TokenLifespan` 60min→72h (`Program.cs`); the stricter row TTL keeps forgot-password at 60min; safe — password-reset is the only DataProtector-token consumer |
 | D3 | Supersede | `InvalidateUnusedAsync` on the store + an `InvalidatePriorUnused` flag (invite path only) |
 | D4 | No password | `CreateAsync(user)` (no-password overload); invited users `MustChangePassword=false` |
 | D5 | Delivery | Direct-send from the controller (`ForgotPasswordEmail` pattern) + `InvitationEmailFactory` + template; not the outbox |
