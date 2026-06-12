@@ -57,7 +57,10 @@ public sealed class InvitationEmailFactory
         // system-generated and safe.
         var safeFirstName = System.Net.WebUtility.HtmlEncode(firstName ?? string.Empty);
 
-        var template = ReadTemplate();
+        // The .cshtml is read as plain text (not Razor-rendered), so a Razor
+        // @* … *@ comment would render verbatim — and any {{token}} inside it
+        // would be substituted, leaking the real link. Strip comments first.
+        var template = EmailTemplateText.StripRazorComments(ReadTemplate());
         var body = template
             .Replace("{{InviteLink}}", inviteLink, StringComparison.Ordinal)
             .Replace("{{FirstName}}", safeFirstName, StringComparison.Ordinal)

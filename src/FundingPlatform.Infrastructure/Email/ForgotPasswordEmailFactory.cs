@@ -49,7 +49,10 @@ public sealed class ForgotPasswordEmailFactory
             .ToOffset(TimeSpan.FromHours(-6)) // CR is UTC-6 (no DST)
             .ToString("dd/MM/yyyy HH:mm", new CultureInfo("es-CR"));
 
-        var template = ReadTemplate();
+        // The .cshtml is read as plain text (not Razor-rendered), so a Razor
+        // @* … *@ comment would render verbatim — and any {{token}} inside it
+        // would be substituted, leaking the real link. Strip comments first.
+        var template = EmailTemplateText.StripRazorComments(ReadTemplate());
         var body = template
             .Replace("{{ResetLink}}", resetLink, StringComparison.Ordinal)
             .Replace("{{ApplicantName}}", applicantFirstName ?? string.Empty, StringComparison.Ordinal)

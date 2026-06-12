@@ -59,7 +59,9 @@ public sealed class StageReminderEmailFactory
             .ToOffset(TimeSpan.FromHours(-6)) // CR is UTC-6 (no DST)
             .ToString("dd/MM/yyyy HH:mm", new CultureInfo("es-CR"));
 
-        var template = ReadTemplate(bucket);
+        // Templates are read as plain text — strip Razor @* … *@ comments so a
+        // header comment (and any {{token}} inside it) does not leak into the body.
+        var template = EmailTemplateText.StripRazorComments(ReadTemplate(bucket));
         var body = template
             .Replace("{{PublicCode}}", publicCode, StringComparison.Ordinal)
             .Replace("{{StageName}}", stageLabel, StringComparison.Ordinal)

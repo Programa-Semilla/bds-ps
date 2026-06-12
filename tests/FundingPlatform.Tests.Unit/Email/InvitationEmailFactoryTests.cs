@@ -25,8 +25,12 @@ public class InvitationEmailFactoryTests
         _contentRoot = Path.Combine(Path.GetTempPath(), "invite-email-" + Guid.NewGuid().ToString("N"));
         var dir = Path.Combine(_contentRoot, "Views", "Emails", "Identity");
         Directory.CreateDirectory(dir);
+        // Mirror the real template: a leading Razor @* … *@ doc comment (which the
+        // factory reads as PLAIN TEXT) that itself references the {{tokens}}. The
+        // factory must strip it so it never renders / leaks the substituted link.
         File.WriteAllText(
             Path.Combine(dir, "InvitationEmail.cshtml"),
+            "@*\n    Doc comment. Tokens: {{InviteLink}} {{FirstName}} {{ExpiresAt}}\n*@\n" +
             "<p>Hola {{FirstName}},</p><p><a href=\"{{InviteLink}}\">{{InviteLink}}</a></p>" +
             "<p>El enlace expira el {{ExpiresAt}}.</p>");
     }
@@ -64,6 +68,20 @@ public class InvitationEmailFactoryTests
         var expectedExpiry = Expiry.ToOffset(TimeSpan.FromHours(-6))
             .ToString("dd/MM/yyyy HH:mm", new CultureInfo("es-CR"));
         Assert.That(msg.HtmlBody, Does.Contain(expectedExpiry), "Body must state the 72h expiry in CR local time.");
+    }
+
+    [Test]
+    public void Build_StripsRazorCommentHeader_NoLeak()
+    {
+        var msg = BuildFactory().Build(
+            "nuevo@programa-semilla.test", "Ana",
+            "https://app.example/Account/ResetPassword?userId=u1&token=secret", Expiry);
+
+        Assert.That(msg.HtmlBody, Does.Not.Contain("@*"), "Razor comment markers must not render.");
+        Assert.That(msg.HtmlBody, Does.Not.Contain("Doc comment"), "Comment text must not render.");
+        // The body must still begin at the markup and substitute the real tokens.
+        Assert.That(msg.HtmlBody, Does.StartWith("<p>Hola Ana,"));
+        Assert.That(msg.HtmlBody, Does.Contain("token=secret"));
     }
 
     [Test]
