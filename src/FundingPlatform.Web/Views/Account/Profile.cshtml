@@ -137,7 +137,7 @@
                     </div>
 
                     @* Spec 032 — admin-assigned User Code (applicants only): read-only here. *@
-                    @if (Model.Role == "Solicitante")
+                    @if (Model.IsApplicant)
                     {
                         <div class="mb-3" data-testid="form-section" data-field="UserCode">
                             <label class="form-label">

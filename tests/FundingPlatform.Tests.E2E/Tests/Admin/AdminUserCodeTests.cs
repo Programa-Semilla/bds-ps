@@ -159,7 +159,8 @@ public class AdminUserCodeTests : AuthenticatedTestBase
         await Expect(Page).ToHaveURLAsync(new Regex("/Account/ChangePassword"));
         await changePage.SubmitAsync(TempUserPassword, "NewPass1!", "NewPass1!");
 
-        await Page.GotoAsync($"{BaseUrl}/Account/Profile");
+        // The self-service profile lives at /Profile (attribute-routed), not /Account/Profile.
+        await Page.GotoAsync($"{BaseUrl}/Profile");
         var field = Page.Locator("[data-testid=\"profile-usercode\"]");
         await Expect(field).ToBeVisibleAsync();
         Assert.That(await field.InputValueAsync(), Is.EqualTo(code));

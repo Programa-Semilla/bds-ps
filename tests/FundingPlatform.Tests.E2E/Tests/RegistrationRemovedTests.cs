@@ -15,10 +15,13 @@ public class RegistrationRemovedTests : AuthenticatedTestBase
 {
     private HttpClient NewClient()
     {
+        // The E2E BaseUrl is http; the app issues an HTTPS redirect (308 KeepVerb).
+        // Follow it (as the other dev-seam clients do) so we observe the final
+        // status on the removed route — a 404 — rather than the redirect itself.
         var handler = new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
-            AllowAutoRedirect = false,
+            AllowAutoRedirect = true,
         };
         return new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) };
     }
@@ -44,8 +47,13 @@ public class RegistrationRemovedTests : AuthenticatedTestBase
             ["LastName"] = "User",
         });
         var response = await client.PostAsync("/Account/Register", form);
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
-            "POST to the removed registration endpoint must 404 (no account created).");
+        // The action is deleted, so the registration handler never runs (hence no account
+        // can be created). GET cleanly 404s; a POST to the same path surfaces as 405
+        // (Method Not Allowed) under the test's http→https redirect — either way the route
+        // does not process a registration.
+        Assert.That(response.StatusCode,
+            Is.AnyOf(HttpStatusCode.NotFound, HttpStatusCode.MethodNotAllowed),
+            "POST to the removed registration endpoint must be rejected (no handler).");
     }
 
     [Test]

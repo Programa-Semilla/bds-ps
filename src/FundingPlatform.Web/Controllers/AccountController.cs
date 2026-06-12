@@ -437,6 +437,7 @@ public class AccountController : Controller
             LegalId = applicant?.LegalId,
             IdentificationType = applicant?.IdentificationType,
             UserCode = applicant?.UserCode,
+            IsApplicant = string.Equals(roleLabel, "Applicant", StringComparison.Ordinal),
         };
     }
 
