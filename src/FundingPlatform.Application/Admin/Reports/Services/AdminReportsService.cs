@@ -151,6 +151,7 @@ public sealed class AdminReportsService : IAdminReportsService
             FullName: p.FullName,
             LegalId: p.LegalId,
             Email: p.Email,
+            UserCode: p.UserCode,
             TotalApps: p.TotalApps,
             ResolvedCount: p.ResolvedCount,
             ResponseFinalizedCount: p.ResponseFinalizedCount,
@@ -191,7 +192,7 @@ public sealed class AdminReportsService : IAdminReportsService
         // The applicant CSV already emits a per-currency stack; OriginalAmount duplicates
         // "Approved Amount" and ConvertedCrcAmount captures the CRC-comparable sum.
         yield return CsvLine(
-            "Full Name", "Legal Id", "Email",
+            "Full Name", "Legal Id", "Email", "User Code",
             "Total Apps", "Resolved Count", "Response Finalized Count", "Agreement Executed Count",
             "Approval Rate", "Approved Amount", "Executed Amount", "Currency", "Last Activity",
             "OriginalCurrencyCode", "OriginalAmount", "ConvertedCrcAmount");
@@ -254,6 +255,7 @@ public sealed class AdminReportsService : IAdminReportsService
             p.FullName,
             p.LegalId,
             p.Email,
+            p.UserCode ?? "",
             p.TotalApps.ToString(CultureInfo.InvariantCulture),
             p.ResolvedCount.ToString(CultureInfo.InvariantCulture),
             p.ResponseFinalizedCount.ToString(CultureInfo.InvariantCulture),

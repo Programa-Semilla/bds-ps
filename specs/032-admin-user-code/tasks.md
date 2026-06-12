@@ -88,16 +88,16 @@
 **Independent Test**: per surface, search by code / cédula / email / name returns the seeded applicant; empty term unchanged.
 **Depends on**: Phase 2 (column exists). Best demoed with a US2-assigned code, but E2E can seed a code directly.
 
-- [ ] T032 [US3] Widen `UserAdministrationService.ListUsersAsync` search (`~49-56`): add a correlated `_dbContext.Applicants.Any(a => a.UserId == u.Id && (a.LegalId.Contains(term) || (a.UserCode != null && a.UserCode.Contains(term))))` clause to the existing Email/First/Last predicate.
-- [ ] T033 [US3] Widen `ApplicationRepository.GetByStateForReviewerAsync` search (`~199-208`): add `EF.Functions.Like(a.Applicant.UserCode, likeTerm)` and `EF.Functions.Like(a.Applicant.Email, likeTerm)` to the OR chain.
-- [ ] T034 [P] [US3] `ReportQueryService` Aging block (`~354-361`): add `|| EF.Functions.Like(a.Applicant.UserCode, pattern)`.
-- [ ] T035 [P] [US3] `ReportQueryService` Applications block (`~520-527`): add `|| EF.Functions.Like(a.Applicant.UserCode, pattern)`.
-- [ ] T036 [US3] `ReportQueryService` Applicants block (`~580-587`): add `|| EF.Functions.Like(a.UserCode, pattern)`; and add a `UserCode` field to the Applicants report row DTO/projection it builds (consumed by T038).
-- [ ] T037 [US3] In `src/FundingPlatform.Web/Views/Admin/Users/Index.cshtml`: add a "Código de usuario" column rendering the value or `—`; update the search input placeholder text (via `AdminUsersResources`, e.g. `"Nombre, correo, identificación o código de usuario"`).
-- [ ] T038 [US3] Add a "Código de usuario" column to the Applicants report view `src/FundingPlatform.Web/Views/Admin/Reports/Applicants.cshtml` and its CSV export (header + row) in the report/CSV writer path.
-- [ ] T039 [P] [US3] Update the search placeholder in `src/FundingPlatform.Web/Resources/ReviewerQueueResources.cs` from `"Nombre o cédula"` to `"Nombre, cédula o código de usuario"`.
-- [ ] T040 [US3] Integration tests in `tests/FundingPlatform.Tests.Integration/`: for the admin-list predicate, the reviewer-queue predicate, and the three report predicates — assert a seeded applicant matches by UserCode, LegalId, email, and name; and that an empty term returns the full page.
-- [ ] T041 [US3] E2E `UserCodeSearchTests` in `tests/FundingPlatform.Tests.E2E/`: search by code on the admin users list, reviewer queue, and applicants report returns the seeded applicant; assert the "Código de usuario" column renders on the admin list and the applicants CSV header/row contains it.
+- [X] T032 [US3] Widen `UserAdministrationService.ListUsersAsync` search (`~49-56`): add a correlated `_dbContext.Applicants.Any(a => a.UserId == u.Id && (a.LegalId.Contains(term) || (a.UserCode != null && a.UserCode.Contains(term))))` clause to the existing Email/First/Last predicate.
+- [X] T033 [US3] Widen `ApplicationRepository.GetByStateForReviewerAsync` search (`~199-208`): add `EF.Functions.Like(a.Applicant.UserCode, likeTerm)` and `EF.Functions.Like(a.Applicant.Email, likeTerm)` to the OR chain.
+- [X] T034 [P] [US3] `ReportQueryService` Aging block (`~354-361`): add `|| EF.Functions.Like(a.Applicant.UserCode, pattern)`.
+- [X] T035 [P] [US3] `ReportQueryService` Applications block (`~520-527`): add `|| EF.Functions.Like(a.Applicant.UserCode, pattern)`.
+- [X] T036 [US3] `ReportQueryService` Applicants block (`~580-587`): add `|| EF.Functions.Like(a.UserCode, pattern)`; and add a `UserCode` field to the Applicants report row DTO/projection it builds (consumed by T038).
+- [X] T037 [US3] In `src/FundingPlatform.Web/Views/Admin/Users/Index.cshtml`: add a "Código de usuario" column rendering the value or `—`; update the search input placeholder text (via `AdminUsersResources`, e.g. `"Nombre, correo, identificación o código de usuario"`).
+- [X] T038 [US3] Add a "Código de usuario" column to the Applicants report view `src/FundingPlatform.Web/Views/Admin/Reports/Applicants.cshtml` and its CSV export (header + row) in the report/CSV writer path.
+- [X] T039 [P] [US3] Update the search placeholder in `src/FundingPlatform.Web/Resources/ReviewerQueueResources.cs` from `"Nombre o cédula"` to `"Nombre, cédula o código de usuario"`.
+- [X] T040 [US3] Integration tests in `tests/FundingPlatform.Tests.Integration/`: for the admin-list predicate, the reviewer-queue predicate, and the three report predicates — assert a seeded applicant matches by UserCode, LegalId, email, and name; and that an empty term returns the full page.
+- [X] T041 [US3] E2E `UserCodeSearchTests` in `tests/FundingPlatform.Tests.E2E/`: search by code on the admin users list, reviewer queue, and applicants report returns the seeded applicant; assert the "Código de usuario" column renders on the admin list and the applicants CSV header/row contains it.
 
 **Checkpoint**: US3 shippable.
 

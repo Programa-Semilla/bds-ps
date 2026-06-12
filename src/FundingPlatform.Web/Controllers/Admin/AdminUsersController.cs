@@ -120,6 +120,7 @@ public class AdminUsersController : Controller
             Status = i.Status,
             CreatedAt = i.CreatedAt,
             IsSelf = string.Equals(i.Id, actorId, StringComparison.Ordinal),
+            UserCode = i.UserCode,
         }).ToList();
 
         // Spec 021 / FR-034 — apply the Process → Group cascade filter on top of

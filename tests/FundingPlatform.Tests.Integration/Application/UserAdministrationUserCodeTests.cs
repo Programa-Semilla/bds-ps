@@ -182,6 +182,67 @@ public class UserAdministrationUserCodeTests
         Assert.That((await ctx.Applicants.SingleAsync(x => x.UserId == a.Value!.Id)).UserCode, Is.EqualTo("CODE-A"));
     }
 
+    // -------------------------------------------------------------------------
+    // Spec 032 / US3 (FR-012) — the admin users list search box also matches the
+    // applicant's identification (LegalId) and User Code, via the correlated
+    // sub-query into Applicants.
+    // -------------------------------------------------------------------------
+
+    [Test]
+    public async Task ListUsers_SearchByUserCode_ReturnsApplicant()
+    {
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+        var groups = await SeedGroupsAsync(ctx, "Norte");
+
+        var created = await sut.CreateUserAsync(
+            Applicant("findme@test.com", "FIND-LEGAL", groups, "FIND-CODE"),
+            ActorAdminId, CancellationToken.None);
+        Assert.That(created.Succeeded, Is.True);
+
+        var byCode = await sut.ListUsersAsync(new ListUsersRequest(null, null, "FIND-CODE", 1, 20), CancellationToken.None);
+        Assert.That(byCode.Items.Select(i => i.Id), Contains.Item(created.Value!.Id));
+
+        var byLegal = await sut.ListUsersAsync(new ListUsersRequest(null, null, "FIND-LEGAL", 1, 20), CancellationToken.None);
+        Assert.That(byLegal.Items.Select(i => i.Id), Contains.Item(created.Value!.Id));
+
+        var byEmail = await sut.ListUsersAsync(new ListUsersRequest(null, null, "findme@", 1, 20), CancellationToken.None);
+        Assert.That(byEmail.Items.Select(i => i.Id), Contains.Item(created.Value!.Id));
+    }
+
+    [Test]
+    public async Task ListUsers_SearchByUserCode_ExcludesNonMatch()
+    {
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+        var groups = await SeedGroupsAsync(ctx, "Norte");
+
+        var a = await sut.CreateUserAsync(Applicant("a@test.com", "L-A", groups, "CODE-AAA"), ActorAdminId, CancellationToken.None);
+        var b = await sut.CreateUserAsync(Applicant("b@test.com", "L-B", groups, "CODE-BBB"), ActorAdminId, CancellationToken.None);
+        Assert.That(a.Succeeded && b.Succeeded, Is.True);
+
+        var result = await sut.ListUsersAsync(new ListUsersRequest(null, null, "CODE-AAA", 1, 20), CancellationToken.None);
+        Assert.That(result.Items.Select(i => i.Id), Contains.Item(a.Value!.Id));
+        Assert.That(result.Items.Select(i => i.Id), Does.Not.Contain(b.Value!.Id));
+    }
+
+    [Test]
+    public async Task ListUsers_SurfacesUserCodeColumn()
+    {
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+        var groups = await SeedGroupsAsync(ctx, "Norte");
+
+        var created = await sut.CreateUserAsync(
+            Applicant("col@test.com", "L-COL", groups, "COL-CODE"),
+            ActorAdminId, CancellationToken.None);
+        Assert.That(created.Succeeded, Is.True);
+
+        var list = await sut.ListUsersAsync(new ListUsersRequest(null, null, "col@", 1, 20), CancellationToken.None);
+        var row = list.Items.Single(i => i.Id == created.Value!.Id);
+        Assert.That(row.UserCode, Is.EqualTo("COL-CODE"));
+    }
+
     [Test]
     public async Task Create_NonApplicant_DoesNotRequireOrStoreUserCode()
     {

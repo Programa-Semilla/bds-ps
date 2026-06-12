@@ -6,4 +6,5 @@ public record UserSummaryDto(
     string Email,
     string Role,
     string Status,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? UserCode = null);

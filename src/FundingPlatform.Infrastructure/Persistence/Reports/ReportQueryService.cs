@@ -357,7 +357,9 @@ public sealed class ReportQueryService : IReportQueryService
             q = q.Where(a =>
                 EF.Functions.Like(a.Applicant.FirstName + " " + a.Applicant.LastName, pattern)
                 || EF.Functions.Like(a.Applicant.LegalId, pattern)
-                || EF.Functions.Like(a.Applicant.Email, pattern));
+                || EF.Functions.Like(a.Applicant.Email, pattern)
+                // Spec 032 — also match the applicant's User Code (FR-014).
+                || EF.Functions.Like(a.Applicant.UserCode, pattern));
         }
 
         return q;
@@ -523,7 +525,9 @@ public sealed class ReportQueryService : IReportQueryService
             q = q.Where(a =>
                 EF.Functions.Like(a.Applicant.FirstName + " " + a.Applicant.LastName, pattern)
                 || EF.Functions.Like(a.Applicant.LegalId, pattern)
-                || EF.Functions.Like(a.Applicant.Email, pattern));
+                || EF.Functions.Like(a.Applicant.Email, pattern)
+                // Spec 032 — also match the applicant's User Code (FR-014).
+                || EF.Functions.Like(a.Applicant.UserCode, pattern));
         }
 
         if (req.HasAgreement.HasValue)
@@ -583,7 +587,9 @@ public sealed class ReportQueryService : IReportQueryService
             q = q.Where(a =>
                 EF.Functions.Like(a.FirstName + " " + a.LastName, pattern)
                 || EF.Functions.Like(a.LegalId, pattern)
-                || EF.Functions.Like(a.Email, pattern));
+                || EF.Functions.Like(a.Email, pattern)
+                // Spec 032 — also match the applicant's User Code (FR-014).
+                || EF.Functions.Like(a.UserCode, pattern));
         }
 
         if (req.HasExecutedAgreement.HasValue)
@@ -614,6 +620,7 @@ public sealed class ReportQueryService : IReportQueryService
             (a.FirstName + " " + a.LastName).Trim(),
             a.LegalId,
             a.Email,
+            a.UserCode,
             a.Applications.Count(app => app.SubmittedAt != null),
             a.Applications.Count(app => app.State == ApplicationState.Resolved),
             a.Applications.Count(app => app.State == ApplicationState.ResponseFinalized),

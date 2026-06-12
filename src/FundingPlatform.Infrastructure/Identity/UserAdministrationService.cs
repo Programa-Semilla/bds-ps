@@ -49,10 +49,15 @@ public class UserAdministrationService : IUserAdministrationService
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var term = request.Search.Trim();
+            // Spec 032 — the single search box also matches the applicant's identification
+            // (LegalId) and User Code via a correlated sub-query into Applicants (FR-012).
             query = query.Where(u =>
                 (u.Email != null && u.Email.Contains(term)) ||
                 (u.FirstName != null && u.FirstName.Contains(term)) ||
-                (u.LastName != null && u.LastName.Contains(term)));
+                (u.LastName != null && u.LastName.Contains(term)) ||
+                _dbContext.Applicants.Any(a => a.UserId == u.Id &&
+                    (a.LegalId.Contains(term) ||
+                     (a.UserCode != null && a.UserCode.Contains(term)))));
         }
 
         if (string.Equals(request.StatusFilter, "Active", StringComparison.OrdinalIgnoreCase))
@@ -99,6 +104,12 @@ public class UserAdministrationService : IUserAdministrationService
             .GroupBy(x => x.UserId)
             .ToDictionary(g => g.Key, g => SelectPrimaryRole(g.Select(x => x.RoleName)));
 
+        // Spec 032 — surface the applicant User Code as a list column (FR-016).
+        var userCodes = await _dbContext.Applicants
+            .Where(a => userIdList.Contains(a.UserId) && a.UserCode != null)
+            .Select(a => new { a.UserId, a.UserCode })
+            .ToDictionaryAsync(a => a.UserId, a => a.UserCode, ct);
+
         var nowUtc2 = DateTimeOffset.UtcNow;
         var items = users.Select(u => new UserSummaryDto(
             Id: u.Id,
@@ -106,7 +117,8 @@ public class UserAdministrationService : IUserAdministrationService
             Email: u.Email ?? "",
             Role: rolesByUser.GetValueOrDefault(u.Id, ""),
             Status: IsDisabled(u, nowUtc2) ? "Disabled" : "Active",
-            CreatedAt: DateTimeOffset.MinValue)).ToList();
+            CreatedAt: DateTimeOffset.MinValue,
+            UserCode: userCodes.GetValueOrDefault(u.Id))).ToList();
 
         return new ListUsersResult(items, total, page, pageSize);
     }

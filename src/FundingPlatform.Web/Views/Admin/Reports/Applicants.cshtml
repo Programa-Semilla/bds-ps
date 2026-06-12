@@ -61,6 +61,7 @@
                             <th>Nombre completo</th>
                             <th>Cédula</th>
                             <th>Correo electrónico</th>
+                            <th>Código de usuario</th>
                             <th>Total de solicitudes</th>
                             <th>Resueltas</th>
                             <th>Respuesta finalizada</th>
@@ -78,6 +79,7 @@
                                 <td>@row.FullName</td>
                                 <td>@row.LegalId</td>
                                 <td>@row.Email</td>
+                                <td data-testid="applicants-row-usercode">@(string.IsNullOrEmpty(row.UserCode) ? "—" : row.UserCode)</td>
                                 <td>@row.TotalApps</td>
                                 <td>@row.ResolvedCount</td>
                                 <td>@row.ResponseFinalizedCount</td>

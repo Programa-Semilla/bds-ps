@@ -1,5 +1,6 @@
 @using FundingPlatform.Web.ViewModels.Admin
 @using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
 @model AdminUsersListViewModel
 @{
     ViewData["Title"] = "Usuarios";
@@ -38,7 +39,7 @@
             }))
 
     <form method="get" asp-action="Index" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-users-filter-form">
-        <input type="search" name="search" value="@Model.Search" placeholder="Buscar por nombre o correo"
+        <input type="search" name="search" value="@Model.Search" placeholder="@AdminUsersResources.SearchPlaceholder"
                class="form-control admin-users-filter-search" data-testid="admin-users-search" />
         <select name="roleFilter" class="form-select admin-users-filter-select" data-testid="admin-users-role-filter">
             <option value="">Todos los roles</option>
@@ -114,6 +115,7 @@
                         <tr>
                             <th>Nombre</th>
                             <th>Correo electrónico</th>
+                            <th>@AdminUsersResources.UserCodeColumnHeader</th>
                             <th>Rol</th>
                             <th>Estado</th>
                             <th class="text-end">Acciones</th>
@@ -128,6 +130,7 @@
                             <tr data-testid="admin-user-row-@row.Email">
                                 <td>@row.FullName @(row.IsSelf ? Html.Raw("<span class=\"badge bg-purple-lt ms-1\">Usted</span>") : null)</td>
                                 <td>@row.Email</td>
+                                <td data-testid="admin-user-row-usercode">@(string.IsNullOrEmpty(row.UserCode) ? AdminUsersResources.UserCodeEmptyPlaceholder : row.UserCode)</td>
                                 <td>@await Html.PartialAsync("Components/_StatusPill", new StatusPillViewModel(roleEnum))</td>
                                 <td>@await Html.PartialAsync("Components/_StatusPill", new StatusPillViewModel(statusEnum))</td>
                                 <td class="text-end">

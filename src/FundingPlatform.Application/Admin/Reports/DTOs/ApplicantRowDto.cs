@@ -6,6 +6,7 @@ public sealed record ApplicantRowDto(
     string FullName,
     string LegalId,
     string Email,
+    string? UserCode,
     int TotalApps,
     int ResolvedCount,
     int ResponseFinalizedCount,
