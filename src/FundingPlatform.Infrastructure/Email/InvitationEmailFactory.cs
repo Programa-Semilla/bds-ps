@@ -52,10 +52,15 @@ public sealed class InvitationEmailFactory
             .ToOffset(TimeSpan.FromHours(-6)) // CR is UTC-6 (no DST)
             .ToString("dd/MM/yyyy HH:mm", new CultureInfo("es-CR"));
 
+        // HTML-encode the only free-text token so an admin-entered name containing
+        // markup cannot inject HTML into the email body. InviteLink/ExpiresAt are
+        // system-generated and safe.
+        var safeFirstName = System.Net.WebUtility.HtmlEncode(firstName ?? string.Empty);
+
         var template = ReadTemplate();
         var body = template
             .Replace("{{InviteLink}}", inviteLink, StringComparison.Ordinal)
-            .Replace("{{FirstName}}", firstName ?? string.Empty, StringComparison.Ordinal)
+            .Replace("{{FirstName}}", safeFirstName, StringComparison.Ordinal)
             .Replace("{{ExpiresAt}}", expiresAtLocal, StringComparison.Ordinal);
 
         return new EmailMessage(toAddress, Subject, body);
@@ -97,6 +102,13 @@ public sealed class InvitationEmailFactory
             "<p>Le han creado una cuenta en la plataforma. Abra el siguiente enlace para establecer su contraseña:</p>" +
             "<p><a href=\"{{InviteLink}}\">{{InviteLink}}</a></p>" +
             "<p>El enlace expira el {{ExpiresAt}}.</p>";
+        // Cache the fallback too: the factory is a singleton, so without this a
+        // genuinely missing template would re-probe the filesystem and re-log a
+        // WARN on every send.
+        lock (_cacheLock)
+        {
+            _cached ??= fallback;
+        }
         _logger.LogWarning(
             "Invitation email template '{File}' not found under any of the candidate paths; falling back to minimal HTML body.",
             fileName);

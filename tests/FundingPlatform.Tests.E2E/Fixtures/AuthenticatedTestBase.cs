@@ -237,10 +237,13 @@ public class AuthenticatedTestBase : PageTest
     /// set-password invitation), so tests that create a user via the admin UI and
     /// then log in as them can no longer use a temp password + first-login
     /// change-password. This helper obtains a set-password link via the dev-only
-    /// <c>LatestPasswordResetLink</c> seam (mirrors how the invite link is
-    /// composed), sets <paramref name="password"/>, and signs the user in. The
-    /// result is equivalent to the old flow: the browser ends up authenticated as
-    /// the user, with no forced change-password.
+    /// <c>LatestPasswordResetLink</c> seam — a SEPARATE token issuer (60-min reset
+    /// lifetime, no supersede), NOT the admin-create-issued invite token. It is used
+    /// by lifecycle/scope tests that only need an onboarded, signed-in user; the real
+    /// create-issued invitation path (72h, supersede-on-resend) is covered end-to-end
+    /// by <c>UserInvitationTests</c>, which follows the link rendered on the
+    /// create/resend confirmation. The result here is equivalent for the caller's
+    /// purpose: authenticated as the user, with no forced change-password.
     /// </summary>
     protected async Task OnboardAndLoginAsync(string email, string password)
     {

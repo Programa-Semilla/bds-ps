@@ -72,6 +72,54 @@ public class UserInvitationTests : AuthenticatedTestBase
         await AssertSignedInAsync();
     }
 
+    [TestCase("Admin")]
+    [TestCase("SupplierAdmin")]
+    public async Task CreateStaffRole_SendsInvitation_UserSetsPasswordAndSignsIn(string role)
+    {
+        // FR-003 — the same invitation onboarding applies to every admin-created
+        // role. Applicant + Reviewer are covered by the dedicated tests above;
+        // this covers Administrador + Administrador de proveedores.
+        await SignInAsAdminAsync();
+
+        var unique = Guid.NewGuid().ToString("N")[..6];
+        var email = $"invite_{role.ToLowerInvariant()}_{unique}@example.com";
+
+        var createPage = new AdminUserCreatePage(Page);
+        await createPage.GoToAsync(BaseUrl);
+        await Expect(Page.Locator("input[name=\"InitialPassword\"]")).ToHaveCountAsync(0);
+        await createPage.FillAsync(
+            firstName: "Invited",
+            lastName: role,
+            email: email,
+            phone: null,
+            role: role,
+            initialPassword: "ignored",
+            legalId: null);
+        await createPage.SubmitAsync();
+
+        var sentPage = new InvitationSentPage(Page);
+        await Expect(sentPage.Root).ToBeVisibleAsync();
+        var inviteLink = await sentPage.GetInviteLinkAsync();
+
+        await SetPasswordViaInviteAsync(inviteLink, NewUserPassword);
+        await LoginAsync(Page, email, NewUserPassword);
+        await AssertSignedInAsync();
+    }
+
+    [Test]
+    public async Task InvalidLink_ShowsEsCrRejection_AndSetsNoPassword()
+    {
+        // FR-010 — a tampered/invalid invitation link shows the es-CR rejection
+        // and changes no password. Anonymous; no admin needed.
+        await Page.GotoAsync($"{BaseUrl}/Account/ResetPassword?userId=bogus-user-id&token=bogus-token");
+
+        var reset = new ResetPasswordPage(Page);
+        await Expect(reset.InvalidLinkMessage).ToBeVisibleAsync();
+        await Expect(reset.InvalidLinkMessage).ToContainTextAsync("Enlace inválido o expirado");
+        // The set-password form must not be presented for an invalid link.
+        await Expect(reset.FormRoot).ToHaveCountAsync(0);
+    }
+
     [Test]
     public async Task CreateReviewer_SendsInvitation_UserSetsPasswordAndSignsIn()
     {

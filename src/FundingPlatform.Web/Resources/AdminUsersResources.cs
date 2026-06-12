@@ -38,10 +38,8 @@ public static class AdminUsersResources
     // Spec 032 — widened user-list search placeholder.
     public const string SearchPlaceholder = "Nombre, correo, identificación o código de usuario";
 
-    // Spec 033 — emailed set-password invitation onboarding.
-    // The authoritative email subject lives in InvitationEmailFactory (Infrastructure
-    // cannot reference Web.Resources); this mirror is kept for reference parity.
-    public const string InvitationEmailSubject = "Le han creado una cuenta — establezca su contraseña";
+    // Spec 033 — emailed set-password invitation onboarding. The email subject is
+    // owned by InvitationEmailFactory (Infrastructure cannot reference Web.Resources).
     public const string InvitationSentTitle = "Invitación enviada";
     public const string InvitationSentToFormat = "Invitación enviada a {0}";
     public const string InvitationSentHelp =
