@@ -157,7 +157,7 @@ Per-spec architectural seams (interfaces, aggregates, tables) are summarized in 
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-Active plan: none in flight — **031-searchable-dropdowns** implemented (see Recent Changes above). Branch also carries pre-existing admin cascade-filter + group-drilldown WIP.
+Active plan: **032-admin-user-code** — planned (`specs/032-admin-user-code/plan.md`). Remove public self-registration (`/Account/Register` → 404); add a nullable, ≤50-char, **unique** `Applicant.UserCode` (required for Solicitante at the controller, filtered unique index `UX_Applicants_UserCode` + service pre-check, read-only on profile); widen search on 5 surfaces (admin users list, reviewer queue + QueueRows, Applications/Applicants/Aging reports + applicants CSV) to also match LegalId + UserCode (+ email on the queue). Schema: one nullable column + filtered index on `dbo.Applicants` (migration-safe, no backfill). No new deps. Next: `/speckit-tasks`.
 
-Last shipped: **031-searchable-dropdowns** (see Recent Changes above) — implemented on branch `031-searchable-dropdowns`; filtered E2E green (SearchableDropdowns 7/7, SupplierLocationCascade 4/4, edited-view sweep 16/16). Awaiting PR/merge. Prior: **030-edit-process-name** (full E2E 302/0/5, awaiting PR/merge).
+Last shipped: **031-searchable-dropdowns** — implemented on branch `031-searchable-dropdowns`; filtered E2E green (SearchableDropdowns 7/7, SupplierLocationCascade 4/4, edited-view sweep 16/16). Awaiting PR/merge. Prior: **030-edit-process-name** (full E2E 302/0/5, awaiting PR/merge).
 <!-- SPECKIT END -->
