@@ -120,6 +120,7 @@ public class AdminUsersController : Controller
             Status = i.Status,
             CreatedAt = i.CreatedAt,
             IsSelf = string.Equals(i.Id, actorId, StringComparison.Ordinal),
+            UserCode = i.UserCode,
         }).ToList();
 
         // Spec 021 / FR-034 — apply the Process → Group cascade filter on top of
@@ -183,6 +184,11 @@ public class AdminUsersController : Controller
         {
             ModelState.AddModelError(nameof(vm.IdentificationType), "Seleccione el tipo de identificación.");
         }
+        // Spec 032 — User Code required for Solicitante (not asked for other roles).
+        if (string.Equals(vm.Role, "Applicant", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(vm.UserCode))
+        {
+            ModelState.AddModelError(nameof(vm.UserCode), AdminUsersResources.UserCodeRequired);
+        }
         // Spec 016 / FR-007 — required-group check at the controller boundary.
         // Admin role bypasses this (FR-009).
         // Spec 021 / FR-007 — SupplierAdmin is global-scope (no Process/Group),
@@ -209,17 +215,29 @@ public class AdminUsersController : Controller
                     vm.FirstName, vm.LastName, vm.Email, vm.Phone, vm.Role,
                     vm.InitialPassword, vm.LegalId,
                     GroupIds: vm.GroupIds ?? Array.Empty<int>(),
-                    IdentificationType: vm.IdentificationType),
+                    IdentificationType: vm.IdentificationType,
+                    UserCode: vm.UserCode),
                 actorId, ct);
             if (!result.Succeeded)
             {
-                AddDomainErrors(result.Errors);
+                // Spec 032 — surface USER_CODE_IN_USE in es-CR on the UserCode field.
+                AddDomainErrors(result.Errors, mapping: (code, _) =>
+                    code == "USER_CODE_IN_USE" ? AdminUsersResources.UserCodeInUse : null);
                 vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
             vm.FundCatalog = await LoadFundCatalogAsync(ct);
                 return View(vm);
             }
             TempData["SuccessMessage"] = $"Usuario '{vm.Email}' creado.";
             return RedirectToAction(nameof(Index));
+        }
+        catch (DbUpdateException ex) when (ex.GetBaseException().Message.Contains("UX_Applicants_UserCode"))
+        {
+            // Spec 032 — concurrency backstop: a racing duplicate slips past the
+            // service pre-check and trips the filtered unique index.
+            ModelState.AddModelError(nameof(vm.UserCode), AdminUsersResources.UserCodeInUse);
+            vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
+            return View(vm);
         }
         catch (SentinelUserModificationException)
         {
@@ -259,6 +277,7 @@ public class AdminUsersController : Controller
             Role = detail.Role,
             LegalId = detail.LegalId,
             IdentificationType = detail.IdentificationType,
+            UserCode = detail.UserCode,
             GroupIds = detail.GroupIds.ToArray(),
             ConcurrencyStamp = detail.ConcurrencyStamp,
             AvailableGroups = await LoadGroupOptionsAsync(ct),
@@ -284,6 +303,11 @@ public class AdminUsersController : Controller
         {
             ModelState.AddModelError(nameof(vm.IdentificationType), "Seleccione el tipo de identificación.");
         }
+        // Spec 032 — User Code required for Solicitante (not asked for other roles).
+        if (string.Equals(vm.Role, "Applicant", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(vm.UserCode))
+        {
+            ModelState.AddModelError(nameof(vm.UserCode), AdminUsersResources.UserCodeRequired);
+        }
         // Spec 016 / FR-008 — required-group check at the controller boundary.
         // Spec 021 / FR-007 — SupplierAdmin bypasses too (same rationale as Create).
         if (!IsGrouplessRole(vm.Role)
@@ -306,7 +330,8 @@ public class AdminUsersController : Controller
                     vm.UserId, vm.FirstName, vm.LastName, vm.Email, vm.Phone, vm.Role, vm.LegalId,
                     GroupIds: vm.GroupIds ?? Array.Empty<int>(),
                     ConcurrencyStamp: vm.ConcurrencyStamp,
-                    IdentificationType: vm.IdentificationType),
+                    IdentificationType: vm.IdentificationType,
+                    UserCode: vm.UserCode),
                 actorId, ct);
             if (!result.Succeeded)
             {
@@ -315,6 +340,7 @@ public class AdminUsersController : Controller
                     "CONCURRENCY_CONFLICT" => AdminUsersResources.ConcurrencyConflict,
                     "GROUP_NOT_FOUND" => AdminUsersResources.GroupNotFound,
                     "AT_LEAST_ONE_GROUP" => AdminUsersResources.AtLeastOneGroupRequired,
+                    "USER_CODE_IN_USE" => AdminUsersResources.UserCodeInUse,
                     _ => null,
                 });
                 vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
@@ -332,6 +358,14 @@ public class AdminUsersController : Controller
             }
             TempData["SuccessMessage"] = $"Usuario '{vm.Email}' actualizado.";
             return RedirectToAction(nameof(Index));
+        }
+        catch (DbUpdateException ex) when (ex.GetBaseException().Message.Contains("UX_Applicants_UserCode"))
+        {
+            // Spec 032 — concurrency backstop on the filtered unique index.
+            ModelState.AddModelError(nameof(vm.UserCode), AdminUsersResources.UserCodeInUse);
+            vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
+            vm.FundCatalog = await LoadFundCatalogAsync(ct);
+            return View(vm);
         }
         catch (SentinelUserModificationException)
         {

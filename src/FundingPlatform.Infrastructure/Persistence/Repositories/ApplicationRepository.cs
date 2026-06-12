@@ -200,11 +200,15 @@ public class ApplicationRepository : IApplicationRepository
         {
             var term = searchTerm.Trim();
             var likeTerm = $"%{term}%";
+            // Spec 032 — also match the applicant's User Code and email (FR-013),
+            // in addition to the existing name + identification matching.
             query = query.Where(a =>
                 a.Applicant != null
                 && (EF.Functions.Like(a.Applicant.FirstName, likeTerm)
                  || EF.Functions.Like(a.Applicant.LastName, likeTerm)
-                 || EF.Functions.Like(a.Applicant.LegalId, likeTerm)));
+                 || EF.Functions.Like(a.Applicant.LegalId, likeTerm)
+                 || EF.Functions.Like(a.Applicant.UserCode, likeTerm)
+                 || EF.Functions.Like(a.Applicant.Email, likeTerm)));
         }
 
         query = query.OrderBy(a => a.SubmittedAt);

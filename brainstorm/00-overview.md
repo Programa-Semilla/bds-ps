@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-11
+Last updated: 2026-06-11 (session #29)
 
 ## Sessions
 
@@ -34,8 +34,15 @@ Last updated: 2026-06-11
 | 26 | 2026-06-09 | fund-entity | spec-created | 029 |
 | 27 | 2026-06-10 | edit-process-name | spec-created | 030 |
 | 28 | 2026-06-11 | searchable-dropdowns | spec-created | 031 |
+| 29 | 2026-06-11 | admin-user-code | spec-created | 032 |
 
 ## Open Threads
+
+- Long-term reconciliation of the two free-text codes `UserCode` (new, spec 032) vs `CodigoPersonal` (spec 021) — keep both or merge later (from #29; relates to #25)
+- `UserCode` storage placement (Applicant vs account) — pin in plan; admin users list joins Applicant either way (from #29)
+- Filtered unique index over nullable `UserCode` + es-CR duplicate-message path is E2E-only (in-memory won't enforce; mirrors spec 030 `UX_Processes_Name`) — pin in plan (from #29)
+- Reviewer queue: visible User Code column vs match-only (FR-016 discretionary) — decide in plan (from #29)
+- Re-grep for any additional people-search surface beyond the fixed three groups ("any other screen" guard) (from #29)
 
 - Exact opt-in mechanism for searchable dropdowns (`data-searchable` attribute vs. auto-detecting data-driven selects) — deferred to plan.md (from #28)
 - Whether affected Playwright page objects target the retained native `<select>` or the combobox input after enhancement — deferred to plan.md (from #28)

@@ -8,7 +8,8 @@ namespace FundingPlatform.Web.Resources;
 public static class ReviewerQueueResources
 {
     public const string SearchLabel = "Buscar solicitante";
-    public const string SearchPlaceholder = "Nombre o cédula";
+    // Spec 032 — widened to also match identification and the admin-assigned User Code.
+    public const string SearchPlaceholder = "Nombre, cédula o código de usuario";
     public const string SearchSubmit = "Buscar";
     public const string SearchClear = "Limpiar";
 }

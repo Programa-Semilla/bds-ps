@@ -49,10 +49,15 @@ public class UserAdministrationService : IUserAdministrationService
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var term = request.Search.Trim();
+            // Spec 032 — the single search box also matches the applicant's identification
+            // (LegalId) and User Code via a correlated sub-query into Applicants (FR-012).
             query = query.Where(u =>
                 (u.Email != null && u.Email.Contains(term)) ||
                 (u.FirstName != null && u.FirstName.Contains(term)) ||
-                (u.LastName != null && u.LastName.Contains(term)));
+                (u.LastName != null && u.LastName.Contains(term)) ||
+                _dbContext.Applicants.Any(a => a.UserId == u.Id &&
+                    (a.LegalId.Contains(term) ||
+                     (a.UserCode != null && a.UserCode.Contains(term)))));
         }
 
         if (string.Equals(request.StatusFilter, "Active", StringComparison.OrdinalIgnoreCase))
@@ -99,6 +104,12 @@ public class UserAdministrationService : IUserAdministrationService
             .GroupBy(x => x.UserId)
             .ToDictionary(g => g.Key, g => SelectPrimaryRole(g.Select(x => x.RoleName)));
 
+        // Spec 032 — surface the applicant User Code as a list column (FR-016).
+        var userCodes = await _dbContext.Applicants
+            .Where(a => userIdList.Contains(a.UserId) && a.UserCode != null)
+            .Select(a => new { a.UserId, a.UserCode })
+            .ToDictionaryAsync(a => a.UserId, a => a.UserCode, ct);
+
         var nowUtc2 = DateTimeOffset.UtcNow;
         var items = users.Select(u => new UserSummaryDto(
             Id: u.Id,
@@ -106,7 +117,8 @@ public class UserAdministrationService : IUserAdministrationService
             Email: u.Email ?? "",
             Role: rolesByUser.GetValueOrDefault(u.Id, ""),
             Status: IsDisabled(u, nowUtc2) ? "Disabled" : "Active",
-            CreatedAt: DateTimeOffset.MinValue)).ToList();
+            CreatedAt: DateTimeOffset.MinValue,
+            UserCode: userCodes.GetValueOrDefault(u.Id))).ToList();
 
         return new ListUsersResult(items, total, page, pageSize);
     }
@@ -205,6 +217,9 @@ public class UserAdministrationService : IUserAdministrationService
 
         if (string.Equals(request.Role, ApplicantRole, StringComparison.Ordinal))
         {
+            // Spec 032 — normalize the admin-assigned User Code (whitespace → null) so
+            // the uniqueness comparison matches what the entity stores.
+            var normalizedUserCode = string.IsNullOrWhiteSpace(request.UserCode) ? null : request.UserCode.Trim();
             var existingApplicant = await _dbContext.Applicants
                 .FirstOrDefaultAsync(a => a.UserId == user.Id, ct);
             if (existingApplicant is null)
@@ -216,6 +231,15 @@ public class UserAdministrationService : IUserAdministrationService
                         new DomainError("LEGAL_ID_IN_USE", nameof(CreateUserRequest.LegalId),
                             "Legal ID already in use by another applicant."));
                 }
+                // Spec 032 — User Code unique among assigned values (FR-009).
+                if (normalizedUserCode is not null
+                    && await _dbContext.Applicants.AnyAsync(a => a.UserCode == normalizedUserCode, ct))
+                {
+                    await _userManager.DeleteAsync(user);
+                    return Result<UserDetailDto>.Failure(
+                        new DomainError("USER_CODE_IN_USE", nameof(CreateUserRequest.UserCode),
+                            "User code already in use by another applicant."));
+                }
                 _dbContext.Applicants.Add(new Applicant(
                     userId: user.Id,
                     legalId: request.LegalId!,
@@ -224,11 +248,12 @@ public class UserAdministrationService : IUserAdministrationService
                     email: request.Email,
                     phone: request.Phone,
                     performanceScore: null,
-                    identificationType: request.IdentificationType));
+                    identificationType: request.IdentificationType,
+                    userCode: normalizedUserCode));
             }
             else
             {
-                existingApplicant.UpdateProfile(request.LegalId!, request.FirstName, request.LastName, request.Email, request.Phone, request.IdentificationType);
+                existingApplicant.UpdateProfile(request.LegalId!, request.FirstName, request.LastName, request.Email, request.Phone, request.IdentificationType, normalizedUserCode);
             }
             await _dbContext.SaveChangesAsync(ct);
         }
@@ -397,6 +422,8 @@ public class UserAdministrationService : IUserAdministrationService
 
         if (string.Equals(request.Role, ApplicantRole, StringComparison.Ordinal))
         {
+            // Spec 032 — normalize the User Code (whitespace → null) for the uniqueness compare.
+            var normalizedUserCode = string.IsNullOrWhiteSpace(request.UserCode) ? null : request.UserCode.Trim();
             var applicant = await _dbContext.Applicants.FirstOrDefaultAsync(a => a.UserId == target.Id, ct);
             if (applicant is null)
             {
@@ -406,6 +433,14 @@ public class UserAdministrationService : IUserAdministrationService
                         new DomainError("LEGAL_ID_IN_USE", nameof(UpdateUserRequest.LegalId),
                             "Legal ID already in use by another applicant."));
                 }
+                // Spec 032 — User Code unique among assigned values (FR-009).
+                if (normalizedUserCode is not null
+                    && await _dbContext.Applicants.AnyAsync(a => a.UserCode == normalizedUserCode, ct))
+                {
+                    return Result<UserDetailDto>.Failure(
+                        new DomainError("USER_CODE_IN_USE", nameof(UpdateUserRequest.UserCode),
+                            "User code already in use by another applicant."));
+                }
                 _dbContext.Applicants.Add(new Applicant(
                     userId: target.Id,
                     legalId: request.LegalId!,
@@ -414,7 +449,8 @@ public class UserAdministrationService : IUserAdministrationService
                     email: request.Email,
                     phone: request.Phone,
                     performanceScore: null,
-                    identificationType: request.IdentificationType));
+                    identificationType: request.IdentificationType,
+                    userCode: normalizedUserCode));
             }
             else
             {
@@ -430,7 +466,16 @@ public class UserAdministrationService : IUserAdministrationService
                         new DomainError("LEGAL_ID_IN_USE", nameof(UpdateUserRequest.LegalId),
                             "Legal ID already in use by another applicant."));
                 }
-                applicant.UpdateProfile(request.LegalId!, request.FirstName, request.LastName, request.Email, request.Phone, request.IdentificationType);
+                // Spec 032 — block only when the code actually changes to one another applicant owns.
+                if (normalizedUserCode is not null
+                    && !string.Equals(applicant.UserCode, normalizedUserCode, StringComparison.Ordinal)
+                    && await _dbContext.Applicants.AnyAsync(a => a.UserCode == normalizedUserCode && a.UserId != target.Id, ct))
+                {
+                    return Result<UserDetailDto>.Failure(
+                        new DomainError("USER_CODE_IN_USE", nameof(UpdateUserRequest.UserCode),
+                            "User code already in use by another applicant."));
+                }
+                applicant.UpdateProfile(request.LegalId!, request.FirstName, request.LastName, request.Email, request.Phone, request.IdentificationType, normalizedUserCode);
             }
             await _dbContext.SaveChangesAsync(ct);
         }
@@ -560,14 +605,16 @@ public class UserAdministrationService : IUserAdministrationService
         var role = SelectPrimaryRole(roles);
         string? legalId = null;
         Domain.Enums.IdentificationType? identificationType = null;
+        string? userCode = null;
         if (string.Equals(role, ApplicantRole, StringComparison.Ordinal))
         {
             var applicantRow = await _dbContext.Applicants
                 .Where(a => a.UserId == user.Id)
-                .Select(a => new { a.LegalId, a.IdentificationType })
+                .Select(a => new { a.LegalId, a.IdentificationType, a.UserCode })
                 .FirstOrDefaultAsync(ct);
             legalId = applicantRow?.LegalId;
             identificationType = applicantRow?.IdentificationType;
+            userCode = applicantRow?.UserCode;
         }
         var status = IsDisabled(user, DateTimeOffset.UtcNow) ? "Disabled" : "Active";
         // Spec 016 — surface current memberships so the edit form pre-selects them.
@@ -588,7 +635,8 @@ public class UserAdministrationService : IUserAdministrationService
             MustChangePassword: user.MustChangePassword,
             GroupIds: groupIds,
             ConcurrencyStamp: user.ConcurrencyStamp,
-            IdentificationType: identificationType);
+            IdentificationType: identificationType,
+            UserCode: userCode);
     }
 
     /// <summary>

@@ -30,14 +30,8 @@ public class RequiredMarkerTests : AuthenticatedTestBase
         if (File.Exists(_quotationFilePath)) File.Delete(_quotationFilePath);
     }
 
-    [Test]
-    public async Task ApplicantRegisterForm_RequiredFields_ShowMarker()
-    {
-        await Page.GotoAsync($"{BaseUrl}/Account/Register");
-        // The email field is required; its section carries the marker.
-        await Expect(Page.Locator($"[data-field=Email] {MarkerSelector}")).ToHaveCountAsync(1);
-        await Expect(Page.Locator($"[data-field=Password] {MarkerSelector}")).ToHaveCountAsync(1);
-    }
+    // Spec 032 — public registration removed; required-marker coverage on a live form
+    // is provided by AdminUserCreateForm_RequiredMarked_OptionalNot below.
 
     [Test]
     public async Task AdminUserCreateForm_RequiredMarked_OptionalNot()

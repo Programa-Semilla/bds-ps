@@ -9,4 +9,7 @@ public class AdminUserSummaryRowViewModel
     public string Status { get; init; } = "";
     public DateTimeOffset CreatedAt { get; init; }
     public bool IsSelf { get; init; }
+
+    /// <summary>Spec 032 — admin-assigned User Code (applicants only; null otherwise).</summary>
+    public string? UserCode { get; init; }
 }

@@ -19,6 +19,10 @@ public class Applicant
     public string Email { get; private set; } = string.Empty;
     public string? Phone { get; private set; }
     public decimal? PerformanceScore { get; private set; }
+
+    /// <summary>Spec 032 — admin-assigned free-text code (es-CR "Código de usuario"). ≤50 chars; unique among assigned values (enforced by the service + DB filtered index). Required for the Solicitante role at the use-case boundary; nullable in storage for legacy applicants.</summary>
+    public string? UserCode { get; private set; }
+
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -34,7 +38,8 @@ public class Applicant
         string email,
         string? phone,
         decimal? performanceScore,
-        IdentificationType? identificationType = null)
+        IdentificationType? identificationType = null,
+        string? userCode = null)
     {
         UserId = userId;
         FirstName = firstName;
@@ -42,6 +47,7 @@ public class Applicant
         Email = email;
         Phone = phone;
         PerformanceScore = performanceScore;
+        UserCode = NormalizeUserCode(userCode);
         // Spec 026 — when a type is supplied, route the legal ID through the VO so
         // the stored value is canonical. Otherwise store as-is (legacy / typeless).
         if (identificationType is { } type && !string.IsNullOrWhiteSpace(legalId))
@@ -78,12 +84,14 @@ public class Applicant
         string lastName,
         string email,
         string? phone,
-        IdentificationType? identificationType = null)
+        IdentificationType? identificationType = null,
+        string? userCode = null)
     {
         FirstName = firstName;
         LastName = lastName;
         Email = email;
         Phone = phone;
+        UserCode = NormalizeUserCode(userCode);
         // Spec 026 — canonicalise via the VO when a type is supplied; otherwise store raw.
         if (identificationType is { } type && !string.IsNullOrWhiteSpace(legalId))
         {
@@ -97,5 +105,25 @@ public class Applicant
             IdentificationType = identificationType;
         }
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 032 — trims the admin-assigned User Code; whitespace-only collapses to
+    /// <c>null</c> (treated as unassigned). Rejects values longer than 50 characters.
+    /// </summary>
+    private static string? NormalizeUserCode(string? userCode)
+    {
+        if (string.IsNullOrWhiteSpace(userCode))
+        {
+            return null;
+        }
+
+        var trimmed = userCode.Trim();
+        if (trimmed.Length > 50)
+        {
+            throw new ArgumentException("User code must be 50 characters or fewer.", nameof(userCode));
+        }
+
+        return trimmed;
     }
 }

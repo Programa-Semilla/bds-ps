@@ -27,4 +27,14 @@ public static class AdminUsersResources
     public const string GroupNotFound = "Uno o más grupos seleccionados ya no existen.";
     public const string ConcurrencyConflict =
         "Otro administrador modificó este usuario al mismo tiempo. Vuelve a intentar con los datos actualizados.";
+
+    // Spec 032 — admin-assigned User Code (Solicitante).
+    public const string UserCodeLabel = "Código de usuario";
+    public const string UserCodeHelpText = "Código asignado por la administración para identificar al solicitante.";
+    public const string UserCodeRequired = "El código de usuario es obligatorio para el rol Solicitante.";
+    public const string UserCodeInUse = "El código de usuario ya está en uso.";
+    public const string UserCodeColumnHeader = "Código de usuario";
+    public const string UserCodeEmptyPlaceholder = "—";
+    // Spec 032 — widened user-list search placeholder.
+    public const string SearchPlaceholder = "Nombre, correo, identificación o código de usuario";
 }

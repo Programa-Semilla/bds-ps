@@ -41,6 +41,13 @@ public class ProfileViewModel
     public IdentificationType? IdentificationType { get; init; }
     public string? LegalId { get; init; }
 
+    // Spec 032 — admin-assigned User Code (applicants only): shown read-only on /Profile.
+    public string? UserCode { get; init; }
+
+    /// <summary>Spec 032 — true when the signed-in user is a Solicitante; gates the
+    /// read-only User Code field (decoupled from the localized role label).</summary>
+    public bool IsApplicant { get; init; }
+
     // Companion form-model for the change-password panel on /Profile.
     public ChangePasswordViewModel ChangePassword { get; set; } = new();
 }

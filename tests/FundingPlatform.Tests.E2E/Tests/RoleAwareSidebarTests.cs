@@ -82,12 +82,7 @@ public class RoleAwareSidebarTests : AuthenticatedTestBase
             "Unauthenticated Login page must not render the sidebar.");
         Assert.That(await loginPage.IsAuthShellVisibleAsync(), Is.True,
             "Unauthenticated Login page must render the auth shell.");
-
-        var registerPage = new RegisterPage(Page);
-        await registerPage.GotoAsync(BaseUrl);
-        Assert.That(await registerPage.Sidebar.CountAsync(), Is.EqualTo(0),
-            "Unauthenticated Register page must not render the sidebar.");
-        Assert.That(await registerPage.IsAuthShellVisibleAsync(), Is.True,
-            "Unauthenticated Register page must render the auth shell.");
+        // Spec 032 — the public Register page is removed (returns 404), so the
+        // auth-shell-without-sidebar assertion is covered by the Login page alone.
     }
 }

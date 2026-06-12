@@ -44,59 +44,9 @@ public class AccountController : Controller
         _forgotPasswordEmailFactory = forgotPasswordEmailFactory;
     }
 
-    [HttpGet]
-    public IActionResult Register()
-    {
-        // Spec 026 — the view dereferences the model (identification partial), so a
-        // non-null instance is required (GET previously returned View() with null).
-        return View(new RegisterViewModel());
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Register(RegisterViewModel model)
-    {
-        if (!ModelState.IsValid)
-        {
-            return View(model);
-        }
-
-        var user = new ApplicationUser
-        {
-            UserName = model.Email,
-            Email = model.Email,
-            FirstName = model.FirstName,
-            LastName = model.LastName,
-        };
-        var result = await _userManager.CreateAsync(user, model.Password);
-
-        if (!result.Succeeded)
-        {
-            foreach (var error in result.Errors)
-            {
-                ModelState.AddModelError(string.Empty, error.Description);
-            }
-            return View(model);
-        }
-
-        await _userManager.AddToRoleAsync(user, "Applicant");
-
-        // Spec 026 — route the legal ID through the Identification VO via the typed ctor.
-        var applicant = new Applicant(
-            userId: user.Id,
-            legalId: model.LegalId,
-            firstName: model.FirstName,
-            lastName: model.LastName,
-            email: model.Email,
-            phone: null,
-            performanceScore: null,
-            identificationType: model.IdentificationType);
-
-        _dbContext.Applicants.Add(applicant);
-        await _dbContext.SaveChangesAsync();
-
-        return RedirectToAction(nameof(Login));
-    }
+    // Spec 032 — public self-registration removed. Accounts are created only by an
+    // administrator via /Admin/Users/Create (which creates the ApplicationUser + Applicant).
+    // The former Register GET/POST actions are gone, so /Account/Register returns 404.
 
     [HttpGet]
     public IActionResult Login()
@@ -471,7 +421,7 @@ public class AccountController : Controller
         var applicant = await _dbContext.Applicants
             .AsNoTracking()
             .Where(a => a.UserId == user.Id)
-            .Select(a => new { a.LegalId, a.IdentificationType })
+            .Select(a => new { a.LegalId, a.IdentificationType, a.UserCode })
             .FirstOrDefaultAsync();
 
         return new ProfileViewModel
@@ -486,6 +436,8 @@ public class AccountController : Controller
             CodigoPersonal = user.CodigoPersonal,
             LegalId = applicant?.LegalId,
             IdentificationType = applicant?.IdentificationType,
+            UserCode = applicant?.UserCode,
+            IsApplicant = string.Equals(roleLabel, "Applicant", StringComparison.Ordinal),
         };
     }
 
@@ -580,6 +532,61 @@ public class AccountController : Controller
         }
 
         return Ok($"Role '{role}' assigned to '{email}'.");
+    }
+
+    /// <summary>
+    /// Spec 032 — dev-only E2E provisioning seam. Public self-registration was
+    /// removed (FR-001/FR-002), but the E2E suite bootstraps its test users
+    /// through what used to be the Register form. This endpoint reproduces the
+    /// former Register POST exactly (create the ApplicationUser, add the
+    /// Applicant role, create the companion Applicant with a Cédula física),
+    /// gated to Development like the other dev seams. It is NOT a public
+    /// registration path: it is unreachable outside Development (404) and has no
+    /// UI. Product user creation remains admin-only via /Admin/Users/Create.
+    /// </summary>
+    [HttpGet]
+    [Route("Account/SeedUser")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SeedUser(string email, string password, string firstName, string lastName, string legalId)
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+
+        var existing = await _userManager.FindByEmailAsync(email);
+        if (existing is not null)
+        {
+            return Ok($"User '{email}' already exists.");
+        }
+
+        var user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            FirstName = firstName,
+            LastName = lastName,
+        };
+        var result = await _userManager.CreateAsync(user, password);
+        if (!result.Succeeded)
+        {
+            return BadRequest(string.Join("; ", result.Errors.Select(e => e.Description)));
+        }
+
+        await _userManager.AddToRoleAsync(user, "Applicant");
+
+        _dbContext.Applicants.Add(new Applicant(
+            userId: user.Id,
+            legalId: legalId,
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            phone: null,
+            performanceScore: null,
+            identificationType: Domain.Enums.IdentificationType.CedulaFisica));
+        await _dbContext.SaveChangesAsync();
+
+        return Ok($"User '{email}' seeded.");
     }
 
     /// <summary>
