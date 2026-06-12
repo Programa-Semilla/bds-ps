@@ -40,9 +40,7 @@
     <a asp-action="ForgotPassword" asp-controller="Account" class="fl-text-brand"
        data-testid="forgot-password-link">¿Olvidó su contraseña?</a>
 </div>
-<div class="text-center fl-text-secondary mt-2">
-    ¿Aún no tienes cuenta? <a asp-action="Register" asp-controller="Account" class="fl-text-brand">Crea una aquí</a>
-</div>
+@* Spec 032 — public self-registration removed; the "Crea una aquí" link is gone. *@
 
 @section Scripts {
     <script type="module" src="~/js/password-eye-toggle.js" asp-append-version="true" defer></script>

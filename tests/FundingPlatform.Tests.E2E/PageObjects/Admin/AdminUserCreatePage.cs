@@ -19,11 +19,26 @@ public class AdminUserCreatePage : AdminBasePage
     public ILocator IdentificationTypeSelect => Page.Locator("select[name=\"IdentificationType\"]");
     public ILocator LegalId => Page.Locator("input[name=\"LegalId\"]");
     public ILocator LegalIdField => Page.Locator("[data-testid=\"legalid-field\"]");
+    // Spec 032 — admin-assigned User Code (Solicitante only).
+    public ILocator UserCode => Page.Locator("input[name=\"UserCode\"]");
+    public ILocator UserCodeField => Page.Locator("[data-testid=\"admin-user-usercode\"]");
     public ILocator SubmitButton => Page.Locator("[data-testid=\"admin-user-create-submit\"]");
     public ILocator ValidationSummary => Page.Locator(".validation-summary-errors, .field-validation-error");
 
     public Task GoToAsync(string baseUrl) =>
         Page.GotoAsync($"{baseUrl}/Admin/Users/Create");
+
+    /// <summary>
+    /// Spec 032 — fills the User Code input when it is rendered (Solicitante role).
+    /// No-op for roles whose User Code field is JS-hidden / absent.
+    /// </summary>
+    public async Task FillUserCodeIfPresentAsync(string userCode)
+    {
+        if (await UserCode.CountAsync() > 0 && await UserCode.IsVisibleAsync())
+        {
+            await UserCode.FillAsync(userCode);
+        }
+    }
 
     public async Task FillAsync(
         string firstName,
@@ -33,7 +48,8 @@ public class AdminUserCreatePage : AdminBasePage
         string role,
         string initialPassword,
         string? legalId,
-        string identificationType = "CedulaFisica")
+        string identificationType = "CedulaFisica",
+        string? userCode = null)
     {
         await FirstName.FillAsync(firstName);
         await LastName.FillAsync(lastName);
@@ -49,6 +65,14 @@ public class AdminUserCreatePage : AdminBasePage
             // Spec 026 — select the type then fill the masked value.
             await IdentificationTypeSelect.SelectOptionAsync(identificationType);
             await LegalId.FillAsync(legalId);
+        }
+
+        // Spec 032 / FR-008-analogue — User Code is required for Solicitante. Like the
+        // group auto-select below, default a unique code so legacy admin-create-applicant
+        // callers stay green; tests asserting code behavior pass an explicit value.
+        if (string.Equals(role, "Applicant", System.StringComparison.Ordinal))
+        {
+            await FillUserCodeIfPresentAsync(userCode ?? $"UC-{Guid.NewGuid():N}"[..12]);
         }
 
         // Spec 016 / FR-008 — every Applicant or Reviewer MUST have at least

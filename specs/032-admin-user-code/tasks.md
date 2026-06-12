@@ -17,8 +17,8 @@
 
 **Purpose**: Baseline inventory before changes.
 
-- [ ] T001 [P] Inventory every `Register` reference for the SC-001 sweep: grep `asp-action="Register"`, `Url.Action("Register"`, `/Account/Register`, `nameof(Register)` across `src/FundingPlatform.Web/` and record the full hit list (drives T042).
-- [ ] T002 [P] Confirm the ephemeral E2E seed applicant `applicant@programa-semilla.test` has `UserCode = NULL` today, and note that US2/US3 E2E must seed/assign (and clean up) a known code for deterministic uniqueness + search assertions (plan.md "Notes for /speckit-tasks").
+- [X] T001 [P] Inventory every `Register` reference for the SC-001 sweep: grep `asp-action="Register"`, `Url.Action("Register"`, `/Account/Register`, `nameof(Register)` across `src/FundingPlatform.Web/` and record the full hit list (drives T042).
+- [X] T002 [P] Confirm the ephemeral E2E seed applicant `applicant@programa-semilla.test` has `UserCode = NULL` today, and note that US2/US3 E2E must seed/assign (and clean up) a known code for deterministic uniqueness + search assertions (plan.md "Notes for /speckit-tasks").
 
 ---
 
@@ -27,14 +27,14 @@
 **Purpose**: Create the `Applicant.UserCode` column, entity, mapping, and DTO surface that US2 and US3 reference.
 **⚠️ US1 does NOT depend on this phase** — registration removal can proceed in parallel or first.
 
-- [ ] T003 Add column `[UserCode] NVARCHAR(50) NULL` to `src/FundingPlatform.Database/Tables/dbo.Applicants.sql` (nullable → migration-safe, no backfill).
-- [ ] T004 Add filtered unique index in the same file (GO-separated, mirroring `UX_Appeals_OneOpenPerApplication`): `CREATE UNIQUE NONCLUSTERED INDEX [UX_Applicants_UserCode] ON [dbo].[Applicants]([UserCode]) WHERE [UserCode] IS NOT NULL;`
-- [ ] T005 Add `UserCode` (`string?`, private setter) to `src/FundingPlatform.Domain/Entities/Applicant.cs`: optional trailing ctor param `string? userCode = null`, add param to `UpdateProfile(...)`, and a guard (trim → null when whitespace; throw `ArgumentException` when non-null length > 50).
-- [ ] T006 Mirror in `src/FundingPlatform.Infrastructure/Persistence/Configurations/ApplicantConfiguration.cs`: `builder.Property(a => a.UserCode).HasMaxLength(50);` + `builder.HasIndex(a => a.UserCode).IsUnique().HasDatabaseName("UX_Applicants_UserCode").HasFilter("[UserCode] IS NOT NULL");`
-- [ ] T007 [P] Add `string? UserCode` to `src/FundingPlatform.Application/Admin/Users/DTOs/CreateUserRequest.cs`.
-- [ ] T008 [P] Add `string? UserCode` to `src/FundingPlatform.Application/Admin/Users/DTOs/UpdateUserRequest.cs`.
-- [ ] T009 [P] Add `string? UserCode` to `src/FundingPlatform.Application/Admin/Users/DTOs/UserDetailDto.cs`.
-- [ ] T010 [P] Unit test the entity guard in `tests/FundingPlatform.Tests.Unit/` (whitespace→null; >50 throws; valid value set via ctor and via `UpdateProfile`).
+- [X] T003 Add column `[UserCode] NVARCHAR(50) NULL` to `src/FundingPlatform.Database/Tables/dbo.Applicants.sql` (nullable → migration-safe, no backfill).
+- [X] T004 Add filtered unique index in the same file (GO-separated, mirroring `UX_Appeals_OneOpenPerApplication`): `CREATE UNIQUE NONCLUSTERED INDEX [UX_Applicants_UserCode] ON [dbo].[Applicants]([UserCode]) WHERE [UserCode] IS NOT NULL;`
+- [X] T005 Add `UserCode` (`string?`, private setter) to `src/FundingPlatform.Domain/Entities/Applicant.cs`: optional trailing ctor param `string? userCode = null`, add param to `UpdateProfile(...)`, and a guard (trim → null when whitespace; throw `ArgumentException` when non-null length > 50).
+- [X] T006 Mirror in `src/FundingPlatform.Infrastructure/Persistence/Configurations/ApplicantConfiguration.cs`: `builder.Property(a => a.UserCode).HasMaxLength(50);` + `builder.HasIndex(a => a.UserCode).IsUnique().HasDatabaseName("UX_Applicants_UserCode").HasFilter("[UserCode] IS NOT NULL");`
+- [X] T007 [P] Add `string? UserCode` to `src/FundingPlatform.Application/Admin/Users/DTOs/CreateUserRequest.cs`.
+- [X] T008 [P] Add `string? UserCode` to `src/FundingPlatform.Application/Admin/Users/DTOs/UpdateUserRequest.cs`.
+- [X] T009 [P] Add `string? UserCode` to `src/FundingPlatform.Application/Admin/Users/DTOs/UserDetailDto.cs`.
+- [X] T010 [P] Unit test the entity guard in `tests/FundingPlatform.Tests.Unit/` (whitespace→null; >50 throws; valid value set via ctor and via `UpdateProfile`).
 
 **Checkpoint**: column + entity + DTOs exist; US2 and US3 can begin.
 
@@ -45,13 +45,13 @@
 **Goal**: `/Account/Register` returns 404; no register affordance anywhere; admin create remains the only path.
 **Independent Test**: GET/POST `/Account/Register` → 404; `/` and `/Account/Login` show no register link; admin create still works. (No dependency on Phase 2.)
 
-- [ ] T011 [US1] Delete the `Register` GET (`:47-53`) and POST (`:55-99`) actions from `src/FundingPlatform.Web/Controllers/AccountController.cs`; leave the constructor and `_dbContext`/`_userManager` intact (used by Login/ForgotPassword/Profile).
-- [ ] T012 [US1] Delete `src/FundingPlatform.Web/Views/Account/Register.cshtml`.
-- [ ] T013 [US1] Delete the now-dead `src/FundingPlatform.Web/ViewModels/RegisterViewModel.cs`.
-- [ ] T014 [US1] In `src/FundingPlatform.Web/Views/Home/Index.cshtml` (`:30-33`), repoint the hero CTA from `asp-action="Register"` to `asp-action="Login" asp-controller="Account"` (keep `data-testid="public-landing-cta-button"`).
-- [ ] T015 [US1] In `src/FundingPlatform.Web/Views/Account/Login.cshtml` (`:43-45`), remove the "¿Aún no tienes cuenta? Crea una aquí" block.
-- [ ] T016 [US1] Build `FundingPlatform.slnx`; remove any dangling `using`/`@model RegisterViewModel` references the deletions exposed; confirm no compile error.
-- [ ] T017 [US1] E2E `RegistrationRemovedTests` in `tests/FundingPlatform.Tests.E2E/`: GET `/Account/Register`→404, POST→404 (no user created), no register link on `/` or `/Account/Login`, hero CTA resolves to the Login URL.
+- [X] T011 [US1] Delete the `Register` GET (`:47-53`) and POST (`:55-99`) actions from `src/FundingPlatform.Web/Controllers/AccountController.cs`; leave the constructor and `_dbContext`/`_userManager` intact (used by Login/ForgotPassword/Profile).
+- [X] T012 [US1] Delete `src/FundingPlatform.Web/Views/Account/Register.cshtml`.
+- [X] T013 [US1] Delete the now-dead `src/FundingPlatform.Web/ViewModels/RegisterViewModel.cs`.
+- [X] T014 [US1] In `src/FundingPlatform.Web/Views/Home/Index.cshtml` (`:30-33`), repoint the hero CTA from `asp-action="Register"` to `asp-action="Login" asp-controller="Account"` (keep `data-testid="public-landing-cta-button"`).
+- [X] T015 [US1] In `src/FundingPlatform.Web/Views/Account/Login.cshtml` (`:43-45`), remove the "¿Aún no tienes cuenta? Crea una aquí" block.
+- [X] T016 [US1] Build `FundingPlatform.slnx`; remove any dangling `using`/`@model RegisterViewModel` references the deletions exposed; confirm no compile error.
+- [X] T017 [US1] E2E `RegistrationRemovedTests` in `tests/FundingPlatform.Tests.E2E/`: GET `/Account/Register`→404, POST→404 (no user created), no register link on `/` or `/Account/Login`, hero CTA resolves to the Login URL.
 
 **Checkpoint**: US1 independently shippable.
 
@@ -130,3 +130,9 @@
 
 - **MVP = US1** (registration closed) — independently deliverable, no schema dependency. Ship/verify first.
 - Then **Phase 2 + US2** (the governed unique code), then **US3** (search reach). Each story checkpoints with its own filtered E2E (Constitution III, SC-006). Commit at each checkpoint (CLAUDE.md speckit-checkpoint discipline).
+
+## Deviations discovered during implementation
+
+- **D-1 (US1, scope+):** The `Register`-reference sweep found a navbar link in `Views/Shared/_Layout.cshtml` ("Crear cuenta") not listed in the plan's two link sites. Removed it too (SC-001 "no register links remain anywhere"). Tracked under T015.
+- **D-2 (US1, test architecture):** The E2E suite bootstraps **all** test users through the public Register form via `AuthenticatedTestBase.RegisterUserAsync` (~103 call sites across ~60 files). Removing public registration would break the whole suite. Resolution: added a **Development-gated, no-UI** dev seam `GET /Account/SeedUser` (mirrors the existing dev seams `AssignRole`/`AssignAllGroups`/`ResetAdminFixture`/`SeedAdminFixture`) that reproduces the former Register POST, and rewired `RegisterUserAsync` to call it. The product surface stays admin-only (FR-004); the seam is unreachable outside Development (404). 3 tests that used the `RegisterPage` page object directly were rewritten (`AuthenticationTests` → seed+login; `RoleAwareSidebarTests` → drop the removed-page assertion; `InputMaskIdentificationTests` → relocate the spec-026 mask tests to `/Admin/Users/Create`, same `_LegalIdField` partial). `PageObjects/RegisterPage.cs` deleted (orphaned).
+- **D-3 (US2, test architecture, pending):** Making User Code required for Solicitante affects every admin-create-applicant test. Mitigated at the page-object layer: `AdminUserCreatePage.FillAsync` now auto-fills a unique User Code for the Applicant role (mirroring its existing FR-008 group auto-select). The Edit-form equivalent + any test that edits a code-less applicant will be handled in US2 (T024/T027).

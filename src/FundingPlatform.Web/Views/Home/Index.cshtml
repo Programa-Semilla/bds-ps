@@ -27,7 +27,8 @@
             Programa Semilla acompaña a empresarios de Costa Rica con asesoría, conexiones y herramientas
             para acelerar su negocio.
         </p>
-        <a asp-controller="Account" asp-action="Register" class="btn btn-primary btn-lg"
+        @* Spec 032 — public self-registration removed; CTA now routes to sign-in. *@
+        <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-lg"
            data-testid="public-landing-cta-button">
             <i class="ti ti-rocket me-2"></i>@HeroButton
         </a>

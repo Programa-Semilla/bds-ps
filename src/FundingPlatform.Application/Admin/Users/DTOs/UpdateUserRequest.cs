@@ -7,6 +7,7 @@ namespace FundingPlatform.Application.Admin.Users.DTOs;
 /// from the existing <c>IdentityUser.ConcurrencyStamp</c> rendered on the edit
 /// form. <c>GroupIds</c> drives the membership diff (FR-008..FR-010).
 /// Spec 026 — adds <c>IdentificationType</c> for the Applicant legal-ID kind.
+/// Spec 032 — adds <c>UserCode</c>, the admin-assigned unique code (required for Solicitante).
 /// </summary>
 public record UpdateUserRequest(
     string UserId,
@@ -18,4 +19,5 @@ public record UpdateUserRequest(
     string? LegalId,
     IReadOnlyList<int> GroupIds,
     string? ConcurrencyStamp,
-    IdentificationType? IdentificationType = null);
+    IdentificationType? IdentificationType = null,
+    string? UserCode = null);

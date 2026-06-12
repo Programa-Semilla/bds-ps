@@ -1,7 +1,5 @@
-using System.Linq;
 using System.Text.RegularExpressions;
 using FundingPlatform.Tests.E2E.Fixtures;
-using FundingPlatform.Tests.E2E.PageObjects;
 using FundingPlatform.Tests.E2E.PageObjects.Admin;
 using FundingPlatform.Tests.E2E.Support;
 using Microsoft.Playwright;
@@ -9,37 +7,54 @@ using Microsoft.Playwright;
 namespace FundingPlatform.Tests.E2E.Tests;
 
 /// <summary>
-/// Spec 026 / US1 — type-aware identification masking on the Register and admin
-/// user forms: client formats as typed, strips letters on numeric types, the saved
-/// type+value round-trip on admin edit, and a malformed value (client mask removed)
-/// is rejected server-side with an es-CR message.
+/// Spec 026 / US1 — type-aware identification masking on the admin user form:
+/// client formats as typed, strips letters on numeric types, the saved type+value
+/// round-trip on admin edit, and a malformed value (client mask removed) is
+/// rejected server-side with an es-CR message.
+///
+/// Spec 032 — public self-registration was removed, so these masks are now
+/// exercised on <c>/Admin/Users/Create</c> (the same <c>_LegalIdField</c> partial),
+/// which is where the type-aware identification entry lives going forward.
 /// </summary>
 public class InputMaskIdentificationTests : AuthenticatedTestBase
 {
+    private async Task<AdminUserCreatePage> LoginAsAdminAndOpenCreateAsync()
+    {
+        var unique = Guid.NewGuid().ToString("N")[..8];
+        var adminEmail = $"mask_admin_{unique}@example.com";
+        await RegisterUserAsync(Page, adminEmail, "Test123!", "Mask", "Admin", $"MADM-{unique}");
+        await AssignRoleAsync(adminEmail, "Admin");
+        await LoginAsync(Page, adminEmail, "Test123!");
+
+        var createPage = new AdminUserCreatePage(Page);
+        await createPage.GoToAsync(BaseUrl);
+        // Default role is Applicant, so the identification type + masked value fields render.
+        await createPage.Role.SelectOptionAsync("Applicant");
+        return createPage;
+    }
+
     [TestCase("CedulaFisica", "123456789", "1-2345-6789")]
     [TestCase("Dimex", "123456789012", "123456789012")]
     [TestCase("Pasaporte", "a1b2c3", "A1B2C3")]
-    public async Task Register_Mask_FormatsValueAsTyped(string type, string input, string expected)
+    public async Task Mask_FormatsValueAsTyped(string type, string input, string expected)
     {
-        var registerPage = new RegisterPage(Page);
-        await registerPage.GotoAsync(BaseUrl);
+        var createPage = await LoginAsAdminAndOpenCreateAsync();
 
-        await registerPage.IdentificationTypeSelect.SelectOptionAsync(type);
-        await registerPage.LegalIdInput.PressSequentiallyAsync(input);
+        await createPage.IdentificationTypeSelect.SelectOptionAsync(type);
+        await createPage.LegalId.PressSequentiallyAsync(input);
 
-        Assert.That(await registerPage.LegalIdInput.InputValueAsync(), Is.EqualTo(expected));
+        Assert.That(await createPage.LegalId.InputValueAsync(), Is.EqualTo(expected));
     }
 
     [Test]
-    public async Task Register_NumericMask_StripsLetters()
+    public async Task NumericMask_StripsLetters()
     {
-        var registerPage = new RegisterPage(Page);
-        await registerPage.GotoAsync(BaseUrl);
+        var createPage = await LoginAsAdminAndOpenCreateAsync();
 
-        await registerPage.IdentificationTypeSelect.SelectOptionAsync("CedulaFisica");
-        await registerPage.LegalIdInput.PressSequentiallyAsync("12ab34");
+        await createPage.IdentificationTypeSelect.SelectOptionAsync("CedulaFisica");
+        await createPage.LegalId.PressSequentiallyAsync("12ab34");
 
-        var value = await registerPage.LegalIdInput.InputValueAsync();
+        var value = await createPage.LegalId.InputValueAsync();
         Assert.That(value, Does.Not.Match("[A-Za-z]"), "Numeric masks must drop letters.");
         Assert.That(value, Is.EqualTo("1-234"));
     }
@@ -67,6 +82,8 @@ public class InputMaskIdentificationTests : AuthenticatedTestBase
             initialPassword: "TempPass1!",
             legalId: dimex,
             identificationType: "Dimex");
+        // Spec 032 — User Code is required for Solicitante; fill a unique value.
+        await createPage.FillUserCodeIfPresentAsync($"UC-{unique}");
         await createPage.SubmitAsync();
 
         var listPage = new AdminUsersListPage(Page);
@@ -83,24 +100,33 @@ public class InputMaskIdentificationTests : AuthenticatedTestBase
     }
 
     [Test]
-    public async Task Register_MalformedIdentification_RejectedServerSide_WithSpanishError()
+    public async Task MalformedIdentification_RejectedServerSide_WithSpanishError()
     {
         var unique = Guid.NewGuid().ToString("N")[..8];
         var email = $"mask_bad_{unique}@example.com";
 
-        await Page.GotoAsync($"{BaseUrl}/Account/Register");
-        await Page.FillAsync("[name=Email]", email);
-        await Page.FillAsync("[name=Password]", "Test123!");
-        await Page.FillAsync("[name=ConfirmPassword]", "Test123!");
-        await Page.FillAsync("[name=FirstName]", "Mask");
-        await Page.FillAsync("[name=LastName]", "Bad");
-        // Type defaults to Cédula física. Strip the client mask so a malformed value
-        // reaches the server unmodified (FR-014 — the client mask is never trusted).
+        var createPage = await LoginAsAdminAndOpenCreateAsync();
+        await createPage.FirstName.FillAsync("Mask");
+        await createPage.LastName.FillAsync("Bad");
+        await createPage.Email.FillAsync(email);
+        await createPage.InitialPassword.FillAsync("TempPass1!");
+        await createPage.IdentificationTypeSelect.SelectOptionAsync("CedulaFisica");
+        // Strip the client mask so a malformed value reaches the server unmodified
+        // (FR-014 — the client mask is never trusted).
         await Page.EvalOnSelectorAsync("[name=LegalId]", "el => el.removeAttribute('data-mask')");
-        await Page.FillAsync("[name=LegalId]", "ABCDEF");
-        await Page.Locator("form[action*='Account/Register'] button[type=submit]").ClickAsync();
+        await createPage.LegalId.FillAsync("ABCDEF");
 
-        await Expect(Page).ToHaveURLAsync(new Regex("/Account/Register"));
+        // Spec 016 — Applicant requires ≥1 group; select all so the only blocking
+        // error is the malformed identification.
+        var formPage = new AdminUserFormPage(Page);
+        if (await formPage.GroupsField.IsVisibleAsync() && await formPage.GroupSelector.CountAsync() > 0)
+        {
+            await formPage.SelectAllGroupsAsync();
+        }
+
+        await createPage.SubmitAsync();
+
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users/Create"));
         await Expect(Page.GetByText("La identificación no tiene el formato de Cédula física."))
             .ToBeVisibleAsync();
     }

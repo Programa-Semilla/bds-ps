@@ -8,26 +8,21 @@ namespace FundingPlatform.Tests.E2E.Tests;
 
 public class AuthenticationTests : AuthenticatedTestBase
 {
+    // Spec 032 — public self-registration is removed (see RegistrationRemovedTests).
+    // An admin-provisioned account (here seeded via the dev-only seam that replaces
+    // the old Register POST) must still log in, log out, and log back in.
     [Test]
-    public async Task Register_And_Login_Successfully()
+    public async Task ProvisionedUser_CanLoginLogoutAndLoginAgain()
     {
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var email = $"test_{uniqueId}@example.com";
         var password = "Test123!";
-        var firstName = "Test";
-        var lastName = "User";
-        var legalId = IdentificationData.CedulaFisica($"LID-{uniqueId}");
 
-        // Register
-        var registerPage = new RegisterPage(Page);
-        await registerPage.GotoAsync(BaseUrl);
-        await registerPage.RegisterAsync(email, password, firstName, lastName, legalId);
-
-        // Should redirect to login page after registration
-        await Expect(Page).ToHaveURLAsync(new Regex("/Account/Login"));
+        await RegisterUserAsync(Page, email, password, "Test", "User", $"LID-{uniqueId}");
 
         // Login
         var loginPage = new LoginPage(Page);
+        await loginPage.GotoAsync(BaseUrl);
         await loginPage.LoginAsync(email, password);
 
         // Should redirect to home page after login

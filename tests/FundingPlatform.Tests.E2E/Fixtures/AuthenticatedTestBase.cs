@@ -161,23 +161,31 @@ public class AuthenticatedTestBase : PageTest
     }
 
     /// <summary>
-    /// Registers an applicant. Spec 026 — the Register form is now type-aware and
-    /// strictly masked, so <paramref name="legalId"/> is treated as a unique SEED:
-    /// it is deterministically converted to a valid canonical cédula física (and
-    /// the Cédula física type is selected) so existing callers that passed
-    /// free-form ids (e.g. "SAPP-1234") keep working with collision-safe values.
+    /// Seeds an applicant for the E2E suite. Spec 032 — public self-registration was
+    /// removed (the Register form is gone / returns 404), so this no longer drives a
+    /// UI form; it calls the dev-only <c>/Account/SeedUser</c> seam (Development-gated,
+    /// no UI), which reproduces the former Register POST. <paramref name="legalId"/> is
+    /// still treated as a unique SEED, deterministically converted to a valid canonical
+    /// cédula física so existing callers that passed free-form ids (e.g. "SAPP-1234")
+    /// keep working with collision-safe values. The <c>page</c> parameter is retained
+    /// for call-site compatibility; user creation no longer navigates it.
     /// </summary>
     protected async Task RegisterUserAsync(IPage page, string email, string password, string firstName, string lastName, string legalId)
     {
-        await page.GotoAsync($"{BaseUrl}/Account/Register");
-        await page.FillAsync("[name=Email]", email);
-        await page.FillAsync("[name=Password]", password);
-        await page.FillAsync("[name=ConfirmPassword]", password);
-        await page.FillAsync("[name=FirstName]", firstName);
-        await page.FillAsync("[name=LastName]", lastName);
-        await page.SelectOptionAsync("[name=IdentificationType]", "CedulaFisica");
-        await page.FillAsync("[name=LegalId]", IdentificationData.CedulaFisica(legalId));
-        await page.Locator("form[action*='Account/Register'] button[type=submit]").ClickAsync();
+        using (var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+        })
+        using (var client = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) })
+        {
+            var qs = $"?email={Uri.EscapeDataString(email)}" +
+                     $"&password={Uri.EscapeDataString(password)}" +
+                     $"&firstName={Uri.EscapeDataString(firstName)}" +
+                     $"&lastName={Uri.EscapeDataString(lastName)}" +
+                     $"&legalId={Uri.EscapeDataString(IdentificationData.CedulaFisica(legalId))}";
+            var response = await client.GetAsync($"/Account/SeedUser{qs}");
+            response.EnsureSuccessStatusCode();
+        }
 
         // Spec 016 — every reviewer-driven E2E surface (queue, signing inbox,
         // application detail) composes a group-overlap predicate. Existing

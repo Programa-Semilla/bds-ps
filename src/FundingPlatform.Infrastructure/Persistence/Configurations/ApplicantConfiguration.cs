@@ -18,6 +18,14 @@ public class ApplicantConfiguration : IEntityTypeConfiguration<Applicant>
         builder.Property(a => a.LegalId).IsRequired().HasMaxLength(50);
         builder.HasIndex(a => a.LegalId).IsUnique().HasDatabaseName("UX_Applicants_LegalId");
 
+        // Spec 032 — nullable admin-assigned code; filtered unique index mirrors the dacpac
+        // (UX_Applicants_UserCode WHERE [UserCode] IS NOT NULL) so code-less applicants coexist.
+        builder.Property(a => a.UserCode).HasMaxLength(50);
+        builder.HasIndex(a => a.UserCode)
+            .IsUnique()
+            .HasDatabaseName("UX_Applicants_UserCode")
+            .HasFilter("[UserCode] IS NOT NULL");
+
         // Spec 026 — nullable byte-enum stored as TINYINT.
         builder.Property(a => a.IdentificationType).HasConversion<byte?>();
 

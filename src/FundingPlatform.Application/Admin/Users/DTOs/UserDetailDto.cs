@@ -6,6 +6,7 @@ namespace FundingPlatform.Application.Admin.Users.DTOs;
 /// Spec 016 — adds <c>GroupIds</c> + <c>ConcurrencyStamp</c> so the admin edit
 /// form can pre-select current memberships and round-trip the optimistic stamp.
 /// Spec 026 — adds <c>IdentificationType</c> so the edit form pre-selects the kind.
+/// Spec 032 — adds <c>UserCode</c> so the edit form pre-fills it and lists/detail can show it.
 /// </summary>
 public record UserDetailDto(
     string Id,
@@ -19,4 +20,5 @@ public record UserDetailDto(
     bool MustChangePassword,
     IReadOnlyList<int> GroupIds,
     string? ConcurrencyStamp,
-    IdentificationType? IdentificationType = null);
+    IdentificationType? IdentificationType = null,
+    string? UserCode = null);
