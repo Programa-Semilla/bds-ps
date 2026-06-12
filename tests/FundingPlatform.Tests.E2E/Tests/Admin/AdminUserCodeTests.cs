@@ -61,7 +61,8 @@ public class AdminUserCodeTests : AuthenticatedTestBase
             phone: null, role: "Applicant", initialPassword: TempUserPassword,
             legalId: IdentificationData.CedulaFisica($"UCD1-{unique}"), userCode: code);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?|$)"));
+        // Spec 033 — a successful create lands on the "Invitación enviada" confirmation.
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         await createPage.GoToAsync(BaseUrl);
         await createPage.FillAsync(
@@ -89,7 +90,7 @@ public class AdminUserCodeTests : AuthenticatedTestBase
             phone: null, role: "Applicant", initialPassword: TempUserPassword,
             legalId: IdentificationData.CedulaFisica($"UCOK-{unique}"), userCode: code);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?|$)"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         var list = new AdminUsersListPage(Page);
         await list.GoToAsync(BaseUrl);
@@ -132,7 +133,7 @@ public class AdminUserCodeTests : AuthenticatedTestBase
             phone: null, role: "Reviewer", initialPassword: TempUserPassword, legalId: null);
         await createPage.SubmitAsync();
 
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?|$)"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
     }
 
     [Test]
@@ -150,14 +151,15 @@ public class AdminUserCodeTests : AuthenticatedTestBase
             phone: null, role: "Applicant", initialPassword: TempUserPassword,
             legalId: IdentificationData.CedulaFisica($"UCP-{unique}"), userCode: code);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?|$)"));
-        await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
 
-        // First login forces the password change, then land authenticated.
-        await LoginAsync(Page, email, TempUserPassword);
-        var changePage = new ChangePasswordPage(Page);
-        await Expect(Page).ToHaveURLAsync(new Regex("/Account/ChangePassword"));
-        await changePage.SubmitAsync(TempUserPassword, "NewPass1!", "NewPass1!");
+        // Spec 033 — onboard the applicant via the emailed set-password invitation,
+        // then sign in (no forced change-password) to view their profile.
+        var sentPage = new InvitationSentPage(Page);
+        await Expect(sentPage.Root).ToBeVisibleAsync();
+        var inviteLink = await sentPage.GetInviteLinkAsync();
+        await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
+        await SetPasswordViaInviteAsync(inviteLink, "NewPass1!");
+        await LoginAsync(Page, email, "NewPass1!");
 
         // The self-service profile lives at /Profile (attribute-routed), not /Account/Profile.
         await Page.GotoAsync($"{BaseUrl}/Profile");

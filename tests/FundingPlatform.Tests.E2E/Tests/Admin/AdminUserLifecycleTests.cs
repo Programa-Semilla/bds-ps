@@ -41,8 +41,11 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
             legalId: null);
         await createPage.SubmitAsync();
 
+        // Spec 033 — create now lands on the "Invitación enviada" confirmation;
+        // navigate to the list to verify the new user appears.
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
         var listPage = new AdminUsersListPage(Page);
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/Admin/Users(\\?.*)?$"));
+        await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(newReviewerEmail);
         await Expect(listPage.RowFor(newReviewerEmail)).ToBeVisibleAsync();
     }
@@ -92,68 +95,49 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
             legalId: legalId);
         await createPage.SubmitAsync();
 
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
         var listPage = new AdminUsersListPage(Page);
+        await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(applicantEmail);
         await Expect(listPage.RowFor(applicantEmail)).ToBeVisibleAsync();
     }
 
     [Test]
-    public async Task NewlyCreatedUser_OnFirstLogin_RedirectsToChangePassword()
+    public async Task NewlyInvitedUser_AfterSettingPassword_SignsInWithoutChangePassword()
     {
+        // Spec 033 — replaces the obsolete temp-password + first-login
+        // change-password tests. An admin-created user has no password; they set
+        // it through the emailed invitation and then sign in normally (no forced
+        // change-password, because invited users have MustChangePassword=false).
         await SignInAsAdminAsync();
 
         var unique = Guid.NewGuid().ToString("N")[..6];
-        var targetEmail = $"firstlogin_{unique}@example.com";
+        var targetEmail = $"invited_{unique}@example.com";
 
         var createPage = new AdminUserCreatePage(Page);
         await createPage.GoToAsync(BaseUrl);
         await createPage.FillAsync(
-            firstName: "First",
-            lastName: "Login",
+            firstName: "Invited",
+            lastName: "User",
             email: targetEmail,
             phone: null,
             role: "Reviewer",
             initialPassword: TempUserPassword,
             legalId: null);
         await createPage.SubmitAsync();
+
+        var sentPage = new InvitationSentPage(Page);
+        await Expect(sentPage.Root).ToBeVisibleAsync();
+        var inviteLink = await sentPage.GetInviteLinkAsync();
+
+        // Admin signs out; the invited user onboards via the link, then signs in.
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
+        await SetPasswordViaInviteAsync(inviteLink, "NewPass1!");
+        await LoginAsync(Page, targetEmail, "NewPass1!");
 
-        await LoginAsync(Page, targetEmail, TempUserPassword);
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/Account/ChangePassword"));
-    }
-
-    [Test]
-    public async Task Admin_ChangePassword_ClearsMustChangeFlag_AndAllowsContinuedNavigation()
-    {
-        await SignInAsAdminAsync();
-
-        var unique = Guid.NewGuid().ToString("N")[..6];
-        var targetEmail = $"changepw_{unique}@example.com";
-
-        var createPage = new AdminUserCreatePage(Page);
-        await createPage.GoToAsync(BaseUrl);
-        await createPage.FillAsync(
-            firstName: "Change",
-            lastName: "Password",
-            email: targetEmail,
-            phone: null,
-            role: "Reviewer",
-            initialPassword: TempUserPassword,
-            legalId: null);
-        await createPage.SubmitAsync();
-        await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
-
-        await LoginAsync(Page, targetEmail, TempUserPassword);
-        var changePage = new ChangePasswordPage(Page);
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/Account/ChangePassword"));
-        await changePage.SubmitAsync(TempUserPassword, "NewPass1!", "NewPass1!");
-
-        // ChangePassword redirects to Home/Index; spec-021 US6 routes a Reviewer
-        // on from there to /Reviewer/Dashboard. The created user holds the
-        // Reviewer role, so the post-change landing is the reviewer dashboard.
-        await Expect(Page).ToHaveURLAsync(
-            new System.Text.RegularExpressions.Regex("/$|/Home|/Application|/Reviewer"));
+        await Expect(Page).Not.ToHaveURLAsync(
+            new System.Text.RegularExpressions.Regex("/Account/(Login|ChangePassword)"));
+        await Expect(Page.Locator("form[action*='Account/Logout'] button[type=submit]")).ToBeVisibleAsync();
     }
 
     [Test]
@@ -197,6 +181,7 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
 
         var unique = Guid.NewGuid().ToString("N")[..6];
         var targetEmail = $"enable_{unique}@example.com";
+        const string userPassword = "NewPass1!";
 
         var createPage = new AdminUserCreatePage(Page);
         await createPage.GoToAsync(BaseUrl);
@@ -209,6 +194,14 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
             initialPassword: TempUserPassword,
             legalId: null);
         await createPage.SubmitAsync();
+
+        // Spec 033 — the user has no password; onboard via the invite link so it
+        // can authenticate (the admin session persists across the anonymous
+        // set-password flow).
+        var sentPage = new InvitationSentPage(Page);
+        await Expect(sentPage.Root).ToBeVisibleAsync();
+        var inviteLink = await sentPage.GetInviteLinkAsync();
+        await SetPasswordViaInviteAsync(inviteLink, userPassword);
 
         var listPage = new AdminUsersListPage(Page);
         await listPage.GoToAsync(BaseUrl);
@@ -225,9 +218,11 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
         await Expect(Page.Locator("[data-testid=\"success-banner\"]")).ToBeVisibleAsync();
 
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
-        await LoginAsync(Page, targetEmail, TempUserPassword);
-        // First login should redirect to change-password (MustChangePassword still set from initial creation).
-        await Expect(Page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/Account/ChangePassword"));
+        await LoginAsync(Page, targetEmail, userPassword);
+        // Re-enabled user signs in with the password they set — no forced
+        // change-password (invited users have MustChangePassword=false).
+        await Expect(Page).Not.ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/Account/(Login|ChangePassword)"));
+        await Expect(Page.Locator("form[action*='Account/Logout'] button[type=submit]")).ToBeVisibleAsync();
     }
 
     [Test]

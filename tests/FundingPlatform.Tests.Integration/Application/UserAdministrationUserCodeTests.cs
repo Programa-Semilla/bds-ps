@@ -77,7 +77,7 @@ public class UserAdministrationUserCodeTests
     }
 
     private static CreateUserRequest Applicant(string email, string legalId, int[] groups, string? userCode) =>
-        new("F", "L", email, null, "Applicant", "Test1!", legalId, GroupIds: groups,
+        new("F", "L", email, null, "Applicant", legalId, GroupIds: groups,
             IdentificationType: null, UserCode: userCode);
 
     [Test]
@@ -253,7 +253,7 @@ public class UserAdministrationUserCodeTests
         // A crafted payload sets a UserCode on a Reviewer; there is no Applicant
         // row, so the code is simply ignored and no uniqueness check applies.
         var result = await sut.CreateUserAsync(
-            new CreateUserRequest("F", "L", "rev@test.com", null, "Reviewer", "Test1!", null,
+            new CreateUserRequest("F", "L", "rev@test.com", null, "Reviewer", null,
                 GroupIds: groups, IdentificationType: null, UserCode: "WHATEVER"),
             ActorAdminId, CancellationToken.None);
 

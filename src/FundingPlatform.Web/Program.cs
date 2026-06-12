@@ -70,13 +70,19 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     .AddErrorDescriber<EsCrIdentityErrorDescriber>()
     .AddDefaultTokenProviders();
 
-// Spec 021 / US5 / T130 / FR-028 — password-reset token TTL = 60 minutes.
-// Identity's DataProtectorTokenProvider stamps token issuance with the
-// configured TokenLifespan; combined with the local PasswordResetTokens
-// single-use marker (R-3 / IPasswordResetTokenStore) this gives the
-// "60-min, single-use" semantic required by the spec.
+// Spec 021 / US5 / T130 / FR-028 — password-reset token semantics, and
+// spec 033 / D2 — the set-password invitation's 72h lifetime.
+// Identity's DataProtectorTokenProvider stamps every reset/invite token with
+// this single global TokenLifespan; the consume path is a DUAL gate (the
+// per-row PasswordResetTokens.ExpiresAt AND this crypto-token lifespan), and
+// the STRICTER of the two binds. We raise the global lifespan to 72h so an
+// invite (row TTL 72h) is honored for its full window; forgot-password keeps
+// its 60-min ROW TTL (IssuePasswordResetTokenCommand default), so the row stays
+// the binding gate there and forgot-password behavior is unchanged. Safe
+// because password-reset is the only DataProtector-token consumer
+// (RequireConfirmedAccount = false; no email-confirmation flow).
 builder.Services.Configure<Microsoft.AspNetCore.Identity.DataProtectionTokenProviderOptions>(o =>
-    o.TokenLifespan = TimeSpan.FromMinutes(60));
+    o.TokenLifespan = TimeSpan.FromHours(72));
 
 // Spec 012: pin the request culture to es-CR with format overrides (research Decision 1).
 // Single-locale; no negotiation; built-in providers cleared so Accept-Language cannot

@@ -37,4 +37,20 @@ public static class AdminUsersResources
     public const string UserCodeEmptyPlaceholder = "—";
     // Spec 032 — widened user-list search placeholder.
     public const string SearchPlaceholder = "Nombre, correo, identificación o código de usuario";
+
+    // Spec 033 — emailed set-password invitation onboarding.
+    // The authoritative email subject lives in InvitationEmailFactory (Infrastructure
+    // cannot reference Web.Resources); this mirror is kept for reference parity.
+    public const string InvitationEmailSubject = "Le han creado una cuenta — establezca su contraseña";
+    public const string InvitationSentTitle = "Invitación enviada";
+    public const string InvitationSentToFormat = "Invitación enviada a {0}";
+    public const string InvitationSentHelp =
+        "Le enviamos un correo con un enlace para establecer la contraseña. El enlace es de un solo uso y vence en 72 horas. Si el correo no llega, comparta el siguiente enlace directamente con la persona.";
+    public const string InvitationLinkLabel = "Enlace de invitación";
+    public const string InvitationLinkCopyLabel = "Copiar enlace";
+    public const string InvitationLinkCopiedLabel = "¡Copiado!";
+    public const string InvitationLinkOnceWarning =
+        "Este enlace se muestra una sola vez. Si lo pierde, vuelva a enviar la invitación.";
+    public const string InvitationBackToUsers = "Volver a usuarios";
+    public const string ResendInvitationLabel = "Reenviar invitación";
 }

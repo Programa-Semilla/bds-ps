@@ -23,8 +23,20 @@ namespace FundingPlatform.Application.Identity;
 /// <para>The handler intentionally does NOT send the email itself — email
 /// composition needs <c>Url.Action</c> from MVC routing (the reset link),
 /// which is a controller-layer concern.</para>
+///
+/// <para>Spec 033 — <paramref name="Ttl"/> overrides the row lifetime
+/// (<c>null</c> → <see cref="Domain.Entities.PasswordResetToken.DefaultLifetime"/>
+/// 60 min; the set-password invitation passes
+/// <see cref="Domain.Entities.PasswordResetToken.InvitationLifetime"/> 72h).
+/// <paramref name="InvalidatePriorUnused"/>, when <c>true</c>, supersedes the
+/// user's prior unused links before issuing (resend semantics, FR-007). The
+/// forgot-password caller passes neither, preserving its 60-min, multi-token
+/// behavior unchanged.</para>
 /// </summary>
-public sealed record IssuePasswordResetTokenCommand(string Email);
+public sealed record IssuePasswordResetTokenCommand(
+    string Email,
+    TimeSpan? Ttl = null,
+    bool InvalidatePriorUnused = false);
 
 /// <summary>
 /// Outcome of the issue handler.

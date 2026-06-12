@@ -69,7 +69,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var formPage = new AdminUserFormPage(Page);
         await formPage.SelectGroupsAsync($"SC-{unique}-A");
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         // Create a reviewer in group B (no overlap).
         var reviewerEmail = $"sc_rev_{unique}@example.com";
@@ -77,7 +77,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         await createPage.FillAsync("Rev", "Iewer", reviewerEmail, null, "Reviewer", TempPwd, null);
         await formPage.SelectGroupsAsync($"SC-{unique}-B");
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         // The applicant must own an application before any out-of-scope check
         // is meaningful. Sign in as the applicant, change-password, submit a
@@ -85,13 +85,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         // CreateApplicationAndSubmitResponseAsync; here we shortcut by hitting
         // /Application — applicant role is implicit from registration.)
         await LogoutAsync();
-        await LoginAsync(Page, applicantEmail, TempPwd);
-        // First-login redirects to /Account/ChangePassword.
-        var newPassword = "NewPass1!";
-        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
-        await Page.Locator("[name=NewPassword]").FillAsync(newPassword);
-        await Page.Locator("[name=ConfirmPassword]").FillAsync(newPassword);
-        await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
+        await OnboardAndLoginAsync(applicantEmail, "NewPass1!");
 
         // Navigate to /Application and create an application skeleton.
         var appPage = new ApplicationPage(Page);
@@ -103,12 +97,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         await LogoutAsync();
 
         // Sign in as the reviewer; first-login path.
-        await LoginAsync(Page, reviewerEmail, TempPwd);
-        var revNewPassword = "RevPass1!";
-        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
-        await Page.Locator("[name=NewPassword]").FillAsync(revNewPassword);
-        await Page.Locator("[name=ConfirmPassword]").FillAsync(revNewPassword);
-        await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
+        await OnboardAndLoginAsync(reviewerEmail, "RevPass1!");
 
         // Direct-URL access to the application's detail page → 403 / Forbidden.
         var response = await Page.GotoAsync($"{BaseUrl}/Review/{appId}");
@@ -138,12 +127,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
 
         // Sign in as reviewer; the queue should render with the search box.
         await LogoutAsync();
-        await LoginAsync(Page, reviewerEmail, TempPwd);
-        var revPassword = "RevPass2!";
-        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
-        await Page.Locator("[name=NewPassword]").FillAsync(revPassword);
-        await Page.Locator("[name=ConfirmPassword]").FillAsync(revPassword);
-        await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
+        await OnboardAndLoginAsync(reviewerEmail, "RevPass2!");
 
         var queue = new ReviewQueuePage(Page);
         await queue.GotoAsync(BaseUrl);
@@ -200,7 +184,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var formPage = new AdminUserFormPage(Page);
         await formPage.SelectGroupsAsync(surName);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         // Norte reviewer.
         var norteReviewerEmail = $"norte_rev_{unique}@example.com";
@@ -209,16 +193,11 @@ public class ReviewerScopeTests : AuthenticatedTestBase
             "Reviewer", TempPwd, null);
         await formPage.SelectGroupsAsync(norteName);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         // Sur applicant logs in, password change, submits a draft application.
         await LogoutAsync();
-        await LoginAsync(Page, surApplicantEmail, TempPwd);
-        var newPwd = "NewPass1!";
-        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
-        await Page.Locator("[name=NewPassword]").FillAsync(newPwd);
-        await Page.Locator("[name=ConfirmPassword]").FillAsync(newPwd);
-        await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
+        await OnboardAndLoginAsync(surApplicantEmail, "NewPass1!");
 
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
@@ -241,12 +220,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         await LogoutAsync();
 
         // Norte reviewer logs in, password change.
-        await LoginAsync(Page, norteReviewerEmail, TempPwd);
-        var revPwd = "RevPass1!";
-        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
-        await Page.Locator("[name=NewPassword]").FillAsync(revPwd);
-        await Page.Locator("[name=ConfirmPassword]").FillAsync(revPwd);
-        await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
+        await OnboardAndLoginAsync(norteReviewerEmail, "RevPass1!");
 
         // The reviewer's queue must NOT show the Sur applicant's row (FR-011).
         var revQueue = new ReviewQueuePage(Page);
@@ -289,7 +263,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var formPage = new AdminUserFormPage(Page);
         await formPage.SelectGroupsAsync(surName);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         // Norte reviewer.
         var norteReviewerEmail = $"si_norte_rev_{unique}@example.com";
@@ -298,19 +272,14 @@ public class ReviewerScopeTests : AuthenticatedTestBase
             "Reviewer", TempPwd, null);
         await formPage.SelectGroupsAsync(norteName);
         await createPage.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         // Sur applicant submits a draft application via the UI so we have a
         // real Application id; the rest (FundingAgreement + Pending
         // SignedUpload) is seeded directly via SQL using the same primitives
         // as SigningWayfindingTests.
         await LogoutAsync();
-        await LoginAsync(Page, surApplicantEmail, TempPwd);
-        var newPwd = "NewPass1!";
-        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
-        await Page.Locator("[name=NewPassword]").FillAsync(newPwd);
-        await Page.Locator("[name=ConfirmPassword]").FillAsync(newPwd);
-        await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
+        await OnboardAndLoginAsync(surApplicantEmail, "NewPass1!");
 
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
@@ -327,12 +296,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
             CreateBlobServiceClient());
 
         // Norte reviewer logs in and visits the signing inbox.
-        await LoginAsync(Page, norteReviewerEmail, TempPwd);
-        var revPwd = "RevPass1!";
-        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
-        await Page.Locator("[name=NewPassword]").FillAsync(revPwd);
-        await Page.Locator("[name=ConfirmPassword]").FillAsync(revPwd);
-        await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
+        await OnboardAndLoginAsync(norteReviewerEmail, "RevPass1!");
 
         var inbox = new SigningReviewInboxPage(Page);
         await inbox.NavigateAsync(BaseUrl);
@@ -384,7 +348,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
             var formPage = new AdminUserFormPage(Page);
             await formPage.SelectGroupsAsync(groupName);
             await createPage.SubmitAsync();
-            await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+            await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
         }
 
         // In-scope match: applicant whose last name CONTAINS matchFragment, in group A.
@@ -405,7 +369,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         var formPage = new AdminUserFormPage(Page);
         await formPage.SelectGroupsAsync(groupAName, groupBName);
         await revCreate.SubmitAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         // Each in-scope match needs a Submitted application so it shows on
         // the queue. Drive only the matching applicant through draft+submit
@@ -415,12 +379,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         async Task<int> LogInAndSubmitDraftAsync(string email)
         {
             await LogoutAsync();
-            await LoginAsync(Page, email, TempPwd);
-            var newPwd = "AppPass1!";
-            await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
-            await Page.Locator("[name=NewPassword]").FillAsync(newPwd);
-            await Page.Locator("[name=ConfirmPassword]").FillAsync(newPwd);
-            await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
+            await OnboardAndLoginAsync(email, "AppPass1!");
 
             var appPage = new ApplicationPage(Page);
             await appPage.GotoListAsync(BaseUrl);
@@ -435,12 +394,7 @@ public class ReviewerScopeTests : AuthenticatedTestBase
         await LogoutAsync();
 
         // Reviewer logs in and runs the search.
-        await LoginAsync(Page, reviewerEmail, TempPwd);
-        var revPwd = "RevPass1!";
-        await Page.Locator("[name=OldPassword]").FillAsync(TempPwd);
-        await Page.Locator("[name=NewPassword]").FillAsync(revPwd);
-        await Page.Locator("[name=ConfirmPassword]").FillAsync(revPwd);
-        await Page.Locator("form[action*='Account/ChangePassword'] button[type=submit]").ClickAsync();
+        await OnboardAndLoginAsync(reviewerEmail, "RevPass1!");
 
         var queue = new ReviewQueuePage(Page);
         await queue.GotoAsync(BaseUrl);

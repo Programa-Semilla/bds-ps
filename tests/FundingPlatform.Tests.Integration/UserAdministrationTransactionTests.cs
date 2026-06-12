@@ -231,7 +231,7 @@ public class UserAdministrationTransactionTests
 
             var created = await createSut.CreateUserAsync(
                 new CreateUserRequest("Original", "Name", "tx@test.com", null, "Reviewer",
-                    "Test1!", null, GroupIds: new[] { norte }),
+                    null, GroupIds: new[] { norte }),
                 ActorAdminId, CancellationToken.None);
             Assert.That(created.Succeeded, Is.True,
                 string.Join("; ", created.Errors.Select(e => e.Message)));
@@ -305,7 +305,7 @@ public class UserAdministrationTransactionTests
 
             var created = await sut.CreateUserAsync(
                 new CreateUserRequest("F", "L", "happy-tx@test.com", null, "Reviewer",
-                    "Test1!", null, GroupIds: new[] { norte }),
+                    null, GroupIds: new[] { norte }),
                 ActorAdminId, CancellationToken.None);
             Assert.That(created.Succeeded, Is.True);
             var userId = created.Value!.Id;
@@ -354,11 +354,18 @@ public class UserAdministrationTransactionTests
 
             var created = await sut.CreateUserAsync(
                 new CreateUserRequest("Target", "User", "reset-weak@test.com", null, "Reviewer",
-                    "GoodPass1", null, GroupIds: new[] { ids[0] }),
+                    null, GroupIds: new[] { ids[0] }),
                 ActorAdminId, CancellationToken.None);
             Assert.That(created.Succeeded, Is.True,
                 string.Join("; ", created.Errors.Select(e => e.Message)));
             var userId = created.Value!.Id;
+
+            // Spec 033 — admin create no longer assigns a password (the user is
+            // invited to set their own). This test asserts a failed RESET preserves
+            // the user's *existing* password, so establish that precondition here.
+            var setupMgr = sp.GetRequiredService<UserManager<ApplicationUser>>();
+            var setupUser = await setupMgr.FindByIdAsync(userId);
+            Assert.That((await setupMgr.AddPasswordAsync(setupUser!, "GoodPass1")).Succeeded, Is.True);
 
             // Act — reset with a password too short for the length-4 test policy.
             var result = await sut.ResetUserPasswordAsync(
@@ -399,11 +406,16 @@ public class UserAdministrationTransactionTests
 
             var created = await sut.CreateUserAsync(
                 new CreateUserRequest("Target", "User", "reset-ok@test.com", null, "Reviewer",
-                    "GoodPass1", null, GroupIds: new[] { ids[0] }),
+                    null, GroupIds: new[] { ids[0] }),
                 ActorAdminId, CancellationToken.None);
             Assert.That(created.Succeeded, Is.True,
                 string.Join("; ", created.Errors.Select(e => e.Message)));
             var userId = created.Value!.Id;
+
+            // Spec 033 — establish the pre-reset password the admin create no longer sets.
+            var setupMgr = sp.GetRequiredService<UserManager<ApplicationUser>>();
+            var setupUser = await setupMgr.FindByIdAsync(userId);
+            Assert.That((await setupMgr.AddPasswordAsync(setupUser!, "GoodPass1")).Succeeded, Is.True);
 
             var result = await sut.ResetUserPasswordAsync(
                 new ResetPasswordRequest(userId, "FreshPass2"), ActorAdminId, CancellationToken.None);

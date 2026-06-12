@@ -30,11 +30,8 @@ public class AdminUserCreateViewModel
     [Display(Name = "Rol")]
     public string Role { get; set; } = "Applicant";
 
-    [Required(ErrorMessage = "La contraseña inicial es obligatoria.")]
-    [DataType(DataType.Password)]
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "La contraseña debe tener entre {2} y {1} caracteres.")]
-    [Display(Name = "Contraseña inicial")]
-    public string InitialPassword { get; set; } = "";
+    // Spec 033 — no password field. The account is created with no password and the
+    // user sets their own through an emailed 72h set-password invitation.
 
     // Spec 026 — identification type; required (with the value) only when Role=Applicant,
     // enforced at the controller. Format validated server-side via [IdentificationFormat].

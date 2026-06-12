@@ -100,7 +100,7 @@ public class SentinelImmutabilityTests : AuthenticatedTestBase
         await Page.FillAsync("[name=FirstName]", "Should");
         await Page.FillAsync("[name=LastName]", "Fail");
         await Page.FillAsync("[name=Email]", SentinelEmail);
-        await Page.FillAsync("[name=InitialPassword]", "TempPass1!");
+        // Spec 033 — the create form no longer has a password field.
         await Page.SelectOptionAsync("[name=Role]", "Reviewer");
         await Page.Locator("[data-testid=admin-user-create-submit]").ClickAsync();
 

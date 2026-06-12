@@ -47,9 +47,11 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
             initialPassword: TempUserPassword,
             legalId: null);
         await createPage.SubmitAsync();
+        // Spec 033 — create lands on the invitation confirmation; go to the list.
+        await Expect(new InvitationSentPage(Page).Root).ToBeVisibleAsync();
 
         var listPage = new AdminUsersListPage(Page);
-        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Users(\\?.*)?$"));
+        await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(targetEmail);
         await Expect(listPage.RowFor(targetEmail)).ToBeVisibleAsync();
         return (listPage, targetEmail);

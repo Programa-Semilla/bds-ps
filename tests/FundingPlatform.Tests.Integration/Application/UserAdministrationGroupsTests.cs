@@ -88,7 +88,7 @@ public class UserAdministrationGroupsTests
         await SeedGroupsAsync(ctx, "Norte");
 
         var result = await sut.CreateUserAsync(
-            new CreateUserRequest("F", "L", "rev0@test.com", null, "Reviewer", "Test1!", null,
+            new CreateUserRequest("F", "L", "rev0@test.com", null, "Reviewer", null,
                 GroupIds: Array.Empty<int>()),
             ActorAdminId, CancellationToken.None);
 
@@ -104,7 +104,7 @@ public class UserAdministrationGroupsTests
         var ids = await SeedGroupsAsync(ctx, "Norte", "Sur");
 
         var result = await sut.CreateUserAsync(
-            new CreateUserRequest("F", "L", "rev1@test.com", null, "Reviewer", "Test1!", null,
+            new CreateUserRequest("F", "L", "rev1@test.com", null, "Reviewer", null,
                 GroupIds: ids),
             ActorAdminId, CancellationToken.None);
 
@@ -132,7 +132,7 @@ public class UserAdministrationGroupsTests
         var ids = await SeedGroupsAsync(ctx, "Norte");
 
         var result = await sut.CreateUserAsync(
-            new CreateUserRequest("F", "L", "admin1@test.com", null, "Admin", "Test1!", null,
+            new CreateUserRequest("F", "L", "admin1@test.com", null, "Admin", null,
                 GroupIds: ids),
             ActorAdminId, CancellationToken.None);
 
@@ -152,7 +152,7 @@ public class UserAdministrationGroupsTests
         var (norte, sur, centro) = (ids[0], ids[1], ids[2]);
 
         var created = await sut.CreateUserAsync(
-            new CreateUserRequest("F", "L", "rev2@test.com", null, "Reviewer", "Test1!", null,
+            new CreateUserRequest("F", "L", "rev2@test.com", null, "Reviewer", null,
                 GroupIds: new[] { norte, sur }),
             ActorAdminId, CancellationToken.None);
         Assert.That(created.Succeeded, Is.True);
@@ -194,7 +194,7 @@ public class UserAdministrationGroupsTests
         var ids = await SeedGroupsAsync(ctx, "Norte", "Sur");
 
         var created = await sut.CreateUserAsync(
-            new CreateUserRequest("F", "L", "rev3@test.com", null, "Reviewer", "Test1!", null,
+            new CreateUserRequest("F", "L", "rev3@test.com", null, "Reviewer", null,
                 GroupIds: ids),
             ActorAdminId, CancellationToken.None);
         Assert.That(created.Succeeded, Is.True);
@@ -223,13 +223,13 @@ public class UserAdministrationGroupsTests
 
         // Need at least 2 admins so the demotion isn't blocked by LastAdminGuard.
         var first = await sut.CreateUserAsync(
-            new CreateUserRequest("A1", "L", "admin-a@test.com", null, "Admin", "Test1!", null,
+            new CreateUserRequest("A1", "L", "admin-a@test.com", null, "Admin", null,
                 GroupIds: Array.Empty<int>()),
             ActorAdminId, CancellationToken.None);
         Assert.That(first.Succeeded, Is.True);
 
         var second = await sut.CreateUserAsync(
-            new CreateUserRequest("A2", "L", "admin-b@test.com", null, "Admin", "Test1!", null,
+            new CreateUserRequest("A2", "L", "admin-b@test.com", null, "Admin", null,
                 GroupIds: Array.Empty<int>()),
             ActorAdminId, CancellationToken.None);
         Assert.That(second.Succeeded, Is.True);
@@ -260,7 +260,7 @@ public class UserAdministrationGroupsTests
         await SeedRolesAsync(sp);
 
         var result = await sut.CreateUserAsync(
-            new CreateUserRequest("Sup", "Admin", "supadmin1@test.com", null, "SupplierAdmin", "Test1!", null,
+            new CreateUserRequest("Sup", "Admin", "supadmin1@test.com", null, "SupplierAdmin", null,
                 GroupIds: Array.Empty<int>()),
             ActorAdminId, CancellationToken.None);
 
@@ -282,7 +282,7 @@ public class UserAdministrationGroupsTests
         var ids = await SeedGroupsAsync(ctx, "Norte");
 
         var result = await sut.CreateUserAsync(
-            new CreateUserRequest("Sup", "Admin", "supadmin2@test.com", null, "SupplierAdmin", "Test1!", null,
+            new CreateUserRequest("Sup", "Admin", "supadmin2@test.com", null, "SupplierAdmin", null,
                 GroupIds: ids),
             ActorAdminId, CancellationToken.None);
 
@@ -302,7 +302,7 @@ public class UserAdministrationGroupsTests
         var ids = await SeedGroupsAsync(ctx, "Norte", "Sur");
 
         var created = await sut.CreateUserAsync(
-            new CreateUserRequest("F", "L", "rev-to-sup@test.com", null, "Reviewer", "Test1!", null,
+            new CreateUserRequest("F", "L", "rev-to-sup@test.com", null, "Reviewer", null,
                 GroupIds: ids),
             ActorAdminId, CancellationToken.None);
         Assert.That(created.Succeeded, Is.True);
@@ -336,7 +336,7 @@ public class UserAdministrationGroupsTests
         await SeedRolesAsync(sp);
 
         var created = await sut.CreateUserAsync(
-            new CreateUserRequest("F", "L", "dual@test.com", null, "Admin", "Test1!", null,
+            new CreateUserRequest("F", "L", "dual@test.com", null, "Admin", null,
                 GroupIds: Array.Empty<int>()),
             ActorAdminId, CancellationToken.None);
         Assert.That(created.Succeeded, Is.True);
@@ -366,13 +366,13 @@ public class UserAdministrationGroupsTests
         await SeedRolesAsync(sp);
 
         var sup = await sut.CreateUserAsync(
-            new CreateUserRequest("S", "A", "sup-filt@test.com", null, "SupplierAdmin", "Test1!", null,
+            new CreateUserRequest("S", "A", "sup-filt@test.com", null, "SupplierAdmin", null,
                 GroupIds: Array.Empty<int>()),
             ActorAdminId, CancellationToken.None);
         Assert.That(sup.Succeeded, Is.True);
 
         var other = await sut.CreateUserAsync(
-            new CreateUserRequest("R", "B", "rev-filt@test.com", null, "Admin", "Test1!", null,
+            new CreateUserRequest("R", "B", "rev-filt@test.com", null, "Admin", null,
                 GroupIds: Array.Empty<int>()),
             ActorAdminId, CancellationToken.None);
         Assert.That(other.Succeeded, Is.True);
@@ -392,7 +392,7 @@ public class UserAdministrationGroupsTests
         var ids = await SeedGroupsAsync(ctx, "Norte");
 
         var created = await sut.CreateUserAsync(
-            new CreateUserRequest("F", "L", "concurrency@test.com", null, "Reviewer", "Test1!", null,
+            new CreateUserRequest("F", "L", "concurrency@test.com", null, "Reviewer", null,
                 GroupIds: ids),
             ActorAdminId, CancellationToken.None);
         Assert.That(created.Succeeded, Is.True);

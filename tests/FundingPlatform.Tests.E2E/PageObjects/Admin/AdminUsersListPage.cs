@@ -33,6 +33,10 @@ public class AdminUsersListPage : AdminBasePage
     public ILocator RowResetPasswordLink(string email) =>
         RowFor(email).Locator("[data-testid=\"row-action-reset-password\"]");
 
+    // Spec 033 / US2 — "Reenviar invitación" row action.
+    public ILocator RowResendInviteButton(string email) =>
+        RowFor(email).Locator("[data-testid=\"row-action-resend-invite\"]");
+
     public Task GoToAsync(string baseUrl) =>
         Page.GotoAsync($"{baseUrl}/Admin/Users");
 

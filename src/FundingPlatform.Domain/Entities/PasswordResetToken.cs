@@ -20,6 +20,14 @@ public class PasswordResetToken
     /// <summary>FR-028 — TTL per spec.</summary>
     public static readonly TimeSpan DefaultLifetime = TimeSpan.FromMinutes(60);
 
+    /// <summary>
+    /// Spec 033 / FR-006 — TTL for an emailed set-password invitation. An invite
+    /// is just a <see cref="PasswordResetToken"/> with a longer
+    /// <see cref="ExpiresAt"/>; the issue path passes this lifetime while
+    /// forgot-password keeps <see cref="DefaultLifetime"/> (60 min).
+    /// </summary>
+    public static readonly TimeSpan InvitationLifetime = TimeSpan.FromHours(72);
+
     public long Id { get; private set; }
     public string UserId { get; private set; } = string.Empty;
     public byte[] TokenHash { get; private set; } = [];

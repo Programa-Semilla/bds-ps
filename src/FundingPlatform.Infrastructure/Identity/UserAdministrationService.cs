@@ -165,12 +165,17 @@ public class UserAdministrationService : IUserAdministrationService
                     "Email already in use by another account."));
         }
 
+        // Spec 033 / D4 / FR-005 — invited users are created with NO password and
+        // MustChangePassword = false. The account cannot authenticate until the
+        // user consumes the emailed invitation and sets their own password (the
+        // consume path keeps MustChangePassword false), so there is no temp
+        // password to force a change of.
         var user = new ApplicationUser(request.Email, request.FirstName, request.LastName, request.Phone)
         {
-            MustChangePassword = true,
+            MustChangePassword = false,
         };
 
-        var createResult = await _userManager.CreateAsync(user, request.InitialPassword);
+        var createResult = await _userManager.CreateAsync(user);
         if (!createResult.Succeeded)
         {
             return Result<UserDetailDto>.Failure(MapIdentityErrors(createResult.Errors));
