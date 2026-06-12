@@ -42,6 +42,12 @@ public class AdminUserEditViewModel
     [IdentificationFormat]
     public string? LegalId { get; set; }
 
+    // Spec 032 — admin-assigned User Code; required (and unique) only when Role=Applicant,
+    // enforced at the controller. ≤50 chars.
+    [StringLength(50, ErrorMessage = "El código de usuario debe tener máximo {1} caracteres.")]
+    [Display(Name = "Código de usuario")]
+    public string? UserCode { get; set; }
+
     /// <summary>Spec 016 / FR-008 / FR-010 — selected group ids.</summary>
     public int[] GroupIds { get; set; } = Array.Empty<int>();
 

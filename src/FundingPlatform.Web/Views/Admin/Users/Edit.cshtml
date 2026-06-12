@@ -83,6 +83,14 @@
             })
         </div>
 
+        @* Spec 032 — admin-assigned User Code (shown only for the Applicant role via the JS below). *@
+        <div class="col-md-6 mb-3" data-testid="admin-user-usercode" id="userCodeField">
+            <label class="form-label" asp-for="UserCode">@AdminUsersResources.UserCodeLabel @await Html.PartialAsync("_RequiredMark")</label>
+            <input asp-for="UserCode" class="form-control" maxlength="50" autocomplete="off" />
+            <small class="form-text text-muted">@AdminUsersResources.UserCodeHelpText</small>
+            <span asp-validation-for="UserCode" class="text-danger"></span>
+        </div>
+
         <div class="col-md-12 mb-3" data-testid="admin-user-groups-field" id="groupsField">
             <label class="form-label" asp-for="GroupIds">@AdminUsersResources.GroupSelectorLabel</label>
             @await Html.PartialAsync("_GroupSelectorDrilldown", new GroupSelectorModel
@@ -115,12 +123,17 @@
     (function () {
         var roleSelect = document.getElementById('roleSelect');
         var legalField = document.getElementById('legalIdField');
+        var userCodeField = document.getElementById('userCodeField');
         var groupsField = document.getElementById('groupsField');
         function updateVisibility() {
             if (!roleSelect) return;
             var role = roleSelect.value;
             if (legalField) {
                 legalField.style.display = role === 'Applicant' ? '' : 'none';
+            }
+            if (userCodeField) {
+                // Spec 032 — User Code is requested only for the Solicitante role.
+                userCodeField.style.display = role === 'Applicant' ? '' : 'none';
             }
             if (groupsField) {
                 // Spec 016 / FR-009 + spec 021 / FR-007 — Admin AND SupplierAdmin

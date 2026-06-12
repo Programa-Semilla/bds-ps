@@ -135,6 +135,20 @@
                             </div>
                         </div>
                     </div>
+
+                    @* Spec 032 — admin-assigned User Code (applicants only): read-only here. *@
+                    @if (Model.Role == "Solicitante")
+                    {
+                        <div class="mb-3" data-testid="form-section" data-field="UserCode">
+                            <label class="form-label">
+                                Código de usuario
+                                <span class="badge bg-secondary ms-1" data-testid="administrado-badge">administrado</span>
+                            </label>
+                            <input class="form-control" value="@(Model.UserCode ?? "—")"
+                                   data-testid="profile-usercode"
+                                   disabled readonly />
+                        </div>
+                    }
                 </div>
                 <div class="card-footer d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary"

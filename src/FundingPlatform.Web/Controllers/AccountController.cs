@@ -421,7 +421,7 @@ public class AccountController : Controller
         var applicant = await _dbContext.Applicants
             .AsNoTracking()
             .Where(a => a.UserId == user.Id)
-            .Select(a => new { a.LegalId, a.IdentificationType })
+            .Select(a => new { a.LegalId, a.IdentificationType, a.UserCode })
             .FirstOrDefaultAsync();
 
         return new ProfileViewModel
@@ -436,6 +436,7 @@ public class AccountController : Controller
             CodigoPersonal = user.CodigoPersonal,
             LegalId = applicant?.LegalId,
             IdentificationType = applicant?.IdentificationType,
+            UserCode = applicant?.UserCode,
         };
     }
 
