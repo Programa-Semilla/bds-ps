@@ -252,7 +252,18 @@ if (!builder.ExecutionContext.IsPublishMode)
         .WithEnvironment("Notifications__Mailtrap__Host",
             ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Host)}"))
         .WithEnvironment("Notifications__Mailtrap__Port",
-            ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Port)}"));
+            ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Port)}"))
+        // Spec 033 — also point the DIRECT-send path (Smtp:* → SmtpEmailSender,
+        // used by Account/ForgotPassword and the admin set-password invitation) at
+        // the same smtp4dev endpoint. Without a non-empty Smtp:Host the platform
+        // falls back to LoggingEmailSender (DependencyInjection.cs), so those
+        // transactional emails were logged but never captured. UseSsl=false because
+        // smtp4dev on port 25 is plain SMTP (no STARTTLS).
+        .WithEnvironment("Smtp__Host",
+            ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Host)}"))
+        .WithEnvironment("Smtp__Port",
+            ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Port)}"))
+        .WithEnvironment("Smtp__UseSsl", "false");
 }
 
 if (!string.IsNullOrEmpty(adminDefaultPassword))
