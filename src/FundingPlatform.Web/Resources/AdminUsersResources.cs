@@ -51,4 +51,33 @@ public static class AdminUsersResources
         "Este enlace se muestra una sola vez. Si lo pierde, vuelva a enviar la invitación.";
     public const string InvitationBackToUsers = "Volver a usuarios";
     public const string ResendInvitationLabel = "Reenviar invitación";
+
+    // Spec 034 — bulk applicant provisioning via CSV. The per-row skip reasons live
+    // in the Application layer (BatchUserRowReasons) because the Infrastructure
+    // service produces them; these are the page chrome + file-level (FR-003)
+    // messages owned by the Web layer.
+    public const string BatchListEntry = "Crear por lote";
+    public const string BatchTitle = "Crear usuarios por lote";
+    public const string BatchSubtitle = "Cargue un archivo CSV para crear varias cuentas de Solicitante a la vez.";
+    public const string BatchUploadHelp =
+        "El archivo debe ser un CSV con las columnas de la plantilla. Cada fila crea una cuenta de Solicitante (máximo 200 filas). Cada persona recibirá una invitación por correo para establecer su contraseña.";
+    public const string BatchTemplateDownload = "Descargar plantilla";
+    public const string BatchFileLabel = "Archivo CSV";
+    public const string BatchSubmit = "Crear usuarios";
+
+    // File-level rejection messages (FR-003) — whole-file, create nothing.
+    public const string BatchError_NotCsv = "El archivo debe ser un CSV válido.";
+    public const string BatchError_TooLarge = "El archivo es demasiado grande.";
+    public const string BatchError_HeaderMismatch = "Las columnas del archivo no coinciden con la plantilla.";
+    public const string BatchError_Empty = "El archivo no contiene filas de datos.";
+    public const string BatchError_TooManyRows = "El archivo supera el máximo de 200 filas.";
+
+    // Result page.
+    public const string BatchResultTitle = "Resultado de la creación por lote";
+    public const string BatchResultSummaryFormat = "Se procesaron {0} filas: {1} creadas, {2} con errores.";
+    public const string BatchResultSucceededHeading = "Cuentas creadas";
+    public const string BatchResultErroredHeading = "Filas con errores";
+    public const string BatchResultEmptyErrors = "No hubo filas con errores.";
+    public const string BatchResultEmptySucceeded = "No se creó ninguna cuenta.";
+    public const string BatchResultBackToUpload = "Cargar otro archivo";
 }

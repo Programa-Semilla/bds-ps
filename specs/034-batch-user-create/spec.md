@@ -59,8 +59,10 @@ Each row names a **Grupo**, a **Proceso**, and a **Fondo**. These must name a co
 
 - **Optional cells empty**: `Apellido 2` and `Teléfono` may be blank — the row is still valid (last name is just `Apellido 1`; phone is stored empty).
 - **Phone normalization**: a `Teléfono` value with a leading `506` country prefix has the prefix stripped; if the cell contains more than one number, only the first is kept.
+- **Multiple emails**: an `Email` cell listing more than one address keeps only the first; the rest are ignored.
+- **Identification type inference**: the `Cédula` column may hold a cédula física (9 digits), a DIMEX (11–12 digits), or a passport (alphanumeric); the type is inferred from the value rather than fixed.
 - **In-file duplicates**: when the same Email, Cédula, or User Code appears in more than one row of the file, the **first** occurrence is created and every later duplicate is errored.
-- **Invalid cédula**: a `Cédula` that is not structurally a valid cédula física is an errored row.
+- **Invalid identification**: a `Cédula` whose type cannot be inferred (e.g. a 10-digit value), or that fails its inferred type's validation, is an errored row.
 - **Group exists but wrong chain**: a valid Group name placed under the wrong Proceso/Fondo is an errored row (not a silent reassignment).
 - **Partial-then-fail**: when some rows have already been created and a later row fails, the already-created rows remain — the file is not transactional as a whole.
 - **Invitation email not delivered**: a failure to *send* the invitation email (e.g., recipient filtered by a non-Production allowlist) does **not** fail the row; the account is still created and is recoverable through the existing per-user invitation resend (spec 033).
@@ -78,9 +80,9 @@ Each row names a **Grupo**, a **Proceso**, and a **Fondo**. These must name a co
 
 **B. Row mapping & normalization** *(role is fixed to Solicitante for every row; there is no role column)*
 
-- **FR-004**: For each data row the system MUST map columns as follows: `Nombre` → first name; `Apellido 1` + `Apellido 2` → a single last name (with `Apellido 2` optional and joined to `Apellido 1` by a single space); `Email` → account email; `Cédula` → personal identification value; `Código de usuario` → User Code.
+- **FR-004**: For each data row the system MUST map columns as follows: `Nombre` → first name; `Apellido 1` + `Apellido 2` → a single last name (with `Apellido 2` optional and joined to `Apellido 1` by a single space); `Email` → account email; `Cédula` → personal identification value; `Código de usuario` → User Code. When the `Email` cell contains more than one address (separated by `/`, `,`, `;`, `|`, or whitespace), only the **first** MUST be used as the account email and the rest ignored.
 - **FR-005**: `Teléfono` MUST be treated as optional and normalized before storage: a leading `506` country-code prefix MUST be stripped, and when the cell contains more than one number, only the first MUST be kept.
-- **FR-006**: Every row's identification type MUST be **cédula física**; the `Cédula` value MUST be a valid cédula física per the existing identification rules (spec 026), otherwise the row MUST be skipped with an es-CR reason.
+- **FR-006**: The identification **type** MUST be **inferred from the `Cédula` value's structure** (the batch has no type column): a 9-digit value is a **cédula física**, an 11–12-digit value is a **DIMEX**, and a value containing letters is a **pasaporte**. The value MUST then validate against the inferred type per the existing identification rules (spec 026), canonicalized identically to the single-create form. A value whose type cannot be inferred (e.g. a 10-digit entity-shaped value, most likely a mistyped cédula) or that fails its inferred type's validation MUST be skipped with an es-CR reason — the unexpected value is surfaced, never silently coerced.
 
 **C. Row-level validation** *(skip-and-report; never all-or-nothing)*
 
@@ -104,7 +106,7 @@ Each row names a **Grupo**, a **Proceso**, and a **Fondo**. These must name a co
 
 ### Key Entities *(include if feature involves data)*
 
-- **Applicant**: the person applying for funding, one-to-one with a platform account. Carries personal identification (`LegalId` + identification type, here cédula física), first name, last name, email, phone, and the unique **User Code** (spec 032). The applicant itself has **no** Group or Fund attribute.
+- **Applicant**: the person applying for funding, one-to-one with a platform account. Carries personal identification (`LegalId` + identification type — inferred per row as cédula física, DIMEX, or pasaporte), first name, last name, email, phone, and the unique **User Code** (spec 032). The applicant itself has **no** Group or Fund attribute.
 - **Account (platform user)**: the sign-in identity with a role. For the batch the role is fixed to **Solicitante**. The account is onboarded via the spec-033 invitation and has no usable password until the user sets one.
 - **Group / Process / Fund**: the spec-029 hierarchy Fund → Process → Group. The batch resolves `Grupo` to an existing Group and persists it as the applicant's membership (the spec-016 required-membership path); `Proceso` and `Fondo` are validation-only guards that confirm the chain.
 - **Batch upload (transient)**: the uploaded CSV and its in-memory rows. Not persisted as an entity; it yields the per-row outcomes shown in the report.
@@ -125,7 +127,7 @@ Each row names a **Grupo**, a **Proceso**, and a **Fondo**. These must name a co
 
 - **Reused single-create semantics**: batch row creation reuses the existing admin single-create behavior and guards (spec 032 admin-only create + User Code uniqueness; spec 016 required Group membership for applicants), so a batch-created applicant is indistinguishable from one created through the single form.
 - **Onboarding via invitation only**: per spec 033, no password is collected in the batch; each created user onboards through the emailed set-password link. A dropped email is recovered with the existing per-user resend (no batch-level resend in v1).
-- **Identification type fixed**: all rows are individuals, so identification type is cédula física for the whole batch; there is no identification-type column.
+- **Identification type inferred**: all rows are individuals, so the identification type is inferred from each value's structure among the individual-applicable types — cédula física (9 digits), DIMEX (11–12 digits), or pasaporte (alphanumeric). There is no identification-type column; entity shapes (e.g. 10-digit cédula jurídica / NITE) are not inferred and error the row. *(Evolved 2026-06-12 from "fixed to cédula física" after the first real client file carried DIMEX numbers.)*
 - **CSV, not native spreadsheet**: the operator exports the intake spreadsheet to CSV before uploading; native `.xlsx` parsing is out of scope (avoids a new dependency).
 - **Name-based hierarchy resolution**: Grupo/Proceso/Fondo are resolved by the human-readable names present in the spreadsheet; ambiguous names (more than one match) are treated as errors rather than guessed.
 - **In-file duplicate rule**: when a value is duplicated within the file, the first occurrence wins and later occurrences are errored (chosen for determinism).

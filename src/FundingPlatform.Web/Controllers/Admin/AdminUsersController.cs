@@ -1,6 +1,8 @@
+using System.Text;
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Admin.Groups;
 using FundingPlatform.Application.Admin.Users;
+using FundingPlatform.Application.Admin.Users.Batch;
 using FundingPlatform.Application.Admin.Users.DTOs;
 using FundingPlatform.Application.Identity;
 using FundingPlatform.Domain.Entities;
@@ -648,6 +650,152 @@ public class AdminUsersController : Controller
         }
         return View("InvitationSent", new AdminUserInvitationSentViewModel(user.Email!, inviteLink));
     }
+
+    // Spec 034 — defensive in-memory cap so an absurdly large upload cannot be
+    // buffered into a string before the row-count guard runs. A 200-row CSV is a
+    // few KiB; 1 MiB is generous headroom (the file is transient — not stored).
+    private const long MaxBatchUploadBytes = 1_048_576;
+
+    /// <summary>Spec 034 — render the bulk-upload page (FR-001).</summary>
+    [HttpGet("Batch")]
+    public IActionResult Batch()
+    {
+        return View(new AdminUserBatchUploadViewModel());
+    }
+
+    /// <summary>
+    /// Spec 034 — stream the CSV template: the canonical header plus one example
+    /// row, UTF-8 with a leading BOM so Excel renders es-CR accents correctly.
+    /// </summary>
+    [HttpGet("Batch/Template")]
+    public IActionResult BatchTemplate()
+    {
+        var sb = new StringBuilder();
+        sb.Append('﻿'); // UTF-8 BOM (Excel "CSV UTF-8" convention)
+        sb.Append(string.Join(',', BatchUserCsvColumns.Ordered.Select(CsvField)));
+        sb.Append("\r\n");
+        sb.Append(string.Join(',', new[]
+        {
+            "Norte", "Migración inicial", "Fondo General", "Ana", "Rojas", "Mora",
+            "ana.rojas@example.cr", "506 8888 1111", "1-1234-5678", "COD-001",
+        }.Select(CsvField)));
+        sb.Append("\r\n");
+        return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv; charset=utf-8", "plantilla-usuarios.csv");
+    }
+
+    /// <summary>
+    /// Spec 034 — accept the uploaded CSV. FR-003 file-level validation refuses the
+    /// whole file with a single es-CR message (creating nothing); otherwise parse,
+    /// hand typed rows to the service, then issue the spec-033 invitation per
+    /// created user and render the succeeded/errored report.
+    /// </summary>
+    [HttpPost("Batch")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Batch(IFormFile? csv, CancellationToken ct)
+    {
+        // FR-003 — first matching condition wins; the conditions are mutually
+        // exclusive enough that one message is unambiguous (research D3).
+        if (csv is null || csv.Length == 0)
+        {
+            return BatchError(AdminUsersResources.BatchError_NotCsv);
+        }
+        if (csv.Length > MaxBatchUploadBytes)
+        {
+            return BatchError(AdminUsersResources.BatchError_TooLarge);
+        }
+        if (!HasCsvExtension(csv.FileName))
+        {
+            return BatchError(AdminUsersResources.BatchError_NotCsv);
+        }
+
+        string text;
+        try
+        {
+            using var reader = new StreamReader(csv.OpenReadStream(), Encoding.UTF8);
+            text = await reader.ReadToEndAsync(ct);
+        }
+        catch
+        {
+            return BatchError(AdminUsersResources.BatchError_NotCsv);
+        }
+
+        CsvParser.CsvContent parsed;
+        try
+        {
+            parsed = CsvParser.Parse(text);
+        }
+        catch
+        {
+            return BatchError(AdminUsersResources.BatchError_NotCsv);
+        }
+
+        if (!BatchUserCsvColumns.HeaderMatches(parsed.Header))
+        {
+            return BatchError(AdminUsersResources.BatchError_HeaderMismatch);
+        }
+        if (parsed.Rows.Count == 0)
+        {
+            return BatchError(AdminUsersResources.BatchError_Empty);
+        }
+        if (parsed.Rows.Count > BatchUserCsvColumns.MaxDataRows)
+        {
+            return BatchError(AdminUsersResources.BatchError_TooManyRows);
+        }
+
+        var rows = new List<BatchUserImportRow>(parsed.Rows.Count);
+        for (var i = 0; i < parsed.Rows.Count; i++)
+        {
+            var cells = parsed.Rows[i];
+            rows.Add(new BatchUserImportRow(
+                RowNumber: i + 1,
+                Grupo: Cell(cells, 0),
+                Proceso: Cell(cells, 1),
+                Fondo: Cell(cells, 2),
+                Nombre: Cell(cells, 3),
+                Apellido1: Cell(cells, 4),
+                Apellido2: Cell(cells, 5),
+                Email: Cell(cells, 6),
+                Telefono: Cell(cells, 7),
+                Cedula: Cell(cells, 8),
+                CodigoUsuario: Cell(cells, 9)));
+        }
+
+        var actorId = _userManager.GetUserId(User) ?? "";
+        var result = await _service.CreateUsersBatchAsync(rows, actorId, ct);
+
+        // Spec 033 / FR-011 — issue + best-effort send the set-password invitation
+        // per created user. The succeeded outcome's key field carries the email.
+        // A send failure never changes the row's success (the helper swallows it).
+        foreach (var ok in result.Succeeded)
+        {
+            await IssueAndSendInvitationAsync(ok.KeyField, ct);
+        }
+
+        var vm = new AdminUserBatchResultViewModel
+        {
+            Succeeded = result.Succeeded
+                .Select(o => new AdminUserBatchResultRow(o.RowNumber, o.KeyField, null)).ToList(),
+            Errored = result.Errored
+                .Select(o => new AdminUserBatchResultRow(o.RowNumber, o.KeyField, o.Reason)).ToList(),
+        };
+        return View("BatchResult", vm);
+    }
+
+    private IActionResult BatchError(string message)
+        => View("Batch", new AdminUserBatchUploadViewModel { ErrorMessage = message });
+
+    private static bool HasCsvExtension(string? fileName)
+        => !string.IsNullOrWhiteSpace(fileName)
+            && fileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase);
+
+    private static string Cell(IReadOnlyList<string> cells, int index)
+        => index < cells.Count ? cells[index] : string.Empty;
+
+    /// <summary>RFC-4180 quote for the template stream (mirrors AdminReportsService).</summary>
+    private static string CsvField(string value)
+        => value.IndexOfAny([',', '"', '\n', '\r']) >= 0
+            ? "\"" + value.Replace("\"", "\"\"") + "\""
+            : value;
 
     private void AddDomainErrors(IReadOnlyList<DomainError> errors, Func<string, string?, string?>? mapping = null)
     {
