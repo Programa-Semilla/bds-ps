@@ -85,7 +85,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 ### Tests (US1)
 
 - [X] T031 [P] [US1] Integration tests `tests/FundingPlatform.Tests.Integration/Admin/CategoryAdministrationTests.cs` (real DB): create category with fields, full-replace update, deactivate, `GetByIdWithFieldsAsync`, hard-delete blocked when in use.
-- [ ] T032 [P] [US1] E2E `tests/FundingPlatform.Tests.E2E/CategoryFieldAdminTests.cs` + POM `PageObjects/CategoryAdminPage.cs`: create/edit/reorder/remove fields; es-CR labels.
+- [X] T032 [P] [US1] E2E `tests/FundingPlatform.Tests.E2E/CategoryFieldAdminTests.cs` + POM `PageObjects/CategoryAdminPage.cs`: create/edit/reorder/remove fields; es-CR labels.
 
 ### Implementation (US1)
 
