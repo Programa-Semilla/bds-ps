@@ -14,20 +14,11 @@ public class ApplicationViewModel
     public DateTime? SubmittedAt { get; set; }
     public List<ItemViewModel> Items { get; set; } = new();
 
-    /// <summary>Spec 021 / FR-005 — true once the applicant has completed the
-    /// Impact step. Drives the Impact card state and the submit gate.</summary>
-    public bool ImpactSet { get; set; }
+    /// <summary>Spec 035 / D2 — submit gate: every item carries an impact template.
+    /// Required category fields are gated server-side at submit.</summary>
+    public bool AllItemsHaveImpact => Items.Count > 0 && Items.All(i => i.HasImpact);
 
-    /// <summary>Spec 021 / FR-005 — chosen ImpactTemplate name, for the Edit-page
-    /// Impact summary card. Null until the Impact step is completed.</summary>
-    public string? ImpactTemplateName { get; set; }
-
-    /// <summary>Spec 021 / FR-005 — label/value pairs of the captured Impact
-    /// parameters, rendered read-only on the Edit-page Impact summary.</summary>
-    public List<ImpactParameterDisplayViewModel> ImpactParameters { get; set; } = new();
-
-    /// <summary>Spec 021 / FR-005 — active categories for the inline add-item
-    /// form embedded in the draft editor.</summary>
+    /// <summary>Spec 021 — active categories (kept for the draft editor toolbar).</summary>
     public List<SelectListItem> Categories { get; set; } = new();
 
     /// <summary>
@@ -50,6 +41,14 @@ public class ItemViewModel
     public string CategoryName { get; set; } = string.Empty;
     public int QuotationCount { get; set; }
     public bool HasImpact { get; set; }
+
+    /// <summary>Spec 035 / D2 — per-item impact summary (Details/Edit cards).</summary>
+    public string? ImpactTemplateName { get; set; }
+    public List<ImpactParameterDisplayViewModel> ImpactParameters { get; set; } = new();
+
+    /// <summary>Spec 035 / D1 — per-item category field label/value pairs.</summary>
+    public List<CategoryFieldDisplayViewModel> CategoryFields { get; set; } = new();
+
     public string? ReviewComment { get; set; }
 
     /// <summary>True when the reviewer flagged the item's quotations as not

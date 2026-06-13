@@ -295,7 +295,7 @@ internal static class SignedUploadEndpointsTestSeeder
 
         var application = new FundingPlatform.Domain.Entities.Application(applicant.Id, 1, "Test Company");
         application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-        application.AddItem(new FundingPlatform.Domain.Entities.Item("Laptop", category.Id, "specs"));
+        application.AddItem(new FundingPlatform.Domain.Entities.Item("Laptop", category.Id));
         typeof(FundingPlatform.Domain.Entities.Application)
             .GetProperty("State")!
             .SetValue(application, FundingPlatform.Domain.Enums.ApplicationState.Resolved);

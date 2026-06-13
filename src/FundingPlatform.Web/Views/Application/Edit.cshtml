@@ -84,105 +84,17 @@ else
     </div>
 </form>
 
-@* Spec 021 / FR-005 — Impact card FIRST and ungated. Impact is a per-Application
-   concern captured on its own step; the applicant reaches it directly, never
-   through an Item. *@
-<div class="card mb-4" data-testid="application-edit-impact-card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h4 class="card-title mb-0">
-            Impacto @await Html.PartialAsync("_RequiredMark")
-        </h4>
-        @if (Model.ImpactSet)
-        {
-            <span class="badge bg-success-lt" data-testid="application-edit-impact-status">
-                <i class="ti ti-check me-1"></i>Definido
-            </span>
-        }
-        else
-        {
-            <span class="badge bg-warning-lt" data-testid="application-edit-impact-status">Pendiente</span>
-        }
-    </div>
-    <div class="card-body">
-        @if (Model.ImpactSet)
-        {
-            <p class="mb-2">
-                Plantilla de impacto: <strong>@Model.ImpactTemplateName</strong>
-            </p>
-            @if (Model.ImpactParameters.Count > 0)
-            {
-                <dl class="row mb-2">
-                    @foreach (var p in Model.ImpactParameters)
-                    {
-                        <dt class="col-sm-5 text-secondary">@p.DisplayLabel</dt>
-                        <dd class="col-sm-7">@p.Value</dd>
-                    }
-                </dl>
-            }
-            <a asp-action="Impact" asp-controller="Application" asp-route-id="@Model.Id"
-               asp-route-returnTo="edit"
-               class="btn btn-outline-primary" data-testid="application-edit-impact-link">
-                <i class="ti ti-edit me-1"></i>Editar impacto
-            </a>
-        }
-        else
-        {
-            <p class="text-secondary mb-2">
-                El impacto vive a nivel de solicitud y se captura una vez. Defínalo para habilitar el envío.
-            </p>
-            <a asp-action="Impact" asp-controller="Application" asp-route-id="@Model.Id"
-               asp-route-returnTo="edit"
-               class="btn btn-primary" data-testid="application-edit-impact-link">
-                <i class="ti ti-target me-1"></i>Definir impacto
-            </a>
-        }
-    </div>
-</div>
-
-@* Spec 021 / FR-005 — items added inline; the add-item form is embedded in the
-   draft editor and posts back to it, so the applicant never leaves the screen. *@
+@* Spec 035 / US2 / D8 — impact is captured per line item (no application-level
+   impact step). Each line item is built on the full item form. *@
 <div class="card mb-4" data-testid="application-edit-items-card">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h4 class="card-title mb-0">Ítems @await Html.PartialAsync("_RequiredMark")</h4>
+        <a asp-controller="Item" asp-action="Add" asp-route-appId="@Model.Id"
+           class="btn btn-primary" data-testid="application-edit-add-item">
+            <i class="ti ti-plus me-1"></i>Agregar línea
+        </a>
     </div>
     <div class="card-body">
-        <form asp-controller="Application" asp-action="AddItem" asp-route-id="@Model.Id"
-              method="post" class="row g-3 mb-4" data-testid="application-edit-add-item-form">
-            @Html.AntiForgeryToken()
-            <div class="col-md-4">
-                <label class="form-label" for="add-item-name">
-                    Nombre del producto <span class="text-danger">*</span>
-                </label>
-                <input id="add-item-name" name="ProductName" type="text" class="form-control"
-                       maxlength="500" required data-testid="application-edit-item-name" />
-            </div>
-            <div class="col-md-3">
-                <label class="form-label" for="add-item-category">
-                    Categoría <span class="text-danger">*</span>
-                </label>
-                <select id="add-item-category" name="CategoryId" class="form-select" required
-                        data-testid="application-edit-item-category" data-searchable>
-                    <option value="">-- Seleccione --</option>
-                    @foreach (var cat in Model.Categories)
-                    {
-                        <option value="@cat.Value">@cat.Text</option>
-                    }
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label" for="add-item-specs">
-                    Especificaciones <span class="text-danger">*</span>
-                </label>
-                <input id="add-item-specs" name="TechnicalSpecifications" type="text" class="form-control"
-                       required data-testid="application-edit-item-specs" />
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100" data-testid="application-edit-add-item">
-                    <i class="ti ti-plus me-1"></i>Agregar
-                </button>
-            </div>
-        </form>
-
         @if (Model.Items.Count == 0)
         {
             @await Html.PartialAsync("Components/_EmptyState",
@@ -209,7 +121,19 @@ else
                         {
                             <tr data-testid="application-edit-item-row">
                                 <td>@item.ProductName</td>
-                                <td>@item.CategoryName</td>
+                                <td>
+                                    @item.CategoryName
+                                    @if (item.HasImpact)
+                                    {
+                                        <span class="badge bg-success-lt ms-1" data-testid="item-impact-ok-@item.Id" title="Impacto: @item.ImpactTemplateName">
+                                            <i class="ti ti-check"></i> Impacto
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning-lt ms-1" data-testid="item-impact-missing-@item.Id">Impacto pendiente</span>
+                                    }
+                                </td>
                                 <td>@item.QuotationCount</td>
                                 <td>
                                     <a asp-controller="Supplier" asp-action="Add"
@@ -218,10 +142,9 @@ else
                                     <a asp-controller="Item" asp-action="Edit"
                                        asp-route-appId="@Model.Id" asp-route-itemId="@item.Id"
                                        class="btn btn-sm btn-outline-secondary">Editar</a>
-                                    <form asp-controller="Application" asp-action="RemoveItem"
-                                          asp-route-id="@Model.Id" method="post" class="d-inline">
+                                    <form asp-controller="Item" asp-action="Delete"
+                                          asp-route-appId="@Model.Id" asp-route-itemId="@item.Id" method="post" class="d-inline">
                                         @Html.AntiForgeryToken()
-                                        <input type="hidden" name="itemId" value="@item.Id" />
                                         <button type="submit" class="btn btn-sm btn-danger"
                                                 data-confirm
                                                 data-confirm-variant="destructive"
@@ -377,17 +300,16 @@ else
     </div>
 }
 
-@* Spec 021 / FR-017 — submit gating. The button is a real disabled-capable
-   control; submit-gate.js recomputes completeness (Impact + >=1 item + every
-   required field) and toggles `disabled` + a tooltip enumerating what is
-   missing. Clicking an enabled button routes to /review. *@
+@* Spec 035 / D2 — submit gating. Every line item must carry an impact template
+   (data-impact-set reflects that), plus >=1 item. submit-gate.js toggles the
+   button + tooltip. Clicking an enabled button routes to /review. *@
 <div class="d-flex justify-content-end mb-3">
     <button type="button"
             class="btn btn-success"
             data-testid="application-edit-submit"
             data-submit-gate
             data-item-count="@Model.Items.Count"
-            data-impact-set="@(Model.ImpactSet ? "true" : "false")"
+            data-impact-set="@(Model.AllItemsHaveImpact ? "true" : "false")"
             data-review-url="@reviewUrl"
             disabled
             title="Complete los campos requeridos para enviar">

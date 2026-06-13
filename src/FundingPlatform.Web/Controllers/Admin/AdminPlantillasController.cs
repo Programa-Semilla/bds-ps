@@ -37,19 +37,6 @@ public class AdminPlantillasController : Controller
         _db = db;
     }
 
-    private async Task<IReadOnlyList<AdminPlantillaImpactTemplateOption>> LoadImpactTemplateOptionsAsync(CancellationToken ct)
-    {
-        // Only the active ImpactTemplates are offered — applicants can never pick
-        // an inactive template when choosing Impact, so attaching one to the
-        // base Plantilla would be a dead branch.
-        return await _db.ImpactTemplates
-            .AsNoTracking()
-            .Where(t => t.IsActive)
-            .OrderBy(t => t.Name)
-            .Select(t => new AdminPlantillaImpactTemplateOption(t.Id, t.Name))
-            .ToListAsync(ct);
-    }
-
     /// <summary>
     /// Splits a required-field bit-mask into its individual single-bit values so
     /// the Edit form's multi-checkbox group can bind one checkbox per bit.
@@ -76,12 +63,9 @@ public class AdminPlantillasController : Controller
     }
 
     [HttpGet("Create")]
-    public async Task<IActionResult> Create(CancellationToken ct)
+    public IActionResult Create()
     {
-        return View(new AdminPlantillaCreateViewModel
-        {
-            AvailableImpactTemplates = await LoadImpactTemplateOptionsAsync(ct),
-        });
+        return View(new AdminPlantillaCreateViewModel());
     }
 
     [HttpPost("Create")]
@@ -90,7 +74,6 @@ public class AdminPlantillasController : Controller
     {
         if (!ModelState.IsValid)
         {
-            vm.AvailableImpactTemplates = await LoadImpactTemplateOptionsAsync(ct);
             return View(vm);
         }
 
@@ -101,20 +84,17 @@ public class AdminPlantillasController : Controller
                 new CreatePlantillaCommand(
                     vm.Name,
                     vm.MinimumQuotationsPerItem,
-                    vm.RequiredFieldFlags,
-                    vm.ImpactTemplateIds),
+                    vm.RequiredFieldFlags),
                 actorId, ct);
         }
         catch (ArgumentException ex)
         {
             ModelState.AddModelError(nameof(vm.Name), ex.Message);
-            vm.AvailableImpactTemplates = await LoadImpactTemplateOptionsAsync(ct);
             return View(vm);
         }
         catch (DbUpdateException)
         {
             ModelState.AddModelError(nameof(vm.Name), "Ya existe una plantilla con ese nombre.");
-            vm.AvailableImpactTemplates = await LoadImpactTemplateOptionsAsync(ct);
             return View(vm);
         }
 
@@ -134,10 +114,8 @@ public class AdminPlantillasController : Controller
             Name = detail.Name,
             MinimumQuotationsPerItem = detail.MinimumQuotationsPerItem,
             RequiredFieldFlagBits = DecomposeBits(detail.RequiredFieldFlags),
-            ImpactTemplateIds = detail.ImpactTemplateIds.ToArray(),
             IsArchived = detail.IsArchived,
             AssignedProcessCount = detail.AssignedProcessCount,
-            AvailableImpactTemplates = await LoadImpactTemplateOptionsAsync(ct),
         });
     }
 
@@ -148,7 +126,6 @@ public class AdminPlantillasController : Controller
         if (id != vm.Id) return BadRequest();
         if (!ModelState.IsValid)
         {
-            vm.AvailableImpactTemplates = await LoadImpactTemplateOptionsAsync(ct);
             return View(vm);
         }
 
@@ -158,7 +135,7 @@ public class AdminPlantillasController : Controller
             await _plantillas.EditAsync(
                 new EditPlantillaCommand(
                     id, vm.Name, vm.MinimumQuotationsPerItem,
-                    vm.RequiredFieldFlags, vm.ImpactTemplateIds),
+                    vm.RequiredFieldFlags),
                 actorId, ct);
         }
         catch (KeyNotFoundException)
@@ -168,13 +145,11 @@ public class AdminPlantillasController : Controller
         catch (ArgumentException ex)
         {
             ModelState.AddModelError(nameof(vm.Name), ex.Message);
-            vm.AvailableImpactTemplates = await LoadImpactTemplateOptionsAsync(ct);
             return View(vm);
         }
         catch (InvalidOperationException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
-            vm.AvailableImpactTemplates = await LoadImpactTemplateOptionsAsync(ct);
             return View(vm);
         }
 

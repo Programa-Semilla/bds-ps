@@ -44,6 +44,14 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
         var application = await _db.Applications
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)
+            // Spec 035 / D11 — the submit gate (Application.Validate) checks each
+            // item's required category fields against the category's CURRENT field
+            // set, so Category.Fields + the item's stored values must be loaded.
+            .Include(a => a.Items)
+                .ThenInclude(i => i.Category)
+                    .ThenInclude(c => c.Fields)
+            .Include(a => a.Items)
+                .ThenInclude(i => i.CategoryFieldValues)
             .Include(a => a.Applicant)
             .FirstOrDefaultAsync(a => a.Id == cmd.ApplicationId, ct)
             ?? throw new InvalidOperationException(

@@ -35,7 +35,6 @@ public class ReviewItemViewModel
     public int ItemId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public string CategoryName { get; set; } = string.Empty;
-    public string TechnicalSpecifications { get; set; } = string.Empty;
     public string ReviewStatus { get; set; } = string.Empty;
     public string? ReviewComment { get; set; }
     public int? SelectedSupplierId { get; set; }
@@ -47,6 +46,8 @@ public class ReviewItemViewModel
     public List<ReviewQuotationViewModel> Quotations { get; set; } = [];
     public string? ImpactTemplateName { get; set; }
     public List<ImpactParameterDisplayViewModel> ImpactParameters { get; set; } = [];
+    /// <summary>Spec 035 / D1 — per-item category field label/value pairs.</summary>
+    public List<CategoryFieldDisplayViewModel> CategoryFields { get; set; } = [];
     /// <summary>Spec 020 — per-item AI comparison region projection.</summary>
     public ItemComparisonViewModel? Comparison { get; set; }
 }
@@ -86,4 +87,11 @@ public class ImpactParameterDisplayViewModel
     public string Name { get; set; } = string.Empty;
     public string DisplayLabel { get; set; } = string.Empty;
     public string Value { get; set; } = string.Empty;
+}
+
+/// <summary>Spec 035 / D1 — a category field label/value pair for display surfaces.</summary>
+public class CategoryFieldDisplayViewModel
+{
+    public string Label { get; set; } = string.Empty;
+    public string? Value { get; set; }
 }

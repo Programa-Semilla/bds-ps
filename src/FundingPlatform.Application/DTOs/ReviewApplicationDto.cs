@@ -15,14 +15,16 @@ public record ReviewItemDto(
     int ItemId,
     string ProductName,
     string CategoryName,
-    string TechnicalSpecifications,
     ItemReviewStatus ReviewStatus,
     string? ReviewComment,
     int? SelectedSupplierId,
     bool IsNotTechnicallyEquivalent,
     List<ReviewQuotationDto> Quotations,
+    // Spec 035 / D2 — per-item impact (fed from real per-item data, not a placeholder).
     string? ImpactTemplateName,
     List<ImpactParameterDisplayDto> ImpactParameters,
+    // Spec 035 / D1 — per-item category field label/value pairs.
+    List<CategoryFieldValueDto> CategoryFields,
     /// <summary>Spec 018 / FR-012 — reviewer-assigned line code, null until first
     /// assignment.</summary>
     string? LineCode = null);

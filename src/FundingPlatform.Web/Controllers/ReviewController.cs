@@ -756,7 +756,6 @@ public class ReviewController : Controller
                 ItemId = item.ItemId,
                 ProductName = item.ProductName,
                 CategoryName = item.CategoryName,
-                TechnicalSpecifications = item.TechnicalSpecifications,
                 ReviewStatus = item.ReviewStatus.ToString(),
                 ReviewComment = item.ReviewComment,
                 SelectedSupplierId = item.SelectedSupplierId,
@@ -794,6 +793,12 @@ public class ReviewController : Controller
                     Name = p.Name,
                     DisplayLabel = p.DisplayLabel,
                     Value = p.Value
+                }).ToList(),
+                // Spec 035 / D1 — per-item category field values.
+                CategoryFields = item.CategoryFields.Select(cf => new CategoryFieldDisplayViewModel
+                {
+                    Label = cf.Label,
+                    Value = cf.Value,
                 }).ToList()
             }).ToList()
         };

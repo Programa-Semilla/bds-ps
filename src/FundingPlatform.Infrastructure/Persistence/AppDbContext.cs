@@ -15,12 +15,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<AppEntity> Applications => Set<AppEntity>();
     public DbSet<Item> Items => Set<Item>();
     public DbSet<Category> Categories => Set<Category>();
+    // Spec 035 — admin-configured per-category field set + per-item values.
+    public DbSet<CategoryField> CategoryFields => Set<CategoryField>();
+    public DbSet<CategoryFieldValue> CategoryFieldValues => Set<CategoryFieldValue>();
     public DbSet<ImpactTemplate> ImpactTemplates => Set<ImpactTemplate>();
     public DbSet<ImpactTemplateParameter> ImpactTemplateParameters => Set<ImpactTemplateParameter>();
-    // Spec 021 / FR-005 / NFR-001 — legacy `dbo.Impacts` table dropped in
-    // Phase 2a; the Domain.Entities.Impact class remains as dead code referenced
-    // only by historical Application/Web call sites that will be rewritten in
-    // later phases. The class is NOT mapped — no DbSet, no IEntityTypeConfiguration.
+    // Spec 035 / D2 — ImpactParameterValues re-keyed from Application to Item.
     public DbSet<ImpactParameterValue> ImpactParameterValues => Set<ImpactParameterValue>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<SupplierBranch> SupplierBranches => Set<SupplierBranch>();

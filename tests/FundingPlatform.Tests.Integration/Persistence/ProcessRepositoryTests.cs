@@ -147,21 +147,14 @@ public class ProcessRepositoryTests
             var process = Process.Create("Crocus Snap", 1);
             ctx.Processes.Add(process);
 
-            var template = new ImpactTemplate("Empleo", description: null, isActive: true);
-            ctx.ImpactTemplates.Add(template);
-
             var plantilla = Plantilla.Create("PlantillaMVP-v1", minimumQuotationsPerItem: 3, requiredFieldFlags: 0xF);
             ctx.Plantillas.Add(plantilla);
 
             await ctx.SaveChangesAsync();
 
-            // Reload the plantilla with the template attached, so the snapshot
-            // has at least one ImpactTemplate id to copy.
+            // Spec 035 / D4 — assignment no longer requires impact templates.
             var freshPlantilla = await ctx.Plantillas
-                .Include(p => p.ImpactTemplates)
                 .FirstAsync(p => p.Id == plantilla.Id);
-            freshPlantilla.AttachImpactTemplate(template);
-            await ctx.SaveChangesAsync();
 
             var freshProcess = await ctx.Processes
                 .Include(p => p.Plantilla)
@@ -195,9 +188,6 @@ public class ProcessRepositoryTests
                 "Snapshot MinimumQuotationsPerItem must NOT reflect the base edit (SC-002).");
             Assert.That(snapshot.RequiredFieldFlags, Is.EqualTo(0xF),
                 "Snapshot RequiredFieldFlags must NOT reflect the base edit (SC-002).");
-            Assert.That(snapshot.ImpactTemplateIdsCsv, Is.Not.Empty);
-            Assert.That(snapshot.ImpactTemplateIds().Count, Is.EqualTo(1),
-                "Snapshot ImpactTemplate id set must NOT change when the base edits attach a new template.");
 
             // The base Plantilla DID change.
             var basePlantilla = await ctx.Plantillas.FirstAsync(p => p.Id == plantillaId);

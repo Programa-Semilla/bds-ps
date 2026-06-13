@@ -52,24 +52,9 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<AppEntity>
             .IsUnique()
             .HasDatabaseName("UX_Applications_PublicCode");
 
-        // Spec 021 / FR-005 — per-Application ImpactTemplate selection.
-        builder.Property(a => a.ImpactTemplateId);
-        builder.HasOne(a => a.ImpactTemplate)
-            .WithMany()
-            .HasForeignKey(a => a.ImpactTemplateId)
-            .OnDelete(DeleteBehavior.NoAction);
-
-        // Spec 021 / FR-005 — re-parented parameter values. The Domain entity
-        // still carries a vestigial `ImpactId` from the legacy schema; we
-        // ignore it and use a shadow `ApplicationId` FK (column already exists
-        // per dbo.ImpactParameterValues.sql).
-        builder.HasMany(a => a.ImpactParameterValues)
-            .WithOne()
-            .HasForeignKey("ApplicationId")
-            .OnDelete(DeleteBehavior.Cascade);
-        builder.Metadata
-            .FindNavigation(nameof(AppEntity.ImpactParameterValues))!
-            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        // Spec 035 / D2 — application-level impact mappings removed (ImpactTemplateId,
+        // ImpactTemplate nav, ImpactParameterValues collection). Impact is now mapped
+        // per Item in ItemConfiguration.
 
         // Spec 021 / R-2 — at-most-once delivery bitmask for stage-expiry reminders.
         builder.Property(a => a.RemindersSentMask).IsRequired().HasDefaultValue((byte)0);

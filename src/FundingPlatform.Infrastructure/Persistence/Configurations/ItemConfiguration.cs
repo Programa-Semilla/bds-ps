@@ -30,7 +30,9 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.Property(i => i.CategoryId).IsRequired();
         builder.HasIndex(i => i.CategoryId).HasDatabaseName("IX_Items_CategoryId");
 
-        builder.Property(i => i.TechnicalSpecifications).IsRequired();
+        // Spec 035 / D2 — per-item impact template selection (nullable while Draft).
+        builder.Property(i => i.ImpactTemplateId);
+        builder.HasIndex(i => i.ImpactTemplateId).HasDatabaseName("IX_Items_ImpactTemplateId");
 
         builder.Property(i => i.ReviewStatus).IsRequired().HasDefaultValue(Domain.Enums.ItemReviewStatus.Pending);
         builder.Property(i => i.ReviewComment).HasMaxLength(2000);
@@ -45,9 +47,30 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
             .HasForeignKey(i => i.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Spec 021 / FR-005 — per-Item Impact navigation removed; the
-        // per-Application Impact value object lives on the Application
-        // aggregate and is configured in ApplicationConfiguration.
+        // Spec 035 / D2 — per-item impact template (no-action so deactivating a
+        // template never cascades into existing items).
+        builder.HasOne(i => i.ImpactTemplate)
+            .WithMany()
+            .HasForeignKey(i => i.ImpactTemplateId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // Spec 035 / D2 — per-item impact parameter values (EAV), cascade on item delete.
+        builder.HasMany(i => i.ImpactParameterValues)
+            .WithOne()
+            .HasForeignKey(v => v.ItemId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Metadata
+            .FindNavigation(nameof(Item.ImpactParameterValues))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Spec 035 / D1 — per-item category field values (EAV), cascade on item delete.
+        builder.HasMany(i => i.CategoryFieldValues)
+            .WithOne()
+            .HasForeignKey(v => v.ItemId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Metadata
+            .FindNavigation(nameof(Item.CategoryFieldValues))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasMany(i => i.Quotations)
             .WithOne()

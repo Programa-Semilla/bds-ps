@@ -10,7 +10,7 @@ public class ItemTechnicalEquivalenceTests
     [Test]
     public void FlagNotEquivalent_SetsFlagAndRejects_WithoutPersistingEnglishComment()
     {
-        var item = new Item("Widget", categoryId: 1, technicalSpecifications: "specs");
+        var item = new Item("Widget", categoryId: 1);
 
         item.FlagNotEquivalent();
 
@@ -26,7 +26,7 @@ public class ItemTechnicalEquivalenceTests
     [Test]
     public void Reject_PreservesReviewerFreeTextComment()
     {
-        var item = new Item("Widget", categoryId: 1, technicalSpecifications: "specs");
+        var item = new Item("Widget", categoryId: 1);
 
         item.Reject("Falta documentación de respaldo.");
 

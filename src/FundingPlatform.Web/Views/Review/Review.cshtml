@@ -157,10 +157,21 @@
             </span>
         </div>
         <div class="card-body">
-            <div class="mb-3">
-                <strong>Especificaciones técnicas:</strong>
-                <p class="mb-0">@item.TechnicalSpecifications</p>
-            </div>
+            @if (item.CategoryFields.Count > 0)
+            {
+                <div class="mb-3">
+                    <strong>Especificaciones de la categoría:</strong>
+                    <table class="fl-table mt-1" data-density="reviewer" data-testid="review-item-category-fields">
+                        <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                        <tbody>
+                            @foreach (var field in item.CategoryFields)
+                            {
+                                <tr><td>@field.Label</td><td>@(string.IsNullOrWhiteSpace(field.Value) ? "—" : field.Value)</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
 
             @if (item.ImpactTemplateName is not null)
             {

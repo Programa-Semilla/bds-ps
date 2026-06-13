@@ -34,17 +34,8 @@ public class ItemController : Controller
     {
         await VerifyOwnershipAsync(appId);
 
-        var categories = await _categoryRepository.GetAllActiveAsync();
-        var viewModel = new AddItemViewModel
-        {
-            ApplicationId = appId,
-            Categories = categories.Select(c => new SelectListItem
-            {
-                Value = c.Id.ToString(),
-                Text = c.Name
-            }).ToList()
-        };
-
+        var viewModel = new AddItemViewModel { ApplicationId = appId };
+        await PopulateOptionsAsync(viewModel);
         return View(viewModel);
     }
 
@@ -56,23 +47,30 @@ public class ItemController : Controller
 
         if (!ModelState.IsValid)
         {
-            var categories = await _categoryRepository.GetAllActiveAsync();
-            model.Categories = categories.Select(c => new SelectListItem
-            {
-                Value = c.Id.ToString(),
-                Text = c.Name
-            }).ToList();
             model.ApplicationId = appId;
+            await PopulateOptionsAsync(model);
             return View(model);
         }
 
-        var command = new AddItemCommand(
-            appId,
-            model.ProductName,
-            model.CategoryId,
-            model.TechnicalSpecifications);
+        try
+        {
+            var command = new AddItemCommand(
+                appId,
+                model.ProductName,
+                model.CategoryId,
+                model.CategoryFieldValues ?? new(),
+                model.ImpactTemplateId,
+                model.ImpactParameterValues ?? new());
 
-        await _applicationService.AddItemAsync(command);
+            await _applicationService.AddItemAsync(command);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            model.ApplicationId = appId;
+            await PopulateOptionsAsync(model);
+            return View(model);
+        }
 
         TempData["SuccessMessage"] = "Ítem agregado con éxito.";
         return RedirectToAction("Edit", "Application", new { id = appId });
@@ -83,32 +81,33 @@ public class ItemController : Controller
     {
         await VerifyOwnershipAsync(appId);
 
-        var application = await _applicationService.GetApplicationAsync(appId);
-        if (application is null)
-        {
-            return NotFound();
-        }
-
-        var item = application.Items.FirstOrDefault(i => i.Id == itemId);
+        var item = await _dbContext.Items
+            .AsNoTracking()
+            .Include(i => i.CategoryFieldValues)
+            .Include(i => i.ImpactParameterValues)
+            .FirstOrDefaultAsync(i => i.Id == itemId && i.ApplicationId == appId);
         if (item is null)
         {
             return NotFound();
         }
 
-        var categories = await _categoryRepository.GetAllActiveAsync();
+        var categoryValues = item.CategoryFieldValues.ToDictionary(v => v.CategoryFieldId, v => v.Value);
+        var impactValues = item.ImpactParameterValues.ToDictionary(v => v.ImpactTemplateParameterId, v => v.Value);
+
         var viewModel = new EditItemViewModel
         {
             Id = item.Id,
             ApplicationId = appId,
             ProductName = item.ProductName,
             CategoryId = item.CategoryId,
-            TechnicalSpecifications = item.TechnicalSpecifications,
-            Categories = categories.Select(c => new SelectListItem
-            {
-                Value = c.Id.ToString(),
-                Text = c.Name
-            }).ToList()
+            ImpactTemplateId = item.ImpactTemplateId,
         };
+        await PopulateOptionsAsync(viewModel);
+        viewModel.CategoryFields = await LoadCategoryFieldInputsAsync(item.CategoryId, categoryValues);
+        if (item.ImpactTemplateId is int tid)
+        {
+            viewModel.ImpactParameters = await LoadImpactParameterInputsAsync(tid, impactValues);
+        }
 
         return View(viewModel);
     }
@@ -121,25 +120,33 @@ public class ItemController : Controller
 
         if (!ModelState.IsValid)
         {
-            var categories = await _categoryRepository.GetAllActiveAsync();
-            model.Categories = categories.Select(c => new SelectListItem
-            {
-                Value = c.Id.ToString(),
-                Text = c.Name
-            }).ToList();
             model.ApplicationId = appId;
             model.Id = itemId;
+            await PopulateOptionsAsync(model);
             return View(model);
         }
 
-        var command = new UpdateItemCommand(
-            itemId,
-            appId,
-            model.ProductName,
-            model.CategoryId,
-            model.TechnicalSpecifications);
+        try
+        {
+            var command = new UpdateItemCommand(
+                itemId,
+                appId,
+                model.ProductName,
+                model.CategoryId,
+                model.CategoryFieldValues ?? new(),
+                model.ImpactTemplateId,
+                model.ImpactParameterValues ?? new());
 
-        await _applicationService.UpdateItemAsync(command);
+            await _applicationService.UpdateItemAsync(command);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            model.ApplicationId = appId;
+            model.Id = itemId;
+            await PopulateOptionsAsync(model);
+            return View(model);
+        }
 
         TempData["SuccessMessage"] = "Ítem actualizado con éxito.";
         return RedirectToAction("Edit", "Application", new { id = appId });
@@ -156,6 +163,87 @@ public class ItemController : Controller
 
         TempData["SuccessMessage"] = "Ítem eliminado con éxito.";
         return RedirectToAction("Edit", "Application", new { id = appId });
+    }
+
+    /// <summary>
+    /// Spec 035 / US2 / T041 — category field descriptors for the dynamic form,
+    /// fetched when the applicant picks a category.
+    /// </summary>
+    [HttpGet("Category/{categoryId}/Fields")]
+    public async Task<IActionResult> CategoryFields(int appId, int categoryId)
+    {
+        await VerifyOwnershipAsync(appId);
+
+        var category = await _categoryRepository.GetByIdWithFieldsAsync(categoryId);
+        if (category is null)
+        {
+            return NotFound();
+        }
+
+        return Json(category.Fields
+            .OrderBy(f => f.SortOrder)
+            .Select(f => new
+            {
+                id = f.Id,
+                name = f.Name,
+                displayLabel = f.DisplayLabel,
+                dataType = (int)f.DataType,
+                isRequired = f.IsRequired,
+            }));
+    }
+
+    private async Task PopulateOptionsAsync(AddItemViewModel model)
+    {
+        var categories = await _categoryRepository.GetAllActiveAsync();
+        model.Categories = categories
+            .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
+            .ToList();
+
+        model.ImpactTemplates = await _dbContext.ImpactTemplates
+            .AsNoTracking()
+            .Where(t => t.IsActive)
+            .OrderBy(t => t.Name)
+            .Select(t => new ItemImpactTemplateOption { Id = t.Id, Name = t.Name, Description = t.Description })
+            .ToListAsync();
+    }
+
+    private async Task<List<DynamicFieldInput>> LoadCategoryFieldInputsAsync(
+        int categoryId, IReadOnlyDictionary<int, string?> values)
+    {
+        var category = await _categoryRepository.GetByIdWithFieldsAsync(categoryId);
+        if (category is null) return new();
+        return category.Fields
+            .OrderBy(f => f.SortOrder)
+            .Select(f => new DynamicFieldInput
+            {
+                FieldId = f.Id,
+                DisplayLabel = f.DisplayLabel,
+                DataType = (int)f.DataType,
+                IsRequired = f.IsRequired,
+                Value = values.TryGetValue(f.Id, out var v) ? v : null,
+            })
+            .ToList();
+    }
+
+    private async Task<List<DynamicFieldInput>> LoadImpactParameterInputsAsync(
+        int templateId, IReadOnlyDictionary<int, string?> values)
+    {
+        var template = await _dbContext.ImpactTemplates
+            .AsNoTracking()
+            .Include(t => t.Parameters)
+            .FirstOrDefaultAsync(t => t.Id == templateId);
+        if (template is null) return new();
+        return template.Parameters
+            .OrderBy(p => p.SortOrder)
+            .Select(p => new DynamicFieldInput
+            {
+                FieldId = p.Id,
+                DisplayLabel = p.DisplayLabel,
+                DataType = (int)p.DataType,
+                IsRequired = p.IsRequired,
+                Value = values.TryGetValue(p.Id, out var v) ? v : null,
+            })
+            .ToList();
     }
 
     private async Task<int> GetCurrentApplicantIdAsync()

@@ -179,7 +179,7 @@ public class AdminProcessesController : Controller
         // (OQ-1: one-to-one — the form widget would otherwise be confusing).
         IReadOnlyList<PlantillaListRow> assignable = detail.Plantilla is null
             ? (await _plantillas.ListAsync(ct))
-                .Where(p => !p.IsArchived && p.ImpactTemplateCount > 0)
+                .Where(p => !p.IsArchived)
                 .ToList()
             : Array.Empty<PlantillaListRow>();
 

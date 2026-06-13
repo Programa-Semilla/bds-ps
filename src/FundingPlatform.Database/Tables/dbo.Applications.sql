@@ -19,10 +19,8 @@ CREATE TABLE [dbo].[Applications]
     -- production data, so no DB-side default / backfill is required; the
     -- domain layer (IPublicCodeGenerator) is the only inserter.
     [PublicCode]        CHAR(9)        NOT NULL,
-    -- Spec 021 / data-model.md — nullable until the applicant picks an
-    -- ImpactTemplate on first save; the domain guard on Submit() requires
-    -- it to be set for any state >= Submitted.
-    [ImpactTemplateId]  INT            NULL,
+    -- Spec 035 / D2 — application-level ImpactTemplateId dropped: impact relocated
+    -- to the line item (dbo.Items.ImpactTemplateId). Greenfield → no backfill.
     -- Spec 021 / data-model.md — bitmask: 0x1 = T-72h sent, 0x2 = T-24h sent,
     -- 0x4 = expiry sent. Atomic update by StageExpiryReminderService.
     [RemindersSentMask] TINYINT        NOT NULL CONSTRAINT [DF_Applications_RemindersSentMask] DEFAULT (0),
@@ -41,7 +39,6 @@ CREATE TABLE [dbo].[Applications]
     CONSTRAINT [PK_Applications] PRIMARY KEY CLUSTERED ([Id]),
     CONSTRAINT [FK_Applications_Applicants] FOREIGN KEY ([ApplicantId]) REFERENCES [dbo].[Applicants] ([Id]) ON DELETE NO ACTION,
     -- FK_Applications_Groups is added in post-deploy (05_Fund029Anchors) after backfill.
-    CONSTRAINT [FK_Applications_ImpactTemplates] FOREIGN KEY ([ImpactTemplateId]) REFERENCES [dbo].[ImpactTemplates] ([Id]) ON DELETE NO ACTION,
     -- Spec 021 / FR-008 — Crockford-base32 4-4 with hyphen (alphabet excludes
     -- I, L, O, U, 0, 1). The check matches the regex enforced by the
     -- PublicCode value object on the domain side.

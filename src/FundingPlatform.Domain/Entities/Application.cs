@@ -1,7 +1,6 @@
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Exceptions;
 using FundingPlatform.Domain.ValueObjects;
-using DomainImpact = FundingPlatform.Domain.ValueObjects.Impact;
 
 namespace FundingPlatform.Domain.Entities;
 
@@ -11,7 +10,6 @@ public class Application
     private readonly List<VersionHistory> _versionHistory = [];
     private readonly List<ApplicantResponse> _applicantResponses = [];
     private readonly List<Appeal> _appeals = [];
-    private readonly List<ImpactParameterValue> _impactParameterValues = [];
     private FundingAgreement? _fundingAgreement;
 
     public int Id { get; private set; }
@@ -42,29 +40,9 @@ public class Application
     /// </summary>
     public PublicCode? PublicCode { get; private set; }
 
-    /// <summary>
-    /// Spec 021 / FR-005 — the applicant's chosen ImpactTemplate (one per Application).
-    /// Nullable while the Application is in Draft; the <see cref="Submit"/> guard chain
-    /// requires it to be set before the state can advance to Submitted.
-    /// </summary>
-    public int? ImpactTemplateId { get; private set; }
-    public ImpactTemplate? ImpactTemplate { get; private set; }
-
-    /// <summary>
-    /// Spec 021 / FR-005 — re-parented parameter-value rows (was <c>Items.ImpactId →
-    /// Impacts → ImpactParameterValues</c>; now <c>Applications → ImpactParameterValues</c>).
-    /// Populated by <see cref="SetImpact"/>.
-    /// </summary>
-    public IReadOnlyList<ImpactParameterValue> ImpactParameterValues => _impactParameterValues.AsReadOnly();
-
-    /// <summary>
-    /// Spec 021 / FR-005 — typed projection used by reads + the autosave path.
-    /// Returns null until <see cref="SetImpact"/> has been called.
-    /// </summary>
-    public DomainImpact? Impact =>
-        ImpactTemplate is null
-            ? null
-            : new DomainImpact(ImpactTemplate, ImpactParameterValues);
+    // Spec 035 / D2 — application-level impact removed (ImpactTemplateId,
+    // ImpactTemplate, ImpactParameterValues, Impact VO, SetImpact). Impact now
+    // lives on each Item. Read paths project Item.Impact per line item.
 
     /// <summary>
     /// Spec 021 / FR-006 / R-2 — bitfield tracking which reminder emails have
@@ -167,24 +145,14 @@ public class Application
     }
 
     /// <summary>
-    /// Spec 021 / FR-005 — replaces the applicant's Impact selection. Wipes any
-    /// existing parameter values, attaches the new template + values, and bumps
-    /// <see cref="UpdatedAt"/>. The Web/Application layer is responsible for
-    /// validating <paramref name="template"/>.Id ∈ ProcessPlantilla.ImpactTemplateIds()
-    /// before invoking (the snapshot lookup requires a repository so it stays out
-    /// of Domain).
+    /// Spec 035 / D5 — counts quotations across all items that reference the given
+    /// document, supporting reference-counted blob retention (a document is shared
+    /// when an applicant reuses a quotation across sibling items). The blob is
+    /// deleted only when this returns 0 after a quotation row is detached.
     /// </summary>
-    public void SetImpact(ImpactTemplate template, IEnumerable<ImpactParameterValue> values)
+    public int CountQuotationsReferencingDocument(int documentId)
     {
-        EnsureNotFrozen();
-        ArgumentNullException.ThrowIfNull(template);
-        ArgumentNullException.ThrowIfNull(values);
-
-        ImpactTemplate = template;
-        ImpactTemplateId = template.Id;
-        _impactParameterValues.Clear();
-        _impactParameterValues.AddRange(values);
-        UpdatedAt = DateTime.UtcNow;
+        return _items.Sum(i => i.Quotations.Count(q => q.DocumentId == documentId));
     }
 
     /// <summary>
@@ -397,15 +365,14 @@ public class Application
     /// 1. <c>HasAtLeastOneItem</c>
     /// 2. <c>EachItemHasMinimumQuotations</c> (uses snapshot's
     ///    <c>MinimumQuotationsPerItem</c>)
-    /// 3. <c>HasImpact</c> — <see cref="ImpactTemplateId"/> populated
+    /// 3. Spec 035 — per-Item impact assigned + required category fields present
+    ///    (enumerated by <see cref="Validate"/>).
     /// 4. <c>StageWindowOpen</c> — current instant &lt; <paramref name="stageClosesAt"/>;
     ///    otherwise throws <see cref="StageWindowClosedException"/> which the Web
     ///    layer maps to HTTP 422 (R-13).
     ///
-    /// Required-field validation is enforced by the Application layer (it depends
-    /// on <c>ProcessPlantilla.RequiredFieldFlags</c> + a field-key map living
-    /// outside Domain). The legacy <c>HasCompleteImpact</c> per-Item check is
-    /// dropped in favour of the per-Application Impact (R-6).
+    /// Required impact-parameter-value validation is enforced by the Application
+    /// layer (it depends on template metadata living outside Domain).
     /// </summary>
     public void Submit(
         int minQuotations,
@@ -421,14 +388,9 @@ public class Application
         }
 
         // Enumerate every submit-blocker in one pass so the applicant sees all
-        // problems at once (FR-017 impact gate + per-item quotation counts).
-        // The impact failure leads the list but does not short-circuit the
-        // item/quotation enumeration.
+        // problems at once (per-item quotation counts + per-item impact + required
+        // category fields, spec 035). Validate now carries the per-item impact gate.
         var errors = Validate(minQuotations);
-        if (ImpactTemplateId is null)
-        {
-            errors.Insert(0, "Impact must be set before submission (FR-017).");
-        }
         if (errors.Count > 0)
         {
             throw new InvalidOperationException(
@@ -451,9 +413,11 @@ public class Application
 
     /// <summary>
     /// Validates the application and returns a list of validation error messages.
-    /// Spec 021 / FR-005 — Impact is no longer per-Item; the per-Application
-    /// <see cref="Impact"/> is enforced by the <c>Submit(int, StageKind, …)</c>
-    /// overload. This method now only enumerates per-Item quotation-count failures.
+    /// Spec 035 / D2 / D11 — impact is now per-Item: every item must have an impact
+    /// template assigned and all required category-field values present. Collected
+    /// all-at-once (Constitution gate) alongside the per-Item quotation-count check.
+    /// The required impact-parameter-value check stays in the application service
+    /// (it needs template metadata), consistent with the prior impact pattern.
     /// </summary>
     public List<string> Validate(int minQuotations)
     {
@@ -470,6 +434,18 @@ public class Application
             {
                 errors.Add(
                     $"Item '{item.ProductName}' must have at least {minQuotations} quotation(s).");
+            }
+
+            if (item.ImpactTemplateId is null)
+            {
+                errors.Add(
+                    $"Item '{item.ProductName}' must have an impact template selected.");
+            }
+
+            foreach (var missingLabel in item.MissingRequiredCategoryFields())
+            {
+                errors.Add(
+                    $"Item '{item.ProductName}' is missing required field '{missingLabel}'.");
             }
         }
 

@@ -11,10 +11,6 @@ public sealed class AdminPlantillasIndexViewModel
     public IReadOnlyList<PlantillaListRow> Rows { get; init; } = Array.Empty<PlantillaListRow>();
 }
 
-/// <summary>Spec 021 / US1 — option row used to populate the multi-select on the
-/// Plantilla create / edit forms.</summary>
-public sealed record AdminPlantillaImpactTemplateOption(int Id, string Name);
-
 /// <summary>Spec 021 / US1 — ViewModel for <c>/Admin/Plantillas/Create</c>.</summary>
 public sealed class AdminPlantillaCreateViewModel
 {
@@ -35,11 +31,6 @@ public sealed class AdminPlantillaCreateViewModel
     /// from the checked <see cref="RequiredFieldFlagBits"/>.</summary>
     public long RequiredFieldFlags =>
         RequiredFieldFlagBits.Aggregate(0L, (mask, bit) => mask | bit);
-
-    public int[] ImpactTemplateIds { get; set; } = Array.Empty<int>();
-
-    public IReadOnlyList<AdminPlantillaImpactTemplateOption> AvailableImpactTemplates { get; set; }
-        = Array.Empty<AdminPlantillaImpactTemplateOption>();
 }
 
 /// <summary>Spec 021 / US1 — ViewModel for <c>/Admin/Plantillas/{id}/Edit</c>.</summary>
@@ -65,10 +56,6 @@ public sealed class AdminPlantillaEditViewModel
     public long RequiredFieldFlags =>
         RequiredFieldFlagBits.Aggregate(0L, (mask, bit) => mask | bit);
 
-    public int[] ImpactTemplateIds { get; set; } = Array.Empty<int>();
     public bool IsArchived { get; set; }
     public int AssignedProcessCount { get; set; }
-
-    public IReadOnlyList<AdminPlantillaImpactTemplateOption> AvailableImpactTemplates { get; set; }
-        = Array.Empty<AdminPlantillaImpactTemplateOption>();
 }

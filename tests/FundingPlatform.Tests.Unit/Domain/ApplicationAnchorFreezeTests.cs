@@ -63,7 +63,7 @@ public class ApplicationAnchorFreezeTests
         var app = AnchoredApp(FundStatus.Archived);
 
         Assert.Throws<FundArchivedException>(() => app.SetCompanyName("Otra"));
-        Assert.Throws<FundArchivedException>(() => app.AddItem(new Item("Servidor", Cat().Id, "specs")));
+        Assert.Throws<FundArchivedException>(() => app.AddItem(new Item("Servidor", Cat().Id)));
         Assert.Throws<FundArchivedException>(() => app.RemoveItem(1));
         Assert.Throws<FundArchivedException>(() => app.Submit(2));
         Assert.Throws<FundArchivedException>(() => app.RemoveByApplicant());

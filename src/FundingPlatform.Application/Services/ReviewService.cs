@@ -328,19 +328,23 @@ public class ReviewService
 
     private static ReviewApplicationDto MapToReviewDto(AppEntity application)
     {
-        // Spec 021 / FR-005 — Impact relocated to Application. The per-Item
-        // Impact projection on ReviewItemDto is now the same per-Application
-        // projection on every item until the DTO contract is refactored.
-        var applicationImpactTemplateName = application.ImpactTemplate?.Name;
-        var applicationImpactParameters = application.ImpactParameterValues
-            .Select(pv => new ImpactParameterDisplayDto(
-                pv.ImpactTemplateParameter?.Name ?? string.Empty,
-                pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
-                pv.Value ?? string.Empty))
-            .ToList();
-
         var reviewItems = application.Items.Select(item =>
         {
+            // Spec 035 / D2 — real per-item impact (no longer the per-application placeholder).
+            var itemImpactTemplateName = item.ImpactTemplate?.Name;
+            var itemImpactParameters = item.ImpactParameterValues
+                .Select(pv => new ImpactParameterDisplayDto(
+                    pv.ImpactTemplateParameter?.Name ?? string.Empty,
+                    pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
+                    pv.Value ?? string.Empty))
+                .ToList();
+            // Spec 035 / D1 — per-item category field label/value pairs.
+            var itemCategoryFields = item.CategoryFieldValues
+                .OrderBy(cfv => cfv.CategoryField?.SortOrder ?? 0)
+                .Select(cfv => new CategoryFieldValueDto(
+                    cfv.CategoryField?.DisplayLabel ?? string.Empty,
+                    cfv.Value))
+                .ToList();
             var quotations = item.Quotations.ToList();
             // Spec 013 R5: SupplierScore signature now requires (Q, Supplier, Branch).
             // The branch is reserved for reviewer-UI display use; score math is unchanged.
@@ -386,14 +390,14 @@ public class ReviewService
                 item.Id,
                 item.ProductName,
                 item.Category?.Name ?? string.Empty,
-                item.TechnicalSpecifications,
                 item.ReviewStatus,
                 item.ReviewComment,
                 item.SelectedSupplierId,
                 item.IsNotTechnicallyEquivalent,
                 quotationDtos,
-                applicationImpactTemplateName,
-                applicationImpactParameters,
+                itemImpactTemplateName,
+                itemImpactParameters,
+                itemCategoryFields,
                 LineCode: item.LineCode);
         }).ToList();
 

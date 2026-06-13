@@ -66,7 +66,7 @@ public class LongTablePagebreakTests
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         for (var i = 0; i < 50; i++)
         {
-            app.AddItem(new Item($"Producto {i + 1:D2}", category.Id, "specs"));
+            app.AddItem(new Item($"Producto {i + 1:D2}", category.Id));
         }
         ctx.Applications.Add(app);
         await ctx.SaveChangesAsync();

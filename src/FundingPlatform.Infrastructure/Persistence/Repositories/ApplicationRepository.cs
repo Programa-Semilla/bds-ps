@@ -59,6 +59,7 @@ public class ApplicationRepository : IApplicationRepository
         return await _context.Applications
             .Include(a => a.Items)
                 .ThenInclude(i => i.Category)
+                    .ThenInclude(c => c.Fields)
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)
                     .ThenInclude(q => q.Supplier)
@@ -68,12 +69,16 @@ public class ApplicationRepository : IApplicationRepository
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)
                     .ThenInclude(q => q.Document)
-            // Spec 021 / FR-005 — Impact relocated from Item to Application. The
-            // ImpactTemplate + ImpactParameterValues navigations live on the
-            // Application aggregate (configured in ApplicationConfiguration).
-            .Include(a => a.ImpactTemplate)
-            .Include(a => a.ImpactParameterValues)
-                .ThenInclude(pv => pv.ImpactTemplateParameter)
+            // Spec 035 / D2 — Impact relocated from Application to Item. Per-item
+            // impact template + parameter values + category field values.
+            .Include(a => a.Items)
+                .ThenInclude(i => i.ImpactTemplate)
+            .Include(a => a.Items)
+                .ThenInclude(i => i.ImpactParameterValues)
+                    .ThenInclude(pv => pv.ImpactTemplateParameter)
+            .Include(a => a.Items)
+                .ThenInclude(i => i.CategoryFieldValues)
+                    .ThenInclude(cfv => cfv.CategoryField)
             .Include(a => a.Applicant)
             .Include(a => a.ApplicantResponses)
                 .ThenInclude(r => r.ItemResponses)

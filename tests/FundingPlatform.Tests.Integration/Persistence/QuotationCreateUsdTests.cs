@@ -62,7 +62,7 @@ public class QuotationCreateUsdTests
 
             var application = new AppEntity(applicant.Id, 1, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-            application.AddItem(new Item("Server", category.Id, "specs"));
+            application.AddItem(new Item("Server", category.Id));
             ctx.Applications.Add(application);
             await ctx.SaveChangesAsync();
             appId = application.Id;
@@ -147,7 +147,7 @@ public class QuotationCreateUsdTests
 
             var application = new AppEntity(applicant.Id, 1, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-            application.AddItem(new Item("Server", category.Id, "specs"));
+            application.AddItem(new Item("Server", category.Id));
             ctx.Applications.Add(application);
             await ctx.SaveChangesAsync();
             appId = application.Id;
@@ -213,7 +213,7 @@ public class QuotationCreateUsdTests
 
             var application = new AppEntity(applicant.Id, 1, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-            application.AddItem(new Item("Server", category.Id, "specs"));
+            application.AddItem(new Item("Server", category.Id));
             ctx.Applications.Add(application);
             await ctx.SaveChangesAsync();
             appId = application.Id;

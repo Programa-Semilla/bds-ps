@@ -119,17 +119,6 @@
                             <dd class="col-sm-7" data-testid="admin-process-plantilla-base-name">@snapshot.SourcePlantillaName</dd>
                             <dt class="col-sm-5">Mín. cotizaciones / ítem</dt>
                             <dd class="col-sm-7" data-testid="admin-process-plantilla-min-quotations">@snapshot.MinimumQuotationsPerItem</dd>
-                            <dt class="col-sm-5">Plantillas de impacto</dt>
-                            <dd class="col-sm-7" data-testid="admin-process-plantilla-impacts">
-                                @if (snapshot.ImpactTemplateNames.Count == 0)
-                                {
-                                    <em>—</em>
-                                }
-                                else
-                                {
-                                    @string.Join(", ", snapshot.ImpactTemplateNames)
-                                }
-                            </dd>
                             <dt class="col-sm-5">Asignada el</dt>
                             <dd class="col-sm-7">@snapshot.AssignedAt.ToString("yyyy-MM-dd HH:mm")</dd>
                         </dl>
@@ -207,7 +196,7 @@
                                     <option value="">Seleccione una plantilla base</option>
                                     @foreach (var p in Model.AssignableBasePlantillas)
                                     {
-                                        <option value="@p.Id">@p.Name (mín. @p.MinimumQuotationsPerItem cotizaciones, @p.ImpactTemplateCount plantilla(s) de impacto)</option>
+                                        <option value="@p.Id">@p.Name (mín. @p.MinimumQuotationsPerItem cotizaciones)</option>
                                     }
                                 </select>
                                 <button type="submit" class="btn btn-primary"

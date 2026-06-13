@@ -50,10 +50,15 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)
                     .ThenInclude(q => q.Supplier)
-            .Include(a => a.ImpactTemplate)
-                .ThenInclude(t => t!.Parameters)
-            .Include(a => a.ImpactParameterValues)
-                .ThenInclude(pv => pv.ImpactTemplateParameter)
+            // Spec 035 / D2 / D1 — per-item impact + category field values.
+            .Include(a => a.Items)
+                .ThenInclude(i => i.ImpactTemplate)
+            .Include(a => a.Items)
+                .ThenInclude(i => i.ImpactParameterValues)
+                    .ThenInclude(pv => pv.ImpactTemplateParameter)
+            .Include(a => a.Items)
+                .ThenInclude(i => i.CategoryFieldValues)
+                    .ThenInclude(cfv => cfv.CategoryField)
             .FirstOrDefaultAsync(a => a.PublicCode == canonical, ct);
 
         if (application is null || application.ApplicantId != currentApplicantId)
@@ -65,14 +70,31 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
             item.Id,
             item.ProductName,
             item.Category?.Name ?? string.Empty,
-            item.TechnicalSpecifications,
             item.Quotations.Select(q => new ReviewQuotationRow(
                 q.Id,
                 q.SupplierId,
                 q.Supplier?.Name ?? string.Empty,
                 q.Price,
                 q.Currency,
-                q.ConvertedCrcAmount)).ToList())).ToList();
+                q.ConvertedCrcAmount)).ToList(),
+            // Spec 035 / D2 — per-item impact summary.
+            item.ImpactTemplate is null
+                ? null
+                : new ReviewImpactSummary(
+                    item.ImpactTemplate.Id,
+                    item.ImpactTemplate.Name,
+                    item.ImpactParameterValues.Select(pv => new ReviewImpactParameter(
+                        pv.ImpactTemplateParameter?.DisplayLabel
+                            ?? pv.ImpactTemplateParameter?.Name
+                            ?? string.Empty,
+                        pv.Value ?? string.Empty)).ToList()),
+            // Spec 035 / D1 — per-item category field values.
+            item.CategoryFieldValues
+                .OrderBy(cfv => cfv.CategoryField?.SortOrder ?? 0)
+                .Select(cfv => new ReviewCategoryFieldRow(
+                    cfv.CategoryField?.DisplayLabel ?? string.Empty,
+                    cfv.Value))
+                .ToList())).ToList();
 
         // The /review page renders before any reviewer selects a supplier, so
         // each item still holds its competing quotations. Reuse the single
@@ -83,21 +105,13 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
         var (totalCrc, hasNonCrcQuotation) =
             ApplicationCurrencyTotal.ComputeCheapestEstimate(application);
 
-        var impactSummary = application.ImpactTemplate is null
-            ? null
-            : new ReviewImpactSummary(
-                application.ImpactTemplate.Id,
-                application.ImpactTemplate.Name,
-                application.ImpactParameterValues.Select(pv => new ReviewImpactParameter(
-                    pv.ImpactTemplateParameter?.DisplayLabel
-                        ?? pv.ImpactTemplateParameter?.Name
-                        ?? string.Empty,
-                    pv.Value ?? string.Empty)).ToList());
-
         var minQuotations = await ResolveMinimumQuotationsAsync(application.GroupId, ct);
-        var canSubmit = application.ImpactTemplateId is not null
-                        && application.Items.Count >= 1
-                        && application.Items.All(i => i.Quotations.Count >= minQuotations);
+        // Spec 035 / D2 — every item must have an impact template + the minimum
+        // quotations. Required category fields are gated at submit by the domain.
+        var canSubmit = application.Items.Count >= 1
+                        && application.Items.All(i =>
+                            i.ImpactTemplateId is not null
+                            && i.Quotations.Count >= minQuotations);
 
         return new ApplicationReviewViewModel(
             application.Id,
@@ -107,7 +121,6 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
             items,
             totalCrc,
             hasNonCrcQuotation,
-            impactSummary,
             minQuotations,
             canSubmit);
     }

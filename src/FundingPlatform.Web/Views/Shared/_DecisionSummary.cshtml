@@ -59,11 +59,6 @@ else
                     </div>
 
                     <dl class="row mb-0">
-                        <dt class="col-sm-3 text-muted">Especificaciones técnicas</dt>
-                        <dd class="col-sm-9" data-testid="decision-line-specs">
-                            @(string.IsNullOrWhiteSpace(line.TechnicalSpecifications) ? "—" : line.TechnicalSpecifications)
-                        </dd>
-
                         @if (line.ReviewStatus == ItemReviewStatus.Approved && line.ApprovedAmount is not null)
                         {
                             <dt class="col-sm-3 text-muted">Proveedor</dt>

@@ -5,7 +5,8 @@ CREATE TABLE [dbo].[ProcessPlantillas]
     [SourcePlantillaId]          INT             NOT NULL,
     [MinimumQuotationsPerItem]   INT             NOT NULL,
     [RequiredFieldFlags]         BIGINT          NOT NULL,
-    [ImpactTemplateIdsCsv]       NVARCHAR(2000)  NOT NULL,
+    -- Spec 035 / D4 — ImpactTemplateIdsCsv dropped: the Plantilla no longer gates
+    -- impact-template selection (per-item impact picks any active template).
     [AssignedAt]                 DATETIMEOFFSET(0)    NOT NULL CONSTRAINT [DF_ProcessPlantillas_AssignedAt] DEFAULT (SYSUTCDATETIME()),
 
     CONSTRAINT [PK_ProcessPlantillas] PRIMARY KEY CLUSTERED ([Id]),

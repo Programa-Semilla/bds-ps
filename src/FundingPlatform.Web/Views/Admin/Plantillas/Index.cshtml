@@ -48,7 +48,6 @@
                         <tr>
                             <th>Nombre</th>
                             <th class="w-1">Mín. cotiz.</th>
-                            <th class="w-1">Plantillas de impacto</th>
                             <th class="w-1">Procesos asignados</th>
                             <th>Estado</th>
                             <th class="text-end">Acciones</th>
@@ -60,7 +59,6 @@
                             <tr data-testid="admin-plantilla-row-@row.Id">
                                 <td data-testid="admin-plantilla-name">@row.Name</td>
                                 <td>@row.MinimumQuotationsPerItem</td>
-                                <td>@row.ImpactTemplateCount</td>
                                 <td>@row.AssignedProcessCount</td>
                                 <td>
                                     @if (row.IsArchived)

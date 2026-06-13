@@ -72,8 +72,8 @@ public class BrandedDocumentProjectionTests
 
         var app = new AppEntity(applicant.Id, 1, "Sazón Vegetariano");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-        var approvedItem = new Item("Laptop", category.Id, "specs");
-        var rejectedItem = new Item("Antena", category.Id, "specs");
+        var approvedItem = new Item("Laptop", category.Id);
+        var rejectedItem = new Item("Antena", category.Id);
         app.AddItem(approvedItem);
         app.AddItem(rejectedItem);
         ctx.Applications.Add(app);
@@ -119,7 +119,7 @@ public class BrandedDocumentProjectionTests
 
         var app = new AppEntity(applicant.Id, 1, "Sazón Vegetariano");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-        var item = new Item("Laptop", category.Id, "specs");
+        var item = new Item("Laptop", category.Id);
         app.AddItem(item);
         ctx.Applications.Add(app);
         await ctx.SaveChangesAsync();
@@ -146,7 +146,7 @@ public class BrandedDocumentProjectionTests
 
         var app = new AppEntity(applicant.Id, 1, "Sazón Vegetariano");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-        var item = new Item("Laptop", category.Id, "specs");
+        var item = new Item("Laptop", category.Id);
         app.AddItem(item);
         ctx.Applications.Add(app);
         await ctx.SaveChangesAsync();

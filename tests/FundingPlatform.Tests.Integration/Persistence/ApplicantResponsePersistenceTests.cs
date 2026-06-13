@@ -142,7 +142,7 @@ public class ApplicantResponsePersistenceTests
         application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         foreach (var name in itemNames)
         {
-            application.AddItem(new Item(name, category.Id, "specs"));
+            application.AddItem(new Item(name, category.Id));
         }
 
         // Simulate prior state machine transitions up to Resolved

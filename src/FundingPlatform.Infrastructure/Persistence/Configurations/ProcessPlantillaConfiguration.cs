@@ -11,8 +11,8 @@ namespace FundingPlatform.Infrastructure.Persistence.Configurations;
 /// Spec 021 / FR-004 / OQ-1 — maps the frozen
 /// <see cref="ProcessPlantilla"/> snapshot to <c>dbo.ProcessPlantillas</c>.
 /// The Process-end of the one-to-one relationship is configured in
-/// <see cref="ProcessConfiguration"/>; this file owns the SourcePlantilla
-/// FK and the ImpactTemplateIdsCsv payload column.
+/// <see cref="ProcessConfiguration"/>; this file owns the SourcePlantilla FK.
+/// Spec 035 / D4 — the ImpactTemplateIdsCsv payload column was dropped.
 /// </summary>
 public class ProcessPlantillaConfiguration : IEntityTypeConfiguration<ProcessPlantilla>
 {
@@ -26,12 +26,6 @@ public class ProcessPlantillaConfiguration : IEntityTypeConfiguration<ProcessPla
         builder.Property(pp => pp.SourcePlantillaId).IsRequired();
         builder.Property(pp => pp.MinimumQuotationsPerItem).IsRequired();
         builder.Property(pp => pp.RequiredFieldFlags).IsRequired();
-
-        // Snapshot list of ImpactTemplate.Id stored as CSV (not FK) so deleting
-        // a base ImpactTemplate row does not corrupt the historical snapshot.
-        builder.Property(pp => pp.ImpactTemplateIdsCsv)
-            .HasMaxLength(2000)
-            .IsRequired();
 
         builder.Property(pp => pp.AssignedAt).HasDefaultValueSql("SYSUTCDATETIME()");
 

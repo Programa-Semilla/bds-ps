@@ -1,10 +1,13 @@
 using FundingPlatform.Domain.Enums;
+using DomainImpact = FundingPlatform.Domain.ValueObjects.Impact;
 
 namespace FundingPlatform.Domain.Entities;
 
 public class Item
 {
     private readonly List<Quotation> _quotations = [];
+    private readonly List<ImpactParameterValue> _impactParameterValues = [];
+    private readonly List<CategoryFieldValue> _categoryFieldValues = [];
 
     public int Id { get; private set; }
     public int ApplicationId { get; private set; }
@@ -18,7 +21,12 @@ public class Item
     public string? LineCode { get; private set; }
     public string ProductName { get; private set; } = string.Empty;
     public int CategoryId { get; private set; }
-    public string TechnicalSpecifications { get; private set; } = string.Empty;
+    /// <summary>
+    /// Spec 035 / D2 — impact relocated from Application to Item. Nullable while
+    /// Draft; the per-item submit gate (<see cref="Application.Validate"/>) requires
+    /// it before the application can advance. Set via <see cref="SetImpact"/>.
+    /// </summary>
+    public int? ImpactTemplateId { get; private set; }
     public ItemReviewStatus ReviewStatus { get; private set; } = ItemReviewStatus.Pending;
     public string? ReviewComment { get; private set; }
     public int? SelectedSupplierId { get; private set; }
@@ -27,33 +35,114 @@ public class Item
     public DateTime UpdatedAt { get; private set; }
 
     public Category Category { get; private set; } = null!;
-    // Spec 021 / FR-005 — Impact relocated from Item to Application; no
-    // per-Item Impact nav property remains. Read paths that historically
-    // joined Item → Impact now route through Application.Impact (R-6).
+    public ImpactTemplate? ImpactTemplate { get; private set; }
     public Supplier? SelectedSupplier { get; private set; }
 
     public IReadOnlyList<Quotation> Quotations => _quotations.AsReadOnly();
 
+    /// <summary>Spec 035 / D2 — per-item impact parameter values (EAV).</summary>
+    public IReadOnlyList<ImpactParameterValue> ImpactParameterValues => _impactParameterValues.AsReadOnly();
+
+    /// <summary>Spec 035 / D1 — per-item category field values (EAV).</summary>
+    public IReadOnlyList<CategoryFieldValue> CategoryFieldValues => _categoryFieldValues.AsReadOnly();
+
+    /// <summary>
+    /// Spec 035 / D2 — typed projection used by read surfaces. Null until
+    /// <see cref="SetImpact"/> has populated a template + values.
+    /// </summary>
+    public DomainImpact? Impact =>
+        ImpactTemplate is null
+            ? null
+            : new DomainImpact(ImpactTemplate, ImpactParameterValues);
+
     private Item() { }
 
-    public Item(string productName, int categoryId, string technicalSpecifications)
+    public Item(string productName, int categoryId)
     {
         ProductName = productName;
         CategoryId = categoryId;
-        TechnicalSpecifications = technicalSpecifications;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>
-    /// Updates the item's product name, category, and technical specifications.
+    /// Updates the item's product name and category. When the category changes,
+    /// the previous category's field values are discarded (see <see cref="ChangeCategory"/>).
     /// </summary>
-    public void Update(string productName, int categoryId, string technicalSpecifications)
+    public void Update(string productName, int categoryId)
     {
         ProductName = productName;
-        CategoryId = categoryId;
-        TechnicalSpecifications = technicalSpecifications;
+        ChangeCategory(categoryId);
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 035 / D11 — sets the item's category, clearing any category field
+    /// values captured under the previous category (they no longer apply). No-op
+    /// when the category is unchanged.
+    /// </summary>
+    public void ChangeCategory(int newCategoryId)
+    {
+        if (CategoryId != newCategoryId)
+        {
+            CategoryId = newCategoryId;
+            _categoryFieldValues.Clear();
+        }
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 035 / D2 — replaces the item's impact selection: template + parameter
+    /// values (relocated from <c>Application.SetImpact</c>). Replace-all semantics.
+    /// </summary>
+    public void SetImpact(ImpactTemplate template, IEnumerable<ImpactParameterValue> values)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(values);
+
+        ImpactTemplate = template;
+        ImpactTemplateId = template.Id;
+        _impactParameterValues.Clear();
+        _impactParameterValues.AddRange(values);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 035 / D1 — replaces the item's category field values (replace-all,
+    /// mirroring <see cref="SetImpact"/>).
+    /// </summary>
+    public void SetCategoryFieldValues(IEnumerable<CategoryFieldValue> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        _categoryFieldValues.Clear();
+        _categoryFieldValues.AddRange(values);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 035 / SC-006 — display labels of the category's required fields whose
+    /// value is blank or absent, used by <see cref="Application.Validate"/> to gate
+    /// submission. Iterates the category's CURRENT field set (so a field an admin
+    /// adds after the item was saved is caught), cross-referenced against the
+    /// item's stored values. No-op when the <see cref="Category"/> nav (with its
+    /// Fields) is not loaded — the caller must Include it for the gate to fire.
+    /// </summary>
+    public IEnumerable<string> MissingRequiredCategoryFields()
+    {
+        if (Category is null)
+        {
+            yield break;
+        }
+
+        foreach (var field in Category.Fields.Where(f => f.IsRequired))
+        {
+            var value = _categoryFieldValues.FirstOrDefault(v => v.CategoryFieldId == field.Id)?.Value;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                yield return field.DisplayLabel;
+            }
+        }
     }
 
     /// <summary>

@@ -46,40 +46,8 @@
     </div>
 </div>
 
-@* Spec 021 / FR-005 — Impact summary always rendered first (the FR-017
-   guard requires Impact to be set; otherwise CanSubmit is false). *@
-<div class="card mb-4" data-testid="review-impact-card">
-    <div class="card-header">
-        <h4 class="card-title">Impacto</h4>
-    </div>
-    <div class="card-body">
-        @if (Model.Impact is null)
-        {
-            <p class="text-danger mb-0">
-                <i class="ti ti-alert-triangle me-1"></i>
-                Aún no ha definido el impacto. Vuelva a la edición para completarlo.
-            </p>
-        }
-        else
-        {
-            <p class="mb-2"><strong>Plantilla:</strong> @Model.Impact.TemplateName</p>
-            @if (Model.Impact.Parameters.Count == 0)
-            {
-                <p class="text-secondary mb-0">Sin parámetros adicionales.</p>
-            }
-            else
-            {
-                <dl class="row mb-0">
-                    @foreach (var p in Model.Impact.Parameters)
-                    {
-                        <dt class="col-sm-4">@p.Label</dt>
-                        <dd class="col-sm-8">@p.Value</dd>
-                    }
-                </dl>
-            }
-        }
-    </div>
-</div>
+@* Spec 035 / D9 — impact + category fields are per line item; they render inside
+   each item block in the table below. *@
 
 <div class="card mb-4" data-testid="review-items-card">
     <div class="card-header">
@@ -109,7 +77,13 @@
                     @foreach (var item in Model.Items)
                     {
                         <tr data-testid="review-item-row">
-                            <td>@item.ProductName</td>
+                            <td>
+                                @item.ProductName
+                                @if (item.Impact is null)
+                                {
+                                    <span class="badge bg-warning-lt ms-1" data-testid="review-item-impact-missing-@item.Id">Impacto pendiente</span>
+                                }
+                            </td>
                             <td>@item.CategoryName</td>
                             <td>
                                 <span class="badge bg-secondary">@item.Quotations.Count</span>
@@ -134,6 +108,34 @@
                                 }
                             </td>
                         </tr>
+                        @if (item.CategoryFields.Count > 0 || item.Impact is not null)
+                        {
+                            <tr data-testid="review-item-detail-@item.Id">
+                                <td colspan="3" class="bg-light small">
+                                    @if (item.CategoryFields.Count > 0)
+                                    {
+                                        <dl class="row mb-1">
+                                            @foreach (var cf in item.CategoryFields)
+                                            {
+                                                <dt class="col-sm-4 text-secondary">@cf.Label</dt>
+                                                <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(cf.Value) ? "—" : cf.Value)</dd>
+                                            }
+                                        </dl>
+                                    }
+                                    @if (item.Impact is not null)
+                                    {
+                                        <div class="text-secondary"><strong>Impacto:</strong> @item.Impact.TemplateName</div>
+                                        <dl class="row mb-0">
+                                            @foreach (var p in item.Impact.Parameters)
+                                            {
+                                                <dt class="col-sm-4 text-secondary">@p.Label</dt>
+                                                <dd class="col-sm-8">@p.Value</dd>
+                                            }
+                                        </dl>
+                                    }
+                                </td>
+                            </tr>
+                        }
                     }
                 </tbody>
             </table>
@@ -180,13 +182,13 @@
                 No se puede enviar — faltan los siguientes campos:
             </h4>
             <ul class="mb-0 mt-1">
-                @if (Model.Impact is null)
-                {
-                    <li>Impacto del acompañamiento</li>
-                }
                 @if (Model.Items.Count == 0)
                 {
                     <li>Al menos un ítem</li>
+                }
+                @foreach (var item in Model.Items.Where(i => i.Impact is null))
+                {
+                    <li>Ítem "@item.ProductName" necesita una plantilla de impacto</li>
                 }
                 @foreach (var item in Model.Items.Where(i => i.Quotations.Count < Model.MinimumQuotationsPerItem))
                 {

@@ -67,7 +67,6 @@ public sealed class DecisionSummaryProjection : IDecisionSummaryProjection
                 LineCode: item.LineCode,
                 ProductName: item.ProductName,
                 CategoryName: item.Category?.Name ?? string.Empty,
-                TechnicalSpecifications: item.TechnicalSpecifications,
                 ReviewStatus: item.ReviewStatus,
                 ReviewComment: item.ReviewComment,
                 ApprovedSupplierName: approvedSupplierName,

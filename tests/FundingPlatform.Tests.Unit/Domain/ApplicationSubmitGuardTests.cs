@@ -18,7 +18,7 @@ public class ApplicationSubmitGuardTests
 
     private static Item NewItem(int id = 1, string productName = "Producto A")
     {
-        var item = new Item(productName, categoryId: 1, technicalSpecifications: "specs");
+        var item = new Item(productName, categoryId: 1);
         typeof(Item).GetProperty("Id")!.SetValue(item, id);
         return item;
     }
@@ -46,11 +46,12 @@ public class ApplicationSubmitGuardTests
         list.Add(quotation);
     }
 
-    private static void AttachImpact(AppEntity application, int templateId = 10)
+    // Spec 035 / D2 — impact is now per-item; attach it to the line item.
+    private static void AttachImpact(Item item, int templateId = 10)
     {
         var template = new ImpactTemplate("ImpactA", description: null, isActive: true);
         typeof(ImpactTemplate).GetProperty("Id")!.SetValue(template, templateId);
-        application.SetImpact(template, Array.Empty<ImpactParameterValue>());
+        item.SetImpact(template, Array.Empty<ImpactParameterValue>());
     }
 
     // ----- Legacy Submit(int) overload -----------------------------------------------
@@ -82,6 +83,7 @@ public class ApplicationSubmitGuardTests
         var app = NewApp();
         var item = NewItem(1);
         StuffQuotation(item);
+        AttachImpact(item);
         app.AddItem(item);
 
         app.Submit(minQuotations: 1);
@@ -96,7 +98,6 @@ public class ApplicationSubmitGuardTests
     public void StageSubmit_NoItems_Throws()
     {
         var app = NewApp();
-        AttachImpact(app); // satisfy the Impact guard first
         var stageClosesAt = DateTimeOffset.UtcNow.AddDays(7);
 
         var ex = Assert.Throws<InvalidOperationException>(
@@ -125,7 +126,7 @@ public class ApplicationSubmitGuardTests
                 stageClosesAt: stageClosesAt,
                 now: DateTimeOffset.UtcNow));
 
-        Assert.That(ex!.Message, Does.Contain("Impact"));
+        Assert.That(ex!.Message, Does.Contain("impact"));
     }
 
     [Test]
@@ -134,8 +135,8 @@ public class ApplicationSubmitGuardTests
         var app = NewApp();
         var item = NewItem(1);
         StuffQuotation(item);
+        AttachImpact(item);
         app.AddItem(item);
-        AttachImpact(app);
 
         var now = DateTimeOffset.UtcNow;
         var stageClosesAt = now.AddHours(-1); // already closed
@@ -160,8 +161,8 @@ public class ApplicationSubmitGuardTests
         var app = NewApp();
         var item = NewItem(1);
         StuffQuotation(item);
+        AttachImpact(item);
         app.AddItem(item);
-        AttachImpact(app);
 
         var now = DateTimeOffset.UtcNow;
 
@@ -179,8 +180,8 @@ public class ApplicationSubmitGuardTests
         var app = NewApp();
         var item = NewItem(1);
         StuffQuotation(item);
+        AttachImpact(item);
         app.AddItem(item);
-        AttachImpact(app);
         // Mark a reminder bit so we can prove ResetStageState fires.
         app.MarkReminderSent(0x1);
         Assert.That(app.RemindersSentMask, Is.EqualTo(0x1));
@@ -209,8 +210,8 @@ public class ApplicationSubmitGuardTests
         var app = NewApp();
         var item = NewItem(1);
         // No quotations stuffed — fails minQuotations=2.
+        AttachImpact(item);
         app.AddItem(item);
-        AttachImpact(app);
 
         var now = DateTimeOffset.UtcNow;
         var stageClosesAt = now.AddDays(7);

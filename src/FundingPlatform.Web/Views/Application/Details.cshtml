@@ -116,33 +116,7 @@
     </div>
 </div>
 
-@* Spec 021 / FR-005 — Impact is a per-Application value; surface it as a
-   single read-only summary, not a per-item column. *@
-<div class="card mb-4" data-testid="application-details-impact">
-    <div class="card-header">
-        <h4 class="card-title mb-0">Impacto</h4>
-    </div>
-    <div class="card-body">
-        @if (Model.ImpactSet)
-        {
-            <p class="mb-2">Plantilla de impacto: <strong>@Model.ImpactTemplateName</strong></p>
-            @if (Model.ImpactParameters.Count > 0)
-            {
-                <dl class="row mb-0">
-                    @foreach (var p in Model.ImpactParameters)
-                    {
-                        <dt class="col-sm-5 text-secondary">@p.DisplayLabel</dt>
-                        <dd class="col-sm-7">@p.Value</dd>
-                    }
-                </dl>
-            }
-        }
-        else
-        {
-            <p class="text-secondary mb-0">El impacto aún no se ha definido.</p>
-        }
-    </div>
-</div>
+@* Spec 035 / D9 — impact is per line item now; it renders inside each item block below. *@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0">Ítems</h4>
@@ -265,6 +239,42 @@ else
                                 }
                             </td>
                         </tr>
+                        @if (item.CategoryFields.Count > 0 || !string.IsNullOrEmpty(item.ImpactTemplateName))
+                        {
+                            <tr data-testid="item-detail-row-@item.Id">
+                                <td colspan="3" class="bg-light">
+                                    @if (item.CategoryFields.Count > 0)
+                                    {
+                                        <div class="mb-2" data-testid="item-category-fields-@item.Id">
+                                            <div class="text-secondary small mb-1"><strong>Especificaciones</strong></div>
+                                            <dl class="row mb-0 small">
+                                                @foreach (var cf in item.CategoryFields)
+                                                {
+                                                    <dt class="col-sm-4 text-secondary">@cf.Label</dt>
+                                                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(cf.Value) ? "—" : cf.Value)</dd>
+                                                }
+                                            </dl>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(item.ImpactTemplateName))
+                                    {
+                                        <div data-testid="item-impact-@item.Id">
+                                            <div class="text-secondary small mb-1"><strong>Impacto:</strong> @item.ImpactTemplateName</div>
+                                            @if (item.ImpactParameters.Count > 0)
+                                            {
+                                                <dl class="row mb-0 small">
+                                                    @foreach (var p in item.ImpactParameters)
+                                                    {
+                                                        <dt class="col-sm-4 text-secondary">@p.DisplayLabel</dt>
+                                                        <dd class="col-sm-8">@p.Value</dd>
+                                                    }
+                                                </dl>
+                                            }
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
                         @if (item.IsNotTechnicallyEquivalent)
                         {
                             <tr>

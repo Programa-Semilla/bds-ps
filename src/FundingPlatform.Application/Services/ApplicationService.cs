@@ -399,10 +399,12 @@ public class ApplicationService
         var application = await _applicationRepository.GetByIdWithDetailsAsync(cmd.ApplicationId)
             ?? throw new InvalidOperationException($"Application {cmd.ApplicationId} not found.");
 
-        var category = await _categoryRepository.GetByIdAsync(cmd.CategoryId)
+        var category = await _categoryRepository.GetByIdWithFieldsAsync(cmd.CategoryId)
             ?? throw new InvalidOperationException($"Category {cmd.CategoryId} not found.");
 
-        var item = new Item(cmd.ProductName, category.Id, cmd.TechnicalSpecifications);
+        var item = new Item(cmd.ProductName, category.Id);
+        item.SetCategoryFieldValues(BuildCategoryFieldValues(category, cmd.CategoryFieldValues));
+        await ApplyItemImpactAsync(item, cmd.ImpactTemplateId, cmd.ImpactParameterValues);
         application.AddItem(item);
 
         await _applicationRepository.UpdateAsync(application);
@@ -414,16 +416,74 @@ public class ApplicationService
         var application = await _applicationRepository.GetByIdWithDetailsAsync(cmd.ApplicationId)
             ?? throw new InvalidOperationException($"Application {cmd.ApplicationId} not found.");
 
-        var category = await _categoryRepository.GetByIdAsync(cmd.CategoryId)
+        var category = await _categoryRepository.GetByIdWithFieldsAsync(cmd.CategoryId)
             ?? throw new InvalidOperationException($"Category {cmd.CategoryId} not found.");
 
         var item = application.Items.FirstOrDefault(i => i.Id == cmd.ItemId)
             ?? throw new InvalidOperationException($"Item {cmd.ItemId} not found in application {cmd.ApplicationId}.");
 
-        item.Update(cmd.ProductName, category.Id, cmd.TechnicalSpecifications);
+        // Changing category clears the previous category's values (ChangeCategory).
+        item.Update(cmd.ProductName, category.Id);
+        item.SetCategoryFieldValues(BuildCategoryFieldValues(category, cmd.CategoryFieldValues));
+        await ApplyItemImpactAsync(item, cmd.ImpactTemplateId, cmd.ImpactParameterValues);
 
         await _applicationRepository.UpdateAsync(application);
         await _applicationRepository.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Spec 035 / D1 — builds a complete category-field value set for the item:
+    /// one row per field in the (current) category, carrying the applicant's
+    /// supplied value (or null). Storing the full set keeps the display surfaces
+    /// and the submit-gate coverage check uniform.
+    /// </summary>
+    private static List<CategoryFieldValue> BuildCategoryFieldValues(
+        Category category, IReadOnlyDictionary<int, string?> values)
+    {
+        return category.Fields
+            .OrderBy(f => f.SortOrder)
+            .Select(f => new CategoryFieldValue(
+                f.Id,
+                values.TryGetValue(f.Id, out var v) ? v : null))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Spec 035 / D2 — resolves the chosen impact template (any active, no
+    /// Plantilla gate), validates its required parameters, and applies the
+    /// template + values to the item. No-op when no template is chosen (research
+    /// D7 empty-state); the submit gate then blocks the application.
+    /// </summary>
+    private async Task ApplyItemImpactAsync(
+        Item item, int? impactTemplateId, IReadOnlyDictionary<int, string?> parameterValues)
+    {
+        if (impactTemplateId is not int templateId || templateId <= 0)
+        {
+            return;
+        }
+
+        var template = await _impactTemplateRepository.GetByIdWithParametersAsync(templateId)
+            ?? throw new InvalidOperationException($"Impact template {templateId} not found.");
+
+        var missing = template.Parameters
+            .Where(p => p.IsRequired)
+            .Where(p => !parameterValues.TryGetValue(p.Id, out var v) || string.IsNullOrWhiteSpace(v))
+            .Select(p => $"'{p.DisplayLabel}'")
+            .ToList();
+        if (missing.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Faltan valores de impacto requeridos: {string.Join(", ", missing)}.");
+        }
+
+        var impactValues = template.Parameters
+            .OrderBy(p => p.SortOrder)
+            .Select(p => new ImpactParameterValue(
+                p.Id,
+                parameterValues.TryGetValue(p.Id, out var v) ? v : null))
+            .ToList();
+
+        item.SetImpact(template, impactValues);
     }
 
     public async Task RemoveItemAsync(RemoveItemCommand cmd)
@@ -534,12 +594,18 @@ public class ApplicationService
         await _documentRepository.AddAsync(newDocument);
         await _applicationRepository.SaveChangesAsync();
 
-        if (quotation.Document is not null)
-        {
-            await TryDeleteQuotationBlobAsync(quotation.Document);
-        }
-
+        // Spec 035 / D5 — reference-counted retention. Re-point the quotation to the
+        // new document FIRST, then delete the old blob only when no other quotation
+        // in the application still references it (reuse may share documents).
+        var oldDocument = quotation.Document;
+        var oldDocumentId = quotation.DocumentId;
         quotation.ReplaceDocument(newDocument.Id);
+
+        if (oldDocument is not null
+            && application.CountQuotationsReferencingDocument(oldDocumentId) == 0)
+        {
+            await TryDeleteQuotationBlobAsync(oldDocument);
+        }
 
         await _applicationRepository.UpdateAsync(application);
         await _applicationRepository.SaveChangesAsync();
@@ -554,15 +620,88 @@ public class ApplicationService
             ?? throw new InvalidOperationException($"Item {itemId} not found in application {applicationId}.");
 
         var quotation = item.Quotations.FirstOrDefault(q => q.Id == quotationId);
-        if (quotation?.Document is not null)
-        {
-            await TryDeleteQuotationBlobAsync(quotation.Document);
-        }
+        var document = quotation?.Document;
+        var documentId = quotation?.DocumentId ?? 0;
 
+        // Spec 035 / D5 — detach the quotation row FIRST, then delete the blob only
+        // when no sibling quotation in the application still references the document.
         item.RemoveQuotation(quotationId);
+
+        if (document is not null
+            && application.CountQuotationsReferencingDocument(documentId) == 0)
+        {
+            await TryDeleteQuotationBlobAsync(document);
+        }
 
         await _applicationRepository.UpdateAsync(application);
         await _applicationRepository.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Spec 035 / US3 / FR-008 — reuse a sibling line item's quotation: share its
+    /// supplier + branch + uploaded document, with this item's own price/currency/
+    /// validity. The source must belong to the same application. No upload, no new
+    /// Document row.
+    /// </summary>
+    public async Task ReuseQuotationAsync(
+        int applicationId, int itemId, int sourceQuotationId,
+        decimal price, string currency, DateOnly validUntil)
+    {
+        var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId)
+            ?? throw new InvalidOperationException($"Application {applicationId} not found.");
+
+        var item = application.Items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException($"Item {itemId} not found in application {applicationId}.");
+
+        // FR-008 — the source quotation must live in the same application.
+        var source = application.Items
+            .SelectMany(i => i.Quotations)
+            .FirstOrDefault(q => q.Id == sourceQuotationId)
+            ?? throw new InvalidOperationException(
+                $"Source quotation {sourceQuotationId} is not part of application {applicationId}.");
+
+        var supplier = await _supplierRepository.GetByIdWithBranchesAsync(source.SupplierId)
+            ?? throw new InvalidOperationException($"Supplier {source.SupplierId} not found.");
+        var branch = supplier.Branches.FirstOrDefault(b => b.Id == source.SupplierBranchId)
+            ?? throw new InvalidOperationException($"Branch {source.SupplierBranchId} not found.");
+
+        var quotation = new Quotation(
+            supplierId: source.SupplierId,
+            supplierBranchId: source.SupplierBranchId,
+            documentId: source.DocumentId,
+            price: price,
+            validUntil: validUntil,
+            currency: currency);
+
+        await quotation.SetCurrencyAndAmountAsync(
+            CurrencyCode.From(currency), price, _conversionService);
+
+        item.AttachQuotation(supplier, branch, quotation);
+
+        await _applicationRepository.UpdateAsync(application);
+        await _applicationRepository.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Spec 035 / US3 — quotations on the application's OTHER items, offered as
+    /// reuse candidates for <paramref name="excludeItemId"/>.
+    /// </summary>
+    public async Task<List<ReusableQuotationDto>> GetReusableQuotationsAsync(
+        int applicationId, int excludeItemId)
+    {
+        var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId)
+            ?? throw new InvalidOperationException($"Application {applicationId} not found.");
+
+        return application.Items
+            .Where(i => i.Id != excludeItemId)
+            .SelectMany(i => i.Quotations)
+            .Select(q => new ReusableQuotationDto(
+                q.Id,
+                q.Supplier?.Name ?? string.Empty,
+                q.SupplierBranch?.BranchName ?? string.Empty,
+                q.Document?.OriginalFileName ?? string.Empty,
+                q.Currency))
+            .ToList();
     }
 
     /// <summary>
@@ -907,61 +1046,13 @@ public class ApplicationService
                 p.SortOrder)).ToList())).ToList();
     }
 
-    public async Task SetApplicationImpactAsync(SetApplicationImpactCommand cmd)
-    {
-        var application = await _applicationRepository.GetByIdWithDetailsAsync(cmd.ApplicationId)
-            ?? throw new InvalidOperationException($"Application {cmd.ApplicationId} not found.");
-
-        var template = await _impactTemplateRepository.GetByIdWithParametersAsync(cmd.ImpactTemplateId)
-            ?? throw new InvalidOperationException($"Impact template {cmd.ImpactTemplateId} not found.");
-
-        foreach (var param in template.Parameters.Where(p => p.IsRequired))
-        {
-            if (!cmd.ParameterValues.TryGetValue(param.Id, out var value) || string.IsNullOrWhiteSpace(value))
-            {
-                throw new InvalidOperationException($"Parameter '{param.DisplayLabel}' is required.");
-            }
-        }
-
-        var parameterValues = cmd.ParameterValues
-            .Select(kvp => new ImpactParameterValue(kvp.Key, kvp.Value))
-            .ToList();
-
-        // Spec 021 / FR-005 — Impact is captured on the Application aggregate
-        // upfront, before any Item exists; there is no per-Item Impact path.
-        application.SetImpact(template, parameterValues);
-
-        await _applicationRepository.UpdateAsync(application);
-        await _applicationRepository.SaveChangesAsync();
-    }
-
     private static ApplicationDto MapToDto(AppEntity application)
     {
-        // Spec 021 / FR-005 — Impact is a per-Application value, surfaced as
-        // ApplicationDto.Impact below. The per-Item ImpactDto on ItemDto is a
-        // vestigial mirror kept so existing read paths keep compiling; Id = 0
-        // (the value-object projection has no row identity).
-        var applicationImpactDto = application.ImpactTemplate is not null
-            ? new ImpactDto(
-                0,
-                application.ImpactTemplate.Id,
-                application.ImpactTemplate.Name ?? string.Empty,
-                application.ImpactParameterValues.Select(pv => new ImpactParameterValueDto(
-                    pv.Id,
-                    pv.ImpactTemplateParameterId,
-                    pv.ImpactTemplateParameter?.Name ?? string.Empty,
-                    pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
-                    pv.ImpactTemplateParameter?.DataType.ToString() ?? string.Empty,
-                    pv.ImpactTemplateParameter?.IsRequired ?? false,
-                    pv.Value)).ToList())
-            : null;
-
         var items = application.Items.Select(item => new ItemDto(
             item.Id,
             item.ProductName,
             item.CategoryId,
             item.Category?.Name ?? string.Empty,
-            item.TechnicalSpecifications,
             item.Quotations.Select(q => new QuotationDto(
                 q.Id,
                 q.SupplierId,
@@ -978,7 +1069,10 @@ public class ApplicationService
                 SnapshotEffectiveAtUtc: q.Snapshot?.EffectiveAtUtc,
                 LegacyNeedsReview: q.LegacyNeedsReview,
                 SupplierBranchId: q.SupplierBranchId)).ToList(),
-            applicationImpactDto,
+            // Spec 035 / D2 — per-item impact.
+            MapItemImpact(item),
+            // Spec 035 / D1 — per-item category field label/value pairs.
+            MapCategoryFields(item),
             item.ReviewComment,
             item.SelectedSupplierId,
             item.IsNotTechnicallyEquivalent)).ToList();
@@ -992,7 +1086,39 @@ public class ApplicationService
             application.SubmittedAt,
             items,
             application.PublicCode?.Value,
-            application.CompanyName,
-            applicationImpactDto);
+            application.CompanyName);
+    }
+
+    /// <summary>Spec 035 / D2 — projects a line item's impact (null when unset).</summary>
+    internal static ImpactDto? MapItemImpact(Item item)
+    {
+        if (item.ImpactTemplate is null)
+        {
+            return null;
+        }
+
+        return new ImpactDto(
+            0,
+            item.ImpactTemplate.Id,
+            item.ImpactTemplate.Name ?? string.Empty,
+            item.ImpactParameterValues.Select(pv => new ImpactParameterValueDto(
+                pv.Id,
+                pv.ImpactTemplateParameterId,
+                pv.ImpactTemplateParameter?.Name ?? string.Empty,
+                pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
+                pv.ImpactTemplateParameter?.DataType.ToString() ?? string.Empty,
+                pv.ImpactTemplateParameter?.IsRequired ?? false,
+                pv.Value)).ToList());
+    }
+
+    /// <summary>Spec 035 / D1 — projects a line item's category field values in sort order.</summary>
+    internal static List<CategoryFieldValueDto> MapCategoryFields(Item item)
+    {
+        return item.CategoryFieldValues
+            .OrderBy(cfv => cfv.CategoryField?.SortOrder ?? 0)
+            .Select(cfv => new CategoryFieldValueDto(
+                cfv.CategoryField?.DisplayLabel ?? string.Empty,
+                cfv.Value))
+            .ToList();
     }
 }

@@ -6,7 +6,8 @@ namespace FundingPlatform.Tests.Unit.Domain;
 /// Spec 021 / FR-003 / FR-004 / OQ-1 / SC-002 — invariants for the
 /// <see cref="Plantilla"/> → <see cref="ProcessPlantilla"/> copy-on-assign
 /// snapshot mechanic. The snapshot must be independent of post-assignment
-/// edits to the base Plantilla.
+/// edits to the base Plantilla. Spec 035 / D4 — the impact-template gating was
+/// removed, so assignment no longer requires (or snapshots) impact templates.
 /// </summary>
 [TestFixture]
 public class PlantillaSnapshotTests
@@ -20,27 +21,14 @@ public class PlantillaSnapshotTests
         return process;
     }
 
-    private static ImpactTemplate MakeImpactTemplate(int id, string name)
-    {
-        var template = new ImpactTemplate(name, description: null, isActive: true);
-        typeof(ImpactTemplate).GetProperty("Id")!.SetValue(template, id);
-        return template;
-    }
-
     private static Plantilla MakePlantilla(
         string name = "Plantilla A",
         int minimumQuotationsPerItem = 3,
         long requiredFieldFlags = 0xF,
-        int id = 1,
-        IEnumerable<ImpactTemplate>? templates = null)
+        int id = 1)
     {
         var plantilla = Plantilla.Create(name, minimumQuotationsPerItem, requiredFieldFlags);
         typeof(Plantilla).GetProperty("Id")!.SetValue(plantilla, id);
-
-        foreach (var t in templates ?? new[] { MakeImpactTemplate(10, "ImpactA") })
-        {
-            plantilla.AttachImpactTemplate(t);
-        }
         return plantilla;
     }
 
@@ -48,12 +36,10 @@ public class PlantillaSnapshotTests
     public void AssignTo_ReturnsSnapshotMatchingBase()
     {
         var process = MakeProcess(100);
-        var template = MakeImpactTemplate(10, "ImpactA");
         var plantilla = MakePlantilla(
             minimumQuotationsPerItem: 3,
             requiredFieldFlags: 0xAB,
-            id: 5,
-            templates: new[] { template });
+            id: 5);
 
         var snapshot = plantilla.AssignTo(process);
 
@@ -61,7 +47,6 @@ public class PlantillaSnapshotTests
         Assert.That(snapshot.SourcePlantillaId, Is.EqualTo(5));
         Assert.That(snapshot.MinimumQuotationsPerItem, Is.EqualTo(3));
         Assert.That(snapshot.RequiredFieldFlags, Is.EqualTo(0xAB));
-        Assert.That(snapshot.ImpactTemplateIdsCsv, Is.EqualTo("10"));
         Assert.That(process.Plantilla, Is.SameAs(snapshot));
     }
 
@@ -69,45 +54,42 @@ public class PlantillaSnapshotTests
     public void AssignTo_EditBasePlantilla_DoesNotMutateSnapshot()
     {
         var process = MakeProcess(100);
-        var template = MakeImpactTemplate(10, "ImpactA");
         var plantilla = MakePlantilla(
             minimumQuotationsPerItem: 3,
             requiredFieldFlags: 0xAB,
-            id: 5,
-            templates: new[] { template });
+            id: 5);
 
         var snapshot = plantilla.AssignTo(process);
 
         // Mutate the base AFTER assignment — SC-002: snapshot stays frozen.
         plantilla.Edit("Renamed Plantilla", 7, 0xFF);
-        var freshTemplate = MakeImpactTemplate(11, "ImpactB");
-        plantilla.AttachImpactTemplate(freshTemplate);
 
         Assert.That(snapshot.MinimumQuotationsPerItem, Is.EqualTo(3));
         Assert.That(snapshot.RequiredFieldFlags, Is.EqualTo(0xAB));
-        Assert.That(snapshot.ImpactTemplateIdsCsv, Is.EqualTo("10"));
     }
 
     [Test]
-    public void AssignTo_WithZeroImpactTemplates_Throws()
+    public void AssignTo_WithNoImpactTemplates_Succeeds()
     {
+        // Spec 035 / D4 — the prior "≥ 1 impact template" guard is gone.
         var process = MakeProcess(100);
-        var plantilla = Plantilla.Create("Empty", minimumQuotationsPerItem: 3, requiredFieldFlags: 0);
-        typeof(Plantilla).GetProperty("Id")!.SetValue(plantilla, 5);
+        var plantilla = MakePlantilla(id: 5);
 
-        Assert.Throws<InvalidOperationException>(() => plantilla.AssignTo(process));
+        var snapshot = plantilla.AssignTo(process);
+
+        Assert.That(snapshot, Is.Not.Null);
+        Assert.That(process.Plantilla, Is.SameAs(snapshot));
     }
 
     [Test]
     public void AssignTo_WhenProcessAlreadyHasPlantilla_Throws()
     {
         var process = MakeProcess(100);
-        var template = MakeImpactTemplate(10, "ImpactA");
-        var firstPlantilla = MakePlantilla(id: 5, templates: new[] { template });
+        var firstPlantilla = MakePlantilla(id: 5);
 
         firstPlantilla.AssignTo(process); // first assign succeeds
 
-        var secondPlantilla = MakePlantilla(id: 6, templates: new[] { MakeImpactTemplate(11, "ImpactB") });
+        var secondPlantilla = MakePlantilla(id: 6);
 
         Assert.Throws<InvalidOperationException>(() => secondPlantilla.AssignTo(process));
     }
@@ -116,8 +98,7 @@ public class PlantillaSnapshotTests
     public void Detach_WhenAttachedToTarget_Succeeds()
     {
         var process = MakeProcess(100);
-        var template = MakeImpactTemplate(10, "ImpactA");
-        var plantilla = MakePlantilla(id: 5, templates: new[] { template });
+        var plantilla = MakePlantilla(id: 5);
         plantilla.AssignTo(process);
 
         plantilla.Detach(process, force: false, reason: null);
@@ -129,8 +110,7 @@ public class PlantillaSnapshotTests
     public void Detach_ForceWithoutReason_Throws()
     {
         var process = MakeProcess(100);
-        var template = MakeImpactTemplate(10, "ImpactA");
-        var plantilla = MakePlantilla(id: 5, templates: new[] { template });
+        var plantilla = MakePlantilla(id: 5);
         plantilla.AssignTo(process);
 
         Assert.Throws<ArgumentException>(
@@ -145,20 +125,5 @@ public class PlantillaSnapshotTests
 
         Assert.Throws<InvalidOperationException>(
             () => plantilla.Detach(process, force: false, reason: null));
-    }
-
-    [Test]
-    public void ImpactTemplateIds_RoundTripsCsv()
-    {
-        var process = MakeProcess(100);
-        var t1 = MakeImpactTemplate(10, "ImpactA");
-        var t2 = MakeImpactTemplate(20, "ImpactB");
-        var t3 = MakeImpactTemplate(30, "ImpactC");
-        var plantilla = MakePlantilla(id: 5, templates: new[] { t1, t2, t3 });
-
-        var snapshot = plantilla.AssignTo(process);
-        var ids = snapshot.ImpactTemplateIds();
-
-        Assert.That(ids, Is.EquivalentTo(new[] { 10, 20, 30 }));
     }
 }
