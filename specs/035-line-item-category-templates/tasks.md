@@ -84,7 +84,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 
 ### Tests (US1)
 
-- [ ] T031 [P] [US1] Integration tests `tests/FundingPlatform.Tests.Integration/Admin/CategoryAdministrationTests.cs` (real DB): create category with fields, full-replace update, deactivate, `GetByIdWithFieldsAsync`, hard-delete blocked when in use.
+- [X] T031 [P] [US1] Integration tests `tests/FundingPlatform.Tests.Integration/Admin/CategoryAdministrationTests.cs` (real DB): create category with fields, full-replace update, deactivate, `GetByIdWithFieldsAsync`, hard-delete blocked when in use.
 - [ ] T032 [P] [US1] E2E `tests/FundingPlatform.Tests.E2E/CategoryFieldAdminTests.cs` + POM `PageObjects/CategoryAdminPage.cs`: create/edit/reorder/remove fields; es-CR labels.
 
 ### Implementation (US1)
@@ -108,7 +108,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 ### Tests (US2)
 
 - [X] T038 [P] [US2] Unit tests `tests/FundingPlatform.Tests.Unit/Domain/`: `Item.SetImpact`/`SetCategoryFieldValues`; `Item.ChangeCategory` clears category values; `Application.Validate` per-item missing-impact + missing-required-field aggregation.
-- [ ] T039 [P] [US2] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/PerItemImpactCategoryTests.cs` (real DB): per-item impact + category values persist and round-trip; **category-fields-edited-after-use** — a newly-added required field blocks an in-progress draft's submit but does NOT retroactively invalidate an already-submitted application (spec edge case).
+- [X] T039 [P] [US2] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/PerItemImpactCategoryTests.cs` (real DB): per-item impact + category values persist and round-trip; **category-fields-edited-after-use** — a newly-added required field blocks an in-progress draft's submit but does NOT retroactively invalidate an already-submitted application (spec edge case).
 - [ ] T040 [P] [US2] E2E `tests/FundingPlatform.Tests.E2E/PerItemImpactCategoryTests.cs` + POM updates: golden path (category→fields→product→impact→save) + submit-blocked-on-missing-required.
 
 ### Implementation (US2)
