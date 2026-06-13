@@ -138,6 +138,119 @@ public class AdminController : Controller
         return RedirectToAction(nameof(ImpactTemplates));
     }
 
+    // ---------------- Spec 035 / US1 — category field configuration ----------------
+
+    [HttpGet]
+    public async Task<IActionResult> Categories()
+    {
+        var categories = await _adminService.GetAllCategoriesAsync();
+        var viewModel = new CategoryAdminViewModel
+        {
+            Categories = categories.Select(c => new CategoryListItemViewModel
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                IsActive = c.IsActive,
+                FieldCount = c.FieldCount,
+            }).ToList()
+        };
+        return View(viewModel);
+    }
+
+    [HttpGet]
+    public IActionResult CreateCategory()
+    {
+        return View(new CreateCategoryViewModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateCategory(CreateCategoryViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var command = new CreateCategoryCommand(
+            model.Name,
+            model.Description,
+            model.Fields.Select(f => new CategoryFieldDefinition(
+                f.Name, f.DisplayLabel, f.DataType, f.IsRequired, f.SortOrder)).ToList());
+
+        try
+        {
+            await _adminService.CreateCategoryAsync(command);
+        }
+        catch (Exception ex) when (ex.GetType().Name == "DbUpdateException")
+        {
+            ModelState.AddModelError(nameof(model.Name), "Ya existe una categoría con ese nombre.");
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = "Categoría creada con éxito.";
+        return RedirectToAction(nameof(Categories));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> EditCategory(int id)
+    {
+        var category = await _adminService.GetCategoryByIdAsync(id);
+        if (category is null)
+        {
+            return NotFound();
+        }
+
+        var viewModel = new EditCategoryViewModel
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Description = category.Description,
+            IsActive = category.IsActive,
+            Fields = category.Fields.Select(f => new CategoryFieldDefinitionViewModel
+            {
+                Name = f.Name,
+                DisplayLabel = f.DisplayLabel,
+                DataType = f.DataType,
+                IsRequired = f.IsRequired,
+                SortOrder = f.SortOrder,
+            }).ToList()
+        };
+        return View(viewModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditCategory(EditCategoryViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var command = new UpdateCategoryCommand(
+            model.Id,
+            model.Name,
+            model.Description,
+            model.IsActive,
+            model.Fields.Select(f => new CategoryFieldDefinition(
+                f.Name, f.DisplayLabel, f.DataType, f.IsRequired, f.SortOrder)).ToList());
+
+        try
+        {
+            await _adminService.UpdateCategoryAsync(command);
+        }
+        catch (Exception ex) when (ex.GetType().Name == "DbUpdateException")
+        {
+            ModelState.AddModelError(nameof(model.Name), "Ya existe una categoría con ese nombre.");
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = "Categoría actualizada con éxito.";
+        return RedirectToAction(nameof(Categories));
+    }
+
     [HttpGet]
     public async Task<IActionResult> Configuration()
     {

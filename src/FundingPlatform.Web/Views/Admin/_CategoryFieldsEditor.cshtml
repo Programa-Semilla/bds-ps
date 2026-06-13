@@ -1,0 +1,54 @@
+@model List<FundingPlatform.Web.ViewModels.Admin.CategoryFieldDefinitionViewModel>
+
+@* Spec 035 / US1 — repeating category-field rows + JS clone/reindex. Mirrors the
+   impact-template editor; the clone label is es-CR "Campo" (the impact view leaks
+   English "Parameter"). *@
+<hr />
+<h4>Campos</h4>
+<div id="fieldsContainer">
+    @for (int i = 0; i < Model.Count; i++)
+    {
+        <div class="card mb-3 field-row" data-index="@i">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Campo @(i + 1)</h6>
+                    <button type="button" class="btn btn-sm btn-danger remove-field">Eliminar</button>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label">Nombre (clave)</label>
+                        <input name="Fields[@i].Name" value="@Model[i].Name" class="form-control" required />
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label">Etiqueta</label>
+                        <input name="Fields[@i].DisplayLabel" value="@Model[i].DisplayLabel" class="form-control" required />
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label">Tipo de dato</label>
+                        <select name="Fields[@i].DataType" class="form-select" required>
+                            <option value="Text" selected="@(Model[i].DataType == "Text" ? "selected" : null)">Texto</option>
+                            <option value="Decimal" selected="@(Model[i].DataType == "Decimal" ? "selected" : null)">Decimal</option>
+                            <option value="Integer" selected="@(Model[i].DataType == "Integer" ? "selected" : null)">Entero</option>
+                            <option value="Date" selected="@(Model[i].DataType == "Date" ? "selected" : null)">Fecha</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <div class="form-check mt-4">
+                            <input name="Fields[@i].IsRequired" type="checkbox" class="form-check-input" value="true"
+                                   @(Model[i].IsRequired ? "checked" : "") />
+                            <label class="form-check-label">Obligatorio</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label">Orden</label>
+                        <input name="Fields[@i].SortOrder" type="number" value="@Model[i].SortOrder" class="form-control" required />
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<button type="button" class="btn btn-outline-primary mb-3" id="addField" data-testid="admin-category-add-field">Agregar campo</button>

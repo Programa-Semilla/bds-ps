@@ -837,7 +837,20 @@ public class FundingAgreementController : Controller
                 Amount: crcAmount,
                 Currency: origCurrency,
                 SelectedSupplierName: supplierName,
-                CurrencyConversionNote: conversionNote));
+                CurrencyConversionNote: conversionNote,
+                // Spec 035 / D9 — per-line category field values + impact.
+                CategoryFields: item.CategoryFieldValues
+                    .OrderBy(cfv => cfv.CategoryField?.SortOrder ?? 0)
+                    .Select(cfv => new RequestedResourceDetail(
+                        cfv.CategoryField?.DisplayLabel ?? string.Empty, cfv.Value))
+                    .ToList(),
+                ImpactTemplateName: item.ImpactTemplate?.Name,
+                ImpactParameters: item.ImpactParameterValues
+                    .Select(pv => new RequestedResourceDetail(
+                        pv.ImpactTemplateParameter?.DisplayLabel
+                            ?? pv.ImpactTemplateParameter?.Name ?? string.Empty,
+                        pv.Value))
+                    .ToList()));
 
             if (supplierQuotation is not null)
             {

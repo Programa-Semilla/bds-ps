@@ -65,9 +65,16 @@ public class AddSupplierViewModel : IQuoteFieldsModel
     [Display(Name = "Vigente hasta")]
     public DateOnly ValidUntil { get; set; }
 
-    [Required(ErrorMessage = "El archivo de la cotización es obligatorio.")]
+    // Spec 035 / US3 — optional: required only on the add-new path (the controller
+    // enforces it). Omitted when reusing an existing quotation's document.
     [Display(Name = "Archivo de la cotización")]
     public IFormFile? QuotationFile { get; set; }
+
+    /// <summary>Spec 035 / US3 — when set, reuse this sibling quotation's supplier + document.</summary>
+    public int? SourceQuotationId { get; set; }
+
+    /// <summary>Spec 035 / US3 — reuse candidates (quotations on the application's other items).</summary>
+    public IReadOnlyList<ReusableQuotationOption> ReusableQuotations { get; set; } = [];
 
     /// <summary>
     /// Spec 015 — enabled-currencies list used to populate the currency &lt;select&gt;.
@@ -75,6 +82,16 @@ public class AddSupplierViewModel : IQuoteFieldsModel
     /// ordered by <c>DisplayOrder</c>.
     /// </summary>
     public IReadOnlyList<CurrencyOption> EnabledCurrencies { get; set; } = [];
+}
+
+/// <summary>Spec 035 / US3 — one reuse candidate shown in the picker.</summary>
+public class ReusableQuotationOption
+{
+    public int SourceQuotationId { get; set; }
+    public string SupplierName { get; set; } = string.Empty;
+    public string BranchName { get; set; } = string.Empty;
+    public string DocumentFileName { get; set; } = string.Empty;
+    public string Currency { get; set; } = string.Empty;
 }
 
 public class AddBranchInputViewModel

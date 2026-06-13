@@ -178,6 +178,7 @@ public class SupplierController : Controller
             Currency = defaultCurrency,
             ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(3)),
             EnabledCurrencies = enabledCurrencies,
+            ReusableQuotations = await LoadReusableQuotationsAsync(appId, itemId),
         };
 
         // R4: redirect-to-existing recovery — pre-load the supplier and show the
@@ -245,6 +246,13 @@ public class SupplierController : Controller
         await VerifyOwnershipAsync(appId);
         model.ApplicationId = appId;
         model.ItemId = itemId;
+
+        // Spec 035 / US3 — reuse path: share a sibling quotation's supplier + document,
+        // with this item's own price/currency/validity. No upload required.
+        if (model.SourceQuotationId is int sourceQuotationId)
+        {
+            return await HandleReuseAsync(appId, itemId, sourceQuotationId, model);
+        }
 
         if (model.QuotationFile is null || model.QuotationFile.Length == 0)
         {
@@ -459,10 +467,72 @@ public class SupplierController : Controller
         // Spec 015 — repopulate the enabled-currencies catalog on every validation
         // re-render so the <select> never collapses to an empty dropdown.
         model.EnabledCurrencies = await LoadEnabledCurrenciesAsync();
+        // Spec 035 / US3 — repopulate the reuse candidates on re-render.
+        model.ReusableQuotations = await LoadReusableQuotationsAsync(model.ApplicationId, model.ItemId);
         // Spec 025 — rebuild the cascade view-models so the user's province/cantón/
         // distrito selections survive a validation re-render (incl. the dependent options).
         await PopulateLocationViewDataAsync(model);
         return View(model);
+    }
+
+    /// <summary>Spec 035 / US3 — reuse candidates for the picker (excludes this item).</summary>
+    private async Task<IReadOnlyList<ReusableQuotationOption>> LoadReusableQuotationsAsync(int appId, int itemId)
+    {
+        var candidates = await _applicationService.GetReusableQuotationsAsync(appId, itemId);
+        return candidates.Select(c => new ReusableQuotationOption
+        {
+            SourceQuotationId = c.SourceQuotationId,
+            SupplierName = c.SupplierName,
+            BranchName = c.BranchName,
+            DocumentFileName = c.DocumentFileName,
+            Currency = c.Currency,
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Spec 035 / US3 — reuse path. Validates price/currency/validity, then shares
+    /// the source quotation's supplier + document on this item with its own price.
+    /// </summary>
+    private async Task<IActionResult> HandleReuseAsync(
+        int appId, int itemId, int sourceQuotationId, AddSupplierViewModel model)
+    {
+        if (model.Price <= 0m)
+        {
+            ModelState.AddModelError(nameof(model.Price), "El precio debe ser mayor a cero.");
+        }
+
+        CurrencyCode parsedCurrency = default;
+        var currencyValid = false;
+        try
+        {
+            parsedCurrency = CurrencyCode.From(model.Currency);
+            currencyValid = await _dbContext.Currencies.AnyAsync(c => c.Code == parsedCurrency && c.IsEnabled);
+        }
+        catch (ArgumentException) { /* handled below */ }
+        if (!currencyValid)
+        {
+            ModelState.AddModelError(nameof(model.Currency), "La moneda seleccionada no es válida.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return await RenderAddAsync(model);
+        }
+
+        try
+        {
+            await _applicationService.ReuseQuotationAsync(
+                appId, itemId, sourceQuotationId,
+                model.Price, model.Currency, model.ValidUntil);
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return await RenderAddAsync(model);
+        }
+
+        TempData["SuccessMessage"] = "Cotización reutilizada con éxito.";
+        return RedirectToAction("Edit", "Application", new { id = appId });
     }
 
     private async Task<IReadOnlyList<CurrencyOption>> LoadEnabledCurrenciesAsync()

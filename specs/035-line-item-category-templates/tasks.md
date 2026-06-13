@@ -89,11 +89,11 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 
 ### Implementation (US1)
 
-- [ ] T033 [US1] `Application/Admin/Commands/CreateCategoryCommand.cs` + `UpdateCategoryCommand.cs` (+ `CategoryFieldDefinition`); `Services/AdminService`: `GetAllCategoriesAsync`, `GetCategoryByIdAsync`, `CreateCategoryAsync`, `UpdateCategoryAsync` (ClearFields + re-add).
-- [ ] T034 [US1] `Web/Controllers/AdminController.cs`: `Categories` (GET), `CreateCategory` (GET/POST), `EditCategory` (GET/POST) — mirror ImpactTemplates actions.
-- [ ] T035 [P] [US1] `Web/ViewModels/` category admin VMs: `CategoryAdminViewModel`, `CreateCategoryViewModel`, `EditCategoryViewModel`, `CategoryFieldDefinitionViewModel`.
-- [ ] T036 [US1] `Web/Views/Admin/Categories.cshtml`, `CreateCategory.cshtml`, `EditCategory.cshtml`: mirror the impact-template index-based repeating-row + JS-clone/`reindex` pattern; fix the clone label to es-CR `"Campo"` (the impact view leaks English `"Parameter"`).
-- [ ] T037 [US1] Add "Categorías" sidebar link near `/Admin/ImpactTemplates` in `Web/Views/Shared/_Layout.cshtml`; wire the hard-delete-blocked-when-in-use es-CR message.
+- [X] T033 [US1] `Application/Admin/Commands/CreateCategoryCommand.cs` + `UpdateCategoryCommand.cs` (+ `CategoryFieldDefinition`); `Services/AdminService`: `GetAllCategoriesAsync`, `GetCategoryByIdAsync`, `CreateCategoryAsync`, `UpdateCategoryAsync` (ClearFields + re-add).
+- [X] T034 [US1] `Web/Controllers/AdminController.cs`: `Categories` (GET), `CreateCategory` (GET/POST), `EditCategory` (GET/POST) — mirror ImpactTemplates actions.
+- [X] T035 [P] [US1] `Web/ViewModels/` category admin VMs: `CategoryAdminViewModel`, `CreateCategoryViewModel`, `EditCategoryViewModel`, `CategoryFieldDefinitionViewModel`.
+- [X] T036 [US1] `Web/Views/Admin/Categories.cshtml`, `CreateCategory.cshtml`, `EditCategory.cshtml`: mirror the impact-template index-based repeating-row + JS-clone/`reindex` pattern; fix the clone label to es-CR `"Campo"` (the impact view leaks English `"Parameter"`).
+- [X] T037 [US1] Add "Categorías" sidebar link near `/Admin/ImpactTemplates` in `Web/Views/Shared/_Layout.cshtml`; wire the hard-delete-blocked-when-in-use es-CR message.
 
 **Checkpoint**: Admin can fully manage a category's fields, independently testable.
 
@@ -107,7 +107,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 
 ### Tests (US2)
 
-- [ ] T038 [P] [US2] Unit tests `tests/FundingPlatform.Tests.Unit/Domain/`: `Item.SetImpact`/`SetCategoryFieldValues`; `Item.ChangeCategory` clears category values; `Application.Validate` per-item missing-impact + missing-required-field aggregation.
+- [X] T038 [P] [US2] Unit tests `tests/FundingPlatform.Tests.Unit/Domain/`: `Item.SetImpact`/`SetCategoryFieldValues`; `Item.ChangeCategory` clears category values; `Application.Validate` per-item missing-impact + missing-required-field aggregation.
 - [ ] T039 [P] [US2] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/PerItemImpactCategoryTests.cs` (real DB): per-item impact + category values persist and round-trip; **category-fields-edited-after-use** — a newly-added required field blocks an in-progress draft's submit but does NOT retroactively invalidate an already-submitted application (spec edge case).
 - [ ] T040 [P] [US2] E2E `tests/FundingPlatform.Tests.E2E/PerItemImpactCategoryTests.cs` + POM updates: golden path (category→fields→product→impact→save) + submit-blocked-on-missing-required.
 
@@ -140,8 +140,8 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 
 - [X] T050 [US3] `Services/ApplicationService.ReuseQuotationAsync(appId,itemId,sourceQuotationId,price,currency,validUntil)`: validate source belongs to same application (FR-008); construct `Quotation` with source's `DocumentId`+supplier+branch → `SetCurrencyAndAmountAsync` → `item.AttachQuotation`; no upload/new Document. Add `GetReusableQuotationsAsync(appId,excludeItemId)` → `ReusableQuotationDto`.
 - [X] T051 [US3] `Services/ApplicationService`: make `RemoveQuotationAsync` + `ReplaceQuotationDocumentAsync` delete the blob only when `application.CountQuotationsReferencingDocument(documentId)==0` after detach (reference-counted retention, research D5).
-- [ ] T052 [US3] `Web/Controllers/SupplierController.cs` + `ViewModels/AddSupplierViewModel.cs`: add "reuse" mode (`SourceQuotationId`, `ReusableQuotations`, optional `QuotationFile`); POST dispatches to `ReuseQuotationAsync` vs the add-new path.
-- [ ] T053 [US3] `Web/Views/Supplier/Add.cshtml`: "Reutilizar cotización existente" picker; on select, hide upload + supplier lookup, show editable Price/Currency/ValidUntil via `_QuoteFields.cshtml`; es-CR copy.
+- [X] T052 [US3] `Web/Controllers/SupplierController.cs` + `ViewModels/AddSupplierViewModel.cs`: add "reuse" mode (`SourceQuotationId`, `ReusableQuotations`, optional `QuotationFile`); POST dispatches to `ReuseQuotationAsync` vs the add-new path.
+- [X] T053 [US3] `Web/Views/Supplier/Add.cshtml`: "Reutilizar cotización existente" picker; on select, hide upload + supplier lookup, show editable Price/Currency/ValidUntil via `_QuoteFields.cshtml`; es-CR copy.
 
 **Checkpoint**: Quotation reuse works with correct retention and application scoping.
 
@@ -163,8 +163,8 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 - [X] T056 [P] [US4] `Web/Views/Application/Review.cshtml` (+ `GetApplicationReviewProjection`/`ApplicationReviewViewModel`): per-item impact + category fields rows; update the submit-gate summary.
 - [X] T057 [P] [US4] `Web/Views/Review/Review.cshtml` + `ViewModels/ReviewApplicationViewModel`: render real per-item impact + category fields.
 - [X] T058 [P] [US4] `Web/Views/Application/Edit.cshtml`: replace the per-application impact card with a per-item summary (draft view).
-- [ ] T059 [US4] Funding-agreement PDF: add a per-line category-fields + impact block (`Web/Views/FundingAgreement/Partials/_RequestedResourcesPage.cshtml` or a new partial) fed by `FundingAgreementItemRowDto`; verify Syncfusion render.
-- [ ] T060 [US4] AI comparison context (`Infrastructure/AiComparison/SupplierAssembler`): add product name + category field label/values to the item context, scrubbed via the PII regex (`RedactFileText` patterns) before assembly; **exclude impact** (research D6 — pending user confirmation; if strict FR-009 is chosen, also add impact through the same scrub).
+- [X] T059 [US4] Funding-agreement PDF: add a per-line category-fields + impact block (`Web/Views/FundingAgreement/Partials/_RequestedResourcesPage.cshtml` or a new partial) fed by `FundingAgreementItemRowDto`; verify Syncfusion render.
+- [X] T060 [US4] AI comparison context (`Infrastructure/AiComparison/SupplierAssembler`): add product name + category field label/values to the item context, scrubbed via the PII regex (`RedactFileText` patterns) before assembly; **exclude impact** (research D6 — pending user confirmation; if strict FR-009 is chosen, also add impact through the same scrub).
 
 **Checkpoint**: All listed surfaces render per-item category values + impact.
 
@@ -172,7 +172,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 
 ## Phase 7: Polish & Cross-Cutting
 
-- [ ] T061 SC-003 teardown verification: a test/script asserting `grep -rIn "TechnicalSpecifications" src/`, `"ImpactTemplateIdsCsv|PlantillaImpactTemplates|AttachImpactTemplate" src/`, and application-level impact members return zero results (quickstart.md §5).
+- [X] T061 SC-003 teardown verification: a test/script asserting `grep -rIn "TechnicalSpecifications" src/`, `"ImpactTemplateIdsCsv|PlantillaImpactTemplates|AttachImpactTemplate" src/`, and application-level impact members return zero results (quickstart.md §5).
 - [ ] T062 [P] es-CR copy review across all new admin + applicant UI (categories editor, item form, reuse picker, empty-states) — no English-only strings; consistent with existing conventions.
 - [ ] T063 Run `quickstart.md` manual walkthrough end-to-end against the Aspire stack.
 - [ ] T064 Run filtered E2E (delivery bar): `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~CategoryFieldAdmin|FullyQualifiedName~PerItemImpactCategory|FullyQualifiedName~QuotationReuse|FullyQualifiedName~LineItemDisplay"` plus the rewired existing classes touched by the item/impact/quotation refactor; confirm green.

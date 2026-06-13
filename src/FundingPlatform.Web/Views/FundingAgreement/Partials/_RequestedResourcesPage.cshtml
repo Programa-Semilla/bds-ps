@@ -40,6 +40,27 @@
                         <td colspan="5">@row.CurrencyConversionNote</td>
                     </tr>
                 }
+                @if ((row.CategoryFields is { Count: > 0 }) || !string.IsNullOrWhiteSpace(row.ImpactTemplateName))
+                {
+                    <tr class="line-detail" data-testid="requested-resources-line-detail">
+                        <td colspan="5">
+                            @if (row.CategoryFields is { Count: > 0 } categoryFields)
+                            {
+                                <div><strong>Especificaciones:</strong>
+                                    @string.Join("; ", categoryFields.Select(cf =>
+                                        $"{cf.Label}: {(string.IsNullOrWhiteSpace(cf.Value) ? "—" : cf.Value)}"))
+                                </div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(row.ImpactTemplateName))
+                            {
+                                <div><strong>Impacto (@row.ImpactTemplateName):</strong>
+                                    @string.Join("; ", (row.ImpactParameters ?? new List<RequestedResourceDetail>())
+                                        .Select(p => $"{p.Label}: {p.Value}"))
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
             }
         </tbody>
     </table>

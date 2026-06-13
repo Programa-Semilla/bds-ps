@@ -27,10 +27,9 @@ public static class HintCopy
             // Ítems
             ["Item.ProductName"] = "Describí el <strong>bien o servicio</strong> que necesitás (por ejemplo: «Computadora portátil»).",
             ["Item.Category"] = "Elegí la categoría que mejor describe el ítem. Ayuda a la persona revisora a clasificarlo.",
-            ["Item.TechnicalSpecifications"] = "Detallá las <strong>características técnicas</strong> mínimas:<ul class=\"mb-0 ps-3\"><li>capacidad o tamaño</li><li>materiales</li><li>otros requisitos</li></ul>",
 
-            // Impacto
-            ["Application.Impact"] = "Indicá el <strong>impacto esperado</strong>. Completá cada parámetro de la plantilla con datos reales.",
+            // Impacto (spec 035 — ahora por ítem)
+            ["Application.Impact"] = "Indicá el <strong>impacto esperado</strong> de cada ítem. Completá cada parámetro de la plantilla con datos reales.",
 
             // Cotización de proveedor
             ["Supplier.LegalId"] = "Cédula jurídica o física de la empresa proveedora. Si ya existe, el sistema la autocompleta.",

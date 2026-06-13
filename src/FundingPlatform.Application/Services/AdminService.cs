@@ -10,13 +10,88 @@ public class AdminService
 {
     private readonly IImpactTemplateRepository _impactTemplateRepository;
     private readonly ISystemConfigurationRepository _systemConfigurationRepository;
+    private readonly ICategoryRepository _categoryRepository;
 
     public AdminService(
         IImpactTemplateRepository impactTemplateRepository,
-        ISystemConfigurationRepository systemConfigurationRepository)
+        ISystemConfigurationRepository systemConfigurationRepository,
+        ICategoryRepository categoryRepository)
     {
         _impactTemplateRepository = impactTemplateRepository;
         _systemConfigurationRepository = systemConfigurationRepository;
+        _categoryRepository = categoryRepository;
+    }
+
+    // ---------------- Spec 035 / US1 — category field configuration ----------------
+
+    public async Task<List<CategoryDto>> GetAllCategoriesAsync()
+    {
+        var categories = await _categoryRepository.GetAllAsync();
+        return categories.Select(c => new CategoryDto(
+            c.Id, c.Name, c.Description, c.IsActive, c.Fields.Count)).ToList();
+    }
+
+    public async Task<CategoryDetailDto?> GetCategoryByIdAsync(int id)
+    {
+        var category = await _categoryRepository.GetByIdWithFieldsAsync(id);
+        if (category is null)
+        {
+            return null;
+        }
+
+        return new CategoryDetailDto(
+            category.Id,
+            category.Name,
+            category.Description,
+            category.IsActive,
+            category.Fields
+                .OrderBy(f => f.SortOrder)
+                .Select(f => new CategoryFieldDefinitionDto(
+                    f.Id,
+                    f.Name,
+                    f.DisplayLabel,
+                    f.DataType.ToString(),
+                    f.IsRequired,
+                    f.SortOrder))
+                .ToList());
+    }
+
+    public async Task<int> CreateCategoryAsync(CreateCategoryCommand command)
+    {
+        var category = new Category(command.Name, command.Description, isActive: true);
+        AddFields(category, command.Fields);
+
+        await _categoryRepository.AddAsync(category);
+        await _categoryRepository.SaveChangesAsync();
+        return category.Id;
+    }
+
+    public async Task UpdateCategoryAsync(UpdateCategoryCommand command)
+    {
+        var category = await _categoryRepository.GetByIdWithFieldsAsync(command.Id)
+            ?? throw new InvalidOperationException($"Category {command.Id} not found.");
+
+        category.Update(command.Name, command.Description);
+        if (command.IsActive) category.Activate(); else category.Deactivate();
+
+        // Full replace, mirroring the impact-template edit path.
+        category.ClearFields();
+        AddFields(category, command.Fields);
+
+        await _categoryRepository.UpdateAsync(category);
+        await _categoryRepository.SaveChangesAsync();
+    }
+
+    private static void AddFields(Category category, IEnumerable<CategoryFieldDefinition> fields)
+    {
+        foreach (var def in fields)
+        {
+            if (!Enum.TryParse<ParameterDataType>(def.DataType, ignoreCase: true, out var dataType))
+            {
+                dataType = ParameterDataType.Text;
+            }
+            category.AddField(def.Name, def.DisplayLabel, dataType, def.IsRequired, def.SortOrder);
+        }
     }
 
     public async Task<List<ImpactTemplateDto>> GetAllImpactTemplatesAsync()

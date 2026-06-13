@@ -699,18 +699,13 @@ public class AccountController : Controller
         // Process and any Plantillas in place; SeedAdminFixture re-attaches
         // the demo groups to it on the next teardown call.
         await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.Groups;");
-        // Spec 021-feedback-session-may13 — dbo.Impacts table dropped (FR-005;
-        // Impact relocated from Item to Application as a value object). The
-        // dependent ImpactParameterValues now reference Applications, not
-        // Impacts, and survive the template reset.
+        // Spec 035 / D2 — ImpactParameterValues now reference Items (ON DELETE
+        // CASCADE) instead of Applications. Wipe them before deleting templates so
+        // the NO-ACTION FK into ImpactTemplateParameters does not block the delete.
         await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.ImpactParameterValues;");
-        // Spec 021-feedback-session-may13 — new NO-ACTION FKs into
-        // ImpactTemplates: Applications.ImpactTemplateId (nullable) and
-        // PlantillaImpactTemplates.ImpactTemplateId. Null the Applications ref
-        // and wipe the join rows before deleting templates.
-        await _dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE dbo.Applications SET ImpactTemplateId = NULL WHERE ImpactTemplateId IS NOT NULL;");
-        await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.PlantillaImpactTemplates;");
+        // Spec 035 / D4 — the PlantillaImpactTemplates join table and the
+        // Applications.ImpactTemplateId column were dropped (impact gating gone),
+        // so there is nothing to null/wipe before deleting templates.
         await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.ImpactTemplates;");
 
         return Ok("Admin fixture reset.");

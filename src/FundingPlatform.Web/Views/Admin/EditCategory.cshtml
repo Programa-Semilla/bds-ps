@@ -1,0 +1,56 @@
+@model FundingPlatform.Web.ViewModels.Admin.EditCategoryViewModel
+
+@{
+    ViewData["Title"] = "Editar categoría";
+}
+
+@await Html.PartialAsync("Components/_PageHeader",
+    new PageHeaderViewModel(
+        Title: "Editar categoría",
+        Breadcrumbs: new[]
+        {
+            new BreadcrumbItem("Panel de administración", Url.Action("Index")),
+            new BreadcrumbItem("Categorías", Url.Action("Categories")),
+            new BreadcrumbItem("Editar"),
+        }))
+
+<div class="row">
+    <div class="col-md-10">
+        <form asp-action="EditCategory" method="post" id="categoryForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label">Nombre @await Html.PartialAsync("_RequiredMark")</label>
+                <input asp-for="Name" class="form-control" data-testid="admin-category-name-input" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label">Descripción</label>
+                <textarea asp-for="Description" class="form-control" rows="2"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-check">
+                    <input asp-for="IsActive" type="checkbox" class="form-check-input" data-testid="admin-category-active" />
+                    <span class="form-check-label">Activa</span>
+                </label>
+            </div>
+
+            <partial name="_CategoryFieldsEditor" model="Model.Fields" />
+
+            <div>
+                <button type="submit" class="btn btn-primary" data-testid="admin-category-save">Guardar cambios</button>
+                <a asp-action="Categories" class="btn btn-secondary ms-2">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <partial name="_CategoryFieldsScript" model="Model.Fields.Count" />
+}
