@@ -41,12 +41,13 @@ public class CascadeSearchTests : AuthenticatedTestBase
         await appPage.SelectEligibleGroupIfPresentAsync();
         await appPage.SubmitDraftButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
 
+        // Spec 035 — impact is captured per line item on the item form. Add one
+        // impact-complete item so we can reach the supplier-add form.
         var draft = new ApplicationDraftPage(Page);
-        await draft.ImpactLink.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Impact"));
-        await CompleteImpactStepAsync();
-        await draft.AddItemAsync("Horno industrial", "Acero inoxidable, 60L");
+        var itemPage = new ItemPage(Page);
+        await itemPage.AddItemAsync(appId, "Horno industrial", 0, "Acero inoxidable, 60L", BaseUrl, withImpact: true);
         await Expect(draft.ItemRows).ToHaveCountAsync(1);
 
         await Page.Locator("a:has-text('Agregar proveedor')").First.ClickAsync();

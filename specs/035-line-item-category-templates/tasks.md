@@ -109,7 +109,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 
 - [X] T038 [P] [US2] Unit tests `tests/FundingPlatform.Tests.Unit/Domain/`: `Item.SetImpact`/`SetCategoryFieldValues`; `Item.ChangeCategory` clears category values; `Application.Validate` per-item missing-impact + missing-required-field aggregation.
 - [X] T039 [P] [US2] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/PerItemImpactCategoryTests.cs` (real DB): per-item impact + category values persist and round-trip; **category-fields-edited-after-use** — a newly-added required field blocks an in-progress draft's submit but does NOT retroactively invalidate an already-submitted application (spec edge case).
-- [ ] T040 [P] [US2] E2E `tests/FundingPlatform.Tests.E2E/PerItemImpactCategoryTests.cs` + POM updates: golden path (category→fields→product→impact→save) + submit-blocked-on-missing-required.
+- [X] T040 [P] [US2] E2E `tests/FundingPlatform.Tests.E2E/PerItemImpactCategoryTests.cs` + POM updates: golden path (category→fields→product→impact→save) + submit-blocked-on-missing-required.
 
 ### Implementation (US2)
 
@@ -133,8 +133,8 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 
 ### Tests (US3)
 
-- [ ] T048 [P] [US3] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/QuotationReuseTests.cs` (real DB + storage): reuse creates a new row sharing `DocumentId`; reference-counted retention (delete originating quotation → blob kept; remove last reference → blob deleted).
-- [ ] T049 [P] [US3] E2E `tests/FundingPlatform.Tests.E2E/QuotationReuseTests.cs` + POM: reuse flow, per-item price independence, reuse list scoped to the application; **N-product quote → N line items** (a multi-product vendor quote is captured as one reused line item per product — confirms the model gives no way to lump multiple quoted products into one line, spec edge case / SC-002).
+- [X] T048 [P] [US3] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/QuotationReuseTests.cs` (real DB + storage): reuse creates a new row sharing `DocumentId`; reference-counted retention (delete originating quotation → blob kept; remove last reference → blob deleted).
+- [X] T049 [P] [US3] E2E `tests/FundingPlatform.Tests.E2E/QuotationReuseTests.cs` + POM: reuse flow, per-item price independence, reuse list scoped to the application; **N-product quote → N line items** (a multi-product vendor quote is captured as one reused line item per product — confirms the model gives no way to lump multiple quoted products into one line, spec edge case / SC-002).
 
 ### Implementation (US3)
 
@@ -155,7 +155,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 
 ### Tests (US4)
 
-- [ ] T054 [P] [US4] E2E `tests/FundingPlatform.Tests.E2E/LineItemDisplayTests.cs`: Details, Review, and reviewer detail each show per-item category values + impact; assert the funding-agreement PDF generation path includes them.
+- [X] T054 [P] [US4] E2E `tests/FundingPlatform.Tests.E2E/LineItemDisplayTests.cs`: Details, Review, and reviewer detail each show per-item category values + impact; assert the funding-agreement PDF generation path includes them.
 
 ### Implementation (US4)
 
@@ -175,7 +175,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 - [X] T061 SC-003 teardown verification: a test/script asserting `grep -rIn "TechnicalSpecifications" src/`, `"ImpactTemplateIdsCsv|PlantillaImpactTemplates|AttachImpactTemplate" src/`, and application-level impact members return zero results (quickstart.md §5).
 - [ ] T062 [P] es-CR copy review across all new admin + applicant UI (categories editor, item form, reuse picker, empty-states) — no English-only strings; consistent with existing conventions.
 - [ ] T063 Run `quickstart.md` manual walkthrough end-to-end against the Aspire stack.
-- [ ] T064 Run filtered E2E (delivery bar): `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~CategoryFieldAdmin|FullyQualifiedName~PerItemImpactCategory|FullyQualifiedName~QuotationReuse|FullyQualifiedName~LineItemDisplay"` plus the rewired existing classes touched by the item/impact/quotation refactor; confirm green.
+- [X] T064 Run filtered E2E (delivery bar): `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~CategoryFieldAdmin|FullyQualifiedName~PerItemImpactCategory|FullyQualifiedName~QuotationReuse|FullyQualifiedName~LineItemDisplay"` plus the rewired existing classes touched by the item/impact/quotation refactor; confirm green.
 - [ ] T065 Update `CLAUDE.md` Recent Changes with the shipped 035 summary (after merge).
 
 ---

@@ -75,73 +75,39 @@ public class AuthenticatedTestBase : PageTest
     }
 
     /// <summary>
-    /// Spec 021 / FR-005 — pick the first real impact template on the
-    /// Application-level Impact step (<c>Views/Application/Impact.cshtml</c>)
-    /// and wait until the JS-rendered <c>.parameter-field</c> elements are in
-    /// the DOM. Encapsulates two race hazards observed under shared-fixture
-    /// load:
-    ///   1) <see cref="ILocator.ClickAsync"/> on the Impact link does not block
-    ///      until <c>DOMContentLoaded</c>, so the DCL handler that binds the
-    ///      dropdown's <c>change</c> listener may not yet have run when we call
-    ///      <see cref="ILocator.SelectOptionAsync"/>. Waiting for
-    ///      <see cref="LoadState.DOMContentLoaded"/> guarantees the handler is
-    ///      bound before we interact.
-    ///   2) The change handler issues an async fetch; pinning the action to
-    ///      <see cref="IPage.RunAndWaitForResponseAsync"/> so the test only
-    ///      proceeds once the response arrives.
-    /// </summary>
-    protected async Task PickFirstImpactTemplateAsync()
-    {
-        await Page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
-
-        var templateSelector = Page.Locator("#templateSelector");
-        await Expect(templateSelector).ToBeVisibleAsync();
-        var options = await templateSelector.Locator("option").AllAsync();
-        var value = await options[1].GetAttributeAsync("value");
-        Assert.That(value, Is.Not.Null.And.Not.Empty,
-            "Impact template options[1] must have a non-empty value (seed templates expected).");
-
-        await Page.RunAndWaitForResponseAsync(
-            async () => await templateSelector.SelectOptionAsync(value!),
-            r => r.Url.Contains("/Impact/TemplateParameters/"));
-
-        await Expect(Page.Locator(".parameter-field").First).ToBeVisibleAsync();
-    }
-
-    /// <summary>
-    /// Spec 021 / FR-005 — completes the Application-level Impact step. Assumes
-    /// the page is currently on <c>/Application/{id}/Impact</c>; picks the first
-    /// seeded template, fills every parameter, and saves (which redirects to
-    /// the draft editor).
-    /// </summary>
-    protected async Task CompleteImpactStepAsync()
-    {
-        await PickFirstImpactTemplateAsync();
-        var paramInputs = Page.Locator(".parameter-field input.form-control");
-        var inputCount = await paramInputs.CountAsync();
-        for (var i = 0; i < inputCount; i++)
-        {
-            var input = paramInputs.Nth(i);
-            var inputType = await input.GetAttributeAsync("type");
-            await input.FillAsync(inputType == "number" ? "100" : inputType == "date" ? "2026-12-31" : "Test value");
-        }
-        await Page.Locator($"button[type=submit]:has-text('{UiCopy.SaveImpact}')").ClickAsync();
-        // Saving Impact returns to the draft editor (returnTo=edit) or to
-        // Details, depending on where the step was entered from.
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/(Edit|Details)/\d+"));
-    }
-
-    /// <summary>
-    /// Spec 021 / US2 / FR-005 — opens the draft editor for <paramref name="appId"/>,
-    /// enters the Impact step from it, completes the step, and lands back on
-    /// the editor. The Impact card is the editor's first card.
+    /// Spec 035 / US2 — impact relocated from the Application aggregate to each
+    /// line item; the app-level Impact step (<c>Views/Application/Impact.cshtml</c>)
+    /// was removed. This helper makes every item of <paramref name="appId"/>'s draft
+    /// impact-complete by visiting each item's Edit page and picking + filling the
+    /// first active impact template. Retained under its original name so the ~26
+    /// legacy "add item → set impact → submit" call sites keep working unchanged;
+    /// it now reflects the per-item model instead of a single app-level step.
     /// </summary>
     protected async Task SetImpactFromEditAsync(int appId)
     {
         await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
-        await Page.Locator("[data-testid=application-edit-impact-link]").ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Impact"));
-        await CompleteImpactStepAsync();
+        await Page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+
+        // Collect the item ids from the per-row "Editar" links (the quotation
+        // sub-rows live under a different testid, so they're not matched here).
+        var editLinks = Page.Locator("[data-testid=application-edit-item-row] a:has-text('Editar')");
+        var count = await editLinks.CountAsync();
+        var itemIds = new List<int>();
+        for (var i = 0; i < count; i++)
+        {
+            var href = await editLinks.Nth(i).GetAttributeAsync("href") ?? string.Empty;
+            var m = Regex.Match(href, @"/Item/(\d+)/Edit");
+            if (m.Success)
+            {
+                itemIds.Add(int.Parse(m.Groups[1].Value));
+            }
+        }
+
+        var itemPage = new ItemPage(Page);
+        foreach (var itemId in itemIds.Distinct())
+        {
+            await itemPage.SetImpactViaEditAsync(appId, itemId, BaseUrl);
+        }
     }
 
     /// <summary>

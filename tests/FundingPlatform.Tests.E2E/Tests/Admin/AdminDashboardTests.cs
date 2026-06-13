@@ -30,7 +30,7 @@ public class AdminDashboardTests : AuthenticatedTestBase
         // Spec 017 — Dashboard_ZeroOfEverythingFixture_* uses ResetAdminFixtureAsync
         // which drops the post-deploy Groups + ImpactTemplates seed. Re-plant it so
         // downstream tests (reviewer-queue group-overlap predicate, applicant flow
-        // calling PickFirstImpactTemplateAsync) keep working.
+        // picking a per-item impact template) keep working.
         await SeedAdminFixtureAsync();
     }
 

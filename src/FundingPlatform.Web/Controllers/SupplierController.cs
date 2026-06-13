@@ -496,6 +496,14 @@ public class SupplierController : Controller
     private async Task<IActionResult> HandleReuseAsync(
         int appId, int itemId, int sourceQuotationId, AddSupplierViewModel model)
     {
+        // Spec 035 / US3 — reuse shares an existing sibling quotation's supplier +
+        // document, so the add-new identification + upload fields are hidden and not
+        // applicable. Their validation attributes (e.g. [Required] SupplierLegalId,
+        // the quotation file) would otherwise fail on the empty hidden inputs; drop
+        // them so only the reuse fields (Price / Currency / ValidUntil) are validated.
+        ModelState.Remove(nameof(model.SupplierLegalId));
+        ModelState.Remove(nameof(model.QuotationFile));
+
         if (model.Price <= 0m)
         {
             ModelState.AddModelError(nameof(model.Price), "El precio debe ser mayor a cero.");

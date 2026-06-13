@@ -28,9 +28,11 @@ public class DraftPersistenceTests : AuthenticatedTestBase
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
         var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
 
-        // Add an item inline.
+        // Add an item — spec 035: items are built on the category-first item form
+        // (the inline add form was removed); routes back to the draft editor.
         var draft = new ApplicationDraftPage(Page);
-        await draft.AddItemAsync("Persisted Laptop", "16GB RAM, 512GB SSD");
+        var itemPage = new ItemPage(Page);
+        await itemPage.AddItemAsync(appId, "Persisted Laptop", 0, "16GB RAM, 512GB SSD", BaseUrl);
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
         await Expect(draft.ItemRows.Filter(new() { HasTextString = "Persisted Laptop" })).ToBeVisibleAsync();
 

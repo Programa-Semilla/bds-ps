@@ -1,6 +1,8 @@
-// Spec 021 / US2 — POM for the applicant draft editor (/Application/Edit/{id}).
-// Covers the autosave indicator, the CompanyName input, the Impact card, the
-// inline add-item form, and the gated "Revisar y enviar" submit button.
+// Spec 021 / US2 (spec 035 update) — POM for the applicant draft editor
+// (/Application/Edit/{id}). Spec 035 removed the application-level Impact card and
+// the inline add-item form: impact is now captured per line item on the item form,
+// and "Agregar línea" links to ItemController.Add. This POM keeps the company-name
+// autosave surface, the items table, and the gated "Revisar y enviar" button.
 
 using Microsoft.Playwright;
 
@@ -15,13 +17,7 @@ public sealed class ApplicationDraftPage
     public ILocator CompanyNameInput => _page.Locator("[data-testid=application-edit-company-name]");
     public ILocator AutosaveIndicator => _page.Locator("[data-autosave-indicator]").First;
 
-    public ILocator ImpactCard => _page.Locator("[data-testid=application-edit-impact-card]");
-    public ILocator ImpactStatus => _page.Locator("[data-testid=application-edit-impact-status]");
-    public ILocator ImpactLink => _page.Locator("[data-testid=application-edit-impact-link]");
-
-    public ILocator ItemNameInput => _page.Locator("[data-testid=application-edit-item-name]");
-    public ILocator ItemCategorySelect => _page.Locator("[data-testid=application-edit-item-category]");
-    public ILocator ItemSpecsInput => _page.Locator("[data-testid=application-edit-item-specs]");
+    /// <summary>The "Agregar línea" link — routes to the category-first item form.</summary>
     public ILocator AddItemButton => _page.Locator("[data-testid=application-edit-add-item]");
     public ILocator ItemRows => _page.Locator("[data-testid=application-edit-item-row]");
 
@@ -33,19 +29,6 @@ public sealed class ApplicationDraftPage
     {
         await CompanyNameInput.FillAsync(value);
         await CompanyNameInput.BlurAsync();
-    }
-
-    /// <summary>
-    /// Spec 021 / FR-005 — adds an item via the inline add-item form embedded
-    /// in the draft editor. Picks the first real category option. Posts back
-    /// to the editor, so the page reloads on the same surface.
-    /// </summary>
-    public async Task AddItemAsync(string productName, string specifications)
-    {
-        await ItemNameInput.FillAsync(productName);
-        await ItemCategorySelect.SelectOptionAsync(new SelectOptionValue { Index = 1 });
-        await ItemSpecsInput.FillAsync(specifications);
-        await AddItemButton.ClickAsync();
     }
 
     /// <summary>Clicks the gated submit button; routes to the /review page.</summary>

@@ -89,11 +89,9 @@ public class ApplicationSubmissionTests : AuthenticatedTestBase
         await supplierPage.SubmitAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
-        // Set impact assessment via the draft editor's Impact card.
+        // Spec 035 — impact is captured per line item (no app-level impact card);
+        // set it on every item via each item's Edit page.
         await SetImpactFromEditAsync(appId);
-
-        // The editor's Impact card now reads "Definido".
-        await Expect(Page.Locator("[data-testid=application-edit-impact-status]")).ToContainTextAsync("Definido");
 
         // Submit the application through the gated editor button → /review.
         await SubmitDraftViaReviewAsync(appId);

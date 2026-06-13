@@ -105,9 +105,11 @@ public class DecisionSummaryParityTests : AuthenticatedTestBase
 
     /// <summary>
     /// Asserts the identical field set on whichever surface is currently loaded:
-    /// the approved line (Equipo A) shows code/product/category/specs/status +
+    /// the approved line (Equipo A) shows code/product/category/status +
     /// supplier+amount; the rejected line (Equipo B) shows the same identity
-    /// fields + reason + every quoted supplier.
+    /// fields + reason + every quoted supplier. Spec 035 removed the free-text
+    /// specs line from the lean decision summary (TechnicalSpecifications gone),
+    /// so parity is asserted on the category instead.
     /// </summary>
     private async Task AssertSummaryParityAsync(string surface)
     {
@@ -119,14 +121,14 @@ public class DecisionSummaryParityTests : AuthenticatedTestBase
         await Expect(lineA.Locator("[data-testid=decision-line-status]"))
             .ToHaveTextAsync("Aprobado");
         await Expect(lineA.Locator("[data-testid=decision-line-supplier]")).ToBeVisibleAsync();
-        await Expect(lineA.Locator("[data-testid=decision-line-specs]")).ToContainTextAsync("Specs A");
+        await Expect(lineA.Locator("[data-testid=decision-line-category]")).ToContainTextAsync("Computing Equipment");
 
         var lineB = summary.Locator("[data-testid=decision-summary-line]")
             .Filter(new LocatorFilterOptions { HasText = "Equipo B" });
         await Expect(lineB.Locator("[data-testid=decision-line-status]")).ToHaveTextAsync("Rechazado");
         await Expect(lineB.Locator("[data-testid=decision-line-reason]")).ToContainTextAsync(RejectReason);
         await Expect(lineB.Locator("[data-testid=decision-line-quotes]")).ToBeVisibleAsync();
-        await Expect(lineB.Locator("[data-testid=decision-line-specs]")).ToContainTextAsync("Specs B");
+        await Expect(lineB.Locator("[data-testid=decision-line-category]")).ToContainTextAsync("Computing Equipment");
         // Rejected line lists every quoted supplier (≥2 rows).
         Assert.That(await lineB.Locator("[data-testid=decision-line-quotes] tbody tr").CountAsync(),
             Is.GreaterThanOrEqualTo(2), $"[{surface}] rejected line must list all quoted suppliers");
