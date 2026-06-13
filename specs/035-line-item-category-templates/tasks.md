@@ -108,7 +108,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 ### Tests (US2)
 
 - [ ] T038 [P] [US2] Unit tests `tests/FundingPlatform.Tests.Unit/Domain/`: `Item.SetImpact`/`SetCategoryFieldValues`; `Item.ChangeCategory` clears category values; `Application.Validate` per-item missing-impact + missing-required-field aggregation.
-- [ ] T039 [P] [US2] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/PerItemImpactCategoryTests.cs` (real DB): per-item impact + category values persist and round-trip.
+- [ ] T039 [P] [US2] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/PerItemImpactCategoryTests.cs` (real DB): per-item impact + category values persist and round-trip; **category-fields-edited-after-use** — a newly-added required field blocks an in-progress draft's submit but does NOT retroactively invalidate an already-submitted application (spec edge case).
 - [ ] T040 [P] [US2] E2E `tests/FundingPlatform.Tests.E2E/PerItemImpactCategoryTests.cs` + POM updates: golden path (category→fields→product→impact→save) + submit-blocked-on-missing-required.
 
 ### Implementation (US2)
@@ -134,7 +134,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 ### Tests (US3)
 
 - [ ] T048 [P] [US3] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/QuotationReuseTests.cs` (real DB + storage): reuse creates a new row sharing `DocumentId`; reference-counted retention (delete originating quotation → blob kept; remove last reference → blob deleted).
-- [ ] T049 [P] [US3] E2E `tests/FundingPlatform.Tests.E2E/QuotationReuseTests.cs` + POM: reuse flow, per-item price independence, reuse list scoped to the application.
+- [ ] T049 [P] [US3] E2E `tests/FundingPlatform.Tests.E2E/QuotationReuseTests.cs` + POM: reuse flow, per-item price independence, reuse list scoped to the application; **N-product quote → N line items** (a multi-product vendor quote is captured as one reused line item per product — confirms the model gives no way to lump multiple quoted products into one line, spec edge case / SC-002).
 
 ### Implementation (US3)
 
