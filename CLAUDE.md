@@ -160,7 +160,7 @@ Per-spec architectural seams (interfaces, aggregates, tables) are summarized in 
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-Active plan: **034-batch-user-create** — implemented + filtered-gate green (branch `feature/batch-user-create`, not yet PR'd). Admin-only **CSV bulk provisioning** of ≤200 Solicitante accounts under `/Admin/Users/Batch`; per-row validate→create (reusing `CreateUserAsync` + the spec-033 invitation), succeeded/errored report. `Grupo` → membership (by name); `Proceso`/`Fondo` validate the spec-029 chain only. No schema change, no new deps; in-house CSV parser + phone normalizer (Application). See `specs/034-batch-user-create/`. Next: open PR.
+Active plan: none in flight — `main` is the latest, through 034.
 
-Last shipped: **033-user-invite-email** (merged to main, PR #60) — emailed 72h single-use set-password invitation replaces the admin-typed temp password. Prior: **032-admin-user-code** (PR #59); **031-searchable-dropdowns**; **030-edit-process-name**.
+Last shipped: **034-batch-user-create** (merged to main, PR #61) — admin-only **CSV bulk provisioning** of ≤200 Solicitante accounts under `/Admin/Users/Batch`; per-row validate→create (reusing `CreateUserAsync` + the spec-033 invitation), succeeded/errored report. `Grupo` → membership (by name); `Proceso`/`Fondo` validate the spec-029 chain only. No schema change, no new deps; in-house CSV parser + phone normalizer (Application). See `specs/034-batch-user-create/`. Prior: **033-user-invite-email** (PR #60); **032-admin-user-code** (PR #59); **031-searchable-dropdowns** (PR #58).
 <!-- SPECKIT END -->
