@@ -35,7 +35,13 @@
                     Label: "Crear usuario",
                     Class: ActionClass.Primary,
                     Url: Url.Action("Create", "AdminUsers"),
-                    Icon: "ti ti-user-plus")
+                    Icon: "ti ti-user-plus"),
+                // Spec 034 — entry point to the CSV bulk-provisioning page.
+                new ActionItem(
+                    Label: AdminUsersResources.BatchListEntry,
+                    Class: ActionClass.Secondary,
+                    Url: Url.Action("Batch", "AdminUsers"),
+                    Icon: "ti ti-upload")
             }))
 
     <form method="get" asp-action="Index" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-users-filter-form">

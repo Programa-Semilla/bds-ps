@@ -1,9 +1,13 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using FundingPlatform.Application.Admin.Users;
+using FundingPlatform.Application.Admin.Users.Batch;
 using FundingPlatform.Application.Admin.Users.DTOs;
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Exceptions;
+using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -266,6 +270,175 @@ public class UserAdministrationService : IUserAdministrationService
         var detail = await MapToDetailAsync(user, ct);
         return Result<UserDetailDto>.Success(detail!);
     }
+
+    /// <summary>
+    /// Spec 034 — bulk-create up to 200 Solicitante accounts from parsed CSV rows.
+    /// Each row is validated + normalized independently; valid rows reuse
+    /// <see cref="CreateUserAsync"/> (per-row atomic — a later failure never rolls
+    /// back an earlier success). Invalid rows are skipped and reported with an
+    /// es-CR reason. Invitations are issued by the controller (HTTP-context-bound).
+    /// </summary>
+    public async Task<BatchUserCreateResult> CreateUsersBatchAsync(
+        IReadOnlyList<BatchUserImportRow> rows,
+        string actorUserId,
+        CancellationToken ct)
+    {
+        var succeeded = new List<BatchUserCreateOutcome>();
+        var errored = new List<BatchUserCreateOutcome>();
+
+        if (rows is null || rows.Count == 0)
+        {
+            return new BatchUserCreateResult(succeeded, errored);
+        }
+
+        // Spec 029 chain resolution — preload the (globally unique) Fund/Process/
+        // Group names once and resolve in memory, so a 200-row batch does not fan
+        // out into ~600 round-trips. Names resolve to 0 or 1 row (unique indexes).
+        var funds = await _dbContext.Funds.AsNoTracking()
+            .Select(f => new { f.Id, f.Name }).ToListAsync(ct);
+        var processes = await _dbContext.Processes.AsNoTracking()
+            .Select(p => new { p.Id, p.Name, p.FundId }).ToListAsync(ct);
+        var groups = await _dbContext.Groups.AsNoTracking()
+            .Select(g => new { g.Id, g.Name, g.ProcessId }).ToListAsync(ct);
+
+        var fundByName = BuildNameLookup(funds, f => f.Name);
+        var processByName = BuildNameLookup(processes, p => p.Name);
+        var groupByName = BuildNameLookup(groups, g => g.Name);
+
+        // FR-008 — in-file duplicate guard ("first occurrence wins"): a later row
+        // repeating an earlier row's email / canonical cédula / código is skipped
+        // with a file-duplicate reason (distinct from the system "ya está en uso").
+        var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenCedulas = new HashSet<string>(StringComparer.Ordinal);
+        var seenCodigos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in rows)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            // Email cell may list several addresses; take the first (FR-004).
+            var email = EmailNormalizer.FirstEmail(row.Email);
+            var codigo = (row.CodigoUsuario ?? string.Empty).Trim();
+            var keyField = !string.IsNullOrEmpty(email) ? email : codigo;
+
+            // --- required cells + field shape (one reason per row, first wins) ---
+            if (string.IsNullOrWhiteSpace(row.Nombre)) { errored.Add(Err(row, keyField, BatchUserRowReasons.MissingNombre)); continue; }
+            if (string.IsNullOrWhiteSpace(row.Apellido1)) { errored.Add(Err(row, keyField, BatchUserRowReasons.MissingApellido1)); continue; }
+            if (string.IsNullOrEmpty(email)) { errored.Add(Err(row, keyField, BatchUserRowReasons.EmailBlank)); continue; }
+            if (!IsValidEmail(email)) { errored.Add(Err(row, keyField, BatchUserRowReasons.EmailInvalid)); continue; }
+            if (string.IsNullOrWhiteSpace(row.Cedula)) { errored.Add(Err(row, keyField, BatchUserRowReasons.CedulaBlank)); continue; }
+            // Infer the identification type from the value (cédula física / DIMEX /
+            // pasaporte) — the batch has no type column (FR-006).
+            if (!IdentificationInference.TryInfer(row.Cedula, out var cedula))
+            {
+                errored.Add(Err(row, keyField, BatchUserRowReasons.CedulaInvalid));
+                continue;
+            }
+            if (string.IsNullOrEmpty(codigo)) { errored.Add(Err(row, keyField, BatchUserRowReasons.CodigoBlank)); continue; }
+            if (codigo.Length > 50) { errored.Add(Err(row, keyField, BatchUserRowReasons.CodigoTooLong)); continue; }
+            if (string.IsNullOrWhiteSpace(row.Grupo)) { errored.Add(Err(row, keyField, BatchUserRowReasons.MissingGrupo)); continue; }
+            if (string.IsNullOrWhiteSpace(row.Proceso)) { errored.Add(Err(row, keyField, BatchUserRowReasons.MissingProceso)); continue; }
+            if (string.IsNullOrWhiteSpace(row.Fondo)) { errored.Add(Err(row, keyField, BatchUserRowReasons.MissingFondo)); continue; }
+
+            var canonicalCedula = cedula!.Value;
+
+            // --- in-file duplicates (claim the value for the first valid occurrence) ---
+            if (seenEmails.Contains(email)) { errored.Add(Err(row, keyField, BatchUserRowReasons.EmailDupInFile)); continue; }
+            if (seenCedulas.Contains(canonicalCedula)) { errored.Add(Err(row, keyField, BatchUserRowReasons.CedulaDupInFile)); continue; }
+            if (seenCodigos.Contains(codigo)) { errored.Add(Err(row, keyField, BatchUserRowReasons.CodigoDupInFile)); continue; }
+            seenEmails.Add(email);
+            seenCedulas.Add(canonicalCedula);
+            seenCodigos.Add(codigo);
+
+            // --- spec 029 chain: Fondo → Proceso → Grupo must resolve AND link up ---
+            var fund = Lookup(fundByName, row.Fondo);
+            var process = Lookup(processByName, row.Proceso);
+            var group = Lookup(groupByName, row.Grupo);
+            if (group is null) { errored.Add(Err(row, keyField, BatchUserRowReasons.GroupNotFound)); continue; }
+            if (process is null) { errored.Add(Err(row, keyField, BatchUserRowReasons.ProcessNotFound)); continue; }
+            if (fund is null) { errored.Add(Err(row, keyField, BatchUserRowReasons.FundNotFound)); continue; }
+            if (group.ProcessId != process.Id || process.FundId != fund.Id)
+            {
+                errored.Add(Err(row, keyField, BatchUserRowReasons.ChainMismatch));
+                continue;
+            }
+
+            // --- create via the single-create path (no password; invited later) ---
+            var lastName = $"{row.Apellido1.Trim()} {(row.Apellido2 ?? string.Empty).Trim()}".Trim();
+            var request = new CreateUserRequest(
+                FirstName: row.Nombre.Trim(),
+                LastName: lastName,
+                Email: email,
+                Phone: PhoneNormalizer.Normalize(row.Telefono),
+                Role: ApplicantRole,
+                LegalId: canonicalCedula,
+                GroupIds: new[] { group.Id },
+                IdentificationType: cedula!.Type,
+                UserCode: codigo);
+
+            try
+            {
+                var result = await CreateUserAsync(request, actorUserId, ct);
+                if (result.Succeeded)
+                {
+                    succeeded.Add(BatchUserCreateOutcome.Success(row.RowNumber, email));
+                }
+                else
+                {
+                    errored.Add(Err(row, keyField, MapCreateError(result.Errors)));
+                }
+            }
+            catch (DbUpdateException ex) when (ex.GetBaseException().Message.Contains("UX_Applicants_UserCode"))
+            {
+                // Concurrency backstop: a racing duplicate código trips the filtered
+                // unique index. Skip this row, keep processing the rest.
+                errored.Add(Err(row, keyField, BatchUserRowReasons.CodigoInUse));
+            }
+            catch (Exception)
+            {
+                // Defensive: one bad row must never abort the whole batch (FR/US2).
+                errored.Add(Err(row, keyField, BatchUserRowReasons.CreateFailed));
+            }
+        }
+
+        return new BatchUserCreateResult(succeeded, errored);
+    }
+
+    private static BatchUserCreateOutcome Err(BatchUserImportRow row, string keyField, string reason)
+        => BatchUserCreateOutcome.Error(row.RowNumber, keyField, reason);
+
+    private static bool IsValidEmail(string email)
+        => new EmailAddressAttribute().IsValid(email);
+
+    private static string MapCreateError(IReadOnlyList<DomainError> errors)
+        => errors.FirstOrDefault()?.Code switch
+        {
+            "EMAIL_IN_USE" => BatchUserRowReasons.EmailInUse,
+            "LEGAL_ID_IN_USE" => BatchUserRowReasons.CedulaInUse,
+            "USER_CODE_IN_USE" => BatchUserRowReasons.CodigoInUse,
+            _ => BatchUserRowReasons.CreateFailed,
+        };
+
+    private static Dictionary<string, T> BuildNameLookup<T>(IEnumerable<T> items, Func<T, string> nameSelector)
+    {
+        // Case-insensitive, accent-sensitive — matches SQL Server's default CI
+        // collation on Funds/Processes names; the seeded Group names carry no
+        // accents so the AI nuance on Groups.Name does not change resolution here.
+        var dict = new Dictionary<string, T>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in items)
+        {
+            var key = (nameSelector(item) ?? string.Empty).Trim();
+            if (key.Length > 0)
+            {
+                dict[key] = item; // names are globally unique; no real collision
+            }
+        }
+        return dict;
+    }
+
+    private static T? Lookup<T>(Dictionary<string, T> lookup, string? rawName) where T : class
+        => string.IsNullOrWhiteSpace(rawName) ? null
+            : lookup.TryGetValue(rawName.Trim(), out var val) ? val : null;
 
     public async Task<Result<UserDetailDto>> UpdateUserAsync(UpdateUserRequest request, string actorUserId, CancellationToken ct)
     {

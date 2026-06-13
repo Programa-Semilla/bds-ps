@@ -425,3 +425,6 @@ FodyWeavers.xsd
 .claude/scheduled_tasks.lock
 .specify/.spex-phase
 .specify/.spex-state
+
+# Spec 034 — real client intake CSVs (PII): never commit
+brainstorm/seeds/

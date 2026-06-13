@@ -1,0 +1,89 @@
+@*
+    Spec 034 / US1+US2 — succeeded/errored report after a bulk upload.
+*@
+@using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Admin.AdminUserBatchResultViewModel
+@{
+    ViewData["Title"] = AdminUsersResources.BatchResultTitle;
+}
+
+<div data-testid="admin-area">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: AdminUsersResources.BatchResultTitle,
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem("Usuarios", Url.Action("Index", "AdminUsers")),
+                new BreadcrumbItem(AdminUsersResources.BatchResultTitle),
+            }))
+
+    <div class="alert alert-info" data-testid="admin-users-batch-summary">
+        @string.Format(AdminUsersResources.BatchResultSummaryFormat,
+            Model.TotalRows, Model.Succeeded.Count, Model.Errored.Count)
+    </div>
+
+    <div class="card mb-3" data-testid="admin-users-batch-succeeded">
+        <div class="card-header">
+            <h3 class="card-title mb-0">
+                @AdminUsersResources.BatchResultSucceededHeading
+                <span class="badge bg-green-lt ms-1" data-testid="admin-users-batch-succeeded-count">@Model.Succeeded.Count</span>
+            </h3>
+        </div>
+        <div class="card-body">
+            @if (Model.Succeeded.Count == 0)
+            {
+                <p class="text-muted mb-0">@AdminUsersResources.BatchResultEmptySucceeded</p>
+            }
+            else
+            {
+                <ul class="list-unstyled mb-0">
+                    @foreach (var row in Model.Succeeded)
+                    {
+                        <li data-testid="admin-users-batch-succeeded-row">
+                            <i class="ti ti-circle-check text-success"></i>
+                            Fila @row.RowNumber: @row.KeyField creado
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+
+    <div class="card mb-3" data-testid="admin-users-batch-errored">
+        <div class="card-header">
+            <h3 class="card-title mb-0">
+                @AdminUsersResources.BatchResultErroredHeading
+                <span class="badge bg-red-lt ms-1" data-testid="admin-users-batch-errored-count">@Model.Errored.Count</span>
+            </h3>
+        </div>
+        <div class="card-body">
+            @if (Model.Errored.Count == 0)
+            {
+                <p class="text-muted mb-0">@AdminUsersResources.BatchResultEmptyErrors</p>
+            }
+            else
+            {
+                <ul class="list-unstyled mb-0">
+                    @foreach (var row in Model.Errored)
+                    {
+                        <li data-testid="admin-users-batch-errored-row">
+                            <i class="ti ti-alert-triangle text-danger"></i>
+                            Fila @row.RowNumber: @row.KeyField — @row.Reason
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <a class="btn btn-secondary" href="@Url.Action("Index", "AdminUsers")">
+            @AdminUsersResources.InvitationBackToUsers
+        </a>
+        <a class="btn btn-primary" data-testid="admin-users-batch-again"
+           href="@Url.Action("Batch", "AdminUsers")">
+            @AdminUsersResources.BatchResultBackToUpload
+        </a>
+    </div>
+</div>
