@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-12 (session #30)
+Last updated: 2026-06-12 (session #31)
 
 ## Sessions
 
@@ -36,8 +36,15 @@ Last updated: 2026-06-12 (session #30)
 | 28 | 2026-06-11 | searchable-dropdowns | spec-created | 031 |
 | 29 | 2026-06-11 | admin-user-code | spec-created | 032 |
 | 30 | 2026-06-12 | user-invite-email | spec-created | 033 |
+| 31 | 2026-06-12 | line-item-category-templates | spec-created | 035 |
 
 ## Open Threads
+
+- Category-field values flowing into the AI quote-comparison context (spec 020) — subject them to the existing PII/redaction boundary? Pin in plan (from #31)
+- Deactivating the *last* active impact template — guard it, given per-item impact is now required to submit? Pin in plan (from #31)
+- dacpac ordering for new `CategoryField`/`CategoryFieldValue` tables + item-keyed impact relocation + drop of `PlantillaImpactTemplates` — greenfield (no backfill); confirm in plan (from #31)
+- Domain placement of new invariants (clear category-field values on category change; per-item impact required; document-retain-until-last-reference) on `Item`/`Application` per Rich Domain Model — pin in plan (from #31)
+- Reviewer/applicant detail layout — dedicated per-line "category fields" sub-section design vs reuse the impact-values render pattern — design in plan (from #31)
 
 - Reuse the existing password-reset token (72h-parameterized) vs a dedicated invitation token for spec 033 — pin in plan; "resend supersedes prior unused" (FR-007) is the constraint (from #30)
 - Spec 033 delivery path: direct-send (`ForgotPasswordEmail` pattern) vs spec-021 outbox — pin in plan, leaning direct-send (from #30)
