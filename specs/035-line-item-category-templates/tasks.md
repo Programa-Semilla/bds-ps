@@ -173,7 +173,7 @@ description: "Task list for 035 line-item category templates, per-item impact, q
 ## Phase 7: Polish & Cross-Cutting
 
 - [X] T061 SC-003 teardown verification: a test/script asserting `grep -rIn "TechnicalSpecifications" src/`, `"ImpactTemplateIdsCsv|PlantillaImpactTemplates|AttachImpactTemplate" src/`, and application-level impact members return zero results (quickstart.md §5).
-- [ ] T062 [P] es-CR copy review across all new admin + applicant UI (categories editor, item form, reuse picker, empty-states) — no English-only strings; consistent with existing conventions.
+- [X] T062 [P] es-CR copy review across all new admin + applicant UI (categories editor, item form, reuse picker, empty-states) — no English-only strings; consistent with existing conventions. (Reviewed 16 new/changed views + dynamic-fields.js — all es-CR clean; category editor uses "Campo", reuse picker + empty-states Spanish.)
 - [ ] T063 Run `quickstart.md` manual walkthrough end-to-end against the Aspire stack.
 - [X] T064 Run filtered E2E (delivery bar): `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~CategoryFieldAdmin|FullyQualifiedName~PerItemImpactCategory|FullyQualifiedName~QuotationReuse|FullyQualifiedName~LineItemDisplay"` plus the rewired existing classes touched by the item/impact/quotation refactor; confirm green.
 - [ ] T065 Update `CLAUDE.md` Recent Changes with the shipped 035 summary (after merge).
