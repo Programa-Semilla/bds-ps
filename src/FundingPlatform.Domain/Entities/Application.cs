@@ -438,14 +438,19 @@ public class Application
 
             if (item.ImpactTemplateId is null)
             {
+                // Spec 035 / FR-013 / SC-006 — es-CR submit-block message naming the
+                // line item ("impacto" still contains the "impact" substring the
+                // ApplicationSubmitGuardTests guard asserts).
                 errors.Add(
-                    $"Item '{item.ProductName}' must have an impact template selected.");
+                    $"El ítem '{item.ProductName}' debe tener una plantilla de impacto seleccionada.");
             }
 
             foreach (var missingLabel in item.MissingRequiredCategoryFields())
             {
+                // Spec 035 / FR-013 / SC-006 — es-CR message naming the line item and
+                // the missing required category field.
                 errors.Add(
-                    $"Item '{item.ProductName}' is missing required field '{missingLabel}'.");
+                    $"Al ítem '{item.ProductName}' le falta el campo requerido '{missingLabel}'.");
             }
         }
 
