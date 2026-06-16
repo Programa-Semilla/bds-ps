@@ -1,60 +1,96 @@
 @model FundingPlatform.Web.ViewModels.Admin.CategoryAdminViewModel
 
 @{
-    ViewData["Title"] = "Categorías";
+    ViewData["Title"] = "Plantillas de Categorías";
 }
 
 @await Html.PartialAsync("Components/_PageHeader",
     new PageHeaderViewModel(
-        Title: "Categorías",
+        Title: "Plantillas de Categorías",
         Breadcrumbs: new[]
         {
             new BreadcrumbItem("Panel de administración", Url.Action("Index")),
-            new BreadcrumbItem("Categorías"),
+            new BreadcrumbItem("Plantillas de Categorías"),
         }))
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h3 class="card-title mb-0">Categorías de adquisición</h3>
-        <a asp-action="CreateCategory" class="btn btn-primary" data-testid="admin-category-create">
-            <i class="ti ti-plus me-1"></i>Crear categoría
-        </a>
+<div class="card" data-list-filter>
+    <div class="card-header">
+        <div class="row w-100 g-2 align-items-center">
+            <div class="col">
+                <div class="row g-2">
+                    <div class="col-12 col-md">
+                        <input type="search" class="form-control" data-list-filter-search
+                               data-testid="admin-category-filter-search"
+                               placeholder="Buscar por nombre o descripción…"
+                               aria-label="Buscar por nombre o descripción" />
+                    </div>
+                    <div class="col-12 col-md-auto">
+                        <select class="form-select" data-list-filter-status
+                                data-testid="admin-category-filter-status"
+                                aria-label="Filtrar por estado">
+                            <option value="">Todos los estados</option>
+                            <option value="active">Activa</option>
+                            <option value="inactive">Inactiva</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="col-auto">
+                <a asp-action="CreateCategory" class="btn btn-primary" data-testid="admin-category-create">
+                    <i class="ti ti-plus me-1"></i>Crear categoría
+                </a>
+            </div>
+        </div>
     </div>
     <div class="table-responsive">
-        <table class="table card-table table-vcenter">
+        <table class="fl-table" data-density="reviewer">
             <thead>
                 <tr>
                     <th>Nombre</th>
                     <th>Descripción</th>
-                    <th class="w-1">Campos</th>
+                    <th>Campos</th>
                     <th>Estado</th>
-                    <th class="text-end">Acciones</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var c in Model.Categories)
                 {
-                    <tr data-testid="admin-category-row-@c.Id">
+                    <tr data-testid="admin-category-row-@c.Id"
+                        data-filter-row
+                        data-filter-text="@(((c.Name ?? "") + " " + (c.Description ?? "")).ToLowerInvariant())"
+                        data-filter-status="@(c.IsActive ? "active" : "inactive")">
                         <td data-testid="admin-category-name">@c.Name</td>
-                        <td class="text-secondary">@c.Description</td>
+                        <td class="text-secondary">@(string.IsNullOrWhiteSpace(c.Description) ? "-" : c.Description)</td>
                         <td>@c.FieldCount</td>
                         <td>
                             @if (c.IsActive)
                             {
-                                <span class="badge bg-green-lt">Activa</span>
+                                <span class="status status-green"><i class="ti ti-check"></i> Activa</span>
                             }
                             else
                             {
-                                <span class="badge bg-secondary">Inactiva</span>
+                                <span class="status status-secondary"><i class="ti ti-circle"></i> Inactiva</span>
                             }
                         </td>
-                        <td class="text-end">
-                            <a class="btn btn-sm btn-outline-secondary" data-testid="admin-category-edit"
-                               asp-action="EditCategory" asp-route-id="@c.Id">Editar</a>
+                        <td>
+                            <a class="btn btn-sm btn-outline-primary" data-testid="admin-category-edit"
+                               asp-action="EditCategory" asp-route-id="@c.Id">
+                                <i class="ti ti-edit me-1"></i>Editar
+                            </a>
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
     </div>
+    <div class="card-body text-secondary" data-list-filter-empty hidden data-testid="admin-category-no-results">
+        @(Model.Categories.Count == 0
+            ? "Aún no hay plantillas de categorías. Cree la primera con “Crear categoría”."
+            : "Ningún resultado coincide con el filtro.")
+    </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/admin-list-filter.js" asp-append-version="true"></script>
+}

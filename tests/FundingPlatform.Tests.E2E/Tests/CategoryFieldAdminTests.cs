@@ -77,4 +77,56 @@ public class CategoryFieldAdminTests : AuthenticatedTestBase
         await Expect(Page.Locator("input[name='Fields[1].DisplayLabel']")).ToHaveValueAsync("Costo unitario");
         await Expect(Page.Locator("select[name='Fields[1].DataType']")).ToHaveValueAsync("Decimal");
     }
+
+    private async Task CreateCategoryAsync(string name)
+    {
+        await Page.GotoAsync($"{BaseUrl}/Admin/CreateCategory");
+        await Page.Locator("[data-testid='admin-category-name-input']").FillAsync(name);
+        await Page.Locator("[data-testid='admin-category-save']").ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Categories"));
+    }
+
+    [Test]
+    public async Task CategoriesList_HasTitleAndFiltersByNameAndStatus()
+    {
+        var uniqueId = Guid.NewGuid().ToString("N")[..8];
+        var email = $"admin_catf_{uniqueId}@example.com";
+        var activeName = $"Alfa {uniqueId}";
+        var inactiveName = $"Beta {uniqueId}";
+
+        await RegisterAndLoginAsAdminAsync(email, "Test123!");
+
+        await CreateCategoryAsync(activeName);
+        await CreateCategoryAsync(inactiveName);
+
+        // Deactivate the second category via its Edit form.
+        var inactiveRow = Page.Locator($"table tbody tr:has-text('{inactiveName}')");
+        await inactiveRow.Locator("[data-testid='admin-category-edit']").ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/EditCategory"));
+        await Page.Locator("[data-testid='admin-category-active']").UncheckAsync();
+        await Page.Locator("[data-testid='admin-category-save']").ClickAsync();
+        await Expect(Page).ToHaveURLAsync(new Regex("/Admin/Categories"));
+
+        // Title reflects the renamed page.
+        await Expect(Page.Locator("[data-testid='page-title']")).ToHaveTextAsync("Plantillas de Categorías");
+
+        var activeRow = Page.Locator($"table tbody tr:has-text('{activeName}')");
+        inactiveRow = Page.Locator($"table tbody tr:has-text('{inactiveName}')");
+
+        // Search by name narrows to the matching row.
+        await Page.Locator("[data-testid='admin-category-filter-search']").FillAsync(inactiveName);
+        await Expect(inactiveRow).ToBeVisibleAsync();
+        await Expect(activeRow).ToBeHiddenAsync();
+
+        // Clearing the search restores both, then filter by status = Activa.
+        await Page.Locator("[data-testid='admin-category-filter-search']").FillAsync("");
+        await Page.Locator("[data-testid='admin-category-filter-status']").SelectOptionAsync("active");
+        await Expect(activeRow).ToBeVisibleAsync();
+        await Expect(inactiveRow).ToBeHiddenAsync();
+
+        // Status = Inactiva shows only the deactivated category.
+        await Page.Locator("[data-testid='admin-category-filter-status']").SelectOptionAsync("inactive");
+        await Expect(inactiveRow).ToBeVisibleAsync();
+        await Expect(activeRow).ToBeHiddenAsync();
+    }
 }
