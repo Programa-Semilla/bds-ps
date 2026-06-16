@@ -116,7 +116,32 @@
     </div>
 </div>
 
-@* Spec 035 / D9 — impact is per line item now; it renders inside each item block below. *@
+@* Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level);
+   each line item's attributed impact(s) + justification render inside its block below. *@
+@if (Model.Impacts.Count > 0)
+{
+    <div class="card mb-4" data-testid="application-impacts-card">
+        <div class="card-header"><h4 class="card-title mb-0">Impactos de la solicitud</h4></div>
+        <div class="card-body">
+            @foreach (var impact in Model.Impacts)
+            {
+                <div class="mb-2" data-testid="application-impact">
+                    <strong>@impact.TemplateName</strong>
+                    @if (impact.Parameters.Count > 0)
+                    {
+                        <dl class="row mb-0 mt-1 small">
+                            @foreach (var p in impact.Parameters)
+                            {
+                                <dt class="col-sm-4 text-secondary">@p.DisplayLabel</dt>
+                                <dd class="col-sm-8">@p.Value</dd>
+                            }
+                        </dl>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0">Ítems</h4>

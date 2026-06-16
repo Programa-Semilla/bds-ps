@@ -88,10 +88,11 @@ public class SupplierAssembler : ISupplierAssembler
             })
             .ToList();
 
-        // Spec 035 / D6 — enrich the AI comparison header with the product name +
-        // category field label/value pairs (what is being quoted), scrubbed for
-        // incidental PII. Impact is deliberately EXCLUDED (irrelevant to comparing
-        // quotes; user-confirmed category-values-only).
+        // Spec 035 (evolved 2026-06-16, D16) — enrich the AI comparison header with the
+        // product name + category field label/value pairs (what is being quoted) + the
+        // per-item impact justification (why it's requested), scrubbed for incidental PII.
+        // Raw impact PARAMETER values stay EXCLUDED (applicant-evaluation metadata, not
+        // relevant to comparing quotes).
         var fichaPrefix = string.IsNullOrEmpty(item.LineCode)
             ? $"Ficha {item.Id}"
             : $"Ficha {item.LineCode}";
@@ -100,6 +101,10 @@ public class SupplierAssembler : ISupplierAssembler
             .OrderBy(cfv => cfv.CategoryField?.SortOrder ?? 0)
             .Where(cfv => !string.IsNullOrWhiteSpace(cfv.Value))
             .Select(cfv => $"{cfv.CategoryField?.DisplayLabel}: {cfv.Value}"));
+        if (!string.IsNullOrWhiteSpace(item.ImpactJustification))
+        {
+            contextParts.Add($"Justificación de impacto: {item.ImpactJustification}");
+        }
         var header = ScrubPii($"{fichaPrefix} — {string.Join("; ", contextParts)}");
 
         return new ItemAssembly(

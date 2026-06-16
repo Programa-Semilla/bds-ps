@@ -115,6 +115,34 @@
     </div>
 </div>
 
+@* Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level). *@
+@if (Model.Impacts.Count > 0)
+{
+    <div class="card mb-4" data-testid="reviewer-impacts-card">
+        <div class="card-header"><h4 class="card-title mb-0">Impactos de la solicitud</h4></div>
+        <div class="card-body">
+            @foreach (var impact in Model.Impacts)
+            {
+                <div class="mb-2">
+                    <strong>@impact.TemplateName</strong>
+                    @if (impact.Parameters.Count > 0)
+                    {
+                        <table class="fl-table mt-1" data-density="reviewer">
+                            <thead><tr><th>Parámetro</th><th>Valor</th></tr></thead>
+                            <tbody>
+                                @foreach (var p in impact.Parameters)
+                                {
+                                    <tr><td>@p.DisplayLabel</td><td>@p.Value</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
 <div class="d-flex justify-content-between align-items-center mb-2">
     <h4 class="mb-0">Ítems (@Model.Items.Count)</h4>
     @if (appState == ApplicationState.UnderReview && Model.Items.Any(i => i.Quotations.Count >= 2))

@@ -46,8 +46,32 @@
     </div>
 </div>
 
-@* Spec 035 / D9 — impact + category fields are per line item; they render inside
-   each item block in the table below. *@
+@* Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level);
+   per-line attribution + category fields render inside each item block below. *@
+@if (Model.Impacts.Count > 0)
+{
+    <div class="card mb-4" data-testid="review-impacts-card">
+        <div class="card-header"><h4 class="card-title">Impactos de la solicitud</h4></div>
+        <div class="card-body">
+            @foreach (var impact in Model.Impacts)
+            {
+                <div class="mb-2" data-testid="review-application-impact">
+                    <strong>@impact.TemplateName</strong>
+                    @if (impact.Parameters.Count > 0)
+                    {
+                        <dl class="row mb-0 mt-1 small">
+                            @foreach (var p in impact.Parameters)
+                            {
+                                <dt class="col-sm-4 text-secondary">@p.Label</dt>
+                                <dd class="col-sm-8">@p.Value</dd>
+                            }
+                        </dl>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
 
 <div class="card mb-4" data-testid="review-items-card">
     <div class="card-header">
