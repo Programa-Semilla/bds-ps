@@ -75,16 +75,20 @@ public class AuthenticatedTestBase : PageTest
     }
 
     /// <summary>
-    /// Spec 035 / US2 — impact relocated from the Application aggregate to each
-    /// line item; the app-level Impact step (<c>Views/Application/Impact.cshtml</c>)
-    /// was removed. This helper makes every item of <paramref name="appId"/>'s draft
-    /// impact-complete by visiting each item's Edit page and picking + filling the
-    /// first active impact template. Retained under its original name so the ~26
-    /// legacy "add item → set impact → submit" call sites keep working unchanged;
-    /// it now reflects the per-item model instead of a single app-level step.
+    /// Spec 035 (evolved 2026-06-16) / US2+US3 — impact is declared at the APPLICATION
+    /// level (one or more) and each line item is ATTRIBUTED to it with a short
+    /// justification. This helper makes a draft submit-ready: it (1) declares an impact
+    /// on the application if none exists yet, then (2) visits each item's Edit page and
+    /// attributes it + fills the justification. Retained under its original name so the
+    /// ~26 legacy "add item → set impact → submit" call sites keep working unchanged.
     /// </summary>
     protected async Task SetImpactFromEditAsync(int appId)
     {
+        // (1) Ensure the application declares at least one impact.
+        var impactsPage = new ApplicationImpactsPage(Page);
+        await impactsPage.EnsureAtLeastOneImpactAsync(appId, BaseUrl);
+
+        // (2) Attribute + justify every line item.
         await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
         await Page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
 

@@ -61,13 +61,18 @@ public class LineItemDisplayTests : AuthenticatedTestBase
         await appPage.CreateApplicationAsync();
         var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
 
+        // Spec 035 (evolved) — declare an impact at the application level first.
+        var impactsPage = new ApplicationImpactsPage(Page);
+        await impactsPage.GotoAsync(appId, BaseUrl);
+        await impactsPage.AddImpactAsync(0);
+
         var marker = $"MARCA-{uniqueId}";
         var itemPage = new ItemPage(Page);
         await Page.GotoAsync($"{BaseUrl}/Application/{appId}/Item/Add");
         await itemPage.SelectCategoryAndFillFieldsAsync(0);
         await itemPage.CategoryFieldsContainer.Locator("input[type=text][data-dynamic-field]").First.FillAsync(marker);
         await itemPage.ProductNameInput.FillAsync($"Producto {uniqueId}");
-        await itemPage.SelectImpactAndFillAsync();
+        await itemPage.AttributeFirstImpactAndJustifyAsync($"Justificación {uniqueId}");
         await itemPage.SubmitButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 

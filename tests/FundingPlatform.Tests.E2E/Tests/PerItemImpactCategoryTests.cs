@@ -6,10 +6,10 @@ using Microsoft.Playwright;
 namespace FundingPlatform.Tests.E2E.Tests;
 
 /// <summary>
-/// Spec 035 / US2 / T040 — applicant captures a line item through the category-first
-/// form: pick category → dynamic category fields → product name → per-item impact
-/// template + parameters. Covers the golden path (saves + opens the submit gate) and
-/// submit-blocked-on-missing-impact (an impact-pending item keeps the gate closed).
+/// Spec 035 (evolved 2026-06-16) / US2+US3 / TE020+TE026 — the applicant declares the
+/// application's impacts, then captures a line item through the category-first form and
+/// attributes it to one or more declared impacts with a short justification. Covers the
+/// golden path (declare → attribute → gate opens) and submit-blocked-on-missing-attribution.
 /// </summary>
 public class PerItemImpactCategoryTests : AuthenticatedTestBase
 {
@@ -28,23 +28,27 @@ public class PerItemImpactCategoryTests : AuthenticatedTestBase
     }
 
     [Test]
-    public async Task GoldenPath_CategoryFields_AndPerItemImpact_SavesAndOpensGate()
+    public async Task GoldenPath_DeclareImpact_ThenAttributeLineItem_OpensGate()
     {
         var appId = await CreateDraftAsync("pic_golden");
 
-        // Category-first add: category (index 0 — has required fields in the seed),
-        // its dynamic fields, product name, then a per-item impact template + params.
+        // (1) Declare an impact at the application level.
+        var impactsPage = new ApplicationImpactsPage(Page);
+        await impactsPage.GotoAsync(appId, BaseUrl);
+        Assert.That(await impactsPage.AddImpactAsync(0), Is.True, "an active impact template should exist in the seed");
+        await Expect(impactsPage.DeclaredImpactRows).ToHaveCountAsync(1);
+
+        // (2) Category-first add + attribute the line to the declared impact + justify.
         var itemPage = new ItemPage(Page);
         await Page.GotoAsync($"{BaseUrl}/Application/{appId}/Item/Add");
         await itemPage.SelectCategoryAndFillFieldsAsync(0);
-
-        // The dynamic category fields were rendered (the seed's first category
-        // carries several) and the product name input is present.
         await Expect(itemPage.CategoryFieldsContainer.Locator("input[data-dynamic-field]").First)
             .ToBeVisibleAsync();
         await itemPage.ProductNameInput.FillAsync("Laptop de desarrollo");
 
-        await itemPage.SelectImpactAndFillAsync();
+        // The attribution checkboxes are present (impacts were declared).
+        await Expect(itemPage.ImpactAttributionOptions.First).ToBeVisibleAsync();
+        Assert.That(await itemPage.AttributeFirstImpactAndJustifyAsync(), Is.True);
         await itemPage.SubmitButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
@@ -56,11 +60,15 @@ public class PerItemImpactCategoryTests : AuthenticatedTestBase
     }
 
     [Test]
-    public async Task ItemWithoutImpact_KeepsSubmitGateClosed()
+    public async Task ItemWithoutAttribution_KeepsSubmitGateClosed()
     {
         var appId = await CreateDraftAsync("pic_noimpact");
 
-        // Add an item with category fields + product name but NO impact template.
+        // Declare an impact so attribution is possible, but add an item WITHOUT attributing.
+        var impactsPage = new ApplicationImpactsPage(Page);
+        await impactsPage.GotoAsync(appId, BaseUrl);
+        await impactsPage.AddImpactAsync(0);
+
         var itemPage = new ItemPage(Page);
         await itemPage.AddItemAsync(appId, "Servidor", 0, "Specs", BaseUrl, withImpact: false);
 
@@ -69,5 +77,28 @@ public class PerItemImpactCategoryTests : AuthenticatedTestBase
         var draft = new ApplicationDraftPage(Page);
         await Expect(draft.ItemRows).ToHaveCountAsync(1);
         await Expect(draft.SubmitButton).ToBeDisabledAsync();
+    }
+
+    [Test]
+    public async Task RemoveDeclaredImpact_StripsAttribution()
+    {
+        var appId = await CreateDraftAsync("pic_remove");
+
+        var impactsPage = new ApplicationImpactsPage(Page);
+        await impactsPage.GotoAsync(appId, BaseUrl);
+        await impactsPage.AddImpactAsync(0);
+
+        var itemPage = new ItemPage(Page);
+        await itemPage.AddItemAsync(appId, "Equipo", 0, "Specs", BaseUrl, withImpact: true);
+        await Expect(Page.Locator("[data-testid^=item-impact-ok-]").First).ToBeVisibleAsync();
+
+        // Remove the declared impact — the line item's attribution is stripped (SC-007),
+        // so the submit gate closes again.
+        await impactsPage.GotoAsync(appId, BaseUrl);
+        await impactsPage.DeclaredImpactRows.First.Locator("[data-testid=declared-impact-remove]").ClickAsync();
+        await Expect(impactsPage.EmptyState).ToBeVisibleAsync();
+
+        await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
+        await Expect(Page.Locator("[data-testid^=item-impact-missing-]").First).ToBeVisibleAsync();
     }
 }

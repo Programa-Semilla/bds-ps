@@ -4,11 +4,11 @@ using Microsoft.Playwright;
 namespace FundingPlatform.Tests.E2E.PageObjects;
 
 /// <summary>
-/// Spec 035 / US2 — POM for the category-first line-item form
-/// (<c>/Application/{appId}/Item/Add</c> + <c>/{itemId}/Edit</c>). Selecting a
-/// category AJAX-loads its dynamic field set; selecting an impact template
-/// AJAX-loads its parameter set. Both render <c>input[data-dynamic-field]</c>
-/// controls. <c>Item.TechnicalSpecifications</c> is gone.
+/// Spec 035 (evolved 2026-06-16) / US3 — POM for the category-first line-item form
+/// (<c>/Application/{appId}/Item/Add</c> + <c>/{itemId}/Edit</c>). Selecting a category
+/// AJAX-loads its dynamic field set. Impact is no longer picked here: the line item is
+/// attributed to the application's declared impacts (checkboxes) and carries a short
+/// justification. <c>Item.TechnicalSpecifications</c> is gone.
 /// </summary>
 public class ItemPage : BasePage
 {
@@ -18,11 +18,11 @@ public class ItemPage : BasePage
 
     public ILocator ProductNameInput => Page.Locator("[name=ProductName]");
     public ILocator CategorySelect => Page.Locator("#item-category-select");
-    public ILocator ImpactSelect => Page.Locator("#item-impact-select");
     public ILocator CategoryFieldsContainer => Page.Locator("#category-fields");
-    public ILocator ImpactParamsContainer => Page.Locator("#impact-params");
     public ILocator SubmitButton => Page.Locator("[data-testid=item-save]");
-    public ILocator NoImpactTemplatesAlert => Page.Locator("[data-testid=item-no-impact-templates]");
+    public ILocator ImpactAttributionOptions => Page.Locator("[data-testid=item-impact-option]");
+    public ILocator ImpactJustification => Page.Locator("[data-testid=item-impact-justification]");
+    public ILocator NoDeclaredImpactsAlert => Page.Locator("[data-testid=item-no-declared-impacts]");
     public ILocator ValidationSummary => Page.Locator(".text-danger.validation-summary-errors, .field-validation-error");
 
     /// <summary>
@@ -44,19 +44,20 @@ public class ItemPage : BasePage
     }
 
     /// <summary>
-    /// Picks the first active impact template, waits for the parameter fetch, and
-    /// fills every rendered parameter input.
+    /// Spec 035 (evolved) — checks the first impact-attribution checkbox and fills the
+    /// justification. No-op (returns false) when the application has not declared any
+    /// impact yet (the empty-state is shown instead of the checkboxes).
     /// </summary>
-    public async Task SelectImpactAndFillAsync()
+    public async Task<bool> AttributeFirstImpactAndJustifyAsync(string justification = "Aporta al impacto declarado.")
     {
-        var options = await ImpactSelect.Locator("option").AllAsync();
-        var value = await options[1].GetAttributeAsync("value");
-
-        await Page.RunAndWaitForResponseAsync(
-            async () => await ImpactSelect.SelectOptionAsync(value!),
-            r => r.Url.Contains("/Impact/TemplateParameters/"));
-
-        await FillDynamicFieldsAsync(ImpactParamsContainer);
+        var count = await ImpactAttributionOptions.CountAsync();
+        if (count == 0)
+        {
+            return false;
+        }
+        await ImpactAttributionOptions.First.CheckAsync();
+        await ImpactJustification.FillAsync(justification);
+        return true;
     }
 
     /// <summary>Fills every <c>input[data-dynamic-field]</c> in a container with a
@@ -79,12 +80,11 @@ public class ItemPage : BasePage
     }
 
     /// <summary>
-    /// Adds a line item. The <paramref name="techSpecs"/> parameter is retained
-    /// for call-site compatibility only — <c>TechnicalSpecifications</c> was removed
-    /// in spec 035, so the value is ignored. Set <paramref name="withImpact"/> to
-    /// also pick + fill the per-item impact template (a fully submittable item);
-    /// leave it false to add an impact-pending item (the legacy two-step flow sets
-    /// impact afterward via <c>SetImpactFromEditAsync</c>).
+    /// Adds a line item. <paramref name="techSpecs"/> is retained for call-site
+    /// compatibility only (removed in spec 035). Set <paramref name="withImpact"/> to also
+    /// attribute the line to the first declared impact + justify (requires the application
+    /// to have declared an impact already); leave it false to add an attribution-pending
+    /// item (the base helper attributes afterward via <c>SetImpactViaEditAsync</c>).
     /// </summary>
     public async Task AddItemAsync(int appId, string productName, int categoryIndex, string techSpecs, string baseUrl, bool withImpact = false)
     {
@@ -93,7 +93,7 @@ public class ItemPage : BasePage
         await ProductNameInput.FillAsync(productName);
         if (withImpact)
         {
-            await SelectImpactAndFillAsync();
+            await AttributeFirstImpactAndJustifyAsync();
         }
         await SubmitButton.ClickAsync();
         await Page.WaitForURLAsync(new Regex(@"/Application/Edit/\d+"));
@@ -110,21 +110,22 @@ public class ItemPage : BasePage
         await SelectCategoryAndFillFieldsAsync(categoryIndex);
         await ProductNameInput.ClearAsync();
         await ProductNameInput.FillAsync(productName);
+        await AttributeFirstImpactAndJustifyAsync();
         await SubmitButton.ClickAsync();
         await Page.WaitForURLAsync(new Regex(@"/Application/Edit/\d+"));
     }
 
     /// <summary>
-    /// Spec 035 — sets the per-item impact on an existing item via its Edit page:
-    /// the category fields are server-pre-rendered (already valid), so this only
-    /// picks + fills the impact template and saves. Used by the base helper to make
-    /// every item of a draft impact-complete (replaces the old app-level impact step).
+    /// Spec 035 (evolved) — attributes an existing item to the first declared impact +
+    /// justifies via its Edit page (the category fields are server-pre-rendered, already
+    /// valid). Used by the base helper to make every item of a draft impact-complete.
+    /// Requires the application to have declared an impact first.
     /// </summary>
     public async Task SetImpactViaEditAsync(int appId, int itemId, string baseUrl)
     {
         await Page.GotoAsync($"{baseUrl}/Application/{appId}/Item/{itemId}/Edit");
         await Page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
-        await SelectImpactAndFillAsync();
+        await AttributeFirstImpactAndJustifyAsync();
         await SubmitButton.ClickAsync();
         await Page.WaitForURLAsync(new Regex(@"/Application/Edit/\d+"));
     }
