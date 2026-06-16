@@ -1,42 +1,43 @@
-# Implementation Plan: Line-Item Category Templates, Per-Item Impact, and Quotation Reuse
+# Implementation Plan: Line-Item Category Templates, Application-Level Impacts with Per-Item Attribution, and Quotation Reuse
 
-**Branch**: `035-line-item-category-templates` | **Date**: 2026-06-12 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `specs/035-line-item-category-templates/spec.md`
+**Branch**: `035-line-item-category-templates` | **Date**: 2026-06-16 (re-planned) | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/035-line-item-category-templates/spec.md`
+
+> **Re-plan note (2026-06-16).** This plan supersedes the original 035 plan after the impact-model evolution (see the spec's **Evolution Log**). The **category-field** design (US1/US3) and **quotation-reuse** design (US4) are unchanged and already implemented. Only the **impact dimension** is re-designed: impact data collection moves to the **application level with one or more impacts**; line items carry a **multi-impact attribution** + a single **short justification** instead of their own impact field values. Research decisions D1, D4, D5 stand; D2, D8, D9, D11 are superseded by D13–D16 (see research.md).
 
 ## Summary
 
-Reshape the applicant submission flow around the line item: (1) each submission **category** owns an admin-configured field set that renders dynamically when an applicant picks it (replacing the free-text `Item.TechnicalSpecifications`); (2) **impact** relocates from a single application-wide choice down to a per-line-item choice, selectable from any active impact template (the Plantilla no longer gates it); (3) a multi-product vendor **quotation** is captured as one line item per product, with the vendor + uploaded document reused across sibling items (each keeping its own price). The obsolete application-level impact wiring and the Plantilla impact-template gating are removed with no dead code (verified by search). All application-render surfaces (applicant Details/Review, reviewer detail, funding-agreement PDF, AI comparison context) show per-item category values + impact. Greenfield flow → no data migration.
+Reshape applicant submission around three pillars sharing the "add a line item" flow:
 
-Technical approach: re-key the proven `ImpactTemplate → parameter → EAV-value` pattern into `Category → CategoryField → CategoryFieldValue` (value keyed by `Item`); re-key `ImpactParameterValues` from `ApplicationId` to `ItemId` and move impact members from `Application` to `Item`; implement quotation reuse purely in the application layer (no schema change — the `Document` model already supports sharing) with reference-counted blob retention; surgically strip the Plantilla impact-template machinery while keeping min-quotations + required-field flags. Full research and decisions in [research.md](./research.md); model in [data-model.md](./data-model.md); interface deltas in [contracts/interfaces.md](./contracts/interfaces.md).
+1. **Category-driven fields** (US1/US3, *built, unchanged*) — each `Category` owns an admin-configured ordered field set (`CategoryField` → item-keyed `CategoryFieldValue`, EAV mirroring impact templates), replacing the free-text `Item.TechnicalSpecifications`.
+2. **Application-level impacts + per-item attribution** (US2/US3, *re-designed*) — an application declares **one or more** impacts (`ApplicationImpact` = chosen `ImpactTemplate` + its `ImpactParameterValue`s, re-keyed from the old per-item shape to `ApplicationImpactId`). Each line item is **attributed** to one or more of those declared impacts (`ItemImpact` join) and carries a single required **`Item.ImpactJustification`** (≤300 chars). The Plantilla impact-template gating remains removed (min-quotations + required-field flags preserved).
+3. **Quotation reuse** (US4, *built, unchanged*) — reuse a sibling line item's supplier + uploaded `Document` with a per-item price; reference-counted blob retention; no schema change.
+
+All render surfaces show, per item, category values + attributed impact name(s) + justification, and at the application level the declared impacts + their values. Greenfield (branch not merged → destructive schema edits, no migration); no new managed dependencies.
 
 ## Technical Context
 
-**Language/Version**: C# / .NET 10.0
-**Primary Dependencies**: ASP.NET MVC, EF Core 10, ASP.NET Identity, .NET Aspire, Syncfusion HtmlToPdfConverter, Anthropic.SDK (AI comparison, existing), Tabler.io (vendored). **No new managed dependencies.**
-**Storage**: SQL Server (dacpac schema source-of-truth; EF for data access only). Object storage via `IObjectStorage` (Azurite dev / Azure Blob prod / LocalFilesystem fallback).
-**Testing**: NUnit + Playwright for .NET (E2E, Page Object Model); xUnit/NUnit unit + integration (integration hits a real DB, no mocks).
-**Target Platform**: Linux server (Aspire-orchestrated); browser UI (server-rendered Razor, es-CR).
-**Project Type**: Web application (ASP.NET MVC, Clean Architecture: Domain / Application / Infrastructure / Web + Database dacpac).
-**Performance Goals**: Interactive web; dynamic category/impact field forms render client-side from a small JSON descriptor fetch; no batch/throughput target.
-**Constraints**: es-CR default culture, no English-only copy; no CDN (assets vendored); schema-first (no EF migrations); all validation errors shown at once; greenfield flow (no migration). Delivery bar = filtered E2E green.
-**Scale/Scope**: ~2 new tables, 1 re-keyed table, 1 altered table, 1 dropped table + 1 dropped column; net-new admin Category CRUD; restructured applicant item form; quotation-reuse path; 4 converted + 2 augmented render surfaces; Plantilla gating teardown.
+**Language/Version**: C# / .NET 10.0, ASP.NET MVC, EF Core 10
+**Primary Dependencies**: ASP.NET Identity, .NET Aspire, Syncfusion HtmlToPdfConverter, Tabler.io (vendored), Anthropic.SDK (existing AI path) — **no new managed deps**
+**Storage**: SQL Server (Aspire-managed); schema source-of-truth = `FundingPlatform.Database` dacpac (Constitution IV). Blob via `IObjectStorage` (Azurite/Azure Blob/local)
+**Testing**: xUnit (Unit + Integration against real SQL), Playwright + `AspireFixture` (E2E, Page Object Model)
+**Target Platform**: Linux container (Aspire-orchestrated)
+**Project Type**: Web application (Clean Architecture: Domain / Application / Infrastructure / Web)
+**Performance Goals**: interactive web; no new hot paths (dynamic-field endpoints are small JSON reads)
+**Constraints**: es-CR default culture (Constitution + spec FR-015); all assets local (no CDN)
+**Scale/Scope**: impact-dimension re-work of a mostly-built feature; ~5 schema objects added/changed, ~2 removed; reuses existing impact-template + EAV machinery
 
 ## Constitution Check
 
-*GATE: must pass before Phase 0 and re-checked after Phase 1.*
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle | Status | Notes |
-|---|---|---|
-| I. Clean Architecture | PASS | New entities/VOs in Domain; commands/services/DTOs in Application; EF configs + services + dacpac in Infrastructure/Database; controllers/views/VMs in Web. Dependencies point inward; no Domain→outer references. |
-| II. Rich Domain Model | PASS | New behavior on entities: `Item.SetImpact`, `Item.SetCategoryFieldValues`, `Item.ChangeCategory` (clears values), `Category.AddField/ClearFields/Update/Activate`, `Application.Validate` per-item gates + `CountQuotationsReferencingDocument`. Cross-aggregate blob I/O stays in the service (it needs storage); which-required-cell-is-blank validation stays service-layer **consistent with the existing impact pattern** (documented continuity, not a new violation). |
-| III. E2E (NON-NEGOTIABLE) | PASS | Each user story gets Playwright E2E (POM): category-field admin, per-item category+impact, quotation reuse, cross-surface display. Unit + integration (real DB) complement. Delivery bar = filtered E2E. |
-| IV. Schema-First (dacpac) | PASS | All schema via `.sql` edits; no EF migrations/EnsureCreated. Greenfield → no backfill scripts; seed scripts updated. |
-| V. Specification-Driven | PASS | spec → plan → tasks → implement; this plan + research + data-model + contracts produced before code. |
-| VI. Simplicity / Progressive Complexity | PASS | Reuses existing patterns (impact-template admin UI, EAV, `ParameterDataType`, `_QuoteFields`/`IQuoteFieldsModel`, dynamic-field JSON endpoint); category owns fields 1:1 (no standalone catalog); no new field types; no new deps; quotation reuse needs no schema change. Deferred items (conditional fields, file/dropdown types, cross-app reuse, `ValidationRules`) explicitly out of scope. |
+- **I. Clean Architecture** — PASS. New behavior placed per layer: domain invariants on `Application`/`Item` aggregates; orchestration in Application/Infrastructure services; DTOs in Application; controllers/views/VMs in Web. No inward-pointing violations. es-CR reason strings: per the spec-034 precedent, service-produced reasons may live in Application; Web owns view copy.
+- **II. Rich Domain Model** — PASS. Impact declaration (`Application.AddImpact`/`RemoveImpact`), attribution (`Item.AttributeImpacts`), justification (`Item.SetImpactJustification`), and the extended `Application.Validate(minQuotations)` (app-has-≥1-impact, per-impact required values, per-item ≥1 attribution + non-empty justification + required category fields, attribution-targets-are-declared) all live on the entities. Cross-aggregate I/O (blob delete) stays in services.
+- **III. E2E (NON-NEGOTIABLE)** — PASS. Each user story carries Playwright E2E (POM) + unit + real-DB integration. Delivery bar = filtered E2E for touched classes.
+- **IV. Schema-First (dacpac)** — PASS. All schema edits in `FundingPlatform.Database` `.sql` files; no EF migrations / `EnsureCreated`. Greenfield → no backfill scripts.
+- **VI. Simplicity / YAGNI** — PASS. Re-keys the proven impact-template EAV pattern rather than inventing parallel machinery; no speculative guards (e.g., last-active-template deactivation).
 
-**Result: PASS (initial and post-design).** No violations → Complexity Tracking empty.
-
-One **flagged refinement** (not a violation): FR-009 lists the AI quote-comparison context as a surface showing category values + per-item impact. Research D6 recommends including category values (scrubbed) but **excluding impact** there (impact is irrelevant to comparing supplier quotes, and free-text must pass PII redaction). Pending user confirmation; does not block the rest of the plan.
+**No violations → Complexity Tracking empty.**
 
 ## Project Structure
 
@@ -44,16 +45,13 @@ One **flagged refinement** (not a violation): FR-009 lists the AI quote-comparis
 
 ```text
 specs/035-line-item-category-templates/
-├── plan.md              # This file
-├── spec.md              # Feature spec
-├── research.md          # Phase 0 — 12 decisions (D1–D12)
-├── data-model.md        # Phase 1 — entities, tables, FKs, validation
+├── plan.md              # This file (re-planned 2026-06-16)
+├── research.md          # Phase 0 — D1–D12 + evolution D13–D16
+├── data-model.md        # Phase 1 — evolved schema
+├── quickstart.md        # Phase 1 — manual walkthrough (updated for app-level impacts)
 ├── contracts/
-│   └── interfaces.md    # Phase 1 — command/service/route/endpoint deltas
-├── quickstart.md        # Phase 1 — manual walkthrough + gates
-├── checklists/requirements.md
-├── REVIEW-SPEC.md
-└── tasks.md             # Phase 2 — /speckit-tasks (NOT created here)
+│   └── interfaces.md    # Phase 1 — command/service/route/endpoint contracts
+└── tasks.md             # Phase 2 (/speckit-tasks) — regenerated for the evolution delta
 ```
 
 ### Source Code (repository root)
@@ -61,95 +59,48 @@ specs/035-line-item-category-templates/
 ```text
 src/
 ├── FundingPlatform.Domain/
-│   ├── Entities/
-│   │   ├── Category.cs              # + Fields, mutators (AddField/ClearFields/Update/Activate)
-│   │   ├── CategoryField.cs         # NEW (mirrors ImpactTemplateParameter)
-│   │   ├── CategoryFieldValue.cs    # NEW (EAV, keyed by Item)
-│   │   ├── Item.cs                  # + ImpactTemplateId/nav, ImpactParameterValues,
-│   │   │                            #   CategoryFieldValues, SetImpact, SetCategoryFieldValues,
-│   │   │                            #   ChangeCategory(clears values); − TechnicalSpecifications
-│   │   ├── Application.cs           # − impact members/SetImpact; Validate per-item gates;
-│   │   │                            #   + CountQuotationsReferencingDocument
-│   │   ├── Plantilla.cs             # − impact-template members + AssignTo guard/snapshot
-│   │   ├── ProcessPlantilla.cs      # − ImpactTemplateIdsCsv/ImpactTemplateIds()
-│   │   └── Impact.cs (stale entity) # DELETE if present (dead code)
-│   ├── Enums/ParameterDataType.cs   # reused as-is
-│   └── Interfaces/ICategoryRepository.cs  # + Add/Update/Save/GetByIdWithFields/GetAll
+│   ├── Entities/         Application.cs, Item.cs, ApplicationImpact.cs (NEW), ItemImpact.cs (NEW),
+│   │                     Category.cs, CategoryField.cs, CategoryFieldValue.cs, ImpactParameterValue.cs (re-keyed)
+│   └── Interfaces/        ICategoryRepository, IImpactTemplateRepository (existing)
 ├── FundingPlatform.Application/
-│   ├── Admin/Commands/             # NEW Create/UpdateCategoryCommand + CategoryFieldDefinition
-│   ├── Applications/Commands/      # AddItem/UpdateItemCommand (− TechSpecs, + category/impact);
-│   │                               #   − SetApplicationImpactCommand
-│   ├── DTOs/                       # ItemDto.Impact populated + CategoryFields; − ApplicationDto.Impact;
-│   │                               #   ReviewItemDto per-item; FundingAgreementItemRowDto + fields;
-│   │                               #   CategoryDetailDto/ReusableQuotationDto NEW
-│   ├── Services/ApplicationService # AddItem/UpdateItem rewire; ReuseQuotationAsync;
-│   │                               #   ref-counted retention; − SetApplicationImpactAsync
-│   ├── Services/AdminService       # + Category CRUD
-│   ├── Services/ReviewService      # MapToReviewDto → real per-item impact + category fields
-│   ├── Plantillas/IPlantillaService# − ImpactTemplateIds/Count
-│   └── AiComparison/SupplierAssembler  # + product + category fields (scrubbed); impact excluded (D6)
+│   ├── Applications/Commands/  AddItemCommand, UpdateItemCommand (reshaped), AddApplicationImpactCommand (NEW), RemoveApplicationImpactCommand (NEW)
+│   ├── Admin/Commands/   CreateCategoryCommand, UpdateCategoryCommand (built, unchanged)
+│   ├── DTOs/             ItemDto, ApplicationDto (impacts back), ReviewApplicationDto, FundingAgreementItemRowDto
+│   └── Services/         ApplicationService, ReviewService, PlantillaService, AdminService
 ├── FundingPlatform.Infrastructure/
-│   ├── Persistence/Configurations/ # CategoryConfiguration(+Fields), CategoryFieldConfiguration NEW,
-│   │                               #   CategoryFieldValueConfiguration NEW, ItemConfiguration (+ImpactTemplateId,
-│   │                               #   −TechSpecs), ImpactParameterValueConfiguration (re-key Item),
-│   │                               #   ApplicationConfiguration (−impact), delete PlantillaImpactTemplateConfiguration,
-│   │                               #   ProcessPlantillaConfiguration (−CSV)
-│   ├── Persistence/Repositories/   # CategoryRepository (+writes), ApplicationRepository includes
-│   ├── Persistence/AppDbContext.cs # + DbSet<CategoryField>, <CategoryFieldValue>
-│   ├── Services/PlantillaService.cs# gut attach/reconcile
-│   ├── Services/SubmitApplicationHandler.cs # submit gate now per-item (via Application.Validate)
-│   ├── Services/GetApplicationReviewProjection.cs # per-item includes + projection
-│   ├── AiComparison/...            # redaction of new free-text category values
-│   └── DocumentGeneration/...      # PDF per-line category+impact block
-├── FundingPlatform.Database/Tables/
-│   ├── dbo.CategoryFields.sql            # NEW
-│   ├── dbo.CategoryFieldValues.sql       # NEW
-│   ├── dbo.ImpactParameterValues.sql     # re-key ApplicationId→ItemId
-│   ├── dbo.Items.sql                     # +ImpactTemplateId, −TechnicalSpecifications
-│   ├── dbo.ProcessPlantillas.sql         # −ImpactTemplateIdsCsv
-│   ├── dbo.PlantillaImpactTemplates.sql  # DELETE
-│   └── (post-deploy seed scripts updated for new shape)
+│   ├── Persistence/      AppDbContext, Configurations/*, Repositories/*
+│   └── AiComparison/     SupplierAssembler
+├── FundingPlatform.Database/   Tables/*.sql (dacpac — source of truth) + post-deploy seeds
 └── FundingPlatform.Web/
-    ├── Controllers/AdminController.cs            # + Categories/CreateCategory/EditCategory
-    ├── Controllers/ApplicationController.cs      # − Impact actions, − inline AddItem/RemoveItem
-    ├── Controllers/ItemController.cs             # Add/Edit host dynamic category fields + impact
-    ├── Controllers/SupplierController.cs         # quotation reuse mode
-    ├── Controllers/Admin/AdminPlantillasController.cs  # − impact-template options
-    ├── ViewModels/                              # Category admin VMs NEW; AddItem/EditItem VMs reshaped;
-    │                                            #   AddSupplier VM + reuse; − ImpactViewModel;
-    │                                            #   Plantilla VMs − impact options
-    ├── Views/Admin/Categories|CreateCategory|EditCategory.cshtml  # NEW (mirror impact-template views)
-    ├── Views/Item/Add|Edit.cshtml               # dynamic category fields + impact picker
-    ├── Views/Application/Details|Review|Edit.cshtml  # impact → per-item + category fields
-    ├── Views/Review/Review.cshtml               # per-item impact/category from real data
-    ├── Views/Supplier/Add.cshtml                # reuse picker
-    ├── Views/Admin/Plantillas/Create|Edit|Index.cshtml  # − impact-template block/column
-    ├── Views/FundingAgreement/Partials/...      # per-line category+impact
-    └── wwwroot/js/                              # shared dynamic-field renderer (extracted), reuse-picker toggle
-
+    ├── Controllers/      ApplicationController (impacts step), ItemController (attribution+justification), SupplierController, AdminController
+    ├── Views/            Application/*, Item/*, Supplier/*, Admin/Categories*, FundingAgreement/Partials/*, Emails/*
+    └── wwwroot/js/       dynamic-fields renderer, submit-gate.js
 tests/
-├── FundingPlatform.Tests.Unit          # Item/Application/Category domain behavior
-├── FundingPlatform.Tests.Integration   # Category CRUD, ref-counted retention, per-item impact (real DB)
-└── FundingPlatform.Tests.E2E           # CategoryField*, PerItemImpact*, QuotationReuse*, LineItemDisplay*
+├── FundingPlatform.Tests.Unit/
+├── FundingPlatform.Tests.Integration/
+└── FundingPlatform.Tests.E2E/    + PageObjects/
 ```
 
-**Structure Decision**: Existing Clean-Architecture layout (per CLAUDE.md). No new projects. Changes distribute across the four layers + the dacpac as shown, following established per-spec conventions.
+**Structure Decision**: Existing 4-layer Clean Architecture web app; no structural change. The evolution touches the impact slice across all four layers plus tests.
+
+## Phase 0 — Research
+
+See `research.md`. **Unchanged & still authoritative:** D1 (category-field EAV), D3 (any active template, no Plantilla gate — now applied at the application level), D4 (Plantilla teardown), D5 (quotation reuse + ref-counted retention), D7 (no-active-templates empty-state — now on the impacts step), D10 (dacpac/greenfield), D12 (testing strategy).
+
+**Superseded by the evolution, replaced by D13–D16:**
+- **D13** (replaces D2) — Impact at the **application level, multiple impacts**: new `ApplicationImpact` aggregate-child; `ImpactParameterValues` re-keyed to `ApplicationImpactId` (not `ItemId`). `Item.ImpactTemplateId` and per-item impact values are removed.
+- **D14** (new) — **Per-item attribution + justification**: `ItemImpact` join (Item ↔ ApplicationImpact) with `ApplicationImpactId` FK set **NO ACTION** to avoid SQL Server multiple-cascade-path error; `Item.ImpactJustification NVARCHAR(300)`. Removing a declared impact removes its attributions in the domain (SC-007).
+- **D15** (replaces D8) — Flow: an **application-level impacts step** (multi-impact manager) + an item form whose impact part is a **multi-select attribution** (options = declared impacts) + a short justification textarea. No impact template/values in the item form.
+- **D16** (replaces D9/D11 impact parts) — Display: application-level impacts card (declared impacts + values) **plus** per-item attributed-impact names + justification on every surface; validation invariants relocated to `Application.Validate` + service for required-value detail.
+
+## Phase 1 — Design & Contracts
+
+- **Data model**: `data-model.md` (evolved). New `dbo.ApplicationImpacts`, `dbo.ItemImpacts`; `dbo.ImpactParameterValues` re-keyed to `ApplicationImpactId`; `dbo.Items` drops `ImpactTemplateId`, adds `ImpactJustification`. Category + quotation schema unchanged.
+- **Contracts**: `contracts/interfaces.md` (evolved) — new `AddApplicationImpactCommand`/`RemoveApplicationImpactCommand` + service methods; reshaped `AddItemCommand`/`UpdateItemCommand` (drop per-item impact template/values; add `ApplicationImpactIds` + `ImpactJustification`); routes for the impacts step; DTO/projection changes for display.
+- **Agent context**: CLAUDE.md "Active plan" / "Recent Changes" updated to reflect the evolved 035 after tasks regenerate (T065, post-merge).
+
+**Post-design Constitution re-check**: PASS — design stays within the existing patterns; the only notable schema nuance (NO-ACTION on `ItemImpacts.ApplicationImpactId` + domain-driven attribution cleanup) is documented and test-covered (SC-007).
 
 ## Complexity Tracking
 
-No constitution violations — no entries.
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| — | — | — |
-
-## Phase notes / sequencing hint (for `/speckit-tasks`)
-
-Natural build order honoring independent-story testability:
-1. **Schema + domain foundation** (dacpac tables, re-key, entity members) — unblocks everything.
-2. **US1** admin category fields (CRUD) — independently demoable.
-3. **US2** per-item category fields + impact in the item form + submit gates + Plantilla teardown.
-4. **US3** quotation reuse + reference-counted retention.
-5. **US4** cross-surface display (Details/Review/reviewer/PDF/AI) + SC-003 teardown-verification check.
-
-Risk hot-spots flagged for tasks: the `Plantilla.AssignTo` guard/snapshot removal (breaks assignment if missed), the two blob-delete sites (reference count), the `ReviewService.MapToReviewDto` duplication fix, and the AI redaction of new free-text (D6).
+> No constitution violations — section intentionally empty.

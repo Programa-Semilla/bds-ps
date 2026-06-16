@@ -1,8 +1,10 @@
-# Contracts: Line-Item Category Templates, Per-Item Impact, and Quotation Reuse
+# Contracts: Line-Item Category Templates, Application-Level Impacts with Per-Item Attribution, and Quotation Reuse
 
-**Feature:** 035 | **Phase:** 1 (Design)
+**Feature:** 035 | **Phase:** 1 (Design) | **Evolved:** 2026-06-16
 
 This project's "contracts" are the use-case command/service signatures, MVC routes, view models, and the dynamic-field JSON endpoints. Below: what is **added**, **changed**, **removed**. Signatures are the design target, not final code.
+
+> **Evolution (2026-06-16).** Section A (category admin) and Section C (quotation reuse) are **unchanged** (built). Section B (item flow) is reshaped: the item form no longer carries an impact template + values — it carries a **multi-impact attribution** + a **short justification**. New **Section B′** adds the application-level impacts manager. Section D (display) reflects app-level impacts + per-item attribution/justification.
 
 ---
 
@@ -45,47 +47,78 @@ Views `Views/Admin/Categories.cshtml`, `CreateCategory.cshtml`, `EditCategory.cs
 
 ---
 
-## B. Applicant — per-item category fields + impact (CHANGED item flow)
+## B. Applicant — per-item category fields + impact attribution + justification (CHANGED item flow — D14/D15)
 
 ### Commands (`FundingPlatform.Application/Applications/Commands/`)
 ```csharp
-// CHANGED — drop TechnicalSpecifications; add per-item category-field + impact payloads
+// CHANGED — drop TechnicalSpecifications; category-field payload stays; impact is now ATTRIBUTION + justification
 record AddItemCommand(int ApplicationId, string ProductName, int CategoryId,
     Dictionary<int,string?> CategoryFieldValues,           // keyed by CategoryFieldId
-    int ImpactTemplateId, Dictionary<int,string?> ImpactParameterValues);  // keyed by ImpactTemplateParameterId
+    IReadOnlyList<int> ApplicationImpactIds,               // attribution — must be ≥1 at submit; subset of app's declared impacts
+    string? ImpactJustification);                          // ≤300 chars; required (non-empty) at submit
 record UpdateItemCommand(int ItemId, int ApplicationId, string ProductName, int CategoryId,
     Dictionary<int,string?> CategoryFieldValues,
-    int ImpactTemplateId, Dictionary<int,string?> ImpactParameterValues);
+    IReadOnlyList<int> ApplicationImpactIds,
+    string? ImpactJustification);
 // RemoveItemCommand unchanged.
-// REMOVED: SetApplicationImpactCommand (per-application impact gone).
+// REMOVED: the prior 035 per-item ImpactTemplateId + ImpactParameterValues on these commands.
 ```
 
 ### Service (`ApplicationService` / `IApplicationService`)
 ```csharp
-// CHANGED: AddItemAsync/UpdateItemAsync now resolve the Category (+ its fields) and the
-// ImpactTemplate (+ params), validate required values per item (all-at-once), build
-// CategoryFieldValue + ImpactParameterValue lists, call item.SetCategoryFieldValues(...) +
-// item.SetImpact(template, values).  Impact-template lookup = GetAllActive (no Plantilla gate).
-// REMOVED: SetApplicationImpactAsync, GetImpactTemplatesAsync's Plantilla-gated variant.
-// Per-item impact templates exposed via the existing IImpactTemplateRepository.GetAllActiveAsync.
+// CHANGED: AddItemAsync/UpdateItemAsync resolve the Category (+ fields), validate the attribution
+//   (every ApplicationImpactId belongs to THIS application's declared impacts), build the
+//   CategoryFieldValue list, then call item.SetCategoryFieldValues(...), item.AttributeImpacts(ids),
+//   item.SetImpactJustification(text). NO impact-template resolution here anymore.
+// REMOVED: the prior 035 per-item SetImpact wiring.
 ```
 
 ### Web (`ItemController` — route prefix `Application/{appId}/Item`)
 | Action | Route | Change |
 |---|---|---|
-| `Add` GET/POST | `Add` | VM `AddItemViewModel`: drop `TechnicalSpecifications`; add `CategoryFields` (descriptors + values), `ImpactTemplates` (active list), `ImpactParameters` (descriptors + values). Category select drives dynamic fields. |
-| `Edit` GET/POST | `{itemId}/Edit` | same shape via `EditItemViewModel` |
+| `Add` GET/POST | `Add` | VM `AddItemViewModel`: drop `TechnicalSpecifications`; keep `CategoryFields`; replace impact-template/params with `DeclaredImpacts` (the app's `ApplicationImpact`s for a multi-select), `SelectedApplicationImpactIds`, and `ImpactJustification` (textarea, maxlength 300). Category select drives dynamic fields. Empty-state when the app has no declared impacts (link to the impacts step). |
+| `Edit` GET/POST | `{itemId}/Edit` | same shape via `EditItemViewModel` (pre-checks current attributions) |
 | `Delete` POST | `{itemId}/Delete` | unchanged |
-
-**REMOVED from `ApplicationController`:** the `Impact` GET/POST actions, `ImpactTemplateParameters` is **kept** (used by the per-item impact picker), the inline `AddItem`/`RemoveItem` POST + inline form on `Edit.cshtml` (canonical add is `ItemController.Add`, research D8).
 
 ### Dynamic-field JSON endpoints
 ```
-GET /Application/{id}/Impact/TemplateParameters/{templateId}   // KEPT — impact param descriptors
-GET /Application/{appId}/Item/Category/{categoryId}/Fields      // NEW — category field descriptors
+GET /Application/{id}/Impact/TemplateParameters/{templateId}   // KEPT — used by the APP-LEVEL impacts manager (Section B′)
+GET /Application/{appId}/Item/Category/{categoryId}/Fields      // category field descriptors (unchanged)
    → [{ id, name, displayLabel, dataType, isRequired }]
 ```
-Both feed one shared client-side renderer (`DataType → input control`: Text→text, Decimal→number step .01, Integer→number step 1, Date→date), extracted from the duplicated switch in `Impact.cshtml`.
+The category-field endpoint feeds the shared client-side renderer (`DataType → input control`: Text→text, Decimal→number step .01, Integer→number step 1, Date→date). The item form's impact part is a **server-rendered multi-select** of the application's declared impacts (no JSON endpoint needed) plus a justification textarea with a live character counter.
+
+---
+
+## B′. Applicant — application-level impacts manager (NEW — D13/D15)
+
+The pre-035 single-impact step is generalized to a one-or-more manager (re-introducing `ApplicationController.Impact` in a multi-impact shape).
+
+### Commands
+```csharp
+record AddApplicationImpactCommand(int ApplicationId, int ImpactTemplateId,
+    Dictionary<int,string?> ParameterValues);   // keyed by ImpactTemplateParameterId; required values validated
+record RemoveApplicationImpactCommand(int ApplicationId, int ApplicationImpactId);
+```
+
+### Service (`ApplicationService`)
+```csharp
+Task AddApplicationImpactAsync(AddApplicationImpactCommand cmd);
+//   resolves the ImpactTemplate (GetAllActive — no Plantilla gate, D3), validates required param values,
+//   builds ImpactParameterValue list, calls application.AddImpact(template, values) (rejects duplicate template).
+Task RemoveApplicationImpactAsync(RemoveApplicationImpactCommand cmd);
+//   application.RemoveImpact(id) — also strips ItemImpact attributions referencing it (SC-007).
+Task<List<ImpactTemplateOptionDto>> GetActiveImpactTemplatesAsync();   // for the "add impact" picker
+```
+
+### Web (`ApplicationController`)
+| Action | Route | View / VM |
+|---|---|---|
+| `Impacts` GET | `/Application/{id}/Impacts` | `ApplicationImpactsViewModel` — declared impacts list + an "add impact" form (active-template select → dynamic params via the kept `TemplateParameters` endpoint) |
+| `AddImpact` POST | `/Application/{id}/Impacts/Add` | dispatch `AddApplicationImpactCommand`; re-render on validation error |
+| `RemoveImpact` POST | `/Application/{id}/Impacts/{applicationImpactId}/Remove` | dispatch `RemoveApplicationImpactCommand` |
+
+Empty-state when no active impact templates exist ("no hay plantillas de impacto activas", D7). The submit gate (`submit-gate.js`) reflects: ≥1 declared impact AND every item attributed + justified + category-complete.
 
 ---
 
@@ -96,7 +129,7 @@ Both feed one shared client-side renderer (`DataType → input control`: Text→
 // NEW
 Task ReuseQuotationAsync(int applicationId, int itemId, int sourceQuotationId,
     decimal price, string currency, DateOnly validUntil);
-// Loads app; finds sourceQuotation (must belong to SAME application, FR-008);
+// Loads app; finds sourceQuotation (must belong to SAME application, FR-010);
 // builds new Quotation(sourceQuotation.SupplierId, sourceQuotation.SupplierBranchId,
 //   sourceQuotation.DocumentId, price, validUntil, currency)
 //   → SetCurrencyAndAmountAsync(...) → item.AttachQuotation(supplier, branch, quotation).
@@ -117,25 +150,31 @@ Task<List<ReusableQuotationDto>> GetReusableQuotationsAsync(int applicationId, i
 
 ---
 
-## D. Cross-surface display (FR-009) — DTO/projection changes
+## D. Cross-surface display (FR-011) — DTO/projection changes (D16)
 
 ```csharp
-// ItemDto.Impact (already exists, currently null) → POPULATED per item.
-//   + new: ItemDto.CategoryFields : List<CategoryFieldValueDto(Label, Value)>
-// ApplicationDto.Impact → REMOVED.
-// ReviewItemDto.ImpactTemplateName/ImpactParameters → fed from per-item data
-//   (fix ReviewService.MapToReviewDto duplication); + CategoryFields list.
-// ApplicationReviewViewModel: impact moves from a single card to per ReviewItemRow;
-//   + per-row category fields.  GetApplicationReviewProjection includes Item.ImpactTemplate
-//   + Item.ImpactParameterValues + Item.CategoryFieldValues.ThenInclude(CategoryField).
-// FundingAgreementItemRowDto → + CategoryFields + Impact (PDF partial renders a per-line block).
-// AI: SupplierAssembler ItemAssembly → + ProductName + CategoryFields (scrubbed via PII regex);
-//   impact EXCLUDED (research D6, pending user confirmation).
+// APPLICATION LEVEL (declared impacts, one or more):
+//   ApplicationDto.Impacts : List<ApplicationImpactDto(Id, ImpactTemplateName, List<ImpactParameterValueDto(Label,Value)>)>
+//     (replaces the single ApplicationDto.Impact removed in prior 035).
+// PER ITEM:
+//   ItemDto.CategoryFields : List<CategoryFieldValueDto(Label, Value)>            // unchanged
+//   ItemDto.AttributedImpactNames : List<string>                                  // from ItemImpact → ApplicationImpact → template name
+//   ItemDto.ImpactJustification : string?
+//   (ItemDto.Impact — the prior per-item single impact — REMOVED.)
+// ReviewItemDto: ImpactTemplateName/ImpactParameters → replaced by AttributedImpactNames + ImpactJustification + CategoryFields.
+//   ApplicationReviewViewModel: an application-level Impacts card + per-row attributed-impact names + justification + category fields.
+//   GetApplicationReviewProjection includes Application.Impacts.ThenInclude(ip => ip.ParameterValues).ThenInclude(ImpactTemplateParameter)
+//   + Application.Impacts.ThenInclude(ImpactTemplate) + Item.ItemImpacts.ThenInclude(ApplicationImpact.ImpactTemplate)
+//   + Item.CategoryFieldValues.ThenInclude(CategoryField).
+// FundingAgreementItemRowDto → + CategoryFields + AttributedImpactNames + ImpactJustification;
+//   the agreement also gains an application-level impacts block (declared impacts + values).
+// AI: SupplierAssembler ItemAssembly → + ProductName + CategoryFields + ImpactJustification (all scrubbed via PII regex);
+//   raw impact parameter values EXCLUDED (research D16; flip to included only if strict FR-011 is chosen).
 ```
 
 ### EF Includes to update
-- `ApplicationRepository.GetByIdWithDetailsAsync` / `:74` — move impact includes from Application onto `Items` (`Item.ImpactTemplate`, `Item.ImpactParameterValues.ThenInclude(ImpactTemplateParameter)`, `Item.CategoryFieldValues.ThenInclude(CategoryField)`).
-- `GetApplicationReviewProjection` `:53` — same per-item includes.
+- `ApplicationRepository.GetByIdWithDetailsAsync` — include `Application.Impacts` (→ `ParameterValues` → `ImpactTemplateParameter`, and → `ImpactTemplate`) and `Item.ItemImpacts` (→ `ApplicationImpact` → `ImpactTemplate`) + `Item.CategoryFieldValues.ThenInclude(CategoryField)`.
+- `GetApplicationReviewProjection` — same includes.
 
 ---
 
