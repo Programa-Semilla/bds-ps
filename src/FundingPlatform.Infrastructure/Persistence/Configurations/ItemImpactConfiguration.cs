@@ -33,9 +33,13 @@ public class ItemImpactConfiguration : IEntityTypeConfiguration<ItemImpact>
             .IsUnique()
             .HasDatabaseName("UX_ItemImpacts_ItemId_AppImpactId");
 
+        // ClientCascade: EF cascade-deletes the attribution in the change tracker when its
+        // ApplicationImpact is removed (so Application.RemoveImpact works through EF), while
+        // the DB FK stays NO ACTION (the hand-authored dacpac avoids the multi-cascade-path
+        // conflict — Application reaches ItemImpacts via Items already).
         builder.HasOne(ii => ii.ApplicationImpact)
             .WithMany()
             .HasForeignKey(ii => ii.ApplicationImpactId)
-            .OnDelete(DeleteBehavior.NoAction);
+            .OnDelete(DeleteBehavior.ClientCascade);
     }
 }

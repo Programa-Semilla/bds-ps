@@ -46,12 +46,25 @@ public class ApplicationSubmitGuardTests
         list.Add(quotation);
     }
 
-    // Spec 035 / D2 — impact is now per-item; attach it to the line item.
-    private static void AttachImpact(Item item, int templateId = 10)
+    // Spec 035 (evolved 2026-06-16) — impact is declared at the application level; the
+    // line item attributes itself to it + carries a justification.
+    private static void AttachImpact(AppEntity app, Item item, int impactId = 1, int templateId = 10)
     {
-        var template = new ImpactTemplate("ImpactA", description: null, isActive: true);
-        typeof(ImpactTemplate).GetProperty("Id")!.SetValue(template, templateId);
-        item.SetImpact(template, Array.Empty<ImpactParameterValue>());
+        var existing = app.Impacts.FirstOrDefault(i => i.ImpactTemplateId == templateId);
+        ApplicationImpact impact;
+        if (existing is null)
+        {
+            var template = new ImpactTemplate("ImpactA", description: null, isActive: true);
+            typeof(ImpactTemplate).GetProperty("Id")!.SetValue(template, templateId);
+            impact = app.AddImpact(template, Array.Empty<ImpactParameterValue>());
+            typeof(ApplicationImpact).GetProperty("Id")!.SetValue(impact, impactId);
+        }
+        else
+        {
+            impact = existing;
+        }
+        item.AttributeImpacts(new[] { impact.Id });
+        item.SetImpactJustification("apoya el empleo");
     }
 
     // ----- Legacy Submit(int) overload -----------------------------------------------
@@ -83,7 +96,7 @@ public class ApplicationSubmitGuardTests
         var app = NewApp();
         var item = NewItem(1);
         StuffQuotation(item);
-        AttachImpact(item);
+        AttachImpact(app, item);
         app.AddItem(item);
 
         app.Submit(minQuotations: 1);
@@ -135,7 +148,7 @@ public class ApplicationSubmitGuardTests
         var app = NewApp();
         var item = NewItem(1);
         StuffQuotation(item);
-        AttachImpact(item);
+        AttachImpact(app, item);
         app.AddItem(item);
 
         var now = DateTimeOffset.UtcNow;
@@ -161,7 +174,7 @@ public class ApplicationSubmitGuardTests
         var app = NewApp();
         var item = NewItem(1);
         StuffQuotation(item);
-        AttachImpact(item);
+        AttachImpact(app, item);
         app.AddItem(item);
 
         var now = DateTimeOffset.UtcNow;
@@ -180,7 +193,7 @@ public class ApplicationSubmitGuardTests
         var app = NewApp();
         var item = NewItem(1);
         StuffQuotation(item);
-        AttachImpact(item);
+        AttachImpact(app, item);
         app.AddItem(item);
         // Mark a reminder bit so we can prove ResetStageState fires.
         app.MarkReminderSent(0x1);
@@ -210,7 +223,7 @@ public class ApplicationSubmitGuardTests
         var app = NewApp();
         var item = NewItem(1);
         // No quotations stuffed — fails minQuotations=2.
-        AttachImpact(item);
+        AttachImpact(app, item);
         app.AddItem(item);
 
         var now = DateTimeOffset.UtcNow;

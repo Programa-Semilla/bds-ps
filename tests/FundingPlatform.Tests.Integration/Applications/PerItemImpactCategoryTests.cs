@@ -7,9 +7,9 @@ using AppEntity = FundingPlatform.Domain.Entities.Application;
 namespace FundingPlatform.Tests.Integration.Applications;
 
 /// <summary>
-/// Spec 035 / US2 / T039 — per-item impact + category values persist and round-trip;
-/// a newly-added required category field blocks an in-progress draft's submit but
-/// does NOT retroactively invalidate an already-submitted application.
+/// Spec 035 (evolved 2026-06-16) / TE019 — application-level impacts + per-item attribution
+/// + category values persist and round-trip; a newly-added required category field blocks an
+/// in-progress draft's submit but does NOT retroactively invalidate an already-submitted app.
 /// </summary>
 [TestFixture]
 public class PerItemImpactCategoryTests
@@ -41,15 +41,22 @@ public class PerItemImpactCategoryTests
 
         var app = new AppEntity(applicant.Id, 1, "ACME");
         app.AssignPublicCode(new FundingPlatform.Domain.ValueObjects.PublicCode("A7K2-9XF3"));
+        // Spec 035 (evolved) — declare the impact at the application level (with values).
+        var impact = app.AddImpact(template, new[] { new ImpactParameterValue(template.Parameters.First().Id, "5") });
+
         var modelField = category.Fields.First();
         var item = new Item("Laptop", category.Id);
         item.SetCategoryFieldValues(new[]
         {
             new CategoryFieldValue(modelField.Id, fillRequiredField ? "XPS 13" : null),
         });
-        item.SetImpact(template, new[] { new ImpactParameterValue(template.Parameters.First().Id, "5") });
         app.AddItem(item);
         ctx.Applications.Add(app);
+        await ctx.SaveChangesAsync();
+
+        // Attribute the item to the now-persisted declared impact + justification.
+        item.AttributeImpacts(new[] { impact.Id });
+        item.SetImpactJustification("Aporta empleo local");
         await ctx.SaveChangesAsync();
 
         return (app.Id, category.Id, template.Id);
@@ -59,11 +66,12 @@ public class PerItemImpactCategoryTests
         ctx.Applications
             .Include(a => a.Items).ThenInclude(i => i.Category).ThenInclude(c => c.Fields)
             .Include(a => a.Items).ThenInclude(i => i.CategoryFieldValues).ThenInclude(v => v.CategoryField)
-            .Include(a => a.Items).ThenInclude(i => i.ImpactTemplate)
-            .Include(a => a.Items).ThenInclude(i => i.ImpactParameterValues).ThenInclude(v => v.ImpactTemplateParameter);
+            .Include(a => a.Items).ThenInclude(i => i.ItemImpacts).ThenInclude(ii => ii.ApplicationImpact).ThenInclude(ai => ai.ImpactTemplate)
+            .Include(a => a.Impacts).ThenInclude(ai => ai.ImpactTemplate)
+            .Include(a => a.Impacts).ThenInclude(ai => ai.ParameterValues).ThenInclude(v => v.ImpactTemplateParameter);
 
     [Test]
-    public async Task PerItemImpactAndCategoryValues_RoundTrip()
+    public async Task AppImpactAttributionAndCategoryValues_RoundTrip()
     {
         var dbName = $"pic-{Guid.NewGuid():N}";
         var (appId, _, _) = await SeedAsync(dbName, fillRequiredField: true);
@@ -72,14 +80,45 @@ public class PerItemImpactCategoryTests
         var app = await WithDetails(ctx).FirstAsync(a => a.Id == appId);
         var item = app.Items.Single();
 
-        Assert.That(item.ImpactTemplate, Is.Not.Null);
-        Assert.That(item.ImpactTemplate!.Name, Is.EqualTo("Empleo"));
-        Assert.That(item.ImpactParameterValues.Single().Value, Is.EqualTo("5"));
+        // App-level declared impact + its value.
+        var declared = app.Impacts.Single();
+        Assert.That(declared.ImpactTemplate!.Name, Is.EqualTo("Empleo"));
+        Assert.That(declared.ParameterValues.Single().Value, Is.EqualTo("5"));
+
+        // Per-item attribution targets the declared impact.
+        Assert.That(item.ItemImpacts.Single().ApplicationImpactId, Is.EqualTo(declared.Id));
+        Assert.That(item.ItemImpacts.Single().ApplicationImpact!.ImpactTemplate!.Name, Is.EqualTo("Empleo"));
+        Assert.That(item.ImpactJustification, Is.EqualTo("Aporta empleo local"));
+
+        // Category field round-trip.
         Assert.That(item.CategoryFieldValues.Single().Value, Is.EqualTo("XPS 13"));
         Assert.That(item.CategoryFieldValues.Single().CategoryField.DisplayLabel, Is.EqualTo("Modelo"));
 
         // Complete item → submit gate passes (min quotations 0 for this check).
         Assert.That(app.Validate(minQuotations: 0), Is.Empty);
+    }
+
+    [Test]
+    public async Task RemoveImpact_StripsItemAttribution_RoundTrip()
+    {
+        var dbName = $"pic-{Guid.NewGuid():N}";
+        var (appId, _, _) = await SeedAsync(dbName, fillRequiredField: true);
+
+        using (var ctx = CreateContext(dbName))
+        {
+            var app = await WithDetails(ctx).FirstAsync(a => a.Id == appId);
+            var declared = app.Impacts.Single();
+            app.RemoveImpact(declared.Id);
+            await ctx.SaveChangesAsync();
+        }
+
+        using (var ctx = CreateContext(dbName))
+        {
+            var app = await WithDetails(ctx).FirstAsync(a => a.Id == appId);
+            Assert.That(app.Impacts, Is.Empty);
+            Assert.That(app.Items.Single().ItemImpacts, Is.Empty,
+                "SC-007 — removing a declared impact strips the line item's attribution.");
+        }
     }
 
     [Test]
@@ -108,13 +147,10 @@ public class PerItemImpactCategoryTests
         }
 
         // An already-submitted application is past Draft — Validate is not the gate
-        // for it, so the new field does NOT retroactively invalidate it. We assert
-        // the state machine does not re-run the gate by leaving the submitted app's
-        // state untouched (the submit path is only reachable from Draft).
+        // for it, so the new field does NOT retroactively invalidate it.
         using (var ctx = CreateContext(dbName))
         {
             var app = await WithDetails(ctx).FirstAsync(a => a.Id == appId);
-            // Force the app to a post-Draft state to model "already submitted".
             typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);
             await ctx.SaveChangesAsync();
         }
