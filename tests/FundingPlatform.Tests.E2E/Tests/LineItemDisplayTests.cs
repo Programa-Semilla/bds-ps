@@ -133,6 +133,7 @@ public class LineItemDisplayTests : AuthenticatedTestBase
         await reviewPage.GotoAsync(BaseUrl, appId);
 
         await Expect(Page.Locator("[data-testid=review-item-category-fields]").First).ToContainTextAsync(marker);
-        await Expect(Page.GetByText("Evaluación de impacto").First).ToBeVisibleAsync();
+        // Spec 035 (evolved) — reviewer detail shows the per-item attributed impacts + justification.
+        await Expect(Page.GetByText("Impactos asociados").First).ToBeVisibleAsync();
     }
 }
