@@ -5,10 +5,10 @@ CREATE TABLE [dbo].[Items]
     [LineCode]                    NVARCHAR(16)   NULL,
     [ProductName]                 NVARCHAR(500)  NOT NULL,
     [CategoryId]                  INT            NOT NULL,
-    -- Spec 035 / data-model.md (D2) — impact relocated from Application to Item.
-    -- Nullable while Draft; the per-item Submit gate (Application.Validate) requires
-    -- it before the application can advance to Submitted.
-    [ImpactTemplateId]            INT            NULL,
+    -- Spec 035 (evolved 2026-06-16, data-model.md D14) — the line item no longer carries its
+    -- own impact template/values. It is ATTRIBUTED to the application's declared impacts via
+    -- dbo.ItemImpacts and carries a single short justification (required at submit, <=300).
+    [ImpactJustification]         NVARCHAR(300)  NULL,
     [ReviewStatus]                INT            NOT NULL CONSTRAINT [DF_Items_ReviewStatus] DEFAULT (0),
     [ReviewComment]               NVARCHAR(2000) NULL,
     [SelectedSupplierId]          INT            NULL,
@@ -19,7 +19,6 @@ CREATE TABLE [dbo].[Items]
     CONSTRAINT [PK_Items] PRIMARY KEY CLUSTERED ([Id]),
     CONSTRAINT [FK_Items_Applications] FOREIGN KEY ([ApplicationId]) REFERENCES [dbo].[Applications] ([Id]) ON DELETE CASCADE,
     CONSTRAINT [FK_Items_Categories] FOREIGN KEY ([CategoryId]) REFERENCES [dbo].[Categories] ([Id]) ON DELETE NO ACTION,
-    CONSTRAINT [FK_Items_ImpactTemplates] FOREIGN KEY ([ImpactTemplateId]) REFERENCES [dbo].[ImpactTemplates] ([Id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_Items_Suppliers_SelectedSupplierId] FOREIGN KEY ([SelectedSupplierId]) REFERENCES [dbo].[Suppliers] ([Id])
 );
 GO
@@ -30,10 +29,6 @@ GO
 
 CREATE NONCLUSTERED INDEX [IX_Items_CategoryId]
     ON [dbo].[Items] ([CategoryId]);
-GO
-
-CREATE NONCLUSTERED INDEX [IX_Items_ImpactTemplateId]
-    ON [dbo].[Items] ([ImpactTemplateId]);
 GO
 
 -- Spec 018 / FR-013 — line code is unique within a single Application; the filtered

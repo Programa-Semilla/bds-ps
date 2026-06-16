@@ -10,5 +10,5 @@ public record UpdateItemCommand(
     string ProductName,
     int CategoryId,
     Dictionary<int, string?> CategoryFieldValues,
-    int? ImpactTemplateId,
-    Dictionary<int, string?> ImpactParameterValues);
+    IReadOnlyList<int> ApplicationImpactIds,
+    string? ImpactJustification);

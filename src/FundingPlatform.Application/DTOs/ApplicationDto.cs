@@ -10,13 +10,13 @@ public record ApplicationDto(
     DateTime UpdatedAt,
     DateTime? SubmittedAt,
     List<ItemDto> Items,
+    // Spec 035 (evolved 2026-06-16, D13) — the application's declared impacts (one or more).
+    List<ImpactDto> Impacts,
     // Spec 021 / FR-008 — opaque PublicCode surfaced on every applicant
     // identity rendering. Nullable for legacy rows seeded before the
     // schema cutover; new rows always carry it.
     string? PublicCode = null,
     string? CompanyName = null);
-    // Spec 035 / D2 — application-level Impact removed; impact is now per-Item
-    // (see ItemDto.Impact).
 
 public record ApplicationSummaryDto(
     int Id,

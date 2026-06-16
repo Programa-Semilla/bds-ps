@@ -330,13 +330,10 @@ public class ReviewService
     {
         var reviewItems = application.Items.Select(item =>
         {
-            // Spec 035 / D2 — real per-item impact (no longer the per-application placeholder).
-            var itemImpactTemplateName = item.ImpactTemplate?.Name;
-            var itemImpactParameters = item.ImpactParameterValues
-                .Select(pv => new ImpactParameterDisplayDto(
-                    pv.ImpactTemplateParameter?.Name ?? string.Empty,
-                    pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
-                    pv.Value ?? string.Empty))
+            // Spec 035 (evolved 2026-06-16, D14) — attributed impact names + justification.
+            var itemAttributedImpactNames = item.ItemImpacts
+                .Select(ii => ii.ApplicationImpact?.ImpactTemplate?.Name ?? string.Empty)
+                .Where(n => n.Length > 0)
                 .ToList();
             // Spec 035 / D1 — per-item category field label/value pairs.
             var itemCategoryFields = item.CategoryFieldValues
@@ -395,8 +392,8 @@ public class ReviewService
                 item.SelectedSupplierId,
                 item.IsNotTechnicallyEquivalent,
                 quotationDtos,
-                itemImpactTemplateName,
-                itemImpactParameters,
+                itemAttributedImpactNames,
+                item.ImpactJustification,
                 itemCategoryFields,
                 LineCode: item.LineCode);
         }).ToList();
@@ -408,6 +405,14 @@ public class ReviewService
             .Where(q => q.Supplier?.VerificationStatus == SupplierVerificationStatus.Rejected)
             .Count();
 
+        // Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level).
+        var impacts = application.Impacts.Select(ai => new ReviewImpactGroupDto(
+            ai.ImpactTemplate?.Name ?? string.Empty,
+            ai.ParameterValues.Select(pv => new ImpactParameterDisplayDto(
+                pv.ImpactTemplateParameter?.Name ?? string.Empty,
+                pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
+                pv.Value ?? string.Empty)).ToList())).ToList();
+
         return new ReviewApplicationDto(
             application.Id,
             $"{application.Applicant.FirstName} {application.Applicant.LastName}",
@@ -415,6 +420,7 @@ public class ReviewService
             application.State,
             application.SubmittedAt,
             reviewItems,
+            impacts,
             rejectedSupplierCount);
     }
 }

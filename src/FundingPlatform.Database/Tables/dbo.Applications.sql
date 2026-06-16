@@ -19,8 +19,9 @@ CREATE TABLE [dbo].[Applications]
     -- production data, so no DB-side default / backfill is required; the
     -- domain layer (IPublicCodeGenerator) is the only inserter.
     [PublicCode]        CHAR(9)        NOT NULL,
-    -- Spec 035 / D2 — application-level ImpactTemplateId dropped: impact relocated
-    -- to the line item (dbo.Items.ImpactTemplateId). Greenfield → no backfill.
+    -- Spec 035 (evolved 2026-06-16, D13) — the pre-035 single application-level impact
+    -- column is gone; an application now declares one-or-more impacts in dbo.ApplicationImpacts.
+    -- Greenfield → no backfill.
     -- Spec 021 / data-model.md — bitmask: 0x1 = T-72h sent, 0x2 = T-24h sent,
     -- 0x4 = expiry sent. Atomic update by StageExpiryReminderService.
     [RemindersSentMask] TINYINT        NOT NULL CONSTRAINT [DF_Applications_RemindersSentMask] DEFAULT (0),

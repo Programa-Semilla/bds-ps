@@ -1,0 +1,134 @@
+@model FundingPlatform.Web.ViewModels.ApplicationImpactsViewModel
+
+@{
+    ViewData["Title"] = "Impactos de la solicitud";
+}
+
+@await Html.PartialAsync("Components/_PageHeader",
+    new PageHeaderViewModel(
+        Title: "Impactos de la solicitud",
+        Breadcrumbs: new[]
+        {
+            new BreadcrumbItem("Mis solicitudes", Url.Action("Index", "Application")),
+            new BreadcrumbItem($"Solicitud {Model.ApplicationId}", Url.Action("Edit", "Application", new { id = Model.ApplicationId })),
+            new BreadcrumbItem("Impactos"),
+        }))
+
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Impactos declarados</h3>
+    </div>
+    <div class="card-body">
+        <p class="text-secondary">
+            Declare uno o más impactos para la solicitud. Cada línea se asociará luego a uno o más de estos impactos.
+        </p>
+
+        @if (Model.DeclaredImpacts.Count == 0)
+        {
+            <div class="alert alert-warning" data-testid="impacts-empty">
+                Aún no ha declarado ningún impacto. Agregue al menos uno para poder enviar la solicitud.
+            </div>
+        }
+        else
+        {
+            <div data-testid="declared-impacts">
+                @foreach (var impact in Model.DeclaredImpacts)
+                {
+                    <div class="border rounded p-3 mb-2" data-testid="declared-impact-row">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong data-testid="declared-impact-name">@impact.TemplateName</strong>
+                                @if (impact.Parameters.Count > 0)
+                                {
+                                    <dl class="row mb-0 mt-1 small">
+                                        @foreach (var p in impact.Parameters)
+                                        {
+                                            <dt class="col-sm-4 text-secondary">@p.DisplayLabel</dt>
+                                            <dd class="col-sm-8">@p.Value</dd>
+                                        }
+                                    </dl>
+                                }
+                            </div>
+                            <form asp-action="RemoveImpact" asp-route-id="@Model.ApplicationId"
+                                  asp-route-applicationImpactId="@impact.ApplicationImpactId" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        data-testid="declared-impact-remove">
+                                    <i class="ti ti-trash"></i> Eliminar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Agregar impacto</h3>
+    </div>
+    <div class="card-body">
+        @if (!Model.HasActiveTemplates)
+        {
+            <div class="alert alert-warning" data-testid="impacts-no-active-templates">
+                No hay plantillas de impacto activas. No podrá declarar impactos hasta que un administrador cree una.
+            </div>
+        }
+        else
+        {
+            <form asp-action="AddImpact" asp-route-id="@Model.ApplicationId" method="post"
+                  data-impact-params-url="@Url.Action("ImpactTemplateParameters", "Application", new { id = Model.ApplicationId, templateId = "__TID__" })">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-3" data-testid="form-section" data-field="impactTemplateId">
+                    <label class="form-label" for="impactTemplateId">Plantilla de impacto</label> @await Html.PartialAsync("_RequiredMark")
+                    <select name="impactTemplateId" id="impactTemplateId" class="form-select" data-searchable
+                            data-testid="add-impact-template-select" required>
+                        <option value="">-- Seleccione una plantilla de impacto --</option>
+                        @foreach (var t in Model.ActiveTemplates)
+                        {
+                            <option value="@t.Value">@t.Text</option>
+                        }
+                    </select>
+                </div>
+
+                <div id="impact-params" data-testid="add-impact-params">
+                    <partial name="_DynamicFieldInputs" model="@((new List<FundingPlatform.Web.ViewModels.DynamicFieldInput>(), "parameterValues"))" />
+                </div>
+
+                <button type="submit" class="btn btn-primary" data-testid="add-impact-submit">Agregar impacto</button>
+            </form>
+        }
+    </div>
+</div>
+
+<div>
+    <a asp-action="Edit" asp-controller="Application" asp-route-id="@Model.ApplicationId" class="btn btn-link">&larr; Volver a la solicitud</a>
+</div>
+
+@section Scripts {
+    <script src="~/js/dynamic-fields.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            'use strict';
+            var form = document.querySelector('form[data-impact-params-url]');
+            if (!form || !window.DynamicFields) { return; }
+            var select = document.getElementById('impactTemplateId');
+            var container = document.getElementById('impact-params');
+            var urlTpl = form.getAttribute('data-impact-params-url');
+            if (!select || !container || !urlTpl) { return; }
+            select.addEventListener('change', function () {
+                if (!this.value) {
+                    window.DynamicFields.render(container, [], 'parameterValues');
+                    return;
+                }
+                window.DynamicFields.load(
+                    container,
+                    urlTpl.replace('__TID__', encodeURIComponent(this.value)),
+                    'parameterValues');
+            });
+        })();
+    </script>
+}

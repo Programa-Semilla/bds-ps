@@ -12,6 +12,9 @@ public class ReviewApplicationViewModel
     public DateTime? SubmittedAt { get; set; }
     public List<ReviewItemViewModel> Items { get; set; } = [];
 
+    /// <summary>Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts.</summary>
+    public List<ApplicationImpactDisplayViewModel> Impacts { get; set; } = [];
+
     /// <summary>
     /// Spec 027 / US4 — shared per-line decision summary rendered read-only
     /// alongside the interactive capture controls (which are unchanged).
@@ -44,8 +47,9 @@ public class ReviewItemViewModel
     /// reviewer's input alongside the new decision controls.</summary>
     public string? LineCode { get; set; }
     public List<ReviewQuotationViewModel> Quotations { get; set; } = [];
-    public string? ImpactTemplateName { get; set; }
-    public List<ImpactParameterDisplayViewModel> ImpactParameters { get; set; } = [];
+    /// <summary>Spec 035 (evolved 2026-06-16, D14) — attributed impact names + justification.</summary>
+    public List<string> AttributedImpactNames { get; set; } = [];
+    public string? ImpactJustification { get; set; }
     /// <summary>Spec 035 / D1 — per-item category field label/value pairs.</summary>
     public List<CategoryFieldDisplayViewModel> CategoryFields { get; set; } = [];
     /// <summary>Spec 020 — per-item AI comparison region projection.</summary>
@@ -87,6 +91,16 @@ public class ImpactParameterDisplayViewModel
     public string Name { get; set; } = string.Empty;
     public string DisplayLabel { get; set; } = string.Empty;
     public string Value { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Spec 035 (evolved 2026-06-16, D16) — one declared application impact (template name +
+/// its parameter values) for the app-level "Impactos" card on display surfaces.
+/// </summary>
+public class ApplicationImpactDisplayViewModel
+{
+    public string TemplateName { get; set; } = string.Empty;
+    public List<ImpactParameterDisplayViewModel> Parameters { get; set; } = [];
 }
 
 /// <summary>Spec 035 / D1 — a category field label/value pair for display surfaces.</summary>

@@ -50,12 +50,17 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)
                     .ThenInclude(q => q.Supplier)
-            // Spec 035 / D2 / D1 — per-item impact + category field values.
-            .Include(a => a.Items)
-                .ThenInclude(i => i.ImpactTemplate)
-            .Include(a => a.Items)
-                .ThenInclude(i => i.ImpactParameterValues)
+            // Spec 035 (evolved 2026-06-16, D13/D14) — app-level declared impacts +
+            // per-item attribution + category field values.
+            .Include(a => a.Impacts)
+                .ThenInclude(ai => ai.ImpactTemplate)
+            .Include(a => a.Impacts)
+                .ThenInclude(ai => ai.ParameterValues)
                     .ThenInclude(pv => pv.ImpactTemplateParameter)
+            .Include(a => a.Items)
+                .ThenInclude(i => i.ItemImpacts)
+                    .ThenInclude(ii => ii.ApplicationImpact)
+                        .ThenInclude(ai => ai.ImpactTemplate)
             .Include(a => a.Items)
                 .ThenInclude(i => i.CategoryFieldValues)
                     .ThenInclude(cfv => cfv.CategoryField)
@@ -77,17 +82,12 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
                 q.Price,
                 q.Currency,
                 q.ConvertedCrcAmount)).ToList(),
-            // Spec 035 / D2 — per-item impact summary.
-            item.ImpactTemplate is null
-                ? null
-                : new ReviewImpactSummary(
-                    item.ImpactTemplate.Id,
-                    item.ImpactTemplate.Name,
-                    item.ImpactParameterValues.Select(pv => new ReviewImpactParameter(
-                        pv.ImpactTemplateParameter?.DisplayLabel
-                            ?? pv.ImpactTemplateParameter?.Name
-                            ?? string.Empty,
-                        pv.Value ?? string.Empty)).ToList()),
+            // Spec 035 (evolved 2026-06-16, D14) — attributed impact names + justification.
+            item.ItemImpacts
+                .Select(ii => ii.ApplicationImpact?.ImpactTemplate?.Name ?? string.Empty)
+                .Where(n => n.Length > 0)
+                .ToList(),
+            item.ImpactJustification,
             // Spec 035 / D1 — per-item category field values.
             item.CategoryFieldValues
                 .OrderBy(cfv => cfv.CategoryField?.SortOrder ?? 0)
@@ -95,6 +95,16 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
                     cfv.CategoryField?.DisplayLabel ?? string.Empty,
                     cfv.Value))
                 .ToList())).ToList();
+
+        // Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level).
+        var impacts = application.Impacts.Select(ai => new ReviewImpactSummary(
+            ai.ImpactTemplate?.Id ?? 0,
+            ai.ImpactTemplate?.Name ?? string.Empty,
+            ai.ParameterValues.Select(pv => new ReviewImpactParameter(
+                pv.ImpactTemplateParameter?.DisplayLabel
+                    ?? pv.ImpactTemplateParameter?.Name
+                    ?? string.Empty,
+                pv.Value ?? string.Empty)).ToList())).ToList();
 
         // The /review page renders before any reviewer selects a supplier, so
         // each item still holds its competing quotations. Reuse the single
@@ -106,11 +116,14 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
             ApplicationCurrencyTotal.ComputeCheapestEstimate(application);
 
         var minQuotations = await ResolveMinimumQuotationsAsync(application.GroupId, ct);
-        // Spec 035 / D2 — every item must have an impact template + the minimum
-        // quotations. Required category fields are gated at submit by the domain.
+        // Spec 035 (evolved 2026-06-16, D16) — submit requires ≥1 declared impact and
+        // every item attributed + justified + min-quotations. Required category fields
+        // + required impact values are gated at submit by the domain/service.
         var canSubmit = application.Items.Count >= 1
+                        && application.Impacts.Count >= 1
                         && application.Items.All(i =>
-                            i.ImpactTemplateId is not null
+                            i.ItemImpacts.Count >= 1
+                            && !string.IsNullOrWhiteSpace(i.ImpactJustification)
                             && i.Quotations.Count >= minQuotations);
 
         return new ApplicationReviewViewModel(
@@ -122,7 +135,8 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
             totalCrc,
             hasNonCrcQuotation,
             minQuotations,
-            canSubmit);
+            canSubmit,
+            impacts);
     }
 
     private async Task<int> ResolveMinimumQuotationsAsync(int groupId, CancellationToken ct)

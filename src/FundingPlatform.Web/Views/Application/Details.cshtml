@@ -239,7 +239,7 @@ else
                                 }
                             </td>
                         </tr>
-                        @if (item.CategoryFields.Count > 0 || !string.IsNullOrEmpty(item.ImpactTemplateName))
+                        @if (item.CategoryFields.Count > 0 || item.HasImpactAttribution || !string.IsNullOrWhiteSpace(item.ImpactJustification))
                         {
                             <tr data-testid="item-detail-row-@item.Id">
                                 <td colspan="3" class="bg-light">
@@ -256,19 +256,15 @@ else
                                             </dl>
                                         </div>
                                     }
-                                    @if (!string.IsNullOrEmpty(item.ImpactTemplateName))
+                                    @if (item.HasImpactAttribution || !string.IsNullOrWhiteSpace(item.ImpactJustification))
                                     {
                                         <div data-testid="item-impact-@item.Id">
-                                            <div class="text-secondary small mb-1"><strong>Impacto:</strong> @item.ImpactTemplateName</div>
-                                            @if (item.ImpactParameters.Count > 0)
+                                            <div class="text-secondary small mb-1">
+                                                <strong>Impactos:</strong> @(item.AttributedImpactNames.Count > 0 ? string.Join(", ", item.AttributedImpactNames) : "—")
+                                            </div>
+                                            @if (!string.IsNullOrWhiteSpace(item.ImpactJustification))
                                             {
-                                                <dl class="row mb-0 small">
-                                                    @foreach (var p in item.ImpactParameters)
-                                                    {
-                                                        <dt class="col-sm-4 text-secondary">@p.DisplayLabel</dt>
-                                                        <dd class="col-sm-8">@p.Value</dd>
-                                                    }
-                                                </dl>
+                                                <div class="small"><strong>Justificación:</strong> @item.ImpactJustification</div>
                                             }
                                         </div>
                                     }

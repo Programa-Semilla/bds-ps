@@ -79,7 +79,7 @@
                         <tr data-testid="review-item-row">
                             <td>
                                 @item.ProductName
-                                @if (item.Impact is null)
+                                @if (item.AttributedImpactNames.Count == 0 || string.IsNullOrWhiteSpace(item.ImpactJustification))
                                 {
                                     <span class="badge bg-warning-lt ms-1" data-testid="review-item-impact-missing-@item.Id">Impacto pendiente</span>
                                 }
@@ -108,7 +108,7 @@
                                 }
                             </td>
                         </tr>
-                        @if (item.CategoryFields.Count > 0 || item.Impact is not null)
+                        @if (item.CategoryFields.Count > 0 || item.AttributedImpactNames.Count > 0 || !string.IsNullOrWhiteSpace(item.ImpactJustification))
                         {
                             <tr data-testid="review-item-detail-@item.Id">
                                 <td colspan="3" class="bg-light small">
@@ -122,16 +122,13 @@
                                             }
                                         </dl>
                                     }
-                                    @if (item.Impact is not null)
+                                    @if (item.AttributedImpactNames.Count > 0 || !string.IsNullOrWhiteSpace(item.ImpactJustification))
                                     {
-                                        <div class="text-secondary"><strong>Impacto:</strong> @item.Impact.TemplateName</div>
-                                        <dl class="row mb-0">
-                                            @foreach (var p in item.Impact.Parameters)
-                                            {
-                                                <dt class="col-sm-4 text-secondary">@p.Label</dt>
-                                                <dd class="col-sm-8">@p.Value</dd>
-                                            }
-                                        </dl>
+                                        <div class="text-secondary"><strong>Impactos:</strong> @(item.AttributedImpactNames.Count > 0 ? string.Join(", ", item.AttributedImpactNames) : "—")</div>
+                                        @if (!string.IsNullOrWhiteSpace(item.ImpactJustification))
+                                        {
+                                            <div><strong>Justificación:</strong> @item.ImpactJustification</div>
+                                        }
                                     }
                                 </td>
                             </tr>
@@ -186,9 +183,17 @@
                 {
                     <li>Al menos un ítem</li>
                 }
-                @foreach (var item in Model.Items.Where(i => i.Impact is null))
+                @if (Model.Impacts.Count == 0)
                 {
-                    <li>Ítem "@item.ProductName" necesita una plantilla de impacto</li>
+                    <li>La solicitud debe declarar al menos un impacto</li>
+                }
+                @foreach (var item in Model.Items.Where(i => i.AttributedImpactNames.Count == 0))
+                {
+                    <li>Ítem "@item.ProductName" debe asociarse al menos a un impacto</li>
+                }
+                @foreach (var item in Model.Items.Where(i => string.IsNullOrWhiteSpace(i.ImpactJustification)))
+                {
+                    <li>Ítem "@item.ProductName" necesita una justificación de impacto</li>
                 }
                 @foreach (var item in Model.Items.Where(i => i.Quotations.Count < Model.MinimumQuotationsPerItem))
                 {

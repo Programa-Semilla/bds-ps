@@ -1,12 +1,14 @@
 using FundingPlatform.Domain.Enums;
-using DomainImpact = FundingPlatform.Domain.ValueObjects.Impact;
 
 namespace FundingPlatform.Domain.Entities;
 
 public class Item
 {
+    /// <summary>Spec 035 (evolved 2026-06-16, FR-008) — hard cap on the per-item justification.</summary>
+    public const int ImpactJustificationMaxLength = 300;
+
     private readonly List<Quotation> _quotations = [];
-    private readonly List<ImpactParameterValue> _impactParameterValues = [];
+    private readonly List<ItemImpact> _itemImpacts = [];
     private readonly List<CategoryFieldValue> _categoryFieldValues = [];
 
     public int Id { get; private set; }
@@ -22,11 +24,12 @@ public class Item
     public string ProductName { get; private set; } = string.Empty;
     public int CategoryId { get; private set; }
     /// <summary>
-    /// Spec 035 / D2 — impact relocated from Application to Item. Nullable while
-    /// Draft; the per-item submit gate (<see cref="Application.Validate"/>) requires
-    /// it before the application can advance. Set via <see cref="SetImpact"/>.
+    /// Spec 035 (evolved 2026-06-16, FR-008) — a single short explanation of why this
+    /// line item supports its attributed impact(s). Required (non-empty) at submit;
+    /// ≤<see cref="ImpactJustificationMaxLength"/> chars. Set via
+    /// <see cref="SetImpactJustification"/>.
     /// </summary>
-    public int? ImpactTemplateId { get; private set; }
+    public string? ImpactJustification { get; private set; }
     public ItemReviewStatus ReviewStatus { get; private set; } = ItemReviewStatus.Pending;
     public string? ReviewComment { get; private set; }
     public int? SelectedSupplierId { get; private set; }
@@ -35,25 +38,19 @@ public class Item
     public DateTime UpdatedAt { get; private set; }
 
     public Category Category { get; private set; } = null!;
-    public ImpactTemplate? ImpactTemplate { get; private set; }
     public Supplier? SelectedSupplier { get; private set; }
 
     public IReadOnlyList<Quotation> Quotations => _quotations.AsReadOnly();
 
-    /// <summary>Spec 035 / D2 — per-item impact parameter values (EAV).</summary>
-    public IReadOnlyList<ImpactParameterValue> ImpactParameterValues => _impactParameterValues.AsReadOnly();
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D14) — the application impacts this line item is
+    /// attributed to (one or more). The attribution targets must be among the
+    /// application's declared impacts (enforced by <see cref="Application.Validate"/>).
+    /// </summary>
+    public IReadOnlyList<ItemImpact> ItemImpacts => _itemImpacts.AsReadOnly();
 
     /// <summary>Spec 035 / D1 — per-item category field values (EAV).</summary>
     public IReadOnlyList<CategoryFieldValue> CategoryFieldValues => _categoryFieldValues.AsReadOnly();
-
-    /// <summary>
-    /// Spec 035 / D2 — typed projection used by read surfaces. Null until
-    /// <see cref="SetImpact"/> has populated a template + values.
-    /// </summary>
-    public DomainImpact? Impact =>
-        ImpactTemplate is null
-            ? null
-            : new DomainImpact(ImpactTemplate, ImpactParameterValues);
 
     private Item() { }
 
@@ -92,19 +89,56 @@ public class Item
     }
 
     /// <summary>
-    /// Spec 035 / D2 — replaces the item's impact selection: template + parameter
-    /// values (relocated from <c>Application.SetImpact</c>). Replace-all semantics.
+    /// Spec 035 (evolved 2026-06-16, D14) — replaces the item's impact attribution: the
+    /// set of application impacts this line supports. Replace-all semantics; duplicates
+    /// in the input are collapsed. The caller is responsible for ensuring each id belongs
+    /// to the application's declared impacts (validated at submit by
+    /// <see cref="Application.Validate"/>).
     /// </summary>
-    public void SetImpact(ImpactTemplate template, IEnumerable<ImpactParameterValue> values)
+    public void AttributeImpacts(IEnumerable<int> applicationImpactIds)
     {
-        ArgumentNullException.ThrowIfNull(template);
-        ArgumentNullException.ThrowIfNull(values);
+        ArgumentNullException.ThrowIfNull(applicationImpactIds);
 
-        ImpactTemplate = template;
-        ImpactTemplateId = template.Id;
-        _impactParameterValues.Clear();
-        _impactParameterValues.AddRange(values);
+        _itemImpacts.Clear();
+        foreach (var id in applicationImpactIds.Distinct())
+        {
+            _itemImpacts.Add(new ItemImpact(id));
+        }
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, FR-008) — sets the short impact justification.
+    /// Trims; stores null when blank. Enforces the
+    /// <see cref="ImpactJustificationMaxLength"/> hard cap.
+    /// </summary>
+    /// <exception cref="ArgumentException">Thrown when the trimmed text exceeds the cap.</exception>
+    public void SetImpactJustification(string? justification)
+    {
+        var trimmed = justification?.Trim();
+        if (!string.IsNullOrEmpty(trimmed) && trimmed.Length > ImpactJustificationMaxLength)
+        {
+            throw new ArgumentException(
+                $"Impact justification must be {ImpactJustificationMaxLength} characters or fewer.",
+                nameof(justification));
+        }
+
+        ImpactJustification = string.IsNullOrEmpty(trimmed) ? null : trimmed;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D14) — internal mutation used by the aggregate root
+    /// (<see cref="Application.RemoveImpact"/>) to drop attributions to a declared impact
+    /// that is being removed (the DB FK is NO ACTION, so the domain does the cleanup).
+    /// </summary>
+    internal void RemoveAttribution(int applicationImpactId)
+    {
+        var removed = _itemImpacts.RemoveAll(ii => ii.ApplicationImpactId == applicationImpactId);
+        if (removed > 0)
+        {
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
 
     /// <summary>

@@ -7,6 +7,7 @@ namespace FundingPlatform.Domain.Entities;
 public class Application
 {
     private readonly List<Item> _items = [];
+    private readonly List<ApplicationImpact> _impacts = [];
     private readonly List<VersionHistory> _versionHistory = [];
     private readonly List<ApplicantResponse> _applicantResponses = [];
     private readonly List<Appeal> _appeals = [];
@@ -40,9 +41,13 @@ public class Application
     /// </summary>
     public PublicCode? PublicCode { get; private set; }
 
-    // Spec 035 / D2 — application-level impact removed (ImpactTemplateId,
-    // ImpactTemplate, ImpactParameterValues, Impact VO, SetImpact). Impact now
-    // lives on each Item. Read paths project Item.Impact per line item.
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D13) — the impacts this application declares
+    /// (one or more). Each is a chosen impact template + its values. Line items
+    /// attribute themselves to these via <see cref="Item.ItemImpacts"/>. Mutated
+    /// through <see cref="AddImpact"/> / <see cref="RemoveImpact"/>.
+    /// </summary>
+    public IReadOnlyList<ApplicationImpact> Impacts => _impacts.AsReadOnly();
 
     /// <summary>
     /// Spec 021 / FR-006 / R-2 — bitfield tracking which reminder emails have
@@ -412,12 +417,58 @@ public class Application
     }
 
     /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D13 / FR-006) — declares a new impact on the
+    /// application: an impact template plus its entered parameter values. Rejects a
+    /// duplicate template (mirrors the DB UNIQUE(ApplicationId, ImpactTemplateId)).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">When the template is already declared.</exception>
+    public ApplicationImpact AddImpact(ImpactTemplate template, IEnumerable<ImpactParameterValue> values)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(values);
+
+        if (_impacts.Any(i => i.ImpactTemplateId == template.Id))
+        {
+            throw new InvalidOperationException(
+                $"Impact template '{template.Name}' is already declared on this application.");
+        }
+
+        var impact = new ApplicationImpact(template.Id);
+        impact.SetValues(values);
+        _impacts.Add(impact);
+        UpdatedAt = DateTime.UtcNow;
+        return impact;
+    }
+
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D14 / SC-007) — removes a declared impact AND strips
+    /// every line item's attribution to it. The DB FK on <c>ItemImpacts.ApplicationImpactId</c>
+    /// is NO ACTION (multi-cascade-path avoidance), so this cleanup MUST happen in the domain.
+    /// No-op when the id is not a declared impact.
+    /// </summary>
+    public void RemoveImpact(int applicationImpactId)
+    {
+        var impact = _impacts.FirstOrDefault(i => i.Id == applicationImpactId);
+        if (impact is null)
+        {
+            return;
+        }
+
+        foreach (var item in _items)
+        {
+            item.RemoveAttribution(applicationImpactId);
+        }
+
+        _impacts.Remove(impact);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
     /// Validates the application and returns a list of validation error messages.
-    /// Spec 035 / D2 / D11 — impact is now per-Item: every item must have an impact
-    /// template assigned and all required category-field values present. Collected
-    /// all-at-once (Constitution gate) alongside the per-Item quotation-count check.
-    /// The required impact-parameter-value check stays in the application service
-    /// (it needs template metadata), consistent with the prior impact pattern.
+    /// Spec 035 (evolved 2026-06-16, D13/D14/D16) — impact data is per application
+    /// (≥1 declared impact, required values checked service-side); each line item must
+    /// be attributed to ≥1 of those declared impacts, carry a non-empty justification,
+    /// and have its required category fields. Collected all-at-once (Constitution gate).
     /// </summary>
     public List<string> Validate(int minQuotations)
     {
@@ -428,6 +479,15 @@ public class Application
             errors.Add("Application must have at least one item.");
         }
 
+        if (_impacts.Count == 0)
+        {
+            // Spec 035 / FR-006 / SC-006 — es-CR submit-block message. ("impacto"
+            // carries the "impact" substring the ApplicationSubmitGuardTests assert.)
+            errors.Add("La solicitud debe declarar al menos un impacto.");
+        }
+
+        var declaredImpactIds = _impacts.Select(i => i.Id).ToHashSet();
+
         foreach (var item in _items)
         {
             if (!item.HasMinimumQuotations(minQuotations))
@@ -436,13 +496,25 @@ public class Application
                     $"Item '{item.ProductName}' must have at least {minQuotations} quotation(s).");
             }
 
-            if (item.ImpactTemplateId is null)
+            if (item.ItemImpacts.Count == 0)
             {
-                // Spec 035 / FR-013 / SC-006 — es-CR submit-block message naming the
-                // line item ("impacto" still contains the "impact" substring the
-                // ApplicationSubmitGuardTests guard asserts).
+                // Spec 035 / FR-007 / SC-006 — es-CR, names the line item.
                 errors.Add(
-                    $"El ítem '{item.ProductName}' debe tener una plantilla de impacto seleccionada.");
+                    $"El ítem '{item.ProductName}' debe estar asociado al menos a un impacto.");
+            }
+            else if (declaredImpactIds.Count > 0 &&
+                     item.ItemImpacts.Any(ii => !declaredImpactIds.Contains(ii.ApplicationImpactId)))
+            {
+                // Spec 035 / SC-007 — attribution must target a declared impact.
+                errors.Add(
+                    $"El ítem '{item.ProductName}' está asociado a un impacto que ya no existe en la solicitud.");
+            }
+
+            if (string.IsNullOrWhiteSpace(item.ImpactJustification))
+            {
+                // Spec 035 / FR-008 / SC-006 — es-CR, names the line item.
+                errors.Add(
+                    $"El ítem '{item.ProductName}' debe incluir una justificación de impacto.");
             }
 
             foreach (var missingLabel in item.MissingRequiredCategoryFields())

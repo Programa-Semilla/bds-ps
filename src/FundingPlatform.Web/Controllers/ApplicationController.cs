@@ -218,6 +218,78 @@ public class ApplicationController : Controller
         }));
     }
 
+    // ---- Spec 035 (evolved 2026-06-16, US2 / D15) — application-level impacts manager ----
+
+    [HttpGet]
+    [Route("Application/{id}/Impacts")]
+    public async Task<IActionResult> Impacts(int id)
+    {
+        await VerifyOwnershipAsync(id);
+        var vm = await BuildImpactsViewModelAsync(id);
+        return View(vm);
+    }
+
+    [HttpPost]
+    [Route("Application/{id}/Impacts/Add")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddImpact(int id, int impactTemplateId, Dictionary<int, string?>? parameterValues)
+    {
+        await VerifyOwnershipAsync(id);
+
+        try
+        {
+            await _applicationService.AddApplicationImpactAsync(
+                new AddApplicationImpactCommand(id, impactTemplateId, parameterValues ?? new()));
+            TempData["SuccessMessage"] = "Impacto agregado con éxito.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToAction(nameof(Impacts), new { id });
+    }
+
+    [HttpPost]
+    [Route("Application/{id}/Impacts/{applicationImpactId}/Remove")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveImpact(int id, int applicationImpactId)
+    {
+        await VerifyOwnershipAsync(id);
+
+        await _applicationService.RemoveApplicationImpactAsync(
+            new RemoveApplicationImpactCommand(id, applicationImpactId));
+        TempData["SuccessMessage"] = "Impacto eliminado.";
+
+        return RedirectToAction(nameof(Impacts), new { id });
+    }
+
+    private async Task<ApplicationImpactsViewModel> BuildImpactsViewModelAsync(int id)
+    {
+        var dto = await _applicationService.GetApplicationAsync(id);
+        var templates = await _applicationService.GetImpactTemplatesAsync();
+
+        return new ApplicationImpactsViewModel
+        {
+            ApplicationId = id,
+            CompanyName = dto?.CompanyName,
+            DeclaredImpacts = (dto?.Impacts ?? new()).Select(ai => new DeclaredImpactRow
+            {
+                ApplicationImpactId = ai.Id,
+                TemplateName = ai.ImpactTemplateName,
+                Parameters = ai.ParameterValues.Select(pv => new ImpactParameterDisplayViewModel
+                {
+                    Name = pv.ParameterName,
+                    DisplayLabel = pv.ParameterDisplayLabel,
+                    Value = pv.Value ?? string.Empty,
+                }).ToList(),
+            }).ToList(),
+            ActiveTemplates = templates
+                .Select(t => new SelectListItem { Value = t.Id.ToString(), Text = t.Name })
+                .ToList(),
+        };
+    }
+
     /// <summary>
     /// Spec 021 / T094 / FR-017 — read-only <c>/review</c> page that renders
     /// the summary before final submit. PublicCode-bound URL per the contract
@@ -480,6 +552,20 @@ public class ApplicationController : Controller
     }
 
     /// <summary>
+    /// Spec 035 (evolved 2026-06-16) — asserts the current applicant owns the application
+    /// before mutating its impacts (mirrors the ItemController guard).
+    /// </summary>
+    private async Task VerifyOwnershipAsync(int appId)
+    {
+        var applicantId = await GetCurrentApplicantIdAsync();
+        var application = await _applicationService.GetApplicationAsync(appId);
+        if (application is null || application.ApplicantId != applicantId)
+        {
+            throw new UnauthorizedAccessException("You do not own this application.");
+        }
+    }
+
+    /// <summary>
     /// Spec 029 / FR-013 — when the application's anchored Fund is Active and
     /// carries a regulation, stash the download target in ViewData so the
     /// applicant Edit/Details surfaces can render the link (and nothing otherwise).
@@ -617,16 +703,9 @@ public class ApplicationController : Controller
                 ProductName = i.ProductName,
                 CategoryName = i.CategoryName,
                 QuotationCount = i.Quotations.Count,
-                HasImpact = i.Impact is not null,
-                // Spec 035 / D2 — per-item impact summary.
-                ImpactTemplateName = i.Impact?.ImpactTemplateName,
-                ImpactParameters = i.Impact?.ParameterValues
-                    .Select(pv => new ImpactParameterDisplayViewModel
-                    {
-                        Name = pv.ParameterName,
-                        DisplayLabel = pv.ParameterDisplayLabel,
-                        Value = pv.Value ?? string.Empty,
-                    }).ToList() ?? new(),
+                // Spec 035 (evolved 2026-06-16, D14) — attributed impact names + justification.
+                AttributedImpactNames = i.AttributedImpactNames,
+                ImpactJustification = i.ImpactJustification,
                 // Spec 035 / D1 — per-item category field values.
                 CategoryFields = i.CategoryFields
                     .Select(cf => new CategoryFieldDisplayViewModel { Label = cf.Label, Value = cf.Value })
@@ -679,8 +758,18 @@ public class ApplicationController : Controller
         vm.TotalConvertedCrc = total;
         vm.HasLegacyNeedsReview = hasLegacy;
 
-        // Spec 035 / D2 — impact is per-item now (see ItemViewModel above); no
-        // application-level impact card remains.
+        // Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level).
+        vm.Impacts = dto.Impacts.Select(ai => new ApplicationImpactDisplayViewModel
+        {
+            TemplateName = ai.ImpactTemplateName,
+            Parameters = ai.ParameterValues.Select(pv => new ImpactParameterDisplayViewModel
+            {
+                Name = pv.ParameterName,
+                DisplayLabel = pv.ParameterDisplayLabel,
+                Value = pv.Value ?? string.Empty,
+            }).ToList(),
+        }).ToList();
+
         return vm;
     }
 

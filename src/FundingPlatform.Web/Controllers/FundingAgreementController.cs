@@ -838,19 +838,18 @@ public class FundingAgreementController : Controller
                 Currency: origCurrency,
                 SelectedSupplierName: supplierName,
                 CurrencyConversionNote: conversionNote,
-                // Spec 035 / D9 — per-line category field values + impact.
+                // Spec 035 (evolved 2026-06-16, D16) — per-line category fields + attributed
+                // impact name(s) + justification.
                 CategoryFields: item.CategoryFieldValues
                     .OrderBy(cfv => cfv.CategoryField?.SortOrder ?? 0)
                     .Select(cfv => new RequestedResourceDetail(
                         cfv.CategoryField?.DisplayLabel ?? string.Empty, cfv.Value))
                     .ToList(),
-                ImpactTemplateName: item.ImpactTemplate?.Name,
-                ImpactParameters: item.ImpactParameterValues
-                    .Select(pv => new RequestedResourceDetail(
-                        pv.ImpactTemplateParameter?.DisplayLabel
-                            ?? pv.ImpactTemplateParameter?.Name ?? string.Empty,
-                        pv.Value))
-                    .ToList()));
+                AttributedImpactNames: item.ItemImpacts
+                    .Select(ii => ii.ApplicationImpact?.ImpactTemplate?.Name ?? string.Empty)
+                    .Where(n => n.Length > 0)
+                    .ToList(),
+                ImpactJustification: item.ImpactJustification));
 
             if (supplierQuotation is not null)
             {

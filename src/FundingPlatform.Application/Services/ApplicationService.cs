@@ -404,7 +404,7 @@ public class ApplicationService
 
         var item = new Item(cmd.ProductName, category.Id);
         item.SetCategoryFieldValues(BuildCategoryFieldValues(category, cmd.CategoryFieldValues));
-        await ApplyItemImpactAsync(item, cmd.ImpactTemplateId, cmd.ImpactParameterValues);
+        ApplyItemImpactAttribution(application, item, cmd.ApplicationImpactIds, cmd.ImpactJustification);
         application.AddItem(item);
 
         await _applicationRepository.UpdateAsync(application);
@@ -425,7 +425,7 @@ public class ApplicationService
         // Changing category clears the previous category's values (ChangeCategory).
         item.Update(cmd.ProductName, category.Id);
         item.SetCategoryFieldValues(BuildCategoryFieldValues(category, cmd.CategoryFieldValues));
-        await ApplyItemImpactAsync(item, cmd.ImpactTemplateId, cmd.ImpactParameterValues);
+        ApplyItemImpactAttribution(application, item, cmd.ApplicationImpactIds, cmd.ImpactJustification);
 
         await _applicationRepository.UpdateAsync(application);
         await _applicationRepository.SaveChangesAsync();
@@ -449,25 +449,46 @@ public class ApplicationService
     }
 
     /// <summary>
-    /// Spec 035 / D2 — resolves the chosen impact template (any active, no
-    /// Plantilla gate), validates its required parameters, and applies the
-    /// template + values to the item. No-op when no template is chosen (research
-    /// D7 empty-state); the submit gate then blocks the application.
+    /// Spec 035 (evolved 2026-06-16, D14) — applies the line item's impact attribution
+    /// (the application impacts it supports) + its short justification. Each id must
+    /// belong to the application's declared impacts; unknown ids are rejected. Empty
+    /// attribution / justification are allowed at save time and blocked at submit
+    /// (<see cref="Application.Validate"/>), mirroring the category-field gate.
     /// </summary>
-    private async Task ApplyItemImpactAsync(
-        Item item, int? impactTemplateId, IReadOnlyDictionary<int, string?> parameterValues)
+    private static void ApplyItemImpactAttribution(
+        AppEntity application, Item item,
+        IReadOnlyList<int> applicationImpactIds, string? justification)
     {
-        if (impactTemplateId is not int templateId || templateId <= 0)
+        var declaredIds = application.Impacts.Select(i => i.Id).ToHashSet();
+        var requested = (applicationImpactIds ?? []).Distinct().ToList();
+
+        var unknown = requested.Where(id => !declaredIds.Contains(id)).ToList();
+        if (unknown.Count > 0)
         {
-            return;
+            throw new InvalidOperationException(
+                "La línea solo puede asociarse a impactos declarados en la solicitud.");
         }
 
-        var template = await _impactTemplateRepository.GetByIdWithParametersAsync(templateId)
-            ?? throw new InvalidOperationException($"Impact template {templateId} not found.");
+        item.AttributeImpacts(requested);
+        item.SetImpactJustification(justification);
+    }
+
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D13 / FR-006) — declares an impact on the
+    /// application: resolves the (active) impact template, validates its required
+    /// parameter values, and adds the declared impact with its values.
+    /// </summary>
+    public async Task AddApplicationImpactAsync(AddApplicationImpactCommand cmd)
+    {
+        var application = await _applicationRepository.GetByIdWithDetailsAsync(cmd.ApplicationId)
+            ?? throw new InvalidOperationException($"Application {cmd.ApplicationId} not found.");
+
+        var template = await _impactTemplateRepository.GetByIdWithParametersAsync(cmd.ImpactTemplateId)
+            ?? throw new InvalidOperationException($"Impact template {cmd.ImpactTemplateId} not found.");
 
         var missing = template.Parameters
             .Where(p => p.IsRequired)
-            .Where(p => !parameterValues.TryGetValue(p.Id, out var v) || string.IsNullOrWhiteSpace(v))
+            .Where(p => !cmd.ParameterValues.TryGetValue(p.Id, out var v) || string.IsNullOrWhiteSpace(v))
             .Select(p => $"'{p.DisplayLabel}'")
             .ToList();
         if (missing.Count > 0)
@@ -476,14 +497,32 @@ public class ApplicationService
                 $"Faltan valores de impacto requeridos: {string.Join(", ", missing)}.");
         }
 
-        var impactValues = template.Parameters
+        var values = template.Parameters
             .OrderBy(p => p.SortOrder)
             .Select(p => new ImpactParameterValue(
                 p.Id,
-                parameterValues.TryGetValue(p.Id, out var v) ? v : null))
+                cmd.ParameterValues.TryGetValue(p.Id, out var v) ? v : null))
             .ToList();
 
-        item.SetImpact(template, impactValues);
+        application.AddImpact(template, values);
+
+        await _applicationRepository.UpdateAsync(application);
+        await _applicationRepository.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D14 / SC-007) — removes a declared impact and
+    /// strips every line item's attribution to it (domain-driven, NO-ACTION FK).
+    /// </summary>
+    public async Task RemoveApplicationImpactAsync(RemoveApplicationImpactCommand cmd)
+    {
+        var application = await _applicationRepository.GetByIdWithDetailsAsync(cmd.ApplicationId)
+            ?? throw new InvalidOperationException($"Application {cmd.ApplicationId} not found.");
+
+        application.RemoveImpact(cmd.ApplicationImpactId);
+
+        await _applicationRepository.UpdateAsync(application);
+        await _applicationRepository.SaveChangesAsync();
     }
 
     public async Task RemoveItemAsync(RemoveItemCommand cmd)
@@ -1069,8 +1108,9 @@ public class ApplicationService
                 SnapshotEffectiveAtUtc: q.Snapshot?.EffectiveAtUtc,
                 LegacyNeedsReview: q.LegacyNeedsReview,
                 SupplierBranchId: q.SupplierBranchId)).ToList(),
-            // Spec 035 / D2 — per-item impact.
-            MapItemImpact(item),
+            // Spec 035 (evolved 2026-06-16, D14) — attributed impact names + justification.
+            MapAttributedImpactNames(item),
+            item.ImpactJustification,
             // Spec 035 / D1 — per-item category field label/value pairs.
             MapCategoryFields(item),
             item.ReviewComment,
@@ -1085,23 +1125,23 @@ public class ApplicationService
             application.UpdatedAt,
             application.SubmittedAt,
             items,
+            // Spec 035 (evolved 2026-06-16, D13) — the application's declared impacts.
+            application.Impacts.Select(MapApplicationImpact).ToList(),
             application.PublicCode?.Value,
             application.CompanyName);
     }
 
-    /// <summary>Spec 035 / D2 — projects a line item's impact (null when unset).</summary>
-    internal static ImpactDto? MapItemImpact(Item item)
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D13) — projects one declared application impact
+    /// (template + values) for the app-level display surfaces.
+    /// </summary>
+    internal static ImpactDto MapApplicationImpact(ApplicationImpact impact)
     {
-        if (item.ImpactTemplate is null)
-        {
-            return null;
-        }
-
         return new ImpactDto(
-            0,
-            item.ImpactTemplate.Id,
-            item.ImpactTemplate.Name ?? string.Empty,
-            item.ImpactParameterValues.Select(pv => new ImpactParameterValueDto(
+            impact.Id,
+            impact.ImpactTemplate?.Id ?? impact.ImpactTemplateId,
+            impact.ImpactTemplate?.Name ?? string.Empty,
+            impact.ParameterValues.Select(pv => new ImpactParameterValueDto(
                 pv.Id,
                 pv.ImpactTemplateParameterId,
                 pv.ImpactTemplateParameter?.Name ?? string.Empty,
@@ -1109,6 +1149,19 @@ public class ApplicationService
                 pv.ImpactTemplateParameter?.DataType.ToString() ?? string.Empty,
                 pv.ImpactTemplateParameter?.IsRequired ?? false,
                 pv.Value)).ToList());
+    }
+
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D14) — names of the application impacts a line
+    /// item is attributed to (requires the ItemImpacts→ApplicationImpact→ImpactTemplate
+    /// nav chain to be loaded).
+    /// </summary>
+    internal static List<string> MapAttributedImpactNames(Item item)
+    {
+        return item.ItemImpacts
+            .Select(ii => ii.ApplicationImpact?.ImpactTemplate?.Name ?? string.Empty)
+            .Where(n => n.Length > 0)
+            .ToList();
     }
 
     /// <summary>Spec 035 / D1 — projects a line item's category field values in sort order.</summary>

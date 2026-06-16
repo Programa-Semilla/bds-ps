@@ -52,9 +52,14 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<AppEntity>
             .IsUnique()
             .HasDatabaseName("UX_Applications_PublicCode");
 
-        // Spec 035 / D2 — application-level impact mappings removed (ImpactTemplateId,
-        // ImpactTemplate nav, ImpactParameterValues collection). Impact is now mapped
-        // per Item in ItemConfiguration.
+        // Spec 035 (evolved 2026-06-16, D13) — application declares one-or-more impacts.
+        builder.HasMany(a => a.Impacts)
+            .WithOne()
+            .HasForeignKey(i => i.ApplicationId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Metadata
+            .FindNavigation(nameof(AppEntity.Impacts))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         // Spec 021 / R-2 — at-most-once delivery bitmask for stage-expiry reminders.
         builder.Property(a => a.RemindersSentMask).IsRequired().HasDefaultValue((byte)0);

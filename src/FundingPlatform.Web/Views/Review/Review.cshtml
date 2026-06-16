@@ -173,21 +173,13 @@
                 </div>
             }
 
-            @if (item.ImpactTemplateName is not null)
+            @if (item.AttributedImpactNames.Count > 0 || !string.IsNullOrWhiteSpace(item.ImpactJustification))
             {
                 <div class="mb-3">
-                    <strong>Evaluación de impacto:</strong> @item.ImpactTemplateName
-                    @if (item.ImpactParameters.Count > 0)
+                    <strong>Impactos asociados:</strong> @(item.AttributedImpactNames.Count > 0 ? string.Join(", ", item.AttributedImpactNames) : "—")
+                    @if (!string.IsNullOrWhiteSpace(item.ImpactJustification))
                     {
-                        <table class="fl-table mt-1" data-density="reviewer">
-                            <thead><tr><th>Parámetro</th><th>Valor</th></tr></thead>
-                            <tbody>
-                                @foreach (var param in item.ImpactParameters)
-                                {
-                                    <tr><td>@param.DisplayLabel</td><td>@param.Value</td></tr>
-                                }
-                            </tbody>
-                        </table>
+                        <div class="mt-1"><strong>Justificación:</strong> @item.ImpactJustification</div>
                     }
                 </div>
             }

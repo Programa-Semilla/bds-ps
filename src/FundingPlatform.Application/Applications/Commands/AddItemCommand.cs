@@ -1,16 +1,16 @@
 namespace FundingPlatform.Application.Applications.Commands;
 
 /// <summary>
-/// Spec 035 / US2 — adding a line item now carries the selected category's field
-/// values (keyed by CategoryFieldId) and the per-item impact template + parameter
-/// values (keyed by ImpactTemplateParameterId). TechnicalSpecifications is gone.
-/// <see cref="ImpactTemplateId"/> is null when no active impact template exists
-/// (research D7 empty-state); the submit gate then blocks the application.
+/// Spec 035 (evolved 2026-06-16, US3) — adding a line item carries the selected
+/// category's field values (keyed by CategoryFieldId), the attribution to the
+/// application's declared impacts (<see cref="ApplicationImpactIds"/>), and a short
+/// justification. The line item no longer carries its own impact template/values.
+/// TechnicalSpecifications is gone.
 /// </summary>
 public record AddItemCommand(
     int ApplicationId,
     string ProductName,
     int CategoryId,
     Dictionary<int, string?> CategoryFieldValues,
-    int? ImpactTemplateId,
-    Dictionary<int, string?> ImpactParameterValues);
+    IReadOnlyList<int> ApplicationImpactIds,
+    string? ImpactJustification);

@@ -17,8 +17,7 @@
 <div class="card">
     <div class="card-body">
         <form asp-controller="Item" asp-action="Edit" asp-route-appId="@Model.ApplicationId" asp-route-itemId="@Model.Id" method="post"
-              data-category-fields-url="@Url.Action("CategoryFields", "Item", new { appId = Model.ApplicationId, categoryId = "__CID__" })"
-              data-impact-params-url="@Url.Action("ImpactTemplateParameters", "Application", new { id = Model.ApplicationId, templateId = "__TID__" })">
+              data-category-fields-url="@Url.Action("CategoryFields", "Item", new { appId = Model.ApplicationId, categoryId = "__CID__" })">
             @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
@@ -46,31 +45,8 @@
 
             <hr />
 
-            @if (Model.ImpactTemplates.Count == 0)
-            {
-                <div class="alert alert-warning" data-testid="item-no-impact-templates">
-                    No hay plantillas de impacto activas. No podrá enviar la solicitud hasta que un administrador cree una.
-                </div>
-            }
-            else
-            {
-                <div class="mb-3" data-testid="form-section" data-field="ImpactTemplateId">
-                    <label asp-for="ImpactTemplateId" class="form-label">Plantilla de impacto</label> @await Html.PartialAsync("_RequiredMark")
-                    <select asp-for="ImpactTemplateId" class="form-select" data-searchable
-                            data-testid="item-impact-select" id="item-impact-select">
-                        <option value="">-- Seleccione una plantilla de impacto --</option>
-                        @foreach (var t in Model.ImpactTemplates)
-                        {
-                            <option value="@t.Id" selected="@(Model.ImpactTemplateId == t.Id)">@t.Name</option>
-                        }
-                    </select>
-                    <span asp-validation-for="ImpactTemplateId" class="invalid-feedback d-block"></span>
-                </div>
-
-                <div id="impact-params" data-testid="item-impact-params">
-                    <partial name="_DynamicFieldInputs" model="@((Model.ImpactParameters, "ImpactParameterValues"))" />
-                </div>
-            }
+            @* Spec 035 (evolved) — attribution to the application's declared impacts + justification. *@
+            <partial name="_ItemImpactAttribution" model="Model" />
 
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary" data-testid="item-save">Guardar cambios</button>

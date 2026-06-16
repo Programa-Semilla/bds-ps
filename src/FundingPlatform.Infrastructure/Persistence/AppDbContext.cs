@@ -20,7 +20,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<CategoryFieldValue> CategoryFieldValues => Set<CategoryFieldValue>();
     public DbSet<ImpactTemplate> ImpactTemplates => Set<ImpactTemplate>();
     public DbSet<ImpactTemplateParameter> ImpactTemplateParameters => Set<ImpactTemplateParameter>();
-    // Spec 035 / D2 — ImpactParameterValues re-keyed from Application to Item.
+    // Spec 035 (evolved 2026-06-16, D13/D14) — impact at the application level + per-item attribution.
+    public DbSet<ApplicationImpact> ApplicationImpacts => Set<ApplicationImpact>();
+    public DbSet<ItemImpact> ItemImpacts => Set<ItemImpact>();
     public DbSet<ImpactParameterValue> ImpactParameterValues => Set<ImpactParameterValue>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<SupplierBranch> SupplierBranches => Set<SupplierBranch>();

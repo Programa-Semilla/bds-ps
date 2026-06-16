@@ -59,8 +59,8 @@ public class ItemController : Controller
                 model.ProductName,
                 model.CategoryId,
                 model.CategoryFieldValues ?? new(),
-                model.ImpactTemplateId,
-                model.ImpactParameterValues ?? new());
+                model.SelectedApplicationImpactIds ?? new(),
+                model.ImpactJustification);
 
             await _applicationService.AddItemAsync(command);
         }
@@ -84,7 +84,7 @@ public class ItemController : Controller
         var item = await _dbContext.Items
             .AsNoTracking()
             .Include(i => i.CategoryFieldValues)
-            .Include(i => i.ImpactParameterValues)
+            .Include(i => i.ItemImpacts)
             .FirstOrDefaultAsync(i => i.Id == itemId && i.ApplicationId == appId);
         if (item is null)
         {
@@ -92,7 +92,6 @@ public class ItemController : Controller
         }
 
         var categoryValues = item.CategoryFieldValues.ToDictionary(v => v.CategoryFieldId, v => v.Value);
-        var impactValues = item.ImpactParameterValues.ToDictionary(v => v.ImpactTemplateParameterId, v => v.Value);
 
         var viewModel = new EditItemViewModel
         {
@@ -100,14 +99,11 @@ public class ItemController : Controller
             ApplicationId = appId,
             ProductName = item.ProductName,
             CategoryId = item.CategoryId,
-            ImpactTemplateId = item.ImpactTemplateId,
+            ImpactJustification = item.ImpactJustification,
+            SelectedApplicationImpactIds = item.ItemImpacts.Select(ii => ii.ApplicationImpactId).ToList(),
         };
         await PopulateOptionsAsync(viewModel);
         viewModel.CategoryFields = await LoadCategoryFieldInputsAsync(item.CategoryId, categoryValues);
-        if (item.ImpactTemplateId is int tid)
-        {
-            viewModel.ImpactParameters = await LoadImpactParameterInputsAsync(tid, impactValues);
-        }
 
         return View(viewModel);
     }
@@ -134,8 +130,8 @@ public class ItemController : Controller
                 model.ProductName,
                 model.CategoryId,
                 model.CategoryFieldValues ?? new(),
-                model.ImpactTemplateId,
-                model.ImpactParameterValues ?? new());
+                model.SelectedApplicationImpactIds ?? new(),
+                model.ImpactJustification);
 
             await _applicationService.UpdateItemAsync(command);
         }
@@ -199,11 +195,16 @@ public class ItemController : Controller
             .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
             .ToList();
 
-        model.ImpactTemplates = await _dbContext.ImpactTemplates
+        // Spec 035 (evolved 2026-06-16, D15 / FR-007) — the attribution multi-select offers
+        // ONLY the impacts the application has declared (never raw templates).
+        model.DeclaredImpacts = await _dbContext.ApplicationImpacts
             .AsNoTracking()
-            .Where(t => t.IsActive)
-            .OrderBy(t => t.Name)
-            .Select(t => new ItemImpactTemplateOption { Id = t.Id, Name = t.Name, Description = t.Description })
+            .Where(ai => ai.ApplicationId == model.ApplicationId)
+            .Select(ai => new DeclaredImpactOption
+            {
+                ApplicationImpactId = ai.Id,
+                Name = ai.ImpactTemplate.Name,
+            })
             .ToListAsync();
     }
 
@@ -221,27 +222,6 @@ public class ItemController : Controller
                 DataType = (int)f.DataType,
                 IsRequired = f.IsRequired,
                 Value = values.TryGetValue(f.Id, out var v) ? v : null,
-            })
-            .ToList();
-    }
-
-    private async Task<List<DynamicFieldInput>> LoadImpactParameterInputsAsync(
-        int templateId, IReadOnlyDictionary<int, string?> values)
-    {
-        var template = await _dbContext.ImpactTemplates
-            .AsNoTracking()
-            .Include(t => t.Parameters)
-            .FirstOrDefaultAsync(t => t.Id == templateId);
-        if (template is null) return new();
-        return template.Parameters
-            .OrderBy(p => p.SortOrder)
-            .Select(p => new DynamicFieldInput
-            {
-                FieldId = p.Id,
-                DisplayLabel = p.DisplayLabel,
-                DataType = (int)p.DataType,
-                IsRequired = p.IsRequired,
-                Value = values.TryGetValue(p.Id, out var v) ? v : null,
             })
             .ToList();
     }

@@ -14,9 +14,18 @@ public class ApplicationViewModel
     public DateTime? SubmittedAt { get; set; }
     public List<ItemViewModel> Items { get; set; } = new();
 
-    /// <summary>Spec 035 / D2 — submit gate: every item carries an impact template.
-    /// Required category fields are gated server-side at submit.</summary>
-    public bool AllItemsHaveImpact => Items.Count > 0 && Items.All(i => i.HasImpact);
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level).
+    /// </summary>
+    public List<ApplicationImpactDisplayViewModel> Impacts { get; set; } = new();
+
+    /// <summary>Spec 035 (evolved 2026-06-16, D16) — submit gate: ≥1 declared impact and
+    /// every item attributed + justified. Required category/impact values are gated
+    /// server-side at submit.</summary>
+    public bool ReadyForSubmit =>
+        Items.Count > 0
+        && Impacts.Count > 0
+        && Items.All(i => i.HasImpactAttribution && !string.IsNullOrWhiteSpace(i.ImpactJustification));
 
     /// <summary>Spec 021 — active categories (kept for the draft editor toolbar).</summary>
     public List<SelectListItem> Categories { get; set; } = new();
@@ -40,11 +49,12 @@ public class ItemViewModel
     public string ProductName { get; set; } = string.Empty;
     public string CategoryName { get; set; } = string.Empty;
     public int QuotationCount { get; set; }
-    public bool HasImpact { get; set; }
 
-    /// <summary>Spec 035 / D2 — per-item impact summary (Details/Edit cards).</summary>
-    public string? ImpactTemplateName { get; set; }
-    public List<ImpactParameterDisplayViewModel> ImpactParameters { get; set; } = new();
+    /// <summary>Spec 035 (evolved 2026-06-16, D14) — names of the application impacts
+    /// this line item is attributed to + the short justification.</summary>
+    public List<string> AttributedImpactNames { get; set; } = new();
+    public string? ImpactJustification { get; set; }
+    public bool HasImpactAttribution => AttributedImpactNames.Count > 0;
 
     /// <summary>Spec 035 / D1 — per-item category field label/value pairs.</summary>
     public List<CategoryFieldDisplayViewModel> CategoryFields { get; set; } = new();

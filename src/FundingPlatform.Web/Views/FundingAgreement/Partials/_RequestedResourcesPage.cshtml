@@ -40,7 +40,7 @@
                         <td colspan="5">@row.CurrencyConversionNote</td>
                     </tr>
                 }
-                @if ((row.CategoryFields is { Count: > 0 }) || !string.IsNullOrWhiteSpace(row.ImpactTemplateName))
+                @if ((row.CategoryFields is { Count: > 0 }) || (row.AttributedImpactNames is { Count: > 0 }) || !string.IsNullOrWhiteSpace(row.ImpactJustification))
                 {
                     <tr class="line-detail" data-testid="requested-resources-line-detail">
                         <td colspan="5">
@@ -51,12 +51,13 @@
                                         $"{cf.Label}: {(string.IsNullOrWhiteSpace(cf.Value) ? "—" : cf.Value)}"))
                                 </div>
                             }
-                            @if (!string.IsNullOrWhiteSpace(row.ImpactTemplateName))
+                            @if (row.AttributedImpactNames is { Count: > 0 } attributedImpacts)
                             {
-                                <div><strong>Impacto (@row.ImpactTemplateName):</strong>
-                                    @string.Join("; ", (row.ImpactParameters ?? new List<RequestedResourceDetail>())
-                                        .Select(p => $"{p.Label}: {p.Value}"))
-                                </div>
+                                <div><strong>Impactos:</strong> @string.Join(", ", attributedImpacts)</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(row.ImpactJustification))
+                            {
+                                <div><strong>Justificación de impacto:</strong> @row.ImpactJustification</div>
                             }
                         </td>
                     </tr>

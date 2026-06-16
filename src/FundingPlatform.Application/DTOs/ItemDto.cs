@@ -6,9 +6,10 @@ public record ItemDto(
     int CategoryId,
     string CategoryName,
     List<QuotationDto> Quotations,
-    // Spec 035 / D2 — per-item impact (populated from Item.Impact). Null until
-    // the applicant selects an impact template for this line item.
-    ImpactDto? Impact,
+    // Spec 035 (evolved 2026-06-16, D14) — names of the application impacts this
+    // line item is attributed to (one or more), and the short justification.
+    List<string> AttributedImpactNames,
+    string? ImpactJustification,
     // Spec 035 / D1 — per-item category field label/value pairs (replaces the
     // free-text TechnicalSpecifications).
     List<CategoryFieldValueDto> CategoryFields,

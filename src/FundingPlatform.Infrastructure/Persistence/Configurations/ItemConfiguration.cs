@@ -30,9 +30,8 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.Property(i => i.CategoryId).IsRequired();
         builder.HasIndex(i => i.CategoryId).HasDatabaseName("IX_Items_CategoryId");
 
-        // Spec 035 / D2 — per-item impact template selection (nullable while Draft).
-        builder.Property(i => i.ImpactTemplateId);
-        builder.HasIndex(i => i.ImpactTemplateId).HasDatabaseName("IX_Items_ImpactTemplateId");
+        // Spec 035 (evolved 2026-06-16, FR-008) — single short per-item justification (≤300).
+        builder.Property(i => i.ImpactJustification).HasMaxLength(Item.ImpactJustificationMaxLength);
 
         builder.Property(i => i.ReviewStatus).IsRequired().HasDefaultValue(Domain.Enums.ItemReviewStatus.Pending);
         builder.Property(i => i.ReviewComment).HasMaxLength(2000);
@@ -47,20 +46,15 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
             .HasForeignKey(i => i.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Spec 035 / D2 — per-item impact template (no-action so deactivating a
-        // template never cascades into existing items).
-        builder.HasOne(i => i.ImpactTemplate)
-            .WithMany()
-            .HasForeignKey(i => i.ImpactTemplateId)
-            .OnDelete(DeleteBehavior.NoAction);
-
-        // Spec 035 / D2 — per-item impact parameter values (EAV), cascade on item delete.
-        builder.HasMany(i => i.ImpactParameterValues)
+        // Spec 035 (evolved 2026-06-16, D14) — per-item impact ATTRIBUTION (join to the
+        // application's declared impacts), cascade on item delete. The ApplicationImpact
+        // side is NO ACTION (configured on ItemImpact) to avoid a multi-cascade path.
+        builder.HasMany(i => i.ItemImpacts)
             .WithOne()
-            .HasForeignKey(v => v.ItemId)
+            .HasForeignKey(ii => ii.ItemId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Metadata
-            .FindNavigation(nameof(Item.ImpactParameterValues))!
+            .FindNavigation(nameof(Item.ItemImpacts))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         // Spec 035 / D1 — per-item category field values (EAV), cascade on item delete.

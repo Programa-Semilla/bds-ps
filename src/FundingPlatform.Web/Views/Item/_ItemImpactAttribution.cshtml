@@ -1,0 +1,45 @@
+@model FundingPlatform.Web.ViewModels.AddItemViewModel
+
+@*
+    Spec 035 (evolved 2026-06-16, US3 / FR-007 / FR-008) — per-item impact attribution
+    (multi-select limited to the application's declared impacts) + a short justification.
+*@
+
+@if (Model.DeclaredImpacts.Count == 0)
+{
+    <div class="alert alert-warning" data-testid="item-no-declared-impacts">
+        Esta solicitud aún no declara ningún impacto. Debe
+        <a asp-controller="Application" asp-action="Impacts" asp-route-id="@Model.ApplicationId">declarar al menos un impacto</a>
+        antes de asociar las líneas.
+    </div>
+}
+else
+{
+    <div class="mb-3" data-testid="form-section" data-field="SelectedApplicationImpactIds">
+        <label class="form-label">Impactos relacionados</label> @await Html.PartialAsync("_RequiredMark")
+        <div class="form-hint">Seleccione a cuáles de los impactos declarados aporta esta línea.</div>
+        <div data-testid="item-impact-attribution">
+            @foreach (var impact in Model.DeclaredImpacts)
+            {
+                var checkedAttr = Model.SelectedApplicationImpactIds.Contains(impact.ApplicationImpactId);
+                <label class="form-check">
+                    <input class="form-check-input" type="checkbox"
+                           name="SelectedApplicationImpactIds" value="@impact.ApplicationImpactId"
+                           data-testid="item-impact-option" @(checkedAttr ? "checked" : "") />
+                    <span class="form-check-label">@impact.Name</span>
+                </label>
+            }
+        </div>
+        <span asp-validation-for="SelectedApplicationImpactIds" class="invalid-feedback d-block"></span>
+    </div>
+
+    <div class="mb-3" data-testid="form-section" data-field="ImpactJustification">
+        <label asp-for="ImpactJustification" class="form-label">Justificación de impacto</label> @await Html.PartialAsync("_RequiredMark")
+        <div class="form-hint">Explique brevemente por qué esta línea aporta al impacto o impactos seleccionados (máx. 300 caracteres).</div>
+        <textarea asp-for="ImpactJustification" class="form-control" rows="2" maxlength="300"
+                  data-testid="item-impact-justification"
+                  data-char-counter="item-impact-justification-counter"></textarea>
+        <div class="form-hint text-end"><span id="item-impact-justification-counter">@(Model.ImpactJustification?.Length ?? 0)</span>/300</div>
+        <span asp-validation-for="ImpactJustification" class="invalid-feedback d-block"></span>
+    </div>
+}

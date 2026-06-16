@@ -761,7 +761,8 @@ public class ReviewController : Controller
                 SelectedSupplierId = item.SelectedSupplierId,
                 IsNotTechnicallyEquivalent = item.IsNotTechnicallyEquivalent,
                 LineCode = item.LineCode,
-                ImpactTemplateName = item.ImpactTemplateName,
+                AttributedImpactNames = item.AttributedImpactNames,
+                ImpactJustification = item.ImpactJustification,
                 Quotations = item.Quotations.Select(q => new ReviewQuotationViewModel
                 {
                     QuotationId = q.QuotationId,
@@ -788,19 +789,24 @@ public class ReviewController : Controller
                     SnapshotEffectiveAtUtc = q.SnapshotEffectiveAtUtc,
                     LegacyNeedsReview = q.LegacyNeedsReview,
                 }).ToList(),
-                ImpactParameters = item.ImpactParameters.Select(p => new ImpactParameterDisplayViewModel
-                {
-                    Name = p.Name,
-                    DisplayLabel = p.DisplayLabel,
-                    Value = p.Value
-                }).ToList(),
                 // Spec 035 / D1 — per-item category field values.
                 CategoryFields = item.CategoryFields.Select(cf => new CategoryFieldDisplayViewModel
                 {
                     Label = cf.Label,
                     Value = cf.Value,
                 }).ToList()
-            }).ToList()
+            }).ToList(),
+            // Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts.
+            Impacts = dto.Impacts.Select(ai => new ApplicationImpactDisplayViewModel
+            {
+                TemplateName = ai.TemplateName,
+                Parameters = ai.Parameters.Select(p => new ImpactParameterDisplayViewModel
+                {
+                    Name = p.Name,
+                    DisplayLabel = p.DisplayLabel,
+                    Value = p.Value,
+                }).ToList(),
+            }).ToList(),
         };
     }
 }
