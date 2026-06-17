@@ -35,9 +35,10 @@ public class ProcessConfiguration : IEntityTypeConfiguration<Process>
 
         builder.Property(p => p.RowVersion).IsRowVersion();
 
-        builder.HasIndex(p => p.Name)
+        // Process.Name is unique PER FUND, not globally (mirrors UX_Processes_FundId_Name).
+        builder.HasIndex(p => new { p.FundId, p.Name })
             .IsUnique()
-            .HasDatabaseName("UX_Processes_Name");
+            .HasDatabaseName("UX_Processes_FundId_Name");
 
         // One-to-many: Process → Groups (Group.ProcessId FK).
         builder.HasMany(p => p.Groups)
