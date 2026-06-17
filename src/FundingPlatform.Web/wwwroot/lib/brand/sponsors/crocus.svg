@@ -1,6 +1,0 @@
-<!-- PLACEHOLDER: pending designer pass — CROCUS logo (re-trace from PDF wwwroot/lib/brand/pdf/footer-partners-strip.png). -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 40" role="img" aria-label="CROCUS">
-  <circle cx="20" cy="20" r="14" fill="none" stroke="#1FA0A0" stroke-width="2"/>
-  <path d="M20 8 L 20 32 M 12 14 L 28 26 M 28 14 L 12 26" stroke="#1FA0A0" stroke-width="2" stroke-linecap="round"/>
-  <text x="42" y="26" font-family="Inter, system-ui, sans-serif" font-weight="700" font-size="16" letter-spacing="2" fill="#1A1A1A">CROCUS</text>
-</svg>

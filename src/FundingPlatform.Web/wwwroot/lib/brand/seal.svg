@@ -1,7 +1,7 @@
 <!-- PLACEHOLDER: pending designer pass — Programa Semilla teal seal. Geometric stand-in: teal ring + checkmark, white interior. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Acuerdo firmado">
-  <circle cx="100" cy="100" r="84" fill="none" stroke="#1FA0A0" stroke-width="6"/>
+  <circle cx="100" cy="100" r="84" fill="none" stroke="#008A9E" stroke-width="6"/>
   <circle cx="100" cy="100" r="68" fill="#FFFFFF"/>
   <path d="M68 104 L 92 128 L 138 78"
-        stroke="#1FA0A0" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        stroke="#008A9E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

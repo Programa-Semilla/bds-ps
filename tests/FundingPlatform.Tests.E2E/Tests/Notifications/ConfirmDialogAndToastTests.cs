@@ -63,7 +63,8 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
         await SignInAsAdminAsync();
         var (listPage, targetEmail) = await SeedTargetAndOpenListAsync();
 
-        // Open the styled confirm modal.
+        // Open the styled confirm modal. Spec 037 — disable lives in the "⋯" kebab.
+        await listPage.OpenRowActionsAsync(targetEmail);
         await listPage.RowDisableButton(targetEmail).ClickAsync();
         await Expect(SharedConfirmModal).ToBeVisibleAsync();
         // FR-007 — configured es-CR copy.
@@ -74,7 +75,9 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
         await SharedConfirmCancel.ClickAsync();
         await Expect(SharedConfirmModal).Not.ToBeVisibleAsync();
 
-        // The user is still active (Disable still offered, not Enable).
+        // The user is still active (Disable still offered, not Enable). Re-open the
+        // kebab (the cancel closed it) to assert the action is still present.
+        await listPage.OpenRowActionsAsync(targetEmail);
         await Expect(listPage.RowDisableButton(targetEmail)).ToBeVisibleAsync();
     }
 
@@ -84,6 +87,7 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
         await SignInAsAdminAsync();
         var (listPage, targetEmail) = await SeedTargetAndOpenListAsync();
 
+        await listPage.OpenRowActionsAsync(targetEmail);
         await listPage.RowDisableButton(targetEmail).ClickAsync();
         await SharedConfirmButton.ClickAsync();
 
@@ -98,6 +102,7 @@ public class ConfirmDialogAndToastTests : AuthenticatedTestBase
         // and the status filter now defaults to "Activo", so load the disabled
         // user explicitly before asserting the row flipped to "Enable".
         await Page.GotoAsync($"{BaseUrl}/Admin/Users?statusFilter=Disabled&search={targetEmail}");
+        await listPage.OpenRowActionsAsync(targetEmail);
         await Expect(listPage.RowEnableButton(targetEmail)).ToBeVisibleAsync();
     }
 }

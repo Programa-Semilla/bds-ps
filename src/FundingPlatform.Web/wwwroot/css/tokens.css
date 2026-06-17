@@ -3,16 +3,23 @@
    THIS IS THE ONLY FILE WHERE LITERAL DURATIONS MAY APPEAR (FR-014 from spec 011, preserved).
    Names are SEMANTIC — no value-bound names like --color-white or --motion-200ms.
 
-   Spec 019 retunes the palette / type stack / surfaces from the warm-modern (spec 011)
-   placeholder identity to the canonical Programa Semilla sponsor identity:
-     - page bg: warm cream #FAF7F2 → clean white #FFFFFF
-     - primary: forest #2E5E4E → teal #1FA0A0
-     - accent: amber #D98A1B → yellow #F2C014
-     - display: Fraunces serif → Inter sans (weight bumps preserve contrast)
-     - new --color-table-zebra: #FFF3E5 (PDF cream row sample, retained for table striping)
+   Spec 019 retuned the palette / type stack / surfaces from the warm-modern (spec 011)
+   placeholder identity to a sponsor-approximated Programa Semilla identity.
 
-   History note for SC-001 grep: legacy hex values (#2E5E4E #1F4438 #E1ECE6 #D98A1B
-   #FBEED6 #FAF7F2 #F4EFE6 #E5DED2) are intentionally absent from this file.
+   Spec 037 re-anchors the palette to the OFFICIAL Programa Semilla brand book
+   (superseding spec 019's sampled approximations):
+     - primary: #1FA0A0 → official teal #008A9E (+ new --color-primary-light #42AFA8)
+     - accent:  #F2C014 → official yellow #FFC729 (+ reserved decorative --color-accent-orange #F9A61C)
+     - page bg: #FFFFFF → off-white #F6F8FA (cards stay pure white)
+     - text:    #1A1A1A/#5A5A5A → #1F2933/#64748B; border #E2E5E5 → #DDE5E8
+     - status:  success #168A4A, danger #D92D20
+     - tables:  --color-table-zebra removed (de-zebra) → --color-table-hover/-separator
+     - sidebar: new dark-teal shell tokens (--color-sidebar-bg #12343B, -hover, -text)
+
+   History note for SC-001 grep: legacy hex values are intentionally absent from
+   the rest of the codebase. Spec-011 legacy (#2E5E4E #1F4438 #E1ECE6 #D98A1B
+   #FBEED6 #FAF7F2 #F4EFE6 #E5DED2) and the now-superseded spec-019 palette
+   (#1FA0A0 #15807F #D7EDED #F2C014 #FBEBA6 #FFF3E5) appear ONLY in this comment.
 
    Imported BEFORE site.css and BEFORE tabler.min.css from _Layout.cshtml so the
    --tblr-* bridge below takes effect. */
@@ -51,40 +58,50 @@
 
 :root {
   /* ---------- Color: surfaces (FR-007) ---------- */
-  --color-bg-page:            #FFFFFF;
+  --color-bg-page:            #F6F8FA;
   --color-bg-surface:         #FFFFFF;
-  --color-bg-surface-raised:  #F7F8F8;
+  --color-bg-surface-raised:  #FFFFFF;
 
   /* ---------- Color: text (FR-011) ---------- */
-  --color-text-primary:       #1A1A1A;
-  --color-text-secondary:     #5A5A5A;
-  --color-text-muted:         #8A8A8A;
+  --color-text-primary:       #1F2933;
+  --color-text-secondary:     #64748B;
+  --color-text-muted:         #64748B;
 
-  /* ---------- Color: brand (FR-008) ---------- */
-  --color-primary:            #1FA0A0;
-  --color-primary-strong:     #15807F;
-  --color-primary-subtle:     #D7EDED;
-  --color-primary-rgb:        31, 160, 160;
+  /* ---------- Color: brand (FR-008 — spec 037 official palette #008A9E) ---------- */
+  --color-primary:            #008A9E;
+  --color-primary-strong:     #007789;
+  --color-primary-light:      #42AFA8;
+  --color-primary-light-rgb:  66, 175, 168;
+  --color-primary-subtle:     #D6EEF1;
+  --color-primary-rgb:        0, 138, 158;
 
   /* ---------- Color: accent (FR-009) — decorative-only per NFR-003 ---------- */
-  --color-accent:             #F2C014;
-  --color-accent-subtle:      #FBEBA6;
+  --color-accent:             #FFC729;
+  --color-accent-subtle:      #FFEFB8;
+  /* Reserved decorative/fill accent (spec 037 D5) — NOT wired to any status; dark-text overlay only. */
+  --color-accent-orange:      #F9A61C;
 
-  /* ---------- Color: table zebra (FR-010) — sampled from PDF cream row ---------- */
-  --color-table-zebra:        #FFF3E5;
+  /* ---------- Color: tables (spec 037 D3 — de-zebra: white rows, light-teal hover, soft separators) ---------- */
+  --color-table-hover:        #EFF8F8;
+  --color-table-separator:    #E5ECEF;
+
+  /* ---------- Color: sidebar (spec 037 D1 — dark-teal shell, scoped to [data-testid="sidebar"]) ---------- */
+  --color-sidebar-bg:         #12343B;
+  --color-sidebar-hover:      #174A53;
+  --color-sidebar-text:       #D9E6E8;
 
   /* ---------- Color: status (FR-012 — retuned for AA on white) ---------- */
-  --color-success:            #157A3F;
+  --color-success:            #168A4A;
   --color-success-subtle:     #DEF1E3;
   --color-warning:            #8C5A0B;
   --color-warning-subtle:     #FCEFD0;
-  --color-danger:             #B0271E;
+  --color-danger:             #D92D20;
   --color-danger-subtle:      #F7DDDA;
   --color-info:               #1F5BA8;
   --color-info-subtle:        #DBE7F5;
 
   /* ---------- Color: structural ---------- */
-  --color-border:             #E2E5E5;
+  --color-border:             #DDE5E8;
   --color-focus-ring:         var(--color-primary);
 
   /* ---------- Spacing (T-shirt scale on 8 px base) ---------- */
@@ -166,7 +183,7 @@
 
 :root {
   --tblr-primary:        var(--color-primary);
-  --tblr-primary-rgb:    31, 160, 160;
+  --tblr-primary-rgb:    0, 138, 158;
   --tblr-secondary:      var(--color-text-secondary);
   --tblr-success:        var(--color-success);
   --tblr-warning:        var(--color-warning);
@@ -536,8 +553,11 @@ code, pre, .mono, [data-mono] {
   gap: var(--space-4);
 }
 .fl-auth-hero-mark { width: 240px; height: 240px; max-width: 60vw; }
+/* Spec 037 — official vertical logo (portrait disc+wordmark lockup). */
+.fl-auth-hero-logo { width: 260px; max-width: 70vw; height: auto; }
 @media (max-width: 480px) {
   .fl-auth-hero-mark { width: 96px; height: 96px; }
+  .fl-auth-hero-logo { width: 168px; }
   .fl-auth-hero { padding: var(--space-5) var(--space-4); }
 }
 .fl-auth-hero-wordmark { width: 320px; max-width: 80vw; color: var(--color-primary-strong); }
@@ -649,10 +669,12 @@ code, pre, .mono, [data-mono] {
 .fl-table tbody td {
   padding: var(--space-4);
   border: none;
+  border-bottom: 1px solid var(--color-table-separator);
   color: var(--color-text-primary);
 }
-.fl-table tbody tr:nth-child(even) td {
-  background: var(--color-table-zebra);
+/* Spec 037 D3 — de-zebra: body rows stay white; light-teal hover carries row distinction. */
+.fl-table tbody tr:hover td {
+  background: var(--color-table-hover);
 }
 .fl-table[data-density="reviewer"] tbody td,
 .fl-table[data-density="reviewer"] thead th {
@@ -791,33 +813,21 @@ code, pre, .mono, [data-mono] {
   white-space: nowrap;
 }
 
-/* Sponsor strip (FR-003) */
+/* Sponsor strip (FR-003; spec 037 D7 — single official partner image + yellow top border) */
 .fl-sponsor-strip {
   width: 100%;
-  max-height: 56px;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-5);
   align-items: center;
   justify-content: center;
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-4);
   background: var(--color-bg-surface);
-  border-top: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-accent);
 }
-.fl-sponsor-strip img,
-.fl-sponsor-strip svg {
-  height: 32px;
-  width: auto;
-  max-width: 140px;
+.fl-sponsor-image {
+  max-width: 1100px;
+  width: 100%;
+  height: auto;
   object-fit: contain;
-}
-@media (max-width: 480px) {
-  .fl-sponsor-strip {
-    max-height: none;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-  .fl-sponsor-strip [data-sponsor="10-anos"] { display: none; }
 }
 
 /* Section divider — yellow accent decorative-only */

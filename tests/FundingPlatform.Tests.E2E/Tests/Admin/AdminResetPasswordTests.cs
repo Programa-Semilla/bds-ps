@@ -42,6 +42,7 @@ public class AdminResetPasswordTests : AuthenticatedTestBase
         var listPage = new AdminUsersListPage(Page);
         await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(targetEmail);
+        await listPage.OpenRowActionsAsync(targetEmail);
         await listPage.RowResetPasswordLink(targetEmail).ClickAsync();
     }
 

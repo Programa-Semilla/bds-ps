@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img">
   <rect width="200" height="200" rx="24" fill="#F7F8F8"/>
   <g transform="rotate(-12 100 100)">
-    <circle cx="100" cy="100" r="60" fill="#FFFFFF" stroke="#1FA0A0" stroke-width="3"/>
-    <polygon points="100,52 108,100 100,148 92,100" fill="#F2C014"/>
-    <polygon points="100,52 108,100 100,100" fill="#1FA0A0"/>
+    <circle cx="100" cy="100" r="60" fill="#FFFFFF" stroke="#008A9E" stroke-width="3"/>
+    <polygon points="100,52 108,100 100,148 92,100" fill="#FFC729"/>
+    <polygon points="100,52 108,100 100,100" fill="#008A9E"/>
     <circle cx="100" cy="100" r="6" fill="#1A1A1A"/>
   </g>
   <text x="100" y="186" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" fill="#5A5A5A">Fuera de rumbo</text>

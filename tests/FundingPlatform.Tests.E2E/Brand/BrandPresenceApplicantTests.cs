@@ -29,8 +29,17 @@ public class BrandPresenceApplicantTests : AuthenticatedTestBase
         await Expect(sidebarBrand).ToBeVisibleAsync();
         await Expect(sidebarBrand).ToContainTextAsync(new Regex("Programa Semilla"));
 
-        // Footer sponsor strip.
+        // Footer sponsor strip (now the single official partner image).
         var sponsorStrip = Page.Locator("[data-testid=\"sponsor-strip\"]");
         await Expect(sponsorStrip).ToBeVisibleAsync();
+        await Expect(sponsorStrip.Locator("img")).ToBeVisibleAsync();
+
+        // Spec 037 FR-015 / FR-025 — official logo in the brand header + dark-teal
+        // sidebar (#12343B = rgb(18, 52, 59)).
+        await Expect(sidebarBrand.Locator("img.fl-sidebar-brand-logo")).ToBeVisibleAsync();
+        var sidebarBg = await Page.Locator("[data-testid=\"sidebar\"]")
+            .EvaluateAsync<string>("el => getComputedStyle(el).backgroundColor");
+        Assert.That(sidebarBg, Does.Match(@"rgb\(\s*18,\s*52,\s*59\s*\)"),
+            $"Sidebar must be the official dark teal #12343B (got {sidebarBg}).");
     }
 }
