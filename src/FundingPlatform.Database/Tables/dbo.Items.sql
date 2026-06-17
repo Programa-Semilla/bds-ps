@@ -5,7 +5,10 @@ CREATE TABLE [dbo].[Items]
     [LineCode]                    NVARCHAR(16)   NULL,
     [ProductName]                 NVARCHAR(500)  NOT NULL,
     [CategoryId]                  INT            NOT NULL,
-    [TechnicalSpecifications]     NVARCHAR(MAX)  NOT NULL,
+    -- Spec 035 (evolved 2026-06-16, data-model.md D14) — the line item no longer carries its
+    -- own impact template/values. It is ATTRIBUTED to the application's declared impacts via
+    -- dbo.ItemImpacts and carries a single short justification (required at submit, <=300).
+    [ImpactJustification]         NVARCHAR(300)  NULL,
     [ReviewStatus]                INT            NOT NULL CONSTRAINT [DF_Items_ReviewStatus] DEFAULT (0),
     [ReviewComment]               NVARCHAR(2000) NULL,
     [SelectedSupplierId]          INT            NULL,

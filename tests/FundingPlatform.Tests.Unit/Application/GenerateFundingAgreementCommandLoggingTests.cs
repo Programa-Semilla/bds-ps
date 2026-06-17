@@ -69,7 +69,7 @@ public class GenerateFundingAgreementCommandLoggingTests
     private static AppEntity BuildReadyApplication()
     {
         var application = new AppEntity(applicantId: 1, 1, companyName: "Test Company");
-        var item = new Item("Widget", 1, "specs");
+        var item = new Item("Widget", 1);
         typeof(Item).GetProperty("Id")!.SetValue(item, 100);
         application.AddItem(item);
         typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Resolved);

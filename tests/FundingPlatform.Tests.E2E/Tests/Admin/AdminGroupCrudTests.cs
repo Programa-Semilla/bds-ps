@@ -75,6 +75,29 @@ public class AdminGroupCrudTests : AuthenticatedTestBase
     }
 
     [Test]
+    public async Task Admin_CreatesGroup_SameNameUnderDifferentProcess_IsAllowed()
+    {
+        // Group names are unique PER PROCESS, not globally: the same name may be
+        // reused by a group in a different Process (even within the same Fund).
+        var unique = Guid.NewGuid().ToString("N")[..6];
+        await SignInAsAdminAsync(unique);
+        var groupName = $"GX-{unique}";
+
+        var procPage = new ProcessAdminPage(Page);
+
+        // Process #1 gets the group.
+        await CreateProcessAndOpenAsync(procPage, $"{unique}a");
+        await procPage.CreateGroupAsync(groupName);
+        await Expect(procPage.GroupRow(groupName)).ToBeVisibleAsync();
+
+        // Process #2 (same Fund) accepts the SAME group name — no collision.
+        await CreateProcessAndOpenAsync(procPage, $"{unique}b");
+        await procPage.CreateGroupAsync(groupName);
+        await Expect(procPage.GroupRow(groupName)).ToBeVisibleAsync();
+        await Expect(procPage.FlashError).Not.ToBeVisibleAsync();
+    }
+
+    [Test]
     public async Task Admin_RenamesGroup_RowReflectsNewName()
     {
         var unique = Guid.NewGuid().ToString("N")[..6];

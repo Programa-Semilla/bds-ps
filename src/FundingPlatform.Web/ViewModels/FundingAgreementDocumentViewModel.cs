@@ -69,7 +69,15 @@ public sealed record RequestedResourceRow(
     decimal Amount,                   // Monto (CRC)
     string Currency,                  // ISO code of original quotation currency
     string SelectedSupplierName,      // Empresa seleccionada
-    string? CurrencyConversionNote);  // Spec 015 conversion note (CRC lines null)
+    string? CurrencyConversionNote,   // Spec 015 conversion note (CRC lines null)
+    // Spec 035 (evolved 2026-06-16, D16) — per-line category fields + attributed
+    // impact name(s) + justification rendered as a block.
+    IReadOnlyList<RequestedResourceDetail>? CategoryFields = null,
+    IReadOnlyList<string>? AttributedImpactNames = null,
+    string? ImpactJustification = null);
+
+/// <summary>Spec 035 / D9 — a label/value pair beneath a funding-agreement line.</summary>
+public sealed record RequestedResourceDetail(string Label, string? Value);
 
 /// <summary>FR-009 / FR-011 — one row of the approved-lines subtable.</summary>
 public sealed record ApprovedLineRow(

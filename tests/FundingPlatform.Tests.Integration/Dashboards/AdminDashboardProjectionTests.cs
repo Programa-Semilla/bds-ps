@@ -96,7 +96,7 @@ public class AdminDashboardProjectionTests
 
                 var app = new AppEntity(applicant.Id, groupId, $"Co {i}");
                 app.AssignPublicCode(NextPublicCode());
-                app.AddItem(new Item("Server", category.Id, "specs"));
+                app.AddItem(new Item("Server", category.Id));
                 ctx.Applications.Add(app);
                 await ctx.SaveChangesAsync();
             }
@@ -140,7 +140,7 @@ public class AdminDashboardProjectionTests
             await ctx.SaveChangesAsync();
             var liveApp = new AppEntity(live.Id, groupId, "Live Co");
             liveApp.AssignPublicCode(NextPublicCode());
-            liveApp.AddItem(new Item("Server", category.Id, "specs"));
+            liveApp.AddItem(new Item("Server", category.Id));
             ctx.Applications.Add(liveApp);
             await ctx.SaveChangesAsync();
 
@@ -155,7 +155,7 @@ public class AdminDashboardProjectionTests
 
             var deletedApp = new AppEntity(ghost.Id, groupId, "Ghost Co");
             deletedApp.AssignPublicCode(NextPublicCode());
-            deletedApp.AddItem(new Item("Server", category.Id, "specs"));
+            deletedApp.AddItem(new Item("Server", category.Id));
             ctx.Applications.Add(deletedApp);
             await ctx.SaveChangesAsync();
 
@@ -279,7 +279,7 @@ public class AdminDashboardProjectionTests
         var groupId = await SeedActiveGroupAsync(ctx);
         var app = new AppEntity(applicant.Id, groupId, $"Co {label}");
         app.AssignPublicCode(NextPublicCode());
-        var item = new Item($"Item {label}", categoryId, "specs");
+        var item = new Item($"Item {label}", categoryId);
         app.AddItem(item);
         ctx.Applications.Add(app);
         await ctx.SaveChangesAsync();

@@ -230,7 +230,7 @@ public class ApplicationResponseTransitionsTests
 
     private static void SetItem(AppEntity application, int itemId)
     {
-        var item = new Item("p", 1, "specs");
+        var item = new Item("p", 1);
         typeof(Item).GetProperty("Id")!.SetValue(item, itemId);
         application.AddItem(item);
     }

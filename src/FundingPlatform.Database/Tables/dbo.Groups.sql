@@ -20,9 +20,11 @@ CREATE NONCLUSTERED INDEX [IX_Groups_ProcessId]
     ON [dbo].[Groups] ([ProcessId]);
 GO
 
--- Spec 016 / FR-001 — case- and accent-insensitive uniqueness on Name (column collation
--- already provides case/accent insensitivity; the unique index is the authoritative gate
--- against duplicates submitted by two admins concurrently).
-CREATE UNIQUE NONCLUSTERED INDEX [UX_Groups_Name]
-    ON [dbo].[Groups] ([Name]);
+-- Group.Name uniqueness is scoped PER PROCESS (not global): a group name must be unique
+-- among the groups of its own Process, but the same name may be reused by a group in a
+-- different Process (even within the same Fund). Column collation provides case/accent
+-- insensitivity; the composite unique index (ProcessId, Name) is the authoritative gate
+-- against duplicates submitted by two admins concurrently.
+CREATE UNIQUE NONCLUSTERED INDEX [UX_Groups_ProcessId_Name]
+    ON [dbo].[Groups] ([ProcessId], [Name]);
 GO

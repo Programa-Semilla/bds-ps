@@ -73,11 +73,12 @@ public class ItemManagementTests : AuthenticatedTestBase
         var editButton = Page.Locator("[data-testid=application-edit-item-row] a:has-text('Editar')").First;
         await editButton.ClickAsync();
 
-        // Edit the item
+        // Edit the item — spec 035: the free-text TechnicalSpecifications field is
+        // gone; the category drives dynamic fields. Re-select the category (which
+        // re-renders + fills its fields) and change the product name.
+        await itemPage.SelectCategoryAndFillFieldsAsync(0);
         await itemPage.ProductNameInput.ClearAsync();
         await itemPage.ProductNameInput.FillAsync("Updated Product");
-        await itemPage.TechnicalSpecificationsInput.ClearAsync();
-        await itemPage.TechnicalSpecificationsInput.FillAsync("Updated specs");
         await itemPage.SubmitButton.ClickAsync();
 
         // Should redirect back to the draft editor

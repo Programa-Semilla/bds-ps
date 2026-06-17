@@ -147,6 +147,25 @@ public class GroupServiceTests
     }
 
     [Test]
+    public async Task Create_SameNameUnderDifferentProcess_IsAllowed()
+    {
+        // Group names are unique PER PROCESS, not globally: the same name may be
+        // reused by a group in a different Process (even within the same Fund).
+        var dbName = $"groups-crossprocess-{Guid.NewGuid():N}";
+        using var ctx = CreateContext(dbName);
+        await SeedUserAsync(ctx, "admin@example.com");
+        var processA = await SeedProcessAsync(ctx, "Proceso A");
+        var processB = await SeedProcessAsync(ctx, "Proceso B");
+        var sut = BuildService(ctx);
+
+        await sut.CreateAsync("Norte", processA, ActorAdminId, CancellationToken.None);
+
+        // Same group name under a different Process must NOT collide.
+        Assert.DoesNotThrowAsync(
+            async () => await sut.CreateAsync("Norte", processB, ActorAdminId, CancellationToken.None));
+    }
+
+    [Test]
     public async Task MoveToProcess_ReparentsGroup_AndWritesAuditRow()
     {
         // Spec 021 / FR-001 — admin reparents a Group to a different Process.

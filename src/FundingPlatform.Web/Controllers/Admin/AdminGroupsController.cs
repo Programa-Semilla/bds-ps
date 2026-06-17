@@ -76,14 +76,16 @@ public class AdminGroupsController : Controller
         var detail = await _groups.GetAsync(id, ct);
         if (detail is null) return NotFound();
         var rows = await _groups.ListAsync(ct);
-        var memberCount = rows.FirstOrDefault(r => r.Id == id)?.MemberCount ?? 0;
+        var row = rows.FirstOrDefault(r => r.Id == id);
 
         var vm = new AdminGroupEditViewModel
         {
             Id = detail.Id,
             Name = detail.Name,
             ProcessId = detail.ProcessId,
-            MemberCount = memberCount,
+            MemberCount = row?.MemberCount ?? 0,
+            ProcessName = row?.ProcessName ?? "",
+            FundName = row?.FundName ?? "",
         };
         await PopulateReparentCatalogAsync(vm, ct);
         return View(vm);

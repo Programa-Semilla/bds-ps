@@ -78,8 +78,8 @@ public class LineCodeRequiredAndUniqueTests
 
         var app = new AppEntity(applicant.Id, 1, "Test Company");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-        var item1 = new Item("Laptop", category.Id, "specs");
-        var item2 = new Item("Antena", category.Id, "specs");
+        var item1 = new Item("Laptop", category.Id);
+        var item2 = new Item("Antena", category.Id);
         app.AddItem(item1);
         app.AddItem(item2);
         _ctx.Applications.Add(app);

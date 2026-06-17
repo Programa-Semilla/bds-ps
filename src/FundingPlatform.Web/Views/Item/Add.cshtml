@@ -16,11 +16,26 @@
 
 <div class="card">
     <div class="card-body">
-        <form asp-controller="Item" asp-action="Add" asp-route-appId="@Model.ApplicationId" method="post">
+        <form asp-controller="Item" asp-action="Add" asp-route-appId="@Model.ApplicationId" method="post"
+              data-category-fields-url="@Url.Action("CategoryFields", "Item", new { appId = Model.ApplicationId, categoryId = "__CID__" })">
             @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
             <input type="hidden" asp-for="ApplicationId" />
+
+            <div class="mb-3" data-testid="form-section" data-field="CategoryId">
+                <label asp-for="CategoryId" class="form-label"></label> @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Item.Category"))
+                <select asp-for="CategoryId" asp-items="Model.Categories" class="form-select" data-searchable
+                        data-testid="item-category-select" id="item-category-select">
+                    <option value="">-- Seleccione una categoría --</option>
+                </select>
+                <span asp-validation-for="CategoryId" class="invalid-feedback d-block"></span>
+            </div>
+
+            @* Spec 035 — dynamic category fields, rendered client-side on category change. *@
+            <div id="category-fields" data-testid="item-category-fields">
+                <partial name="_DynamicFieldInputs" model="@((Model.CategoryFields, "CategoryFieldValues"))" />
+            </div>
 
             <div class="mb-3" data-testid="form-section" data-field="ProductName">
                 <label asp-for="ProductName" class="form-label"></label> @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Item.ProductName"))
@@ -28,23 +43,14 @@
                 <span asp-validation-for="ProductName" class="invalid-feedback d-block"></span>
             </div>
 
-            <div class="mb-3" data-testid="form-section" data-field="CategoryId">
-                <label asp-for="CategoryId" class="form-label"></label> @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Item.Category"))
-                <select asp-for="CategoryId" asp-items="Model.Categories" class="form-select" data-searchable>
-                    <option value="">-- Seleccione una categoría --</option>
-                </select>
-                <span asp-validation-for="CategoryId" class="invalid-feedback d-block"></span>
-            </div>
+            <hr />
 
-            <div class="mb-3" data-testid="form-section" data-field="TechnicalSpecifications">
-                <label asp-for="TechnicalSpecifications" class="form-label"></label> @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Item.TechnicalSpecifications"))
-                <textarea asp-for="TechnicalSpecifications" class="form-control" rows="5"></textarea>
-                <span asp-validation-for="TechnicalSpecifications" class="invalid-feedback d-block"></span>
-            </div>
+            @* Spec 035 (evolved) — attribution to the application's declared impacts + justification. *@
+            <partial name="_ItemImpactAttribution" model="Model" />
 
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">Agregar ítem</button>
-                <a asp-controller="Application" asp-action="Details" asp-route-id="@Model.ApplicationId" class="btn btn-outline-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary" data-testid="item-save">Agregar ítem</button>
+                <a asp-controller="Application" asp-action="Edit" asp-route-id="@Model.ApplicationId" class="btn btn-outline-secondary">Cancelar</a>
             </div>
         </form>
     </div>
@@ -52,4 +58,6 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/dynamic-fields.js" asp-append-version="true"></script>
+    <partial name="_DynamicFieldWiring" />
 }

@@ -74,13 +74,7 @@ public class SubmitGuardTests
         _ctx.Applications.Add(application);
         await _ctx.SaveChangesAsync();
 
-        // Set Impact so we trip the items-guard, not the impact-guard, first.
-        var template = new ImpactTemplate("ImpactA", description: null, isActive: true);
-        _ctx.Add(template);
-        await _ctx.SaveChangesAsync();
-        application.SetImpact(template, Array.Empty<ImpactParameterValue>());
-        await _ctx.SaveChangesAsync();
-
+        // Spec 035 — with zero items the items-guard trips first regardless of impact.
         Assert.That(
             async () => await _handler.SubmitAsync(new SubmitApplicationCommand(application.Id)),
             Throws.InstanceOf<InvalidOperationException>()
@@ -122,12 +116,18 @@ public class SubmitGuardTests
         _ctx.Add(template);
         await _ctx.SaveChangesAsync();
 
-        application.SetImpact(template, Array.Empty<ImpactParameterValue>());
-
-        var item = new Item("Producto A", 1, "specs");
+        // Spec 035 (evolved) — impact is declared at the application level; the item
+        // attributes itself to it + carries a justification. Quotations are still
+        // missing, so the quotation guard is what trips.
+        var impact = application.AddImpact(template, Array.Empty<ImpactParameterValue>());
+        var item = new Item("Producto A", 1);
         application.AddItem(item);
 
         _ctx.Applications.Add(application);
+        await _ctx.SaveChangesAsync();
+
+        item.AttributeImpacts(new[] { impact.Id });
+        item.SetImpactJustification("apoya el empleo");
         await _ctx.SaveChangesAsync();
 
         Assert.That(

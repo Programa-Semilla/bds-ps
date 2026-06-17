@@ -1,0 +1,81 @@
+@model int
+
+@* Spec 035 / US1 — add/remove/reindex for the category-field repeating rows.
+   @Model is the initial field count (starting index). es-CR "Campo" labels. *@
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let fieldIndex = @Model;
+        const container = document.getElementById('fieldsContainer');
+        const addBtn = document.getElementById('addField');
+        if (!container || !addBtn) { return; }
+
+        addBtn.addEventListener('click', function () {
+            const idx = fieldIndex;
+            const card = document.createElement('div');
+            card.className = 'card mb-3 field-row';
+            card.setAttribute('data-index', idx);
+            card.innerHTML = `
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">Campo ${idx + 1}</h6>
+                        <button type="button" class="btn btn-sm btn-danger remove-field">Eliminar</button>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label">Nombre (clave)</label>
+                            <input name="Fields[${idx}].Name" class="form-control" required />
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label">Etiqueta</label>
+                            <input name="Fields[${idx}].DisplayLabel" class="form-control" required />
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label">Tipo de dato</label>
+                            <select name="Fields[${idx}].DataType" class="form-select" required>
+                                <option value="Text">Texto</option>
+                                <option value="Decimal">Decimal</option>
+                                <option value="Integer">Entero</option>
+                                <option value="Date">Fecha</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <div class="form-check mt-4">
+                                <input name="Fields[${idx}].IsRequired" type="checkbox" class="form-check-input" value="true" />
+                                <label class="form-check-label">Obligatorio</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label">Orden</label>
+                            <input name="Fields[${idx}].SortOrder" type="number" value="${idx}" class="form-control" required />
+                        </div>
+                    </div>
+                </div>`;
+            container.appendChild(card);
+            fieldIndex++;
+        });
+
+        container.addEventListener('click', function (e) {
+            if (e.target.classList.contains('remove-field')) {
+                e.target.closest('.field-row').remove();
+                reindexFields();
+            }
+        });
+
+        function reindexFields() {
+            const rows = container.querySelectorAll('.field-row');
+            rows.forEach(function (row, idx) {
+                row.setAttribute('data-index', idx);
+                row.querySelector('h6').textContent = 'Campo ' + (idx + 1);
+                row.querySelectorAll('input, select').forEach(function (input) {
+                    const name = input.getAttribute('name');
+                    if (name) {
+                        input.setAttribute('name', name.replace(/Fields\[\d+\]/, 'Fields[' + idx + ']'));
+                    }
+                });
+            });
+            fieldIndex = rows.length;
+        }
+    });
+</script>

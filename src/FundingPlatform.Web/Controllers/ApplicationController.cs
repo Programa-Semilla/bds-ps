@@ -194,119 +194,9 @@ public class ApplicationController : Controller
     }
 
     /// <summary>
-    /// Spec 021 / FR-005 — the Impact step. Impact is captured on the
-    /// Application aggregate upfront, before any Item exists; it is reached
-    /// directly after draft creation and is never routed through an Item.
-    /// </summary>
-    [HttpGet]
-    [Route("Application/{id}/Impact")]
-    public async Task<IActionResult> Impact(int id, string? returnTo)
-    {
-        var applicantId = await GetCurrentApplicantIdAsync();
-        var application = await _applicationService.GetApplicationAsync(id);
-        if (application is null || application.ApplicantId != applicantId)
-        {
-            return NotFound();
-        }
-
-        var templates = await _applicationService.GetImpactTemplatesAsync();
-        var viewModel = new ImpactViewModel
-        {
-            ApplicationId = id,
-            PublicCode = application.PublicCode,
-            CompanyName = application.CompanyName ?? string.Empty,
-            ReturnTo = returnTo,
-            SelectedTemplateId = application.Impact?.ImpactTemplateId,
-            Templates = templates.Select(t => new ImpactTemplateOptionViewModel
-            {
-                Id = t.Id,
-                Name = t.Name,
-                Description = t.Description,
-            }).ToList(),
-        };
-
-        // Pre-fill parameter inputs when an Impact has already been captured.
-        if (application.Impact is not null)
-        {
-            var selected = templates.FirstOrDefault(t => t.Id == application.Impact.ImpactTemplateId);
-            if (selected is not null)
-            {
-                viewModel.Parameters = selected.Parameters.Select(p => new ImpactParameterInputViewModel
-                {
-                    ParameterId = p.Id,
-                    Name = p.Name,
-                    DisplayLabel = p.DisplayLabel,
-                    DataType = p.DataType,
-                    IsRequired = p.IsRequired,
-                    Value = application.Impact.ParameterValues
-                        .FirstOrDefault(pv => pv.ParameterId == p.Id)?.Value,
-                }).ToList();
-            }
-        }
-
-        return View(viewModel);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [Route("Application/{id}/Impact")]
-    public async Task<IActionResult> Impact(int id, ImpactViewModel model)
-    {
-        var applicantId = await GetCurrentApplicantIdAsync();
-        var application = await _applicationService.GetApplicationAsync(id);
-        if (application is null || application.ApplicantId != applicantId)
-        {
-            return NotFound();
-        }
-
-        if (await IsApplicationFrozenAsync(id))
-        {
-            TempData["ErrorMessage"] = FrozenToast;
-            return RedirectToAction(nameof(Details), new { id });
-        }
-
-        if (!model.SelectedTemplateId.HasValue)
-        {
-            ModelState.AddModelError(nameof(model.SelectedTemplateId), "Seleccione una plantilla de impacto.");
-        }
-
-        if (ModelState.IsValid && model.SelectedTemplateId.HasValue)
-        {
-            var parameterValues = (model.Parameters ?? new())
-                .ToDictionary(p => p.ParameterId, p => p.Value);
-            try
-            {
-                await _applicationService.SetApplicationImpactAsync(
-                    new SetApplicationImpactCommand(id, model.SelectedTemplateId.Value, parameterValues));
-                TempData["SuccessMessage"] = "Impacto guardado con éxito.";
-                // Spec 021 / FR-005 — return to the draft editor when the
-                // impact step was entered from it; otherwise to Details.
-                return string.Equals(model.ReturnTo, "edit", StringComparison.OrdinalIgnoreCase)
-                    ? RedirectToAction(nameof(Edit), new { id })
-                    : RedirectToAction(nameof(Details), new { id });
-            }
-            catch (InvalidOperationException ex)
-            {
-                ModelState.AddModelError(string.Empty, ex.Message);
-            }
-        }
-
-        var templates = await _applicationService.GetImpactTemplatesAsync();
-        model.ApplicationId = id;
-        model.PublicCode = application.PublicCode;
-        model.CompanyName = application.CompanyName ?? string.Empty;
-        model.Templates = templates.Select(t => new ImpactTemplateOptionViewModel
-        {
-            Id = t.Id,
-            Name = t.Name,
-            Description = t.Description,
-        }).ToList();
-        return View(model);
-    }
-
-    /// <summary>
-    /// Spec 021 / FR-005 — parameter inputs for an ImpactTemplate, fetched by
-    /// the Impact step when the applicant picks a template.
+    /// Spec 035 / US2 — impact parameter descriptors for an ImpactTemplate,
+    /// fetched by the per-item form when the applicant picks a template. The route
+    /// is kept from spec 021 (now consumed by the item form, not an app-level step).
     /// </summary>
     [HttpGet]
     [Route("Application/{id}/Impact/TemplateParameters/{templateId}")]
@@ -323,73 +213,81 @@ public class ApplicationController : Controller
             id = p.Id,
             name = p.Name,
             displayLabel = p.DisplayLabel,
-            dataType = p.DataType,
+            dataType = (int)Enum.Parse<FundingPlatform.Domain.Enums.ParameterDataType>(p.DataType),
             isRequired = p.IsRequired,
         }));
     }
 
-    /// <summary>
-    /// Spec 021 / FR-005 — inline item creation from the draft editor. Posts
-    /// from the embedded add-item form and returns to <see cref="Edit(int)"/>,
-    /// so the applicant never leaves the draft screen.
-    /// </summary>
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [Route("Application/{id}/AddItem")]
-    public async Task<IActionResult> AddItem(int id, string? productName, int categoryId, string? technicalSpecifications)
+    // ---- Spec 035 (evolved 2026-06-16, US2 / D15) — application-level impacts manager ----
+
+    [HttpGet]
+    [Route("Application/{id}/Impacts")]
+    public async Task<IActionResult> Impacts(int id)
     {
-        var applicantId = await GetCurrentApplicantIdAsync();
-        var application = await _applicationService.GetApplicationAsync(id);
-        if (application is null || application.ApplicantId != applicantId)
-        {
-            return NotFound();
-        }
-
-        if (await IsApplicationFrozenAsync(id))
-        {
-            TempData["ErrorMessage"] = FrozenToast;
-            return RedirectToAction(nameof(Details), new { id });
-        }
-
-        if (string.IsNullOrWhiteSpace(productName)
-            || categoryId == 0
-            || string.IsNullOrWhiteSpace(technicalSpecifications))
-        {
-            TempData["ValidationErrors"] = System.Text.Json.JsonSerializer.Serialize(
-                new[] { "Complete nombre del producto, categoría y especificaciones técnicas para agregar el ítem." });
-            return RedirectToAction(nameof(Edit), new { id });
-        }
-
-        await _applicationService.AddItemAsync(
-            new AddItemCommand(id, productName, categoryId, technicalSpecifications));
-        TempData["SuccessMessage"] = "Ítem agregado.";
-        return RedirectToAction(nameof(Edit), new { id });
+        await VerifyOwnershipAsync(id);
+        var vm = await BuildImpactsViewModelAsync(id);
+        return View(vm);
     }
 
-    /// <summary>
-    /// Spec 021 / FR-005 — inline item removal from the draft editor.
-    /// </summary>
     [HttpPost]
+    [Route("Application/{id}/Impacts/Add")]
     [ValidateAntiForgeryToken]
-    [Route("Application/{id}/RemoveItem")]
-    public async Task<IActionResult> RemoveItem(int id, int itemId)
+    public async Task<IActionResult> AddImpact(int id, int impactTemplateId, Dictionary<int, string?>? parameterValues)
     {
-        var applicantId = await GetCurrentApplicantIdAsync();
-        var application = await _applicationService.GetApplicationAsync(id);
-        if (application is null || application.ApplicantId != applicantId)
+        await VerifyOwnershipAsync(id);
+
+        try
         {
-            return NotFound();
+            await _applicationService.AddApplicationImpactAsync(
+                new AddApplicationImpactCommand(id, impactTemplateId, parameterValues ?? new()));
+            TempData["SuccessMessage"] = "Impacto agregado con éxito.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
         }
 
-        if (await IsApplicationFrozenAsync(id))
-        {
-            TempData["ErrorMessage"] = FrozenToast;
-            return RedirectToAction(nameof(Details), new { id });
-        }
+        return RedirectToAction(nameof(Impacts), new { id });
+    }
 
-        await _applicationService.RemoveItemAsync(new RemoveItemCommand(itemId, id));
-        TempData["SuccessMessage"] = "Ítem eliminado.";
-        return RedirectToAction(nameof(Edit), new { id });
+    [HttpPost]
+    [Route("Application/{id}/Impacts/{applicationImpactId}/Remove")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveImpact(int id, int applicationImpactId)
+    {
+        await VerifyOwnershipAsync(id);
+
+        await _applicationService.RemoveApplicationImpactAsync(
+            new RemoveApplicationImpactCommand(id, applicationImpactId));
+        TempData["SuccessMessage"] = "Impacto eliminado.";
+
+        return RedirectToAction(nameof(Impacts), new { id });
+    }
+
+    private async Task<ApplicationImpactsViewModel> BuildImpactsViewModelAsync(int id)
+    {
+        var dto = await _applicationService.GetApplicationAsync(id);
+        var templates = await _applicationService.GetImpactTemplatesAsync();
+
+        return new ApplicationImpactsViewModel
+        {
+            ApplicationId = id,
+            CompanyName = dto?.CompanyName,
+            DeclaredImpacts = (dto?.Impacts ?? new()).Select(ai => new DeclaredImpactRow
+            {
+                ApplicationImpactId = ai.Id,
+                TemplateName = ai.ImpactTemplateName,
+                Parameters = ai.ParameterValues.Select(pv => new ImpactParameterDisplayViewModel
+                {
+                    Name = pv.ParameterName,
+                    DisplayLabel = pv.ParameterDisplayLabel,
+                    Value = pv.Value ?? string.Empty,
+                }).ToList(),
+            }).ToList(),
+            ActiveTemplates = templates
+                .Select(t => new SelectListItem { Value = t.Id.ToString(), Text = t.Name })
+                .ToList(),
+        };
     }
 
     /// <summary>
@@ -654,6 +552,20 @@ public class ApplicationController : Controller
     }
 
     /// <summary>
+    /// Spec 035 (evolved 2026-06-16) — asserts the current applicant owns the application
+    /// before mutating its impacts (mirrors the ItemController guard).
+    /// </summary>
+    private async Task VerifyOwnershipAsync(int appId)
+    {
+        var applicantId = await GetCurrentApplicantIdAsync();
+        var application = await _applicationService.GetApplicationAsync(appId);
+        if (application is null || application.ApplicantId != applicantId)
+        {
+            throw new UnauthorizedAccessException("You do not own this application.");
+        }
+    }
+
+    /// <summary>
     /// Spec 029 / FR-013 — when the application's anchored Fund is Active and
     /// carries a regulation, stash the download target in ViewData so the
     /// applicant Edit/Details surfaces can render the link (and nothing otherwise).
@@ -791,7 +703,13 @@ public class ApplicationController : Controller
                 ProductName = i.ProductName,
                 CategoryName = i.CategoryName,
                 QuotationCount = i.Quotations.Count,
-                HasImpact = i.Impact is not null,
+                // Spec 035 (evolved 2026-06-16, D14) — attributed impact names + justification.
+                AttributedImpactNames = i.AttributedImpactNames,
+                ImpactJustification = i.ImpactJustification,
+                // Spec 035 / D1 — per-item category field values.
+                CategoryFields = i.CategoryFields
+                    .Select(cf => new CategoryFieldDisplayViewModel { Label = cf.Label, Value = cf.Value })
+                    .ToList(),
                 ReviewComment = i.ReviewComment,
                 // OR in the legacy English sentinel: pre-fix rows (and rows whose
                 // flag was reset while the comment was preserved) still carry it in
@@ -840,17 +758,18 @@ public class ApplicationController : Controller
         vm.TotalConvertedCrc = total;
         vm.HasLegacyNeedsReview = hasLegacy;
 
-        // Spec 021 / FR-005 — surface the per-Application Impact summary so the
-        // Edit page can render the Impact card and gate the submit button.
-        vm.ImpactSet = dto.Impact is not null;
-        vm.ImpactTemplateName = dto.Impact?.ImpactTemplateName;
-        vm.ImpactParameters = dto.Impact?.ParameterValues
-            .Select(pv => new ImpactParameterDisplayViewModel
+        // Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level).
+        vm.Impacts = dto.Impacts.Select(ai => new ApplicationImpactDisplayViewModel
+        {
+            TemplateName = ai.ImpactTemplateName,
+            Parameters = ai.ParameterValues.Select(pv => new ImpactParameterDisplayViewModel
             {
                 Name = pv.ParameterName,
                 DisplayLabel = pv.ParameterDisplayLabel,
                 Value = pv.Value ?? string.Empty,
-            }).ToList() ?? new();
+            }).ToList(),
+        }).ToList();
+
         return vm;
     }
 

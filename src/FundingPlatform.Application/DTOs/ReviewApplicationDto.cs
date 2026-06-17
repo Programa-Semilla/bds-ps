@@ -9,23 +9,32 @@ public record ReviewApplicationDto(
     ApplicationState State,
     DateTime? SubmittedAt,
     List<ReviewItemDto> Items,
+    // Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level).
+    List<ReviewImpactGroupDto> Impacts,
     int RejectedSupplierCount = 0);
 
 public record ReviewItemDto(
     int ItemId,
     string ProductName,
     string CategoryName,
-    string TechnicalSpecifications,
     ItemReviewStatus ReviewStatus,
     string? ReviewComment,
     int? SelectedSupplierId,
     bool IsNotTechnicallyEquivalent,
     List<ReviewQuotationDto> Quotations,
-    string? ImpactTemplateName,
-    List<ImpactParameterDisplayDto> ImpactParameters,
+    // Spec 035 (evolved 2026-06-16, D14) — attributed impact names + short justification.
+    List<string> AttributedImpactNames,
+    string? ImpactJustification,
+    // Spec 035 / D1 — per-item category field label/value pairs.
+    List<CategoryFieldValueDto> CategoryFields,
     /// <summary>Spec 018 / FR-012 — reviewer-assigned line code, null until first
     /// assignment.</summary>
     string? LineCode = null);
+
+// Spec 035 (evolved 2026-06-16, D16) — one declared application impact for display.
+public record ReviewImpactGroupDto(
+    string TemplateName,
+    List<ImpactParameterDisplayDto> Parameters);
 
 public record ReviewQuotationDto(
     int QuotationId,

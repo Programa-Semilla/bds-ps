@@ -276,6 +276,36 @@ public class SupplierPage : BasePage
         await SubmitButton.ClickAsync();
     }
 
+    // Spec 035 / US3 — quotation reuse. The reuse card renders only when a sibling
+    // line item already has a quotation; picking one hides the add-new + upload
+    // sections and shares the source's supplier + document.
+    public ILocator ReuseCard => Page.GetByTestId("reuse-quotation-card");
+    public ILocator ReuseSelect => Page.GetByTestId("reuse-select");
+
+    /// <summary>Number of reuse candidates offered (excludes the placeholder option).</summary>
+    public async Task<int> ReuseOptionCountAsync()
+    {
+        var options = await ReuseSelect.Locator("option").AllAsync();
+        return options.Count - 1;
+    }
+
+    /// <summary>
+    /// Picks the first reuse candidate and fills this line's own price/validity.
+    /// Currency defaults to the form's pre-filled value (CRC) unless overridden.
+    /// </summary>
+    public async Task ReuseFirstAndFillAsync(decimal price, string validUntil, string? currency = null)
+    {
+        var options = await ReuseSelect.Locator("option").AllAsync();
+        var value = await options[1].GetAttributeAsync("value");
+        await ReuseSelect.SelectOptionAsync(value!);
+        await PriceInput.FillAsync(price.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (currency is not null)
+        {
+            await SetCurrencyAsync(currency);
+        }
+        await ValidUntilInput.FillAsync(validUntil);
+    }
+
     /// <summary>
     /// Backwards-compat shim: spec 013 deleted the flat-supplier form. Older tests
     /// call this with the pre-spec-013 parameter set; we translate every call into

@@ -46,6 +46,33 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Name] = N'Construction')
     VALUES (N'Construction', N'Building materials, construction equipment, and infrastructure', 1);
 
 -- =============================================================================
+-- Spec 035: Category fields — admin-configured field set rendered per line item
+-- (replaces the free-text Item.TechnicalSpecifications). es-CR display labels.
+-- Idempotent: seed a category's fields only when it has none yet. DataType per
+-- ParameterDataType (Text=0, Decimal=1, Integer=2, Date=3).
+-- =============================================================================
+DECLARE @ComputingId INT = (SELECT [Id] FROM [dbo].[Categories] WHERE [Name] = N'Computing Equipment');
+IF @ComputingId IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM [dbo].[CategoryFields] WHERE [CategoryId] = @ComputingId)
+    INSERT INTO [dbo].[CategoryFields] ([CategoryId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
+    VALUES
+        (@ComputingId, N'Marca',        N'Marca',                0, 0, 1),
+        (@ComputingId, N'Modelo',       N'Modelo',               0, 1, 2),
+        (@ComputingId, N'UnitCost',     N'Costo unitario',       1, 1, 3),
+        (@ComputingId, N'WarrantyMonths', N'Garantía (meses)',   2, 0, 4);
+
+DECLARE @LabId INT = (SELECT [Id] FROM [dbo].[Categories] WHERE [Name] = N'Laboratory Equipment');
+IF @LabId IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM [dbo].[CategoryFields] WHERE [CategoryId] = @LabId)
+    INSERT INTO [dbo].[CategoryFields] ([CategoryId], [Name], [DisplayLabel], [DataType], [IsRequired], [SortOrder])
+    VALUES
+        (@LabId, N'Fabricante',     N'Fabricante',           0, 1, 1),
+        (@LabId, N'Modelo',         N'Modelo',               0, 1, 2),
+        (@LabId, N'Precision',      N'Precisión',            0, 0, 3),
+        (@LabId, N'CalibrationDate', N'Fecha de calibración', 3, 0, 4);
+GO
+
+-- =============================================================================
 -- System Configurations
 -- =============================================================================
 IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'MinQuotationsPerItem')

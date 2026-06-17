@@ -18,7 +18,7 @@ public class ItemLineCodeTests
         var app = new AppEntity(applicantId: 1, 1, companyName: "Test Company");
         for (var i = 0; i < itemCount; i++)
         {
-            var item = new Item($"Product-{i + 1}", categoryId: 1, technicalSpecifications: "specs");
+            var item = new Item($"Product-{i + 1}", categoryId: 1);
             // The synthetic Id is normally assigned by the DB; the in-memory tests
             // need it set so AssignLineCodeToItem can locate the item.
             typeof(Item).GetProperty("Id")!.SetValue(item, i + 1);

@@ -5,20 +5,19 @@ namespace FundingPlatform.Domain.Entities;
 
 /// <summary>
 /// Spec 021 / FR-003 — base catalogue entity owned by *Administración*. Holds the
-/// minimum-quotations-per-item rule, a bitfield of required-field flags, and a
-/// many-to-many list of <see cref="ImpactTemplate"/> rows that the assigned
-/// <see cref="Process"/> may pick from when applicants set their Impact.
+/// minimum-quotations-per-item rule and a bitfield of required-field flags.
 ///
 /// Assignment is a copy-on-write operation: <see cref="AssignTo"/> returns a
 /// frozen <see cref="ProcessPlantilla"/> snapshot. Subsequent <see cref="Edit"/>
 /// calls mutate the base catalog only — already-assigned snapshots are
 /// independent (FR-004).
+///
+/// Spec 035 / D4 — the impact-template many-to-many gating was removed: per-item
+/// impact selection picks from any active impact template (no Plantilla gate).
 /// </summary>
 public class Plantilla
 {
     public const int MaxNameLength = 120;
-
-    private readonly List<ImpactTemplate> _impactTemplates = [];
 
     public int Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
@@ -27,13 +26,6 @@ public class Plantilla
     public bool IsArchived { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public byte[] RowVersion { get; private set; } = [];
-
-    /// <summary>
-    /// Many-to-many: candidate ImpactTemplates available when a Process built from
-    /// this Plantilla collects an applicant's Impact pick. EF-mapped via the
-    /// <c>PlantillaImpactTemplates</c> join table.
-    /// </summary>
-    public ICollection<ImpactTemplate> ImpactTemplates => _impactTemplates;
 
     private Plantilla() { }
 
@@ -82,31 +74,6 @@ public class Plantilla
     }
 
     /// <summary>
-    /// Attaches an ImpactTemplate to the base Plantilla. Idempotent.
-    /// </summary>
-    public void AttachImpactTemplate(ImpactTemplate template)
-    {
-        ArgumentNullException.ThrowIfNull(template);
-        if (_impactTemplates.Any(t => t.Id == template.Id))
-        {
-            return;
-        }
-        _impactTemplates.Add(template);
-    }
-
-    /// <summary>
-    /// Detaches an ImpactTemplate from the base Plantilla. Idempotent.
-    /// </summary>
-    public void DetachImpactTemplate(int impactTemplateId)
-    {
-        var existing = _impactTemplates.FirstOrDefault(t => t.Id == impactTemplateId);
-        if (existing is not null)
-        {
-            _impactTemplates.Remove(existing);
-        }
-    }
-
-    /// <summary>
     /// Soft-deletes the base Plantilla. Already-assigned Process snapshots are
     /// unaffected (FR-004).
     /// </summary>
@@ -119,12 +86,13 @@ public class Plantilla
     /// <summary>
     /// Spec 021 / FR-003 / FR-004 / OQ-1 — produces a frozen
     /// <see cref="ProcessPlantilla"/> snapshot and binds it to <paramref name="target"/>.
-    /// Validates: target Process is Active, has no existing ProcessPlantilla
-    /// (one-to-one per OQ-1), and this Plantilla has ≥ 1 attached ImpactTemplate.
+    /// Validates: target Process has no existing ProcessPlantilla (one-to-one per
+    /// OQ-1) and the source Plantilla is not archived. Spec 035 / D4 — the prior
+    /// "≥ 1 attached ImpactTemplate" guard is removed (impact gating gone).
     /// </summary>
     /// <exception cref="InvalidOperationException">
-    /// Thrown when the target Process already has a Plantilla, the source
-    /// Plantilla is archived, or there are no attached ImpactTemplates.
+    /// Thrown when the target Process already has a Plantilla or the source
+    /// Plantilla is archived.
     /// </exception>
     public ProcessPlantilla AssignTo(Process target)
     {
@@ -138,18 +106,12 @@ public class Plantilla
             throw new InvalidOperationException(
                 $"Process {target.Id} already has a Plantilla snapshot (OQ-1: one-to-one).");
         }
-        if (_impactTemplates.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "Plantilla must have ≥ 1 ImpactTemplate attached before assignment.");
-        }
 
         var snapshot = new ProcessPlantilla(
             processId: target.Id,
             sourcePlantillaId: Id,
             minimumQuotationsPerItem: MinimumQuotationsPerItem,
             requiredFieldFlags: RequiredFieldFlags,
-            impactTemplateIds: _impactTemplates.Select(t => t.Id),
             assignedAt: DateTimeOffset.UtcNow);
 
         // Bind to the parent Process so the EF nav property reflects the new

@@ -142,7 +142,7 @@ public class ApplicationServiceEditQuotationTests
         var application = new AppEntity(applicant.Id, 1, "Test Co");
         application.AssignPublicCode(Helpers.TestPublicCodes.Next());
         var category = await ctx.Categories.FirstAsync();
-        application.AddItem(new Item("Server", category.Id, "specs"));
+        application.AddItem(new Item("Server", category.Id));
         ctx.Applications.Add(application);
         await ctx.SaveChangesAsync();
 

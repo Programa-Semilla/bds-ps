@@ -8,8 +8,11 @@
 @using FundingPlatform.Web.Models
 @model FundingPlatform.Web.ViewModels.Admin.AdminProcessDetailsViewModel
 @{
-    ViewData["Title"] = Model.Detail.Name;
     var detail = Model.Detail;
+    // Process names repeat across funds now (per-fund uniqueness), so the title is
+    // compound — Fondo › Proceso — to keep the screen unambiguous.
+    var compoundTitle = $"{detail.FundName} › {detail.Name}";
+    ViewData["Title"] = compoundTitle;
     string StatusLabel(ProcessStatus s) => s switch
     {
         ProcessStatus.Active => "Activo",
@@ -21,11 +24,12 @@
 <div data-testid="admin-process-details-area">
     @await Html.PartialAsync("Components/_PageHeader",
         new PageHeaderViewModel(
-            Title: detail.Name,
+            Title: compoundTitle,
             Subtitle: $"Estado: {StatusLabel(detail.Status)} · Creado {detail.CreatedAt:yyyy-MM-dd}",
             Breadcrumbs: new[]
             {
                 new BreadcrumbItem("Procesos", Url.Action("Index", "AdminProcesses")),
+                new BreadcrumbItem(detail.FundName),
                 new BreadcrumbItem(detail.Name),
             }))
 
@@ -119,17 +123,6 @@
                             <dd class="col-sm-7" data-testid="admin-process-plantilla-base-name">@snapshot.SourcePlantillaName</dd>
                             <dt class="col-sm-5">Mín. cotizaciones / ítem</dt>
                             <dd class="col-sm-7" data-testid="admin-process-plantilla-min-quotations">@snapshot.MinimumQuotationsPerItem</dd>
-                            <dt class="col-sm-5">Plantillas de impacto</dt>
-                            <dd class="col-sm-7" data-testid="admin-process-plantilla-impacts">
-                                @if (snapshot.ImpactTemplateNames.Count == 0)
-                                {
-                                    <em>—</em>
-                                }
-                                else
-                                {
-                                    @string.Join(", ", snapshot.ImpactTemplateNames)
-                                }
-                            </dd>
                             <dt class="col-sm-5">Asignada el</dt>
                             <dd class="col-sm-7">@snapshot.AssignedAt.ToString("yyyy-MM-dd HH:mm")</dd>
                         </dl>
@@ -207,7 +200,7 @@
                                     <option value="">Seleccione una plantilla base</option>
                                     @foreach (var p in Model.AssignableBasePlantillas)
                                     {
-                                        <option value="@p.Id">@p.Name (mín. @p.MinimumQuotationsPerItem cotizaciones, @p.ImpactTemplateCount plantilla(s) de impacto)</option>
+                                        <option value="@p.Id">@p.Name (mín. @p.MinimumQuotationsPerItem cotizaciones)</option>
                                     }
                                 </select>
                                 <button type="submit" class="btn btn-primary"

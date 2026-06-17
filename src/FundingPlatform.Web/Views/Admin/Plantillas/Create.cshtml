@@ -47,35 +47,6 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Plantillas de impacto disponibles</label>
-            <p class="form-hint">El solicitante elegirá UNA de estas plantillas al crear la solicitud.</p>
-            @if (Model.AvailableImpactTemplates.Count == 0)
-            {
-                <div class="alert alert-warning" data-testid="admin-plantilla-no-impact-templates">
-                    No hay plantillas de impacto activas. Cree alguna desde <a href="/Admin/ImpactTemplates">Plantillas de impacto</a>.
-                </div>
-            }
-            else
-            {
-                <div class="row" data-testid="admin-plantilla-impact-templates">
-                    @foreach (var opt in Model.AvailableImpactTemplates)
-                    {
-                        var isChecked = Model.ImpactTemplateIds.Contains(opt.Id);
-                        <div class="col-md-6">
-                            <label class="form-check">
-                                <input type="checkbox" name="ImpactTemplateIds" value="@opt.Id"
-                                       class="form-check-input"
-                                       data-testid="admin-plantilla-impact-template-@opt.Id"
-                                       checked="@isChecked" />
-                                <span class="form-check-label">@opt.Name</span>
-                            </label>
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-
-        <div class="mb-3">
             <label class="form-label">Campos requeridos</label>
             <div class="row" data-testid="admin-plantilla-required-flags">
                 @foreach (var kind in requiredFieldKinds)

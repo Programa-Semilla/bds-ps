@@ -17,5 +17,12 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
 
         builder.Property(c => c.Description).HasMaxLength(500);
         builder.Property(c => c.IsActive).IsRequired();
+
+        // Spec 035 — owned 1:N field set; cascade so deleting a Category removes
+        // its field definitions.
+        builder.HasMany(c => c.Fields)
+            .WithOne(f => f.Category)
+            .HasForeignKey(f => f.CategoryId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

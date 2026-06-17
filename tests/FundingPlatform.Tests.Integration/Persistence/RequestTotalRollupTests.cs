@@ -67,10 +67,10 @@ public class RequestTotalRollupTests
 
             var application = new AppEntity(applicant.Id, 1, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-            application.AddItem(new Item("ItemCrc", category.Id, "specs1"));
-            application.AddItem(new Item("ItemUsd", category.Id, "specs2"));
-            application.AddItem(new Item("ItemLegacy", category.Id, "specs3"));
-            application.AddItem(new Item("ItemUnselected", category.Id, "specs4"));
+            application.AddItem(new Item("ItemCrc", category.Id));
+            application.AddItem(new Item("ItemUsd", category.Id));
+            application.AddItem(new Item("ItemLegacy", category.Id));
+            application.AddItem(new Item("ItemUnselected", category.Id));
             ctx.Applications.Add(application);
             await ctx.SaveChangesAsync();
 
@@ -207,10 +207,10 @@ public class RequestTotalRollupTests
 
             var application = new AppEntity(applicant.Id, 1, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-            application.AddItem(new Item("ItemTwoCrc", category.Id, "specs1"));
-            application.AddItem(new Item("ItemMixed", category.Id, "specs2"));
-            application.AddItem(new Item("ItemLegacyOnly", category.Id, "specs3"));
-            application.AddItem(new Item("ItemNoQuotes", category.Id, "specs4"));
+            application.AddItem(new Item("ItemTwoCrc", category.Id));
+            application.AddItem(new Item("ItemMixed", category.Id));
+            application.AddItem(new Item("ItemLegacyOnly", category.Id));
+            application.AddItem(new Item("ItemNoQuotes", category.Id));
             ctx.Applications.Add(application);
             await ctx.SaveChangesAsync();
 
@@ -308,7 +308,7 @@ public class RequestTotalRollupTests
 
             var application = new AppEntity(applicant.Id, 1, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-            application.AddItem(new Item("ItemA", category.Id, "specsA"));
+            application.AddItem(new Item("ItemA", category.Id));
             ctx.Applications.Add(application);
             await ctx.SaveChangesAsync();
         }
@@ -348,7 +348,7 @@ public class RequestTotalRollupTests
 
             var application = new AppEntity(applicant.Id, 1, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-            application.AddItem(new Item("ItemA", category.Id, "specsA"));
+            application.AddItem(new Item("ItemA", category.Id));
             ctx.Applications.Add(application);
             await ctx.SaveChangesAsync();
         }

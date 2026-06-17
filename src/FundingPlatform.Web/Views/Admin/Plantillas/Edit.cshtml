@@ -54,25 +54,6 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Plantillas de impacto disponibles</label>
-            <div class="row" data-testid="admin-plantilla-impact-templates">
-                @foreach (var opt in Model.AvailableImpactTemplates)
-                {
-                    var isChecked = Model.ImpactTemplateIds.Contains(opt.Id);
-                    <div class="col-md-6">
-                        <label class="form-check">
-                            <input type="checkbox" name="ImpactTemplateIds" value="@opt.Id"
-                                   class="form-check-input"
-                                   data-testid="admin-plantilla-impact-template-@opt.Id"
-                                   checked="@isChecked" />
-                            <span class="form-check-label">@opt.Name</span>
-                        </label>
-                    </div>
-                }
-            </div>
-        </div>
-
-        <div class="mb-3">
             <label class="form-label">Campos requeridos</label>
             <div class="row" data-testid="admin-plantilla-required-flags">
                 @foreach (var kind in requiredFieldKinds)

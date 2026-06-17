@@ -15,8 +15,7 @@ public interface IPlantillaService
     /// Plantillas are referenced by a <c>ProcessPlantilla</c>.</summary>
     Task<IReadOnlyList<PlantillaListRow>> ListAsync(CancellationToken ct);
 
-    /// <summary>Returns a single Plantilla for the edit form. Includes attached
-    /// <c>ImpactTemplate.Id</c>s for the multi-select pre-fill.</summary>
+    /// <summary>Returns a single Plantilla for the edit form.</summary>
     Task<PlantillaDetail?> GetAsync(int id, CancellationToken ct);
 
     /// <summary>FR-003 — creates a base Plantilla. Writes no audit event (this is the
@@ -37,20 +36,19 @@ public interface IPlantillaService
     Task ArchiveAsync(ArchivePlantillaCommand command, string actorUserId, CancellationToken ct);
 }
 
-/// <summary>Spec 021 / T078 — record carrying the Create payload.</summary>
+/// <summary>Spec 021 / T078 — record carrying the Create payload.
+/// Spec 035 / D4 — ImpactTemplateIds removed (impact gating gone).</summary>
 public sealed record CreatePlantillaCommand(
     string Name,
     int MinimumQuotationsPerItem,
-    long RequiredFieldFlags,
-    IReadOnlyList<int> ImpactTemplateIds);
+    long RequiredFieldFlags);
 
 /// <summary>Spec 021 / T078 — record carrying the Edit payload.</summary>
 public sealed record EditPlantillaCommand(
     int PlantillaId,
     string Name,
     int MinimumQuotationsPerItem,
-    long RequiredFieldFlags,
-    IReadOnlyList<int> ImpactTemplateIds);
+    long RequiredFieldFlags);
 
 /// <summary>Spec 021 / T078 — record carrying the Force-detach payload.</summary>
 public sealed record DetachPlantillaCommand(int PlantillaId, int ProcessId, bool Force, string? Reason);
@@ -63,7 +61,6 @@ public sealed record PlantillaListRow(
     int Id,
     string Name,
     int MinimumQuotationsPerItem,
-    int ImpactTemplateCount,
     int AssignedProcessCount,
     bool IsArchived,
     DateTimeOffset CreatedAt);
@@ -75,5 +72,4 @@ public sealed record PlantillaDetail(
     int MinimumQuotationsPerItem,
     long RequiredFieldFlags,
     bool IsArchived,
-    IReadOnlyList<int> ImpactTemplateIds,
     int AssignedProcessCount);

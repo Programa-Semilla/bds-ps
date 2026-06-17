@@ -59,6 +59,7 @@ public class ApplicationRepository : IApplicationRepository
         return await _context.Applications
             .Include(a => a.Items)
                 .ThenInclude(i => i.Category)
+                    .ThenInclude(c => c.Fields)
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)
                     .ThenInclude(q => q.Supplier)
@@ -68,12 +69,20 @@ public class ApplicationRepository : IApplicationRepository
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)
                     .ThenInclude(q => q.Document)
-            // Spec 021 / FR-005 — Impact relocated from Item to Application. The
-            // ImpactTemplate + ImpactParameterValues navigations live on the
-            // Application aggregate (configured in ApplicationConfiguration).
-            .Include(a => a.ImpactTemplate)
-            .Include(a => a.ImpactParameterValues)
-                .ThenInclude(pv => pv.ImpactTemplateParameter)
+            // Spec 035 (evolved 2026-06-16, D13/D14) — impact at the application level
+            // (declared impacts + values) + per-item attribution + category fields.
+            .Include(a => a.Impacts)
+                .ThenInclude(ai => ai.ImpactTemplate)
+            .Include(a => a.Impacts)
+                .ThenInclude(ai => ai.ParameterValues)
+                    .ThenInclude(pv => pv.ImpactTemplateParameter)
+            .Include(a => a.Items)
+                .ThenInclude(i => i.ItemImpacts)
+                    .ThenInclude(ii => ii.ApplicationImpact)
+                        .ThenInclude(ai => ai.ImpactTemplate)
+            .Include(a => a.Items)
+                .ThenInclude(i => i.CategoryFieldValues)
+                    .ThenInclude(cfv => cfv.CategoryField)
             .Include(a => a.Applicant)
             .Include(a => a.ApplicantResponses)
                 .ThenInclude(r => r.ItemResponses)
@@ -90,6 +99,20 @@ public class ApplicationRepository : IApplicationRepository
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)
                     .ThenInclude(q => q.Supplier)
+            // Spec 035 (evolved 2026-06-16, D16) — app-level impacts + per-line category
+            // fields + impact attribution for the funding-agreement PDF.
+            .Include(a => a.Items)
+                .ThenInclude(i => i.CategoryFieldValues)
+                    .ThenInclude(cfv => cfv.CategoryField)
+            .Include(a => a.Impacts)
+                .ThenInclude(ai => ai.ImpactTemplate)
+            .Include(a => a.Impacts)
+                .ThenInclude(ai => ai.ParameterValues)
+                    .ThenInclude(pv => pv.ImpactTemplateParameter)
+            .Include(a => a.Items)
+                .ThenInclude(i => i.ItemImpacts)
+                    .ThenInclude(ii => ii.ApplicationImpact)
+                        .ThenInclude(ai => ai.ImpactTemplate)
             .Include(a => a.Applicant)
             .Include(a => a.ApplicantResponses)
                 .ThenInclude(r => r.ItemResponses)

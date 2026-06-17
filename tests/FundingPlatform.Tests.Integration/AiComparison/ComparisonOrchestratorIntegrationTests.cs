@@ -113,7 +113,7 @@ public class ComparisonOrchestratorIntegrationTests
 
         var app = new AppEntity(applicant.Id, 1, "Test Company");
         app.AssignPublicCode(Helpers.TestPublicCodes.Next());
-        var item = new Item("Bomba centrífuga", category.Id, "1HP, acero");
+        var item = new Item("Bomba centrífuga", category.Id);
         app.AddItem(item);
         _ctx.Applications.Add(app);
         await _ctx.SaveChangesAsync();

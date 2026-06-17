@@ -68,15 +68,15 @@ public sealed class GroupService : IGroupService
             throw new InvalidOperationException("No se pueden crear grupos en un proceso cerrado.");
         }
 
-        // Domain entity does the trim + length validation. Uniqueness is the
-        // unique index on dbo.Groups.Name; we surface DbUpdateException as
-        // DuplicateGroupNameException for the controller.
+        // Domain entity does the trim + length validation. Uniqueness is scoped
+        // PER PROCESS by the composite unique index (ProcessId, Name); we surface
+        // DbUpdateException as DuplicateGroupNameException for the controller.
         var entity = Group.Create(name, processId);
 
-        // Pre-check for a friendlier round-trip: if a duplicate is already in
-        // the catalog, no need to issue the INSERT at all. The unique index is
-        // still the authoritative gate for races between two admins.
-        if (await _db.Groups.AnyAsync(g => g.Name == entity.Name, ct))
+        // Pre-check for a friendlier round-trip: if a duplicate already exists
+        // WITHIN THE SAME PROCESS, no need to issue the INSERT at all. The unique
+        // index is still the authoritative gate for races between two admins.
+        if (await _db.Groups.AnyAsync(g => g.ProcessId == entity.ProcessId && g.Name == entity.Name, ct))
         {
             throw new DuplicateGroupNameException(entity.Name);
         }
@@ -156,9 +156,9 @@ public sealed class GroupService : IGroupService
         // Use the domain method (validates + bumps UpdatedAt; idempotent if equal).
         g.Rename(newName);
 
-        // Uniqueness pre-check excluding self (FR-001 + contracts/admin-groups.md).
+        // Uniqueness pre-check excluding self, scoped to the SAME PROCESS (FR-001).
         if (!string.Equals(oldName, g.Name, StringComparison.Ordinal)
-            && await _db.Groups.AnyAsync(x => x.Id != id && x.Name == g.Name, ct))
+            && await _db.Groups.AnyAsync(x => x.Id != id && x.ProcessId == g.ProcessId && x.Name == g.Name, ct))
         {
             throw new DuplicateGroupNameException(g.Name);
         }

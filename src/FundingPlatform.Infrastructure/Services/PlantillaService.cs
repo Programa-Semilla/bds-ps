@@ -44,7 +44,6 @@ public sealed class PlantillaService : IPlantillaService
                 p.Id,
                 p.Name,
                 p.MinimumQuotationsPerItem,
-                ImpactTemplateCount = p.ImpactTemplates.Count(),
                 AssignedProcessCount = _db.ProcessPlantillas
                     .AsNoTracking()
                     .Count(pp => pp.SourcePlantillaId == p.Id),
@@ -55,7 +54,7 @@ public sealed class PlantillaService : IPlantillaService
 
         return rows.Select(r => new PlantillaListRow(
             r.Id, r.Name, r.MinimumQuotationsPerItem,
-            r.ImpactTemplateCount, r.AssignedProcessCount,
+            r.AssignedProcessCount,
             r.IsArchived, r.CreatedAt)).ToList();
     }
 
@@ -63,7 +62,6 @@ public sealed class PlantillaService : IPlantillaService
     {
         var plantilla = await _db.Plantillas
             .AsNoTracking()
-            .Include(p => p.ImpactTemplates)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
         if (plantilla is null) return null;
 
@@ -77,7 +75,6 @@ public sealed class PlantillaService : IPlantillaService
             plantilla.MinimumQuotationsPerItem,
             plantilla.RequiredFieldFlags,
             plantilla.IsArchived,
-            plantilla.ImpactTemplates.Select(t => t.Id).OrderBy(i => i).ToList(),
             assignedCount);
     }
 
@@ -87,19 +84,6 @@ public sealed class PlantillaService : IPlantillaService
         ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
 
         var entity = Plantilla.Create(command.Name, command.MinimumQuotationsPerItem, command.RequiredFieldFlags);
-
-        if (command.ImpactTemplateIds is { Count: > 0 })
-        {
-            // Materialize the chosen templates and attach so the EF many-to-many
-            // join is populated in the same UnitOfWork.
-            var templates = await _db.ImpactTemplates
-                .Where(t => command.ImpactTemplateIds.Contains(t.Id))
-                .ToListAsync(ct);
-            foreach (var t in templates)
-            {
-                entity.AttachImpactTemplate(t);
-            }
-        }
 
         _db.Plantillas.Add(entity);
         await _db.SaveChangesAsync(ct);
@@ -112,33 +96,10 @@ public sealed class PlantillaService : IPlantillaService
         ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
 
         var plantilla = await _db.Plantillas
-            .Include(p => p.ImpactTemplates)
             .FirstOrDefaultAsync(p => p.Id == command.PlantillaId, ct)
             ?? throw new KeyNotFoundException($"Plantilla {command.PlantillaId} not found.");
 
         plantilla.Edit(command.Name, command.MinimumQuotationsPerItem, command.RequiredFieldFlags);
-
-        // Reconcile the many-to-many: detach removed, attach added. We compare
-        // the snapshot of ids vs the requested ids; the EF tracker handles the
-        // join-table side.
-        var desired = command.ImpactTemplateIds.ToHashSet();
-        var current = plantilla.ImpactTemplates.Select(t => t.Id).ToHashSet();
-
-        foreach (var id in current.Except(desired).ToList())
-        {
-            plantilla.DetachImpactTemplate(id);
-        }
-        var toAddIds = desired.Except(current).ToList();
-        if (toAddIds.Count > 0)
-        {
-            var toAdd = await _db.ImpactTemplates
-                .Where(t => toAddIds.Contains(t.Id))
-                .ToListAsync(ct);
-            foreach (var t in toAdd)
-            {
-                plantilla.AttachImpactTemplate(t);
-            }
-        }
 
         await _db.SaveChangesAsync(ct);
     }

@@ -85,10 +85,12 @@ public class ReviewApplicationTests : AuthenticatedTestBase
         var itemCards = reviewAppPage.ItemCards;
         await Expect(itemCards).ToHaveCountAsync(1);
 
-        // Verify item details contain the product name, tech specs
+        // Verify item details contain the product name + category. Spec 035 replaced
+        // the free-text TechnicalSpecifications with category fields, so the reviewer
+        // card shows the category (and its field values) instead of a specs string.
         var firstItem = itemCards.First;
         await Expect(firstItem).ToContainTextAsync("Review Detail Item");
-        await Expect(firstItem).ToContainTextAsync("Intel i9, 32GB RAM");
+        await Expect(firstItem).ToContainTextAsync("Computing Equipment");
 
         // Verify quotation/supplier info is displayed
         await Expect(firstItem).ToContainTextAsync("Cheap Supplier");

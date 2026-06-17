@@ -29,4 +29,8 @@ public record FundingAgreementItemRowDto(
     // Spec 018 / FR-008 — reviewer-assigned LineCode surfaces in the Funding
     // Agreement PDF tables. Carried on the DTO so the renderer-level conversion
     // pre-flight can identify rows by code in diagnostics.
-    string? LineCode = null);
+    string? LineCode = null,
+    // Spec 035 / D9 — per-line category field values + impact rendered as a block
+    // beneath each line in the funding-agreement PDF.
+    List<CategoryFieldValueDto>? CategoryFields = null,
+    ImpactDto? Impact = null);

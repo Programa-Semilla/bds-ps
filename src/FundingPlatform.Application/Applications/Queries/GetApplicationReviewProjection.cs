@@ -27,16 +27,21 @@ public sealed record ApplicationReviewViewModel(
     IReadOnlyList<ReviewItemRow> Items,
     decimal? TotalCrc,
     bool HasNonCrcQuotation,
-    ReviewImpactSummary? Impact,
     int MinimumQuotationsPerItem,
-    bool CanSubmit);
+    bool CanSubmit,
+    // Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level).
+    IReadOnlyList<ReviewImpactSummary> Impacts);
 
+// Spec 035 (evolved 2026-06-16, D16) — category fields per line item; impact is the
+// attribution to the application's declared impacts + a short justification.
 public sealed record ReviewItemRow(
     int Id,
     string ProductName,
     string CategoryName,
-    string TechnicalSpecifications,
-    IReadOnlyList<ReviewQuotationRow> Quotations);
+    IReadOnlyList<ReviewQuotationRow> Quotations,
+    IReadOnlyList<string> AttributedImpactNames,
+    string? ImpactJustification,
+    IReadOnlyList<ReviewCategoryFieldRow> CategoryFields);
 
 public sealed record ReviewQuotationRow(
     int Id,
@@ -52,3 +57,5 @@ public sealed record ReviewImpactSummary(
     IReadOnlyList<ReviewImpactParameter> Parameters);
 
 public sealed record ReviewImpactParameter(string Label, string Value);
+
+public sealed record ReviewCategoryFieldRow(string Label, string? Value);

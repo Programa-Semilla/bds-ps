@@ -27,10 +27,10 @@ CREATE NONCLUSTERED INDEX [IX_Processes_FundId]
     ON [dbo].[Processes] ([FundId]);
 GO
 
--- Spec 021 / data-model.md — Process.Name uniqueness across the catalog.
--- Reuse-across-closed-cycles is enforced at the application layer (Status filter);
--- the unique index here is the authoritative gate against duplicate names submitted
--- concurrently by two admins.
-CREATE UNIQUE NONCLUSTERED INDEX [UX_Processes_Name]
-    ON [dbo].[Processes] ([Name]);
+-- Process.Name uniqueness is scoped PER FUND (not global): a process name must be
+-- unique among the processes of its own Fund, but the same name may be reused by a
+-- process in a different Fund. The composite unique index (FundId, Name) is the
+-- authoritative gate against duplicate names submitted concurrently by two admins.
+CREATE UNIQUE NONCLUSTERED INDEX [UX_Processes_FundId_Name]
+    ON [dbo].[Processes] ([FundId], [Name]);
 GO

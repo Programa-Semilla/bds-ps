@@ -6,12 +6,19 @@
     ViewData["Title"] = AdminGroupsResources.Breadcrumb_Edit;
     var deletePromptTitle = string.Format(AdminGroupsResources.Delete_ConfirmTitle, Model.Name);
     var deletePromptBody = string.Format(AdminGroupsResources.Delete_ConfirmBody, Model.MemberCount);
+    // Group names repeat across processes/funds now (per-process uniqueness), so the
+    // title is compound — Fondo › Proceso › Grupo — to keep the screen unambiguous.
+    var groupContext = string.Join(" › ",
+        new[] { Model.FundName, Model.ProcessName }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    var compoundTitle = string.IsNullOrEmpty(groupContext)
+        ? $"{AdminGroupsResources.Breadcrumb_Edit} — {Model.Name}"
+        : $"{groupContext} › {Model.Name}";
 }
 
 <div data-testid="admin-area">
     @await Html.PartialAsync("Components/_PageHeader",
         new PageHeaderViewModel(
-            Title: $"{AdminGroupsResources.Breadcrumb_Edit} — {Model.Name}",
+            Title: compoundTitle,
             Breadcrumbs: new[]
             {
                 new BreadcrumbItem(AdminGroupsResources.Breadcrumb_Index, Url.Action("Index", "AdminGroups")),

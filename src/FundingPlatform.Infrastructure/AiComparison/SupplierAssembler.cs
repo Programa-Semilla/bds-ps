@@ -1,6 +1,7 @@
 using FundingPlatform.Application.Abstractions.AiComparison;
 using FundingPlatform.Application.AiComparison;
 using FundingPlatform.Domain.Enums;
+using FundingPlatform.Infrastructure.AiComparison.Redaction.Patterns;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +28,8 @@ public class SupplierAssembler : ISupplierAssembler
             .Include(i => i.Quotations).ThenInclude(q => q.Supplier)
             .Include(i => i.Quotations).ThenInclude(q => q.SupplierBranch)
             .Include(i => i.Quotations).ThenInclude(q => q.Document)
+            // Spec 035 / D6 — product + category fields feed the AI comparison context.
+            .Include(i => i.CategoryFieldValues).ThenInclude(cfv => cfv.CategoryField)
             .FirstOrDefaultAsync(i => i.Id == applicationItemId, ct);
 
         if (item is null) return null;
@@ -85,9 +88,24 @@ public class SupplierAssembler : ISupplierAssembler
             })
             .ToList();
 
-        var header = string.IsNullOrEmpty(item.LineCode)
+        // Spec 035 (evolved 2026-06-16, D16) — enrich the AI comparison header with the
+        // product name + category field label/value pairs (what is being quoted) + the
+        // per-item impact justification (why it's requested), scrubbed for incidental PII.
+        // Raw impact PARAMETER values stay EXCLUDED (applicant-evaluation metadata, not
+        // relevant to comparing quotes).
+        var fichaPrefix = string.IsNullOrEmpty(item.LineCode)
             ? $"Ficha {item.Id}"
             : $"Ficha {item.LineCode}";
+        var contextParts = new List<string> { $"Producto: {item.ProductName}" };
+        contextParts.AddRange(item.CategoryFieldValues
+            .OrderBy(cfv => cfv.CategoryField?.SortOrder ?? 0)
+            .Where(cfv => !string.IsNullOrWhiteSpace(cfv.Value))
+            .Select(cfv => $"{cfv.CategoryField?.DisplayLabel}: {cfv.Value}"));
+        if (!string.IsNullOrWhiteSpace(item.ImpactJustification))
+        {
+            contextParts.Add($"Justificación de impacto: {item.ImpactJustification}");
+        }
+        var header = ScrubPii($"{fichaPrefix} — {string.Join("; ", contextParts)}");
 
         return new ItemAssembly(
             ApplicationItemId: item.Id,
@@ -98,6 +116,19 @@ public class SupplierAssembler : ISupplierAssembler
             ApplicantEmail: applicant?.Email,
             ApplicantPhone: applicant?.Phone,
             Suppliers: suppliers);
+    }
+
+    /// <summary>
+    /// Spec 035 / D6 — scrub incidental PII (email/phone/cédula) from the free-text
+    /// product + category context before it enters the AI payload, reusing the
+    /// existing PII pattern catalog.
+    /// </summary>
+    private static string ScrubPii(string text)
+    {
+        var t = PiiPatterns.Email.Replace(text, "[correo]");
+        t = PiiPatterns.Phone.Replace(t, "[teléfono]");
+        t = PiiPatterns.Cedula.Replace(t, "[identificación]");
+        return t;
     }
 
     /// <summary>

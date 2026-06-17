@@ -53,14 +53,12 @@ public sealed record ProcessDetail(
 /// <summary>Spec 021 / T079 — group-row helper for the detail view.</summary>
 public sealed record ProcessGroupRow(int Id, string Name, int MemberCount);
 
-/// <summary>Spec 021 / T079 — denormalized snapshot DTO; carries the resolved
-/// names of the <c>ImpactTemplateIdsCsv</c> for display.</summary>
+/// <summary>Spec 021 / T079 — denormalized snapshot DTO.
+/// Spec 035 / D4 — ImpactTemplateIds/Names removed (impact gating gone).</summary>
 public sealed record ProcessPlantillaSnapshotDto(
     int Id,
     int SourcePlantillaId,
     string SourcePlantillaName,
     int MinimumQuotationsPerItem,
     long RequiredFieldFlags,
-    IReadOnlyList<int> ImpactTemplateIds,
-    IReadOnlyList<string> ImpactTemplateNames,
     DateTimeOffset AssignedAt);

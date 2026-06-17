@@ -115,6 +115,34 @@
     </div>
 </div>
 
+@* Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level). *@
+@if (Model.Impacts.Count > 0)
+{
+    <div class="card mb-4" data-testid="reviewer-impacts-card">
+        <div class="card-header"><h4 class="card-title mb-0">Impactos de la solicitud</h4></div>
+        <div class="card-body">
+            @foreach (var impact in Model.Impacts)
+            {
+                <div class="mb-2">
+                    <strong>@impact.TemplateName</strong>
+                    @if (impact.Parameters.Count > 0)
+                    {
+                        <table class="fl-table mt-1" data-density="reviewer">
+                            <thead><tr><th>Parámetro</th><th>Valor</th></tr></thead>
+                            <tbody>
+                                @foreach (var p in impact.Parameters)
+                                {
+                                    <tr><td>@p.DisplayLabel</td><td>@p.Value</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
 <div class="d-flex justify-content-between align-items-center mb-2">
     <h4 class="mb-0">Ítems (@Model.Items.Count)</h4>
     @if (appState == ApplicationState.UnderReview && Model.Items.Any(i => i.Quotations.Count >= 2))
@@ -157,26 +185,29 @@
             </span>
         </div>
         <div class="card-body">
-            <div class="mb-3">
-                <strong>Especificaciones técnicas:</strong>
-                <p class="mb-0">@item.TechnicalSpecifications</p>
-            </div>
-
-            @if (item.ImpactTemplateName is not null)
+            @if (item.CategoryFields.Count > 0)
             {
                 <div class="mb-3">
-                    <strong>Evaluación de impacto:</strong> @item.ImpactTemplateName
-                    @if (item.ImpactParameters.Count > 0)
+                    <strong>Especificaciones de la categoría:</strong>
+                    <table class="fl-table mt-1" data-density="reviewer" data-testid="review-item-category-fields">
+                        <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                        <tbody>
+                            @foreach (var field in item.CategoryFields)
+                            {
+                                <tr><td>@field.Label</td><td>@(string.IsNullOrWhiteSpace(field.Value) ? "—" : field.Value)</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            @if (item.AttributedImpactNames.Count > 0 || !string.IsNullOrWhiteSpace(item.ImpactJustification))
+            {
+                <div class="mb-3">
+                    <strong>Impactos asociados:</strong> @(item.AttributedImpactNames.Count > 0 ? string.Join(", ", item.AttributedImpactNames) : "—")
+                    @if (!string.IsNullOrWhiteSpace(item.ImpactJustification))
                     {
-                        <table class="fl-table mt-1" data-density="reviewer">
-                            <thead><tr><th>Parámetro</th><th>Valor</th></tr></thead>
-                            <tbody>
-                                @foreach (var param in item.ImpactParameters)
-                                {
-                                    <tr><td>@param.DisplayLabel</td><td>@param.Value</td></tr>
-                                }
-                            </tbody>
-                        </table>
+                        <div class="mt-1"><strong>Justificación:</strong> @item.ImpactJustification</div>
                     }
                 </div>
             }

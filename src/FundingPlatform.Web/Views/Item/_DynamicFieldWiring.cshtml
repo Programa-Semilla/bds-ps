@@ -1,0 +1,43 @@
+@* Spec 035 / US2 — wires the category + impact selects to the shared
+   DynamicFields renderer. Reads the templated URLs off the form's data-* attrs. *@
+<script>
+    (function () {
+        'use strict';
+        var form = document.querySelector('form[data-category-fields-url]');
+        if (!form || !window.DynamicFields) { return; }
+
+        var categorySelect = document.getElementById('item-category-select');
+        var categoryContainer = document.getElementById('category-fields');
+        var categoryUrlTpl = form.getAttribute('data-category-fields-url');
+
+        var impactSelect = document.getElementById('item-impact-select');
+        var impactContainer = document.getElementById('impact-params');
+        var impactUrlTpl = form.getAttribute('data-impact-params-url');
+
+        if (categorySelect && categoryContainer && categoryUrlTpl) {
+            categorySelect.addEventListener('change', function () {
+                if (!this.value) {
+                    window.DynamicFields.render(categoryContainer, [], 'CategoryFieldValues');
+                    return;
+                }
+                window.DynamicFields.load(
+                    categoryContainer,
+                    categoryUrlTpl.replace('__CID__', encodeURIComponent(this.value)),
+                    'CategoryFieldValues');
+            });
+        }
+
+        if (impactSelect && impactContainer && impactUrlTpl) {
+            impactSelect.addEventListener('change', function () {
+                if (!this.value) {
+                    window.DynamicFields.render(impactContainer, [], 'ImpactParameterValues');
+                    return;
+                }
+                window.DynamicFields.load(
+                    impactContainer,
+                    impactUrlTpl.replace('__TID__', encodeURIComponent(this.value)),
+                    'ImpactParameterValues');
+            });
+        }
+    })();
+</script>

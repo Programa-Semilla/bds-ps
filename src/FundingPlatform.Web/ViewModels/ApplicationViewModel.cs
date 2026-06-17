@@ -14,20 +14,20 @@ public class ApplicationViewModel
     public DateTime? SubmittedAt { get; set; }
     public List<ItemViewModel> Items { get; set; } = new();
 
-    /// <summary>Spec 021 / FR-005 — true once the applicant has completed the
-    /// Impact step. Drives the Impact card state and the submit gate.</summary>
-    public bool ImpactSet { get; set; }
+    /// <summary>
+    /// Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level).
+    /// </summary>
+    public List<ApplicationImpactDisplayViewModel> Impacts { get; set; } = new();
 
-    /// <summary>Spec 021 / FR-005 — chosen ImpactTemplate name, for the Edit-page
-    /// Impact summary card. Null until the Impact step is completed.</summary>
-    public string? ImpactTemplateName { get; set; }
+    /// <summary>Spec 035 (evolved 2026-06-16, D16) — submit gate: ≥1 declared impact and
+    /// every item attributed + justified. Required category/impact values are gated
+    /// server-side at submit.</summary>
+    public bool ReadyForSubmit =>
+        Items.Count > 0
+        && Impacts.Count > 0
+        && Items.All(i => i.HasImpactAttribution && !string.IsNullOrWhiteSpace(i.ImpactJustification));
 
-    /// <summary>Spec 021 / FR-005 — label/value pairs of the captured Impact
-    /// parameters, rendered read-only on the Edit-page Impact summary.</summary>
-    public List<ImpactParameterDisplayViewModel> ImpactParameters { get; set; } = new();
-
-    /// <summary>Spec 021 / FR-005 — active categories for the inline add-item
-    /// form embedded in the draft editor.</summary>
+    /// <summary>Spec 021 — active categories (kept for the draft editor toolbar).</summary>
     public List<SelectListItem> Categories { get; set; } = new();
 
     /// <summary>
@@ -49,7 +49,16 @@ public class ItemViewModel
     public string ProductName { get; set; } = string.Empty;
     public string CategoryName { get; set; } = string.Empty;
     public int QuotationCount { get; set; }
-    public bool HasImpact { get; set; }
+
+    /// <summary>Spec 035 (evolved 2026-06-16, D14) — names of the application impacts
+    /// this line item is attributed to + the short justification.</summary>
+    public List<string> AttributedImpactNames { get; set; } = new();
+    public string? ImpactJustification { get; set; }
+    public bool HasImpactAttribution => AttributedImpactNames.Count > 0;
+
+    /// <summary>Spec 035 / D1 — per-item category field label/value pairs.</summary>
+    public List<CategoryFieldDisplayViewModel> CategoryFields { get; set; } = new();
+
     public string? ReviewComment { get; set; }
 
     /// <summary>True when the reviewer flagged the item's quotations as not

@@ -137,7 +137,7 @@ public class FundingAgreementPersistenceTests
 
         var application = new AppEntity(applicant.Id, 1, "Test Company");
         application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-        application.AddItem(new Item("Laptop", category.Id, "specs"));
+        application.AddItem(new Item("Laptop", category.Id));
         typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Resolved);
         ctx.Applications.Add(application);
         ctx.SaveChanges();

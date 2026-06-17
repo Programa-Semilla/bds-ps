@@ -52,12 +52,13 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
         await appPage.SelectEligibleGroupIfPresentAsync();
         await appPage.SubmitDraftButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
 
+        // Spec 035 — per-item impact captured on the item form; add one impact-
+        // complete item to reach the supplier-add form.
         var draft = new ApplicationDraftPage(Page);
-        await draft.ImpactLink.ClickAsync();
-        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/\d+/Impact"));
-        await CompleteImpactStepAsync();
-        await draft.AddItemAsync("Horno industrial", "Acero inoxidable, 60L");
+        var itemPage = new ItemPage(Page);
+        await itemPage.AddItemAsync(appId, "Horno industrial", 0, "Acero inoxidable, 60L", BaseUrl, withImpact: true);
         await Expect(draft.ItemRows).ToHaveCountAsync(1);
         return email;
     }
@@ -239,7 +240,9 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
         // Add a SECOND item — a supplier may carry only one quotation per item, so the
         // existing supplier (with its new branch) is quoted on a fresh item.
         var draft = new ApplicationDraftPage(Page);
-        await draft.AddItemAsync("Mesa de trabajo", "Acero inoxidable, 2m");
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
+        var itemPage = new ItemPage(Page);
+        await itemPage.AddItemAsync(appId, "Mesa de trabajo", 0, "Acero inoxidable, 2m", BaseUrl, withImpact: true);
         await Expect(draft.ItemRows).ToHaveCountAsync(2);
 
         // Add a new branch under the same supplier via the new-branch cascade (item #2).

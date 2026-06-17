@@ -31,7 +31,31 @@
 
             <input type="hidden" asp-for="ApplicationId" />
             <input type="hidden" asp-for="ItemId" />
+            <input type="hidden" asp-for="SourceQuotationId" id="source-quotation-id" />
 
+            @* Spec 035 / US3 — reuse an existing quotation from a sibling line item. *@
+            @if (Model.ReusableQuotations.Count > 0)
+            {
+                <div class="card mb-3" data-testid="reuse-quotation-card">
+                    <div class="card-body">
+                        <h4 class="card-title">Reutilizar cotización existente</h4>
+                        <p class="form-hint">
+                            Use la misma cotización (proveedor y documento) de otra línea, con el precio propio de esta línea.
+                        </p>
+                        <select class="form-select" id="reuse-select" data-searchable data-testid="reuse-select">
+                            <option value="">-- No reutilizar (agregar nueva) --</option>
+                            @foreach (var r in Model.ReusableQuotations)
+                            {
+                                <option value="@r.SourceQuotationId">
+                                    @r.SupplierName — @r.BranchName (@r.DocumentFileName, @r.Currency)
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            }
+
+            <div id="add-new-supplier-sections">
             <div class="card mb-3">
                 <div class="card-body">
                     <h4 class="card-title">Identificación del proveedor</h4>
@@ -86,6 +110,7 @@
                     }
                 }
             </div>
+            </div>@* /add-new-supplier-sections *@
 
             <div class="card mb-3">
                 <div class="card-body">
@@ -94,7 +119,7 @@
                        the conversion-preview alert. Same markup is reused by Quotation/Edit. *@
                     <partial name="_QuoteFields" model="@((FundingPlatform.Web.ViewModels.IQuoteFieldsModel)Model)" />
 
-                    <div class="mb-3">
+                    <div class="mb-3" id="quotation-file-section">
                         <label asp-for="QuotationFile" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
                         <input asp-for="QuotationFile" class="form-control" type="file" data-testid="quotation-file-input" />
                         <span asp-validation-for="QuotationFile" class="text-danger"></span>
@@ -113,6 +138,28 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    @* Spec 035 / US3 — reuse toggle: hide the add-new sections + upload when reusing. *@
+    <script>
+        (function () {
+            var sel = document.getElementById('reuse-select');
+            var hidden = document.getElementById('source-quotation-id');
+            var addNew = document.getElementById('add-new-supplier-sections');
+            var fileSection = document.getElementById('quotation-file-section');
+            var submitBtn = document.querySelector('[data-testid="supplier-submit-button"]');
+            if (!sel || !hidden) { return; }
+            sel.addEventListener('change', function () {
+                var reusing = !!this.value;
+                hidden.value = reusing ? this.value : '';
+                if (addNew) { addNew.style.display = reusing ? 'none' : ''; }
+                if (fileSection) { fileSection.style.display = reusing ? 'none' : ''; }
+                var fileInput = fileSection ? fileSection.querySelector('input[type=file]') : null;
+                if (fileInput) { fileInput.disabled = reusing; }
+                if (submitBtn) {
+                    submitBtn.textContent = reusing ? 'Reutilizar cotización' : 'Agregar proveedor y cotización';
+                }
+            });
+        })();
+    </script>
     <script src="~/js/quote-conversion-preview.js" asp-append-version="true"></script>
     @* Spec 025 — Provincia → Cantón → Distrito cascade. Event-delegated, so it
        drives the AJAX-injected _LookupEmpty / _BranchPicker partials too. *@

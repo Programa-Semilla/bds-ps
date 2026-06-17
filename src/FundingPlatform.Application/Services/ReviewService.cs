@@ -328,19 +328,20 @@ public class ReviewService
 
     private static ReviewApplicationDto MapToReviewDto(AppEntity application)
     {
-        // Spec 021 / FR-005 — Impact relocated to Application. The per-Item
-        // Impact projection on ReviewItemDto is now the same per-Application
-        // projection on every item until the DTO contract is refactored.
-        var applicationImpactTemplateName = application.ImpactTemplate?.Name;
-        var applicationImpactParameters = application.ImpactParameterValues
-            .Select(pv => new ImpactParameterDisplayDto(
-                pv.ImpactTemplateParameter?.Name ?? string.Empty,
-                pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
-                pv.Value ?? string.Empty))
-            .ToList();
-
         var reviewItems = application.Items.Select(item =>
         {
+            // Spec 035 (evolved 2026-06-16, D14) — attributed impact names + justification.
+            var itemAttributedImpactNames = item.ItemImpacts
+                .Select(ii => ii.ApplicationImpact?.ImpactTemplate?.Name ?? string.Empty)
+                .Where(n => n.Length > 0)
+                .ToList();
+            // Spec 035 / D1 — per-item category field label/value pairs.
+            var itemCategoryFields = item.CategoryFieldValues
+                .OrderBy(cfv => cfv.CategoryField?.SortOrder ?? 0)
+                .Select(cfv => new CategoryFieldValueDto(
+                    cfv.CategoryField?.DisplayLabel ?? string.Empty,
+                    cfv.Value))
+                .ToList();
             var quotations = item.Quotations.ToList();
             // Spec 013 R5: SupplierScore signature now requires (Q, Supplier, Branch).
             // The branch is reserved for reviewer-UI display use; score math is unchanged.
@@ -386,14 +387,14 @@ public class ReviewService
                 item.Id,
                 item.ProductName,
                 item.Category?.Name ?? string.Empty,
-                item.TechnicalSpecifications,
                 item.ReviewStatus,
                 item.ReviewComment,
                 item.SelectedSupplierId,
                 item.IsNotTechnicallyEquivalent,
                 quotationDtos,
-                applicationImpactTemplateName,
-                applicationImpactParameters,
+                itemAttributedImpactNames,
+                item.ImpactJustification,
+                itemCategoryFields,
                 LineCode: item.LineCode);
         }).ToList();
 
@@ -404,6 +405,14 @@ public class ReviewService
             .Where(q => q.Supplier?.VerificationStatus == SupplierVerificationStatus.Rejected)
             .Count();
 
+        // Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts (app level).
+        var impacts = application.Impacts.Select(ai => new ReviewImpactGroupDto(
+            ai.ImpactTemplate?.Name ?? string.Empty,
+            ai.ParameterValues.Select(pv => new ImpactParameterDisplayDto(
+                pv.ImpactTemplateParameter?.Name ?? string.Empty,
+                pv.ImpactTemplateParameter?.DisplayLabel ?? string.Empty,
+                pv.Value ?? string.Empty)).ToList())).ToList();
+
         return new ReviewApplicationDto(
             application.Id,
             $"{application.Applicant.FirstName} {application.Applicant.LastName}",
@@ -411,6 +420,7 @@ public class ReviewService
             application.State,
             application.SubmittedAt,
             reviewItems,
+            impacts,
             rejectedSupplierCount);
     }
 }

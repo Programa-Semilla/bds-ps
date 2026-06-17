@@ -69,7 +69,7 @@ public class ApplicantDashboardTimelineTests
 
             var application = new AppEntity(applicant.Id, groupId, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-            application.AddItem(new Item("Widget", category.Id, "specs"));
+            application.AddItem(new Item("Widget", category.Id));
             // Move state to Submitted directly + record matching VersionHistory entry.
             typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Submitted);
             application.AddVersionHistory(new VersionHistory(applicant.UserId, "Submitted", null));
@@ -132,7 +132,7 @@ public class ApplicantDashboardTimelineTests
 
             var application = new AppEntity(applicant.Id, groupId, "Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
-            application.AddItem(new Item("Widget", category.Id, "specs"));
+            application.AddItem(new Item("Widget", category.Id));
             typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Submitted);
             application.AddVersionHistory(new VersionHistory(applicant.UserId, "Created", null));
             application.AddVersionHistory(new VersionHistory(applicant.UserId, "Submitted", null));

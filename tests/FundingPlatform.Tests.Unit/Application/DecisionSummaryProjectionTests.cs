@@ -50,7 +50,6 @@ public class DecisionSummaryProjectionTests
         Assert.That(line.ApprovedAmount, Is.Not.Null);
         Assert.That(line.ApprovedAmount!.Amount, Is.EqualTo(1100m));
         Assert.That(line.CategoryName, Is.EqualTo("Equipo"));
-        Assert.That(line.TechnicalSpecifications, Is.EqualTo("specs"));
     }
 
     [Test]
@@ -135,7 +134,7 @@ public class DecisionSummaryProjectionTests
     private static Item AddItem(AppEntity app, int id, string? lineCode, string product,
         string category = "Categoría", string specs = "specs")
     {
-        var item = new Item(product, categoryId: 1, technicalSpecifications: specs);
+        var item = new Item(product, categoryId: 1);
         SetProp(item, "Id", id);
         SetProp(item, "LineCode", lineCode);
         SetProp(item, "Category", MakeCategory(category));

@@ -192,7 +192,6 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
             ?? throw new KeyNotFoundException($"Process {command.ProcessId} not found.");
 
         var plantilla = await _db.Plantillas
-            .Include(p => p.ImpactTemplates)
             .FirstOrDefaultAsync(p => p.Id == command.PlantillaId, ct)
             ?? throw new KeyNotFoundException($"Plantilla {command.PlantillaId} not found.");
 
@@ -206,7 +205,6 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
             {
                 processId = process.Id,
                 plantillaId = plantilla.Id,
-                snapshotImpactTemplateIds = snapshot.ImpactTemplateIds(),
                 snapshotMinimumQuotationsPerItem = snapshot.MinimumQuotationsPerItem,
             }),
             ct);
@@ -316,7 +314,6 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
                 pl.Name,
                 pp.MinimumQuotationsPerItem,
                 pp.RequiredFieldFlags,
-                pp.ImpactTemplateIdsCsv,
                 pp.AssignedAt,
             })
             .FirstOrDefaultAsync(ct);
@@ -324,24 +321,12 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
         ProcessPlantillaSnapshotDto? snapshotDto = null;
         if (snapshot is not null)
         {
-            var ids = ParseCsv(snapshot.ImpactTemplateIdsCsv);
-            var templateNames = await _db.ImpactTemplates.AsNoTracking()
-                .Where(t => ids.Contains(t.Id))
-                .Select(t => new { t.Id, t.Name })
-                .ToListAsync(ct);
-            // Preserve the order in the CSV so the admin sees the snapshot's own
-            // ordering rather than ImpactTemplate.Id order.
-            var nameByIdOrdered = ids
-                .Select(id => templateNames.FirstOrDefault(n => n.Id == id)?.Name ?? $"#{id}")
-                .ToList();
             snapshotDto = new ProcessPlantillaSnapshotDto(
                 snapshot.Id,
                 snapshot.SourcePlantillaId,
                 snapshot.Name,
                 snapshot.MinimumQuotationsPerItem,
                 snapshot.RequiredFieldFlags,
-                ids,
-                nameByIdOrdered,
                 snapshot.AssignedAt);
         }
 
@@ -365,13 +350,5 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
             groups,
             process.FundId,
             process.Fund?.Name ?? string.Empty);
-    }
-
-    private static List<int> ParseCsv(string csv)
-    {
-        if (string.IsNullOrEmpty(csv)) return new();
-        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(s => int.Parse(s, System.Globalization.CultureInfo.InvariantCulture))
-            .ToList();
     }
 }

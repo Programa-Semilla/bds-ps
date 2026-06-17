@@ -162,7 +162,7 @@ public class ApplicationSigningTests
 
     private static void AddItem(AppEntity application, int itemId)
     {
-        var item = new Item("p", 1, "specs");
+        var item = new Item("p", 1);
         typeof(Item).GetProperty("Id")!.SetValue(item, itemId);
         application.AddItem(item);
     }

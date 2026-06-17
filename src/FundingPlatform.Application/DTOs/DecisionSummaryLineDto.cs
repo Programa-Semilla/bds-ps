@@ -13,7 +13,6 @@ public sealed record DecisionSummaryLineDto(
     string? LineCode,
     string ProductName,
     string CategoryName,
-    string TechnicalSpecifications,
     ItemReviewStatus ReviewStatus,
     string? ReviewComment,
     string? ApprovedSupplierName,
