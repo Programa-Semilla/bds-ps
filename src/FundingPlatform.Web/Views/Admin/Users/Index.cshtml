@@ -44,40 +44,45 @@
                     Icon: "ti ti-upload")
             }))
 
-    <form method="get" asp-action="Index" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-users-filter-form">
-        <input type="search" name="search" value="@Model.Search" placeholder="@AdminUsersResources.SearchPlaceholder"
-               class="form-control admin-users-filter-search" data-testid="admin-users-search" />
-        <select name="roleFilter" class="form-select admin-users-filter-select" data-testid="admin-users-role-filter">
-            <option value="">Todos los roles</option>
-            @foreach (var r in roles)
-            {
-                <option value="@r" selected="@(Model.RoleFilter == r)">@RoleLabel(r)</option>
-            }
-        </select>
-        <select name="statusFilter" class="form-select admin-users-filter-select" data-testid="admin-users-status-filter">
-            <option value="">Todos los estados</option>
-            @foreach (var s in statuses)
-            {
-                <option value="@s" selected="@(Model.StatusFilter == s)">@StatusLabel(s)</option>
-            }
-        </select>
+    @* Spec 037 D9 / FR-018 — filters in a white card with Aplicar + Limpiar filtros
+       (the clear link is a param-less GET to the same route — no new endpoint). *@
+    <div class="fl-filter-card">
+        <form method="get" asp-action="Index" class="d-flex gap-2 flex-wrap align-items-center" data-testid="admin-users-filter-form">
+            <input type="search" name="search" value="@Model.Search" placeholder="@AdminUsersResources.SearchPlaceholder"
+                   class="form-control admin-users-filter-search" data-testid="admin-users-search" />
+            <select name="roleFilter" class="form-select admin-users-filter-select" data-testid="admin-users-role-filter">
+                <option value="">Todos los roles</option>
+                @foreach (var r in roles)
+                {
+                    <option value="@r" selected="@(Model.RoleFilter == r)">@RoleLabel(r)</option>
+                }
+            </select>
+            <select name="statusFilter" class="form-select admin-users-filter-select" data-testid="admin-users-status-filter">
+                <option value="">Todos los estados</option>
+                @foreach (var s in statuses)
+                {
+                    <option value="@s" selected="@(Model.StatusFilter == s)">@StatusLabel(s)</option>
+                }
+            </select>
 
-        @* Fondo → Proceso → Grupo cascading drill-down filter (active Funds only). *@
-        @await Html.PartialAsync("Components/_CascadingFundFilter", new CascadingFundFilterModel
-        {
-            Funds = Model.FundHierarchy,
-            Depth = CascadeFilterDepth.Group,
-            FundFieldName = "fundFilter",
-            ProcessFieldName = "processFilter",
-            GroupFieldName = "groupFilter",
-            SelectedFundId = Model.FundFilter,
-            SelectedProcessId = Model.ProcessFilter,
-            SelectedGroupId = Model.GroupFilter,
-            IdPrefix = "admin-users-cascade",
-        })
+            @* Fondo → Proceso → Grupo cascading drill-down filter (active Funds only). *@
+            @await Html.PartialAsync("Components/_CascadingFundFilter", new CascadingFundFilterModel
+            {
+                Funds = Model.FundHierarchy,
+                Depth = CascadeFilterDepth.Group,
+                FundFieldName = "fundFilter",
+                ProcessFieldName = "processFilter",
+                GroupFieldName = "groupFilter",
+                SelectedFundId = Model.FundFilter,
+                SelectedProcessId = Model.ProcessFilter,
+                SelectedGroupId = Model.GroupFilter,
+                IdPrefix = "admin-users-cascade",
+            })
 
-        <button type="submit" class="btn btn-secondary" data-testid="admin-users-filter-submit">Aplicar</button>
-    </form>
+            <button type="submit" class="btn btn-secondary" data-testid="admin-users-filter-submit">Aplicar</button>
+            <a class="btn btn-link" href="@Url.Action("Index", "AdminUsers")" data-testid="admin-users-filter-clear">Limpiar filtros</a>
+        </form>
+    </div>
 
     <script src="~/js/cascading-fund-filter.js" asp-append-version="true"></script>
 
@@ -140,57 +145,56 @@
                                 <td>@await Html.PartialAsync("Components/_StatusPill", new StatusPillViewModel(roleEnum))</td>
                                 <td>@await Html.PartialAsync("Components/_StatusPill", new StatusPillViewModel(statusEnum))</td>
                                 <td class="text-end">
-                                    <div class="btn-list justify-content-end">
-                                        <a class="btn btn-sm btn-outline-secondary"
-                                           data-testid="row-action-edit"
-                                           href="@Url.Action("Edit", "AdminUsers", new { id = row.Id })">
-                                            <i class="ti ti-edit"></i> Editar
-                                        </a>
-                                        @if (!row.IsSelf)
+                                    @{
+                                        // Spec 037 D8 / FR-020 — Editar stays visible; the remaining
+                                        // actions move into the "⋯" kebab with their exact routes/verbs/
+                                        // antiforgery/testids/data-confirm wiring preserved.
+                                        var rowActions = new List<RowActionItem>();
+                                        if (!row.IsSelf)
                                         {
-                                            <form method="post" asp-action="ResendInvitation" asp-controller="AdminUsers"
-                                                  asp-route-id="@row.Id" class="d-inline">
-                                                @Html.AntiForgeryToken()
-                                                <button type="submit" class="btn btn-sm btn-outline-secondary"
-                                                        data-testid="row-action-resend-invite">
-                                                    <i class="ti ti-mail-forward"></i> @AdminUsersResources.ResendInvitationLabel
-                                                </button>
-                                            </form>
-                                            <a class="btn btn-sm btn-outline-secondary"
-                                               data-testid="row-action-reset-password"
-                                               href="@Url.Action("ResetPassword", "AdminUsers", new { id = row.Id })">
-                                                <i class="ti ti-key"></i> Restablecer
-                                            </a>
+                                            rowActions.Add(new RowActionItem(
+                                                Label: AdminUsersResources.ResendInvitationLabel,
+                                                TestId: "row-action-resend-invite",
+                                                FormController: "AdminUsers",
+                                                FormAction: "ResendInvitation",
+                                                FormRouteValues: new Dictionary<string, string> { ["id"] = row.Id.ToString() },
+                                                Icon: "ti ti-mail-forward"));
+                                            rowActions.Add(new RowActionItem(
+                                                Label: "Restablecer",
+                                                TestId: "row-action-reset-password",
+                                                Url: Url.Action("ResetPassword", "AdminUsers", new { id = row.Id }),
+                                                Icon: "ti ti-key"));
                                             if (statusEnum == AdminUserStatus.Active)
                                             {
-                                                <form method="post" asp-action="Disable" asp-controller="AdminUsers"
-                                                      asp-route-id="@row.Id" class="d-inline"
-                                                      onsubmit="return confirm('¿Inhabilitar a @row.Email? Esto cierra la sesión del usuario.');">
-                                                    @Html.AntiForgeryToken()
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                            data-testid="row-action-disable"
-                                                            data-confirm
-                                                            data-confirm-variant="destructive"
-                                                            data-confirm-title="Inhabilitar usuario"
-                                                            data-confirm-body="¿Inhabilitar a @row.Email? Esto cierra la sesión del usuario."
-                                                            data-confirm-label="Inhabilitar">
-                                                        <i class="ti ti-ban"></i> Inhabilitar
-                                                    </button>
-                                                </form>
+                                                rowActions.Add(new RowActionItem(
+                                                    Label: "Inhabilitar",
+                                                    TestId: "row-action-disable",
+                                                    FormController: "AdminUsers",
+                                                    FormAction: "Disable",
+                                                    FormRouteValues: new Dictionary<string, string> { ["id"] = row.Id.ToString() },
+                                                    Icon: "ti ti-ban",
+                                                    IsDanger: true,
+                                                    ConfirmTitle: "Inhabilitar usuario",
+                                                    ConfirmBody: $"¿Inhabilitar a {row.Email}? Esto cierra la sesión del usuario.",
+                                                    ConfirmLabel: "Inhabilitar",
+                                                    FormOnSubmit: $"return confirm('¿Inhabilitar a {row.Email}? Esto cierra la sesión del usuario.');"));
                                             }
                                             else
                                             {
-                                                <form method="post" asp-action="Enable" asp-controller="AdminUsers"
-                                                      asp-route-id="@row.Id" class="d-inline">
-                                                    @Html.AntiForgeryToken()
-                                                    <button type="submit" class="btn btn-sm btn-outline-success"
-                                                            data-testid="row-action-enable">
-                                                        <i class="ti ti-circle-check"></i> Habilitar
-                                                    </button>
-                                                </form>
+                                                rowActions.Add(new RowActionItem(
+                                                    Label: "Habilitar",
+                                                    TestId: "row-action-enable",
+                                                    FormController: "AdminUsers",
+                                                    FormAction: "Enable",
+                                                    FormRouteValues: new Dictionary<string, string> { ["id"] = row.Id.ToString() },
+                                                    Icon: "ti ti-circle-check"));
                                             }
                                         }
-                                    </div>
+                                    }
+                                    @await Html.PartialAsync("Components/_RowActionsMenu", new RowActionsMenuViewModel(
+                                        MenuId: row.Id.ToString(),
+                                        Items: rowActions,
+                                        EditUrl: Url.Action("Edit", "AdminUsers", new { id = row.Id })))
                                 </td>
                             </tr>
                         }

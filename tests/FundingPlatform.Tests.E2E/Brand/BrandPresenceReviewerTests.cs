@@ -27,6 +27,13 @@ public class BrandPresenceReviewerTests : AuthenticatedTestBase
 
         var sponsorStrip = Page.Locator("[data-testid=\"sponsor-strip\"]");
         await Expect(sponsorStrip).ToBeVisibleAsync();
+
+        // Spec 037 FR-015 / FR-025 — official logo + dark-teal sidebar (#12343B).
+        await Expect(sidebarBrand.Locator("img.fl-sidebar-brand-logo")).ToBeVisibleAsync();
+        var sidebarBg = await Page.Locator("[data-testid=\"sidebar\"]")
+            .EvaluateAsync<string>("el => getComputedStyle(el).backgroundColor");
+        Assert.That(sidebarBg, Does.Match(@"rgb\(\s*18,\s*52,\s*59\s*\)"),
+            $"Sidebar must be the official dark teal #12343B (got {sidebarBg}).");
     }
 
     [Test]

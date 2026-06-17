@@ -163,6 +163,8 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
         var listPage = new AdminUsersListPage(Page);
         await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(targetEmail);
+        // Spec 037 — disable lives in the "⋯" kebab now; open it first.
+        await listPage.OpenRowActionsAsync(targetEmail);
         // Spec 024 — disable now opens the shared confirm modal; click confirm.
         await listPage.RowDisableButton(targetEmail).ClickAsync();
         await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
@@ -206,6 +208,8 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
         var listPage = new AdminUsersListPage(Page);
         await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(targetEmail);
+        // Spec 037 — disable lives in the "⋯" kebab now; open it first.
+        await listPage.OpenRowActionsAsync(targetEmail);
         // Spec 024 — disable now opens the shared confirm modal; click confirm.
         await listPage.RowDisableButton(targetEmail).ClickAsync();
         await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
@@ -214,6 +218,7 @@ public class AdminUserLifecycleTests : AuthenticatedTestBase
         // The status filter now defaults to "Activo"; load the just-disabled
         // user explicitly so it is listed before re-enabling.
         await Page.GotoAsync($"{BaseUrl}/Admin/Users?statusFilter=Disabled&search={targetEmail}");
+        await listPage.OpenRowActionsAsync(targetEmail);
         await listPage.RowEnableButton(targetEmail).ClickAsync();
         await Expect(Page.Locator("[data-testid=\"success-banner\"]")).ToBeVisibleAsync();
 

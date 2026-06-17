@@ -24,6 +24,33 @@ public class AdminUsersListPage : AdminBasePage
     public ILocator RowEditLink(string email) =>
         RowFor(email).Locator("[data-testid=\"row-action-edit\"]");
 
+    // Spec 037 D8 — the "⋯" kebab toggle for a row. Edit stays visible; the other
+    // row actions moved into this dropdown, so callers must open it first.
+    public ILocator RowActionsToggle(string email) =>
+        RowFor(email).Locator("[data-testid^=\"row-actions-menu-\"]");
+
+    public ILocator RowActionsMenu(string email) =>
+        RowFor(email).Locator(".dropdown-menu");
+
+    /// <summary>Opens the row's "⋯" kebab so the relocated actions
+    /// (resend / reset / disable / enable) become visible and clickable.
+    /// No-op for Edit-only rows (e.g. the self row) which render no kebab.
+    /// Idempotent.</summary>
+    public async Task OpenRowActionsAsync(string email)
+    {
+        var toggle = RowActionsToggle(email);
+        if (await toggle.CountAsync() == 0)
+        {
+            return;
+        }
+        var menu = RowActionsMenu(email);
+        if (!await menu.IsVisibleAsync())
+        {
+            await toggle.ClickAsync();
+            await menu.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+        }
+    }
+
     public ILocator RowDisableButton(string email) =>
         RowFor(email).Locator("[data-testid=\"row-action-disable\"]");
 

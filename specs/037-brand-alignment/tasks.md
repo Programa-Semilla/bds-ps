@@ -31,7 +31,7 @@ root `/mnt/D/repos/bds-ps-2/`.
 
 **Purpose**: Capture the perf baseline before any change; stage the official assets.
 
-- [ ] T001 [P] Capture pre-change perf baseline via `node scripts/capture-perf-baseline.mjs` for applicant home + reviewer queue (NFR-001); commit the baseline JSON under `specs/037-brand-alignment/` or the script's default location.
+- [X] T001 [P] Capture pre-change perf baseline via `node scripts/capture-perf-baseline.mjs` for applicant home + reviewer queue (NFR-001); commit the baseline JSON under `specs/037-brand-alignment/` or the script's default location.
 - [X] T002 Stage the official brand assets into `src/FundingPlatform.Web/wwwroot/lib/brand/` (optimized/resized, raster-as-provided per NFR-005): horizontal logo, vertical logo, icon disc, `partners-footer.png` (from `seeds/facelift-2/Fooder-general.png`), and a favicon from the icon disc. Record the exact filenames chosen (used by later tasks).
 
 **Checkpoint**: Baseline captured; official assets present in `wwwroot/lib/brand/`.
@@ -72,7 +72,7 @@ shows the correct official asset; no placeholder `mark.svg`/`wordmark.svg` refer
 - [X] T014 [P] [US4] Replace the favicon `<link rel="icon">` in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml` with the official icon disc.
 - [X] T015 [US4] Rewrite `src/FundingPlatform.Web/Views/Shared/_SponsorStrip.cshtml` to render a single official partner image (`~/lib/brand/partners-footer.png`, descriptive `alt` listing the official partner set) inside the existing `<footer class="fl-sponsor-strip" data-testid="sponsor-strip" data-print-hide=... aria-label="Patrocinadores">`; keep the `HideOnPrint` logic. Update `.fl-sponsor-strip` in `tokens.css` for a `3px` `var(--color-accent)` top border + centered responsive image (`max-width: 1100px; width: 100%; height: auto`); drop the per-`data-sponsor` rows and the `10-anos` `@media` hide (research D7).
 - [X] T016 [US4] Run `bash scripts/asset-budget-check.sh` (update enumerated paths to the new assets); optimize/resize so total brand assets ≤ 400 KB gz (SC-015 / NFR-002).
-- [ ] T017 [P] [US4] Update `tests/FundingPlatform.Tests.E2E/Brand/BrandPresenceLoginTests.cs` (vertical-logo `GetByAltText("Programa Semilla")`) and re-point any per-`data-sponsor` assertions to the single `sponsor-strip` image; run `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~BrandPresenceLogin|FullyQualifiedName~PrintLayout"`.
+- [X] T017 [P] [US4] Update `tests/FundingPlatform.Tests.E2E/Brand/BrandPresenceLoginTests.cs` (vertical-logo `GetByAltText("Programa Semilla")`) and re-point any per-`data-sponsor` assertions to the single `sponsor-strip` image; run `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~BrandPresenceLogin|FullyQualifiedName~PrintLayout"`.
 
 **Checkpoint**: Official logos render per context; footer is the official image with a yellow top border; placeholders gone; asset budget green.
 
@@ -86,8 +86,8 @@ identity inherited from Phases 2–3.
 **Independent Test**: Applicant E2E walks login + home + journey + signing; asserts dark sidebar bg,
 sidebar logo, teal primaries, de-zebra'd tables, footer image; PDF handoff reads teal (PDF asset in US5).
 
-- [ ] T018 [US1] Sweep applicant surfaces (`Views/Home`, `Views/Applications`, journey/appeal/signing partials) for any view carrying a legacy class, inline hex, or blue primary that bypasses the token bridge; fix to token-driven equivalents. No copy changes (localization invariant FR-034).
-- [ ] T019 [P] [US1] Extend/confirm `tests/FundingPlatform.Tests.E2E/Brand/BrandPresenceApplicantTests.cs`: assert dark sidebar background, `sidebar-brand` logo, and `sponsor-strip` image across applicant home + detail + journey; run filtered.
+- [X] T018 [US1] Sweep applicant surfaces (`Views/Home`, `Views/Applications`, journey/appeal/signing partials) for any view carrying a legacy class, inline hex, or blue primary that bypasses the token bridge; fix to token-driven equivalents. No copy changes (localization invariant FR-034).
+- [X] T019 [P] [US1] Extend/confirm `tests/FundingPlatform.Tests.E2E/Brand/BrandPresenceApplicantTests.cs`: assert dark sidebar background, `sidebar-brand` logo, and `sponsor-strip` image across applicant home + detail + journey; run filtered.
 - [ ] T020 [P] [US1] Visual check the funding-agreement preview surface (`src/FundingPlatform.Web/Views/Applications/` detail/signing views with the PDF-preview iframe + download CTA) still renders correctly against the new chrome (no layout regression at the iframe border); note the PDF brand asset itself is US5.
 
 **Checkpoint**: Applicant journey is brand-consistent from login through the signing surface.
@@ -102,8 +102,8 @@ sidebar logo, teal primaries, de-zebra'd tables, footer image; PDF handoff reads
 white (non-zebra) rows, dark sidebar, and that `data-density="reviewer"` padding stays dense while
 applicant tables stay roomy.
 
-- [ ] T021 [US2] Sweep reviewer surfaces (`Views/Review`, signing inbox/history) for token cascade + de-zebra correctness; confirm `data-density="reviewer"` preserved on all reviewer tables (FR-019).
-- [ ] T022 [P] [US2] Extend/confirm `tests/FundingPlatform.Tests.E2E/Brand/BrandPresenceReviewerTests.cs` + `ReviewerDensityTests.cs`: brand presence on all four surfaces + dense cell padding unchanged; run filtered.
+- [X] T021 [US2] Sweep reviewer surfaces (`Views/Review`, signing inbox/history) for token cascade + de-zebra correctness; confirm `data-density="reviewer"` preserved on all reviewer tables (FR-019).
+- [X] T022 [P] [US2] Extend/confirm `tests/FundingPlatform.Tests.E2E/Brand/BrandPresenceReviewerTests.cs` + `ReviewerDensityTests.cs`: brand presence on all four surfaces + dense cell padding unchanged; run filtered.
 
 **Checkpoint**: Reviewer surfaces match the official brand; density rule intact.
 
@@ -118,12 +118,12 @@ the `Editar` + `⋯` kebab actions — first on Users, then swept across admin.
 filter card with Aplicar + Limpiar filtros, de-zebra table, Editar + kebab exposing Reenviar/
 Restablecer/Inhabilitar — each still hitting its original route.
 
-- [ ] T023 [US3] Create `src/FundingPlatform.Web/Views/Shared/Components/_RowActionsMenu.cshtml`: renders `Editar` as a visible `<a data-testid="row-action-edit">` + a `⋯` toggle (`data-testid="row-actions-menu-<id>"`, `ti ti-dots-vertical`, `data-bs-toggle="dropdown"`) opening a `dropdown-menu dropdown-menu-end`. Accepts the row's existing forms/links so they move in verbatim (research D8). Keyboard/SR operable.
-- [ ] T024 [US3] Apply `_RowActionsMenu` to the actions cell of `src/FundingPlatform.Web/Views/Admin/Users/Index.cshtml`: move Reenviar invitación (POST form), Restablecer (`<a>`), Inhabilitar (POST + all `data-confirm-*`), Habilitar (POST) into the kebab as `dropdown-item`s; Inhabilitar styled red (`text-danger`). PRESERVE every `data-testid` (`row-action-edit/-resend-invite/-reset-password/-disable/-enable`), antiforgery tokens, verbs, and routes (contract A). Verify the Users page-header copy stays exact ("Usuarios" / "Administre las cuentas de usuario de la plataforma." / "Crear usuario" / "Crear por lote").
-- [ ] T025 [US3] Wrap the Users filter `<form data-testid="admin-users-filter-form">` in `.fl-filter-card` and add a "Limpiar filtros" link `data-testid="admin-users-filter-clear"` → `@Url.Action("Index", "AdminUsers")` (param-less reset, no new endpoint — FR-033/D9). Keep Aplicar + the cascading fund filter unchanged.
-- [ ] T026 [P] [US3] Apply `_RowActionsMenu` to the other admin list views whose rows carry ≥2 actions, preserving each view's existing action testids/routes/verbs. Concrete targets (grep `Views/Admin/` for rows with ≥2 `<a>`/`<form>` actions before editing): `Views/Admin/Suppliers/Index.cshtml`, `Views/Admin/Groups/Index.cshtml`, `Views/Admin/Currencies.cshtml`, `Views/Admin/ExchangeRates.cshtml`, `Views/Admin/Funds/Index.cshtml`, `Views/Admin/Processes/Index.cshtml`, `Views/Admin/Categories.cshtml`, `Views/Admin/ImpactTemplates/Index.cshtml` (skip any that have only a single action — leave those inline).
-- [ ] T027 [US3] Sweep the remaining admin sub-surfaces (`/Admin` index + the ~18 sub-views) for token cascade + standardized `_PageHeader` teal primary CTA (research D10); fix any blue primary or legacy class.
-- [ ] T028 [US3] Update `tests/FundingPlatform.Tests.E2E/PageObjects/AdminUsersListPage.cs` to open the kebab (`row-actions-menu-*`) before clicking the relocated `row-action-*` items; cascade the same helper to other admin list page objects touched by T026.
+- [X] T023 [US3] Create `src/FundingPlatform.Web/Views/Shared/Components/_RowActionsMenu.cshtml`: renders `Editar` as a visible `<a data-testid="row-action-edit">` + a `⋯` toggle (`data-testid="row-actions-menu-<id>"`, `ti ti-dots-vertical`, `data-bs-toggle="dropdown"`) opening a `dropdown-menu dropdown-menu-end`. Accepts the row's existing forms/links so they move in verbatim (research D8). Keyboard/SR operable.
+- [X] T024 [US3] Apply `_RowActionsMenu` to the actions cell of `src/FundingPlatform.Web/Views/Admin/Users/Index.cshtml`: move Reenviar invitación (POST form), Restablecer (`<a>`), Inhabilitar (POST + all `data-confirm-*`), Habilitar (POST) into the kebab as `dropdown-item`s; Inhabilitar styled red (`text-danger`). PRESERVE every `data-testid` (`row-action-edit/-resend-invite/-reset-password/-disable/-enable`), antiforgery tokens, verbs, and routes (contract A). Verify the Users page-header copy stays exact ("Usuarios" / "Administre las cuentas de usuario de la plataforma." / "Crear usuario" / "Crear por lote").
+- [X] T025 [US3] Wrap the Users filter `<form data-testid="admin-users-filter-form">` in `.fl-filter-card` and add a "Limpiar filtros" link `data-testid="admin-users-filter-clear"` → `@Url.Action("Index", "AdminUsers")` (param-less reset, no new endpoint — FR-033/D9). Keep Aplicar + the cascading fund filter unchanged.
+- [X] T026 [P] [US3] Apply `_RowActionsMenu` to the other admin list views whose rows carry ≥2 actions, preserving each view's existing action testids/routes/verbs. Concrete targets (grep `Views/Admin/` for rows with ≥2 `<a>`/`<form>` actions before editing): `Views/Admin/Suppliers/Index.cshtml`, `Views/Admin/Groups/Index.cshtml`, `Views/Admin/Currencies.cshtml`, `Views/Admin/ExchangeRates.cshtml`, `Views/Admin/Funds/Index.cshtml`, `Views/Admin/Processes/Index.cshtml`, `Views/Admin/Categories.cshtml`, `Views/Admin/ImpactTemplates/Index.cshtml` (skip any that have only a single action — leave those inline).
+- [X] T027 [US3] Sweep the remaining admin sub-surfaces (`/Admin` index + the ~18 sub-views) for token cascade + standardized `_PageHeader` teal primary CTA (research D10); fix any blue primary or legacy class.
+- [X] T028 [US3] Update `tests/FundingPlatform.Tests.E2E/PageObjects/AdminUsersListPage.cs` to open the kebab (`row-actions-menu-*`) before clicking the relocated `row-action-*` items; cascade the same helper to other admin list page objects touched by T026.
 - [ ] T029 [P] [US3] Run admin/user E2E green: `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~BrandPresenceAdmin|FullyQualifiedName~AdminUserLifecycle|FullyQualifiedName~AdminUserCode|FullyQualifiedName~UserInvitation|FullyQualifiedName~AdminResetPassword|FullyQualifiedName~SentinelImmutability"`.
 
 **Checkpoint**: Admin area uniform; Users page is the reference treatment; all relocated actions work via their original routes.
@@ -137,8 +137,8 @@ Restablecer/Inhabilitar — each still hitting its original route.
 **Independent Test**: Generate a fixture PDF — brand chrome reads official teal; layout/content
 identical to a pre-facelift fixture (only color + timestamp differ).
 
-- [ ] T030 [US5] Replace `src/FundingPlatform.Web/wwwroot/lib/brand/pdf/header-seedling.png` (official-teal disc, sourced from the icon) and `footer-partners-strip.png` (official partner strip, from `Fooder-general.png`), sized to the existing PDF strip/header dimensions (research D4). Do NOT edit `_FundingAgreementLayout.cshtml` or `Document.cshtml`.
-- [ ] T031 [US5] Run `bash scripts/verify-pdf-carveouts.sh` (MUST pass — `.cshtml` byte-identical to main); generate a fixture Funding Agreement PDF and confirm the brand chrome reads official teal while layout/content match a pre-facelift fixture (SC-013).
+- [X] T030 [US5] Replace `src/FundingPlatform.Web/wwwroot/lib/brand/pdf/header-seedling.png` (official-teal disc, sourced from the icon) and `footer-partners-strip.png` (official partner strip, from `Fooder-general.png`), sized to the existing PDF strip/header dimensions (research D4). Do NOT edit `_FundingAgreementLayout.cshtml` or `Document.cshtml`.
+- [X] T031 [US5] Run `bash scripts/verify-pdf-carveouts.sh` (MUST pass — `.cshtml` byte-identical to main); generate a fixture Funding Agreement PDF and confirm the brand chrome reads official teal while layout/content match a pre-facelift fixture (SC-013).
 
 **Checkpoint**: PDF and UI brand chrome reconverged; carve-out gate green.
 
@@ -151,11 +151,11 @@ reduced-motion green, snapshots refreshed.
 
 **Independent Test**: axe AA on ≥5 surfaces; keyboard + responsive E2E; reduced-motion green.
 
-- [ ] T032 [P] [US6] Extend `tests/FundingPlatform.Tests.E2E/Brand/AxeContrastTests.cs` to ≥5 surfaces (applicant home, reviewer queue, admin index, login, Users page) and add an assertion that the dark-sidebar light text passes AA on `#12343B` (FR-026/SC-008).
-- [ ] T033 [P] [US6] Add a keyboard E2E in `tests/FundingPlatform.Tests.E2E/Brand/KeyboardAccessTests.cs`: the `⋯` kebab (`row-actions-menu-*`) is reachable/operable by keyboard with a visible teal focus ring, and status pills carry icon+text (color not the sole signal) (FR-027/SC-009).
-- [ ] T034 [P] [US6] Add responsive E2E checks in `tests/FundingPlatform.Tests.E2E/Brand/ResponsiveLayoutTests.cs`: at a narrow viewport → filters wrap, tables horizontal-scroll, footer image scales, sidebar collapses to the icon-only logo (FR-024/SC-010).
-- [ ] T035 [P] [US6] Confirm `tests/FundingPlatform.Tests.E2E/Brand/ReducedMotionTests.cs` stays green; no new motion outside the spec 011/019 catalog (FR-028/SC-011).
-- [ ] T036 [US6] Refresh `tests/FundingPlatform.Tests.E2E/Brand/VisualRegressionTests.cs` snapshots for applicant home, reviewer queue, admin index, login, and ADD the Users page (FR-029/SC-012); review diffs.
+- [X] T032 [P] [US6] Extend `tests/FundingPlatform.Tests.E2E/Brand/AxeContrastTests.cs` to ≥5 surfaces (applicant home, reviewer queue, admin index, login, Users page) and add an assertion that the dark-sidebar light text passes AA on `#12343B` (FR-026/SC-008).
+- [X] T033 [P] [US6] Add a keyboard E2E in `tests/FundingPlatform.Tests.E2E/Brand/KeyboardAccessTests.cs`: the `⋯` kebab (`row-actions-menu-*`) is reachable/operable by keyboard with a visible teal focus ring, and status pills carry icon+text (color not the sole signal) (FR-027/SC-009).
+- [X] T034 [P] [US6] Add responsive E2E checks in `tests/FundingPlatform.Tests.E2E/Brand/ResponsiveLayoutTests.cs`: at a narrow viewport → filters wrap, tables horizontal-scroll, footer image scales, sidebar collapses to the icon-only logo (FR-024/SC-010).
+- [X] T035 [P] [US6] Confirm `tests/FundingPlatform.Tests.E2E/Brand/ReducedMotionTests.cs` stays green; no new motion outside the spec 011/019 catalog (FR-028/SC-011).
+- [X] T036 [US6] Refresh `tests/FundingPlatform.Tests.E2E/Brand/VisualRegressionTests.cs` snapshots for applicant home, reviewer queue, admin index, login, and ADD the Users page (FR-029/SC-012); review diffs.
 
 **Checkpoint**: Accessibility + responsive guarantees verified; snapshots updated.
 
@@ -165,10 +165,10 @@ reduced-motion green, snapshots refreshed.
 
 **Purpose**: Final gates, budgets, perf, and sign-off.
 
-- [ ] T037 [P] Run `bash scripts/brand-grep-gate.sh` + `bash scripts/tokens-audit.sh` + `bash scripts/verify-tokens.sh`: zero spec-019 legacy hex outside `tokens.css` history; raw hex only in `tokens.css`; yellow non-semantic (SC-001/002).
-- [ ] T038 [P] Run `bash scripts/asset-budget-check.sh` (and `verify-asset-budget.sh`) — record total brand-asset wire weight ≤ 400 KB gz (SC-015).
-- [ ] T039 [P] Run `node scripts/compare-perf.mjs` vs the T001 baseline — no >10% LCP/TBT regression on applicant home + reviewer queue (NFR-001).
-- [ ] T040 Confirm `git diff --stat main -- src/FundingPlatform.Database/` is empty (SC-014).
+- [X] T037 [P] Run `bash scripts/brand-grep-gate.sh` + `bash scripts/tokens-audit.sh` + `bash scripts/verify-tokens.sh`: zero spec-019 legacy hex outside `tokens.css` history; raw hex only in `tokens.css`; yellow non-semantic (SC-001/002).
+- [X] T038 [P] Run `bash scripts/asset-budget-check.sh` (and `verify-asset-budget.sh`) — record total brand-asset wire weight ≤ 400 KB gz (SC-015).
+- [X] T039 [P] Run `node scripts/compare-perf.mjs` vs the T001 baseline — no >10% LCP/TBT regression on applicant home + reviewer queue (NFR-001).
+- [X] T040 Confirm `git diff --stat main -- src/FundingPlatform.Database/` is empty (SC-014).
 - [ ] T041 Run the filtered E2E delivery bar green: `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~Brand|FullyQualifiedName~AdminUser|FullyQualifiedName~UserInvitation|FullyQualifiedName~AdminResetPassword"` (SC-016).
 - [ ] T042 Run `specs/037-brand-alignment/quickstart.md` acceptance walk; present the palette + dark sidebar + footer image + Users-page reference treatment for the user sign-off gate (SC-017).
 - [ ] T043 [P] Update `CLAUDE.md` Recent Changes + Last-updated; mark spec 037 implemented (post-merge: PR number + squash hash).

@@ -42,6 +42,8 @@ public class LastAdminGuardTests : AuthenticatedTestBase
         var listPage = new AdminUsersListPage(Page);
         await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(secondAdminEmail);
+        // Spec 037 — disable lives in the "⋯" kebab now; open it first.
+        await listPage.OpenRowActionsAsync(secondAdminEmail);
         // Spec 024 — disable now opens the shared confirm modal; click confirm.
         await listPage.RowDisableButton(secondAdminEmail).ClickAsync();
         await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
