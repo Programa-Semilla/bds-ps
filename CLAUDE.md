@@ -161,7 +161,7 @@ Per-spec architectural seams (interfaces, aggregates, tables) are summarized in 
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-Active plan: **none** — 035 shipped to main (PR #63). Next feature not yet started.
+Active plan: **036-funds-usage-evidence** (branch `036-funds-usage-evidence`) — planning complete; spec.md + plan.md + research.md + data-model.md + contracts/ + quickstart.md written. Next: `/speckit-tasks`. New post-disbursement reviewer stage: in-scope reviewers/admins upload/annotate(≤250-char note)/download/delete evidence files on an `AgreementExecuted` application. New `FundsUsageEvidence` aggregate (own table, FK→Applications NO ACTION) + new `FileCategory.FundsUsageEvidence` (20 MiB, BackendStream) + reviewer-scoped `FundsUsageEvidenceController` under `/Applications/{id}/Evidence`. Reuses `IObjectStorage`/`IReviewerScope`/`UploadSizeGuard`/`IAdminAuditWriter`. No new state, no new deps. See `specs/036-funds-usage-evidence/`.
 
 Last shipped: **035-line-item-category-templates** (merged to main, PR #63, squash `dd85313`) — admin-configured **category field sets** (dynamic per-item fields replacing `Item.TechnicalSpecifications`), **application-level multi-impact + per-item attribution & justification** (impact model evolved 2026-06-16), **quotation reuse** within an application, plus scoped Process/Group name uniqueness and "Plantillas de Categorías" admin UX. Greenfield, no new deps. See `specs/035-line-item-category-templates/`. Prior: **034-batch-user-create** (PR #61); **033-user-invite-email** (PR #60); **032-admin-user-code** (PR #59).
 <!-- SPECKIT END -->
