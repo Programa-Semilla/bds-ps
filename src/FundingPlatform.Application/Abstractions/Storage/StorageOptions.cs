@@ -98,6 +98,14 @@ public sealed class StorageCategoriesOptions
         UrlExpirySeconds = 300,
     };
 
+    // Spec 036 / FR-005, FR-009 — funds-usage evidence. 20 MiB cap; served via
+    // BackendStream (no time-limited URL), so UrlExpirySeconds is irrelevant.
+    public StorageCategoryOptions FundsUsageEvidence { get; set; } = new()
+    {
+        MaxSizeBytes = StorageOptions.DefaultMaxSizeBytes20Mib,
+        ServingMode = ServingMode.BackendStream,
+    };
+
     public StorageCategoryOptions For(FileCategory category) => category switch
     {
         FileCategory.SignedFundingAgreement => SignedFundingAgreement,
@@ -106,6 +114,7 @@ public sealed class StorageCategoriesOptions
         FileCategory.GeneratedArtifact => GeneratedArtifact,
         FileCategory.PublicLandingFile => PublicLandingFile,
         FileCategory.FundRegulation => FundRegulation,
+        FileCategory.FundsUsageEvidence => FundsUsageEvidence,
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
     };
 }

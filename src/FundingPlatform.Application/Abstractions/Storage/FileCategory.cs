@@ -31,6 +31,11 @@ public enum FileCategory
     // optional document per Fund). Reuses the spec-014 IObjectStorage path.
     [Description("fund-regulations")]
     FundRegulation,
+
+    // Spec 036 / D4 — funds-usage evidence files uploaded by in-scope
+    // reviewers/admins on an AgreementExecuted application. Own container.
+    [Description("funds-usage-evidence")]
+    FundsUsageEvidence,
 }
 
 public static class FileCategoryExtensions
@@ -43,6 +48,7 @@ public static class FileCategoryExtensions
         FileCategory.GeneratedArtifact => "generated-artifacts",
         FileCategory.PublicLandingFile => "public-landing-files",
         FileCategory.FundRegulation => "fund-regulations",
+        FileCategory.FundsUsageEvidence => "funds-usage-evidence",
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
     };
 
@@ -56,5 +62,6 @@ public static class FileCategoryExtensions
         "generated-artifacts",
         "public-landing-files",
         "fund-regulations",
+        "funds-usage-evidence",
     ];
 }
