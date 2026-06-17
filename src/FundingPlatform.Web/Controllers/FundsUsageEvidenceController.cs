@@ -100,8 +100,12 @@ public sealed class FundsUsageEvidenceController : Controller
         }
         catch (InvalidOperationException)
         {
-            // Note too long, or the application is no longer executed (domain guard).
-            TempData["ErrorMessage"] = FundsUsageEvidenceResources.Error_NoteTooLong;
+            // The domain factory throws for two reasons: a note over 250 chars, or the
+            // application no longer being executed (a state race after the gate check).
+            // Label each correctly rather than always blaming the note.
+            TempData["ErrorMessage"] = (note?.Trim().Length ?? 0) > FundingPlatform.Domain.Entities.FundsUsageEvidence.MaxNoteLength
+                ? FundsUsageEvidenceResources.Error_NoteTooLong
+                : FundsUsageEvidenceResources.Error_UploadFailed;
             return RedirectToAction(nameof(Index), new { applicationId });
         }
 

@@ -21,6 +21,7 @@ public class FundsUsageEvidenceTests : AuthenticatedTestBase
 
     private string _pdfPath = string.Empty;
     private string _pngPath = string.Empty;
+    private string _txtPath = string.Empty;
     private readonly List<string> _seededFiles = [];
 
     [SetUp]
@@ -29,14 +30,16 @@ public class FundsUsageEvidenceTests : AuthenticatedTestBase
         var stamp = Guid.NewGuid().ToString("N")[..8];
         _pdfPath = Path.Combine(Path.GetTempPath(), $"evidencia-{stamp}.pdf");
         _pngPath = Path.Combine(Path.GetTempPath(), $"imagen-{stamp}.png");
+        _txtPath = Path.Combine(Path.GetTempPath(), $"prohibido-{stamp}.txt");
         File.WriteAllBytes(_pdfPath, "%PDF-1.4\nfunds-usage evidence\n%%EOF\n"u8.ToArray());
         File.WriteAllBytes(_pngPath, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52]);
+        File.WriteAllText(_txtPath, "este tipo de archivo no está permitido");
     }
 
     [TearDown]
     public void TearDown()
     {
-        foreach (var p in new[] { _pdfPath, _pngPath }.Concat(_seededFiles))
+        foreach (var p in new[] { _pdfPath, _pngPath, _txtPath }.Concat(_seededFiles))
         {
             if (File.Exists(p)) File.Delete(p);
         }
@@ -103,6 +106,11 @@ public class FundsUsageEvidenceTests : AuthenticatedTestBase
 
         // Download returns the original file.
         await evidence.DownloadRowAsync(pdfName);
+
+        // FR-004 — a disallowed type (.txt) is rejected with an es-CR error and creates no row.
+        await evidence.UploadAsync(_txtPath);
+        await Expect(evidence.ErrorToast).ToBeVisibleAsync();
+        Assert.That(await evidence.Rows.CountAsync(), Is.EqualTo(2), "disallowed file must not create a row");
     }
 
     // ---------------- US2 — annotate ----------------
@@ -227,6 +235,15 @@ public class FundsUsageEvidenceTests : AuthenticatedTestBase
 
         var evidence = new FundsUsageEvidencePage(Page);
 
+        // Admin (always in scope) seeds one evidence item so we can also exercise the
+        // download route's no-disclosure (FR-009/SC-004 covers files, not just the stage).
+        await LoginAsync(Page, adminEmail, Pwd);
+        await evidence.GotoAsync(BaseUrl, executedAppId);
+        await evidence.UploadAsync(_pdfPath);
+        var downloadHref = await evidence.FirstDownloadHrefAsync();
+        Assert.That(downloadHref, Does.Contain("/Download"));
+        await Logout();
+
         // Applicant (no reviewer/admin role) is refused by the [Authorize(Roles=...)]
         // gate before the controller runs → 403 / AccessDenied (the codebase's
         // role-refusal convention; the controller's no-disclosure 404 is for the
@@ -237,12 +254,21 @@ public class FundsUsageEvidenceTests : AuthenticatedTestBase
             || Page.Url.Contains("/Account/AccessDenied", StringComparison.OrdinalIgnoreCase);
         Assert.That(applicantRefused, Is.True,
             $"Applicant must be refused the reviewer-only evidence stage. Status={applicantStatus}, Url={Page.Url}");
+        // ...and the evidence file itself (download) is refused too.
+        var applicantDl = await Page.GotoAsync($"{BaseUrl}{downloadHref}");
+        var applicantDlRefused = (applicantDl?.Status == 403)
+            || Page.Url.Contains("/Account/AccessDenied", StringComparison.OrdinalIgnoreCase);
+        Assert.That(applicantDlRefused, Is.True, "Applicant must be refused the evidence download.");
         await Logout();
 
-        // Out-of-group reviewer (group B) → 404 (no disclosure) on the group-A app.
+        // Out-of-group reviewer (group B) → 404 (no disclosure) on the group-A app,
+        // for both the stage and the download route.
         await OnboardAndLoginAsync(reviewerEmail, "RevPass1!");
         Assert.That(await evidence.GotoStatusAsync(BaseUrl, executedAppId), Is.EqualTo(404),
-            "Out-of-group reviewer must get a flat 404.");
+            "Out-of-group reviewer must get a flat 404 on the stage.");
+        var revDl = await Page.GotoAsync($"{BaseUrl}{downloadHref}");
+        Assert.That(revDl?.Status, Is.EqualTo(404),
+            "Out-of-group reviewer must get a flat 404 on the download.");
         await Logout();
 
         // In-scope viewer (admin) on a NON-executed app → 404 (stage unavailable before execution).

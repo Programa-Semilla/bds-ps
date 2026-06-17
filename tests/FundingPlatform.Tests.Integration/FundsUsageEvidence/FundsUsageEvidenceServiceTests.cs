@@ -8,6 +8,7 @@ using FundingPlatform.Infrastructure.Services;
 using FundingPlatform.Tests.Integration.AiComparison;
 using FundingPlatform.Tests.Integration.Helpers;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
 namespace FundingPlatform.Tests.Integration.FundsUsageEvidence;
@@ -30,7 +31,7 @@ public class FundsUsageEvidenceServiceTests
             .Options);
 
     private static FundsUsageEvidenceService NewService(AppDbContext ctx, InMemoryObjectStorage storage) =>
-        new(ctx, storage, new AdminAuditEventWriter(ctx));
+        new(ctx, storage, new AdminAuditEventWriter(ctx), NullLogger<FundsUsageEvidenceService>.Instance);
 
     private static async Task<int> SeedApplicationAsync(AppDbContext ctx, ApplicationState state)
     {
@@ -91,6 +92,26 @@ public class FundsUsageEvidenceServiceTests
             Assert.That(download, Is.Not.Null);
             Assert.That(download!.FileName, Is.EqualTo("evidence.pdf"));
         }
+    }
+
+    [Test]
+    public async Task Upload_WhenRowCreationFails_RollsBackRow_AndCleansUpBlob()
+    {
+        // Spec edge case "storage failure mid-upload": no orphaned row, blob cleaned up
+        // (research D9). We force the post-upload domain factory to throw (note > 250)
+        // so the blob is written first, then the compensation path runs.
+        var db = $"fue-rollback-{Guid.NewGuid():N}";
+        var storage = new InMemoryObjectStorage();
+
+        using var ctx = CreateContext(db);
+        var appId = await SeedApplicationAsync(ctx, ApplicationState.AgreementExecuted);
+
+        Assert.ThrowsAsync<InvalidOperationException>(() =>
+            NewService(ctx, storage).UploadAsync(
+                UploadCmd(appId, note: new string('x', 251)), Actor, CancellationToken.None));
+
+        Assert.That(await ctx.FundsUsageEvidence.AnyAsync(), Is.False, "no orphaned row");
+        Assert.That(storage.StoredCount, Is.EqualTo(0), "blob cleaned up after the failed row commit");
     }
 
     [Test]

@@ -41,6 +41,7 @@ public static class FundsUsageEvidenceResources
     public const string Error_FileRequired = "Selecciona un archivo para subir.";
     public const string Error_FileType = "El tipo de archivo no está permitido. Sube un PDF, una imagen o un documento de Word/Excel.";
     public const string Error_NoteTooLong = "La nota no puede superar los 250 caracteres.";
+    public const string Error_UploadFailed = "No se pudo subir la evidencia. Intenta de nuevo.";
 
     // Confirm dialog (spec 024)
     public const string Confirm_DeleteTitle = "Eliminar evidencia";

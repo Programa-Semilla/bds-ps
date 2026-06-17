@@ -8,6 +8,7 @@ using FundingPlatform.Application.FundsUsageEvidence;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using EvidenceEntity = FundingPlatform.Domain.Entities.FundsUsageEvidence;
 
 namespace FundingPlatform.Infrastructure.Services;
@@ -28,12 +29,18 @@ public sealed class FundsUsageEvidenceService : IFundsUsageEvidenceService
     private readonly AppDbContext _db;
     private readonly IObjectStorage _storage;
     private readonly IAdminAuditEventWriter _audit;
+    private readonly ILogger<FundsUsageEvidenceService> _logger;
 
-    public FundsUsageEvidenceService(AppDbContext db, IObjectStorage storage, IAdminAuditEventWriter audit)
+    public FundsUsageEvidenceService(
+        AppDbContext db,
+        IObjectStorage storage,
+        IAdminAuditEventWriter audit,
+        ILogger<FundsUsageEvidenceService> logger)
     {
         _db = db;
         _storage = storage;
         _audit = audit;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<FundsUsageEvidenceListItem>> ListAsync(int applicationId, CancellationToken ct)
@@ -101,11 +108,16 @@ public sealed class FundsUsageEvidenceService : IFundsUsageEvidenceService
         }
         catch
         {
-            // No row was committed; the blob would otherwise leak (FR / research D9).
+            // No row was committed; the blob would otherwise leak (research D9).
             await DeleteBlobBestEffortAsync(key.Value, ct);
             throw;
         }
 
+        // Audit written after the row commit (mirrors FundService.CreateAsync). A second
+        // SaveChanges rather than one transaction: AddSqlServerDbContext enables the
+        // retrying execution strategy, which forbids a raw user-initiated transaction,
+        // and an execution-strategy wrapper would re-execute (re-adding the tracked row)
+        // on a transient retry. This matches the shipping FundService pattern.
         await _audit.WriteAsync(
             AdminAuditEvent.FundsEvidenceUploaded, actorUserId,
             JsonSerializer.Serialize(new { applicationId = cmd.ApplicationId, evidenceId = evidence.Id, fileName = cmd.OriginalFileName }),
@@ -150,7 +162,19 @@ public sealed class FundsUsageEvidenceService : IFundsUsageEvidenceService
             AdminAuditEvent.FundsEvidenceDeleted, actorUserId,
             JsonSerializer.Serialize(new { applicationId, evidenceId, fileName }),
             ct);
-        await _db.SaveChangesAsync(ct);
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Concurrent delete: another reviewer already removed this row (the
+            // RowVersion token no longer matches). The item is already gone, so the
+            // outcome the caller wanted holds — resolve harmlessly (US3 AS-3 / SC-003).
+            _logger.LogInformation(
+                "Funds-usage evidence {EvidenceId} was concurrently deleted; treating as already removed.", evidenceId);
+        }
     }
 
     public async Task<FundsUsageEvidenceDownload?> OpenForDownloadAsync(int evidenceId, CancellationToken ct)
@@ -172,18 +196,32 @@ public sealed class FundsUsageEvidenceService : IFundsUsageEvidenceService
         }
         catch
         {
+            _logger.LogWarning(
+                "Funds-usage evidence {EvidenceId} has an unparseable blob key; download resolves to not-found.", evidenceId);
             return null;
         }
 
         try
         {
             var resolved = await _storage.ResolveServingHandleAsync(Category, key, ServingMode.BackendStream, ct);
-            var handle = (BackendStreamHandle)resolved;
+            // Defensive: the category is wired to BackendStream, so this should always
+            // be a BackendStreamHandle. Degrade to not-found rather than crash if a
+            // serving-mode misconfiguration ever returns a different handle.
+            if (resolved is not BackendStreamHandle handle)
+            {
+                _logger.LogWarning(
+                    "Funds-usage evidence {EvidenceId} resolved to a non-backend-stream handle ({HandleType}).",
+                    evidenceId, resolved.GetType().Name);
+                return null;
+            }
+
             return new FundsUsageEvidenceDownload(
                 handle.Content, handle.ContentType ?? row.ContentType, row.OriginalFileName);
         }
         catch (ObjectNotFoundException)
         {
+            _logger.LogWarning(
+                "Funds-usage evidence {EvidenceId} row exists but its blob is missing; download resolves to not-found.", evidenceId);
             return null;
         }
     }
@@ -194,10 +232,13 @@ public sealed class FundsUsageEvidenceService : IFundsUsageEvidenceService
         {
             await _storage.DeleteAsync(Category, ObjectKey.Parse(blobKey), ct);
         }
-        catch
+        catch (Exception ex)
         {
             // The blob may be malformed or already gone; the row is the source of
             // truth, so leaking is preferable to failing the mutation (research D9).
+            // Log so operators can reconcile leaked blobs.
+            _logger.LogWarning(ex,
+                "Best-effort delete of funds-usage evidence blob {BlobKey} failed; it may be leaked.", blobKey);
         }
     }
 

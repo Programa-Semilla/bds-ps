@@ -36,6 +36,10 @@ public sealed class FundsUsageEvidencePage : BasePage
         await UploadSubmit.ClickAsync();
     }
 
+    /// <summary>The first row's download URL (relative), for cross-role refusal checks.</summary>
+    public async Task<string> FirstDownloadHrefAsync()
+        => await Rows.First.Locator("[data-testid=evidence-download]").GetAttributeAsync("href") ?? string.Empty;
+
     public async Task DownloadRowAsync(string fileName)
     {
         var row = RowFor(fileName);

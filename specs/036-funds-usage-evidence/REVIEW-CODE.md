@@ -51,3 +51,51 @@ Blob is written first, then the row is saved (to assign the id the audit payload
 - **No separate repository** — the service uses `AppDbContext` directly, per the allowance in [contracts/interfaces.md](contracts/interfaces.md) ("may be folded into the service"). Mirrors `FundService`.
 - **US2 oversize-note E2E** bypasses the `maxlength=250` attribute via JS to exercise the *server* guard (the browser would otherwise cap input at 250). Question: is exercising the server guard this way acceptable, or should it assert only the client cap?
 - No other deviations from [plan.md](plan.md) were identified.
+
+---
+
+## Deep Review Report
+
+> Automated multi-perspective code review results. Summarizes what was checked, found, and fixed.
+
+**Date:** 2026-06-17 | **Rounds:** 1 (+ a prod-DB revert sub-iteration) | **Gate:** PASS (advisory)
+
+### Review Agents
+
+| Agent | Findings | Status |
+|-------|----------|--------|
+| Correctness | 2 | completed |
+| Architecture & Idioms | 4 | completed |
+| Security | 2 | completed |
+| Production Readiness | 4 | completed |
+| Test Quality | 7 | completed |
+| CodeRabbit (external) | — | skipped (CLI not installed) |
+| Copilot (external) | — | skipped (CLI not installed) |
+
+(Counts are pre-dedup; merged total = 16.)
+
+### Findings Summary
+
+| Severity | Found | Fixed | Remaining (accepted) |
+|----------|-------|-------|-----------|
+| Critical | 2 | 2 | 0 |
+| Important | 6 | 4 | 2 |
+| Minor | 8 | 3 | 5 |
+
+### What was fixed automatically
+
+- **Correctness/spec:** concurrent delete now resolves harmlessly (catch `DbUpdateConcurrencyException`, US3-AS3/SC-003) instead of a 500; the upload catch labels note-too-long vs a state-race correctly.
+- **Production readiness:** injected `ILogger`; the blob-cleanup, orphan-on-failure, and missing-blob/unparseable-key download branches now log; the `BackendStreamHandle` cast is a safe `is`-pattern.
+- **Test coverage:** added oversize-**file** rejection for `FundsUsageEvidence` (FR-005/SC-007), an upload-rollback test (no orphaned row + blob cleaned up), a controller-level disallowed-type E2E (FR-004), and download no-disclosure for applicant + out-of-group reviewer in US4 (FR-009/SC-004).
+
+All fixes re-verified: Unit 28/0, Integration 8/0 (+ per-category oversize 11/0), filtered E2E 4/4.
+
+### What still needs human attention
+
+- **[FINDING-7](review-findings.md) (Important) — upload row/audit atomicity.** Accepted as the shipping `FundService` pattern; a transaction is incompatible with the SQL Server retrying execution strategy enabled by `AddSqlServerDbContext`. Question: is the narrow audit-commit-failure window (committed row+blob, missing audit row on a transient DB error) acceptable, as it is elsewhere in the codebase?
+- **[FINDING-8](review-findings.md) (Important) — cross-scope `EvidenceBelongsAsync` guard** has no dedicated test (needs two executed apps). The same `NotFound()` refusal path is exercised by the new download no-disclosure test. Question: add a dedicated cross-app test in a later hardening pass?
+- Minor defense-in-depth notes ([FINDING-11/12/13/15](review-findings.md)): extension-derived MIME + `nosniff`, `ReadExactlyAsync` for the magic sniff, domain-vs-controller file-type placement, list-ordering/display-fallback coverage.
+
+### Recommendation
+
+All Critical findings and the high-value Important findings are addressed and re-verified green. Two Important findings are consciously accepted with documented rationale (codebase-consistent atomicity pattern; cross-scope test deferred), and five Minor findings are recorded for a future hardening pass. **Code is ready for human review with no known blockers.** See [review-findings.md](review-findings.md) for the full detail.

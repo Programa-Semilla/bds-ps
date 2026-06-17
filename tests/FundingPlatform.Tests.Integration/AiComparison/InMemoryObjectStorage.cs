@@ -13,6 +13,9 @@ internal sealed class InMemoryObjectStorage : IObjectStorage
 {
     private readonly Dictionary<string, byte[]> _store = new();
 
+    /// <summary>Number of stored blobs — lets tests assert orphan-cleanup (spec 036 / research D9).</summary>
+    internal int StoredCount => _store.Count;
+
     public Task<StoredObject> UploadAsync(
         FileCategory category, ObjectKey key, Stream content, string contentType,
         long? contentLength, CancellationToken ct)

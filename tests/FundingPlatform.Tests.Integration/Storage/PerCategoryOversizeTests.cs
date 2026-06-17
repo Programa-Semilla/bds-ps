@@ -24,6 +24,8 @@ public class PerCategoryOversizeTests
         yield return new TestCaseData(FileCategory.SupplierCatalogImport);
         yield return new TestCaseData(FileCategory.ApplicationAttachment);
         yield return new TestCaseData(FileCategory.GeneratedArtifact);
+        // Spec 036 / FR-005 / SC-007 — funds-usage evidence shares the 20 MiB cap.
+        yield return new TestCaseData(FileCategory.FundsUsageEvidence);
     }
 
     [TestCaseSource(nameof(AllCategories))]
