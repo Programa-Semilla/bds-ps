@@ -69,7 +69,7 @@ public class SubmitGuardTests
     [Test]
     public async Task Submit_WithZeroItems_Throws()
     {
-        var application = new AppEntity(_applicantId, 1, "Sazón Vegetariano");
+        var application = new AppEntity(_applicantId, 1, null,"Sazón Vegetariano");
         application.AssignPublicCode(new PublicCode("A7K2-9XF3"));
         _ctx.Applications.Add(application);
         await _ctx.SaveChangesAsync();
@@ -82,9 +82,31 @@ public class SubmitGuardTests
     }
 
     [Test]
+    public async Task Submit_WithArchivedCompany_IsBlocked()
+    {
+        // Spec 037 / FR-020 — a draft whose selected company was archived cannot be
+        // submitted until an active company is re-selected. The archived-company gate
+        // fires before the item-count validation, so an item-less draft still trips it.
+        var company = new Company(_applicantId, "Empresa Archivada");
+        company.Archive();
+        _ctx.Companies.Add(company);
+        await _ctx.SaveChangesAsync();
+
+        var application = new AppEntity(_applicantId, 1, company.Id, "Empresa Archivada");
+        application.AssignPublicCode(new PublicCode("A7K2-9XF7"));
+        _ctx.Applications.Add(application);
+        await _ctx.SaveChangesAsync();
+
+        Assert.That(
+            async () => await _handler.SubmitAsync(new SubmitApplicationCommand(application.Id)),
+            Throws.InstanceOf<InvalidOperationException>()
+                  .With.Message.Contain("archivada"));
+    }
+
+    [Test]
     public async Task Submit_WhenStageWindowClosed_ThrowsStageWindowClosed()
     {
-        var application = new AppEntity(_applicantId, 1, "Sazón Vegetariano");
+        var application = new AppEntity(_applicantId, 1, null,"Sazón Vegetariano");
         application.AssignPublicCode(new PublicCode("A7K2-9XF4"));
         _ctx.Applications.Add(application);
         await _ctx.SaveChangesAsync();
@@ -109,7 +131,7 @@ public class SubmitGuardTests
         // For the integration test we assert the guard fires when Impact is
         // present + Items are present but quotations are missing, validating
         // the snapshot's MinimumQuotationsPerItem resolution.
-        var application = new AppEntity(_applicantId, 1, "Sazón Vegetariano");
+        var application = new AppEntity(_applicantId, 1, null,"Sazón Vegetariano");
         application.AssignPublicCode(new PublicCode("A7K2-9XF5"));
 
         var template = new ImpactTemplate("ImpactA", description: null, isActive: true);

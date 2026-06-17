@@ -138,7 +138,7 @@ public class ApplicantResponsePersistenceTests
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new AppEntity(applicant.Id, 1, "Test Company");
+        var application = new AppEntity(applicant.Id, 1, null,"Test Company");
         application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         foreach (var name in itemNames)
         {

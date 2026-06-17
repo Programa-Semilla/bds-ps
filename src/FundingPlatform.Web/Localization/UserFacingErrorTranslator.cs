@@ -144,6 +144,10 @@ public sealed class UserFacingErrorTranslator : IUserFacingErrorTranslator
         UserFacingErrorCode.CompanyNameTooLong =>
             "El nombre de la empresa no puede exceder 200 caracteres.",
 
+        // Spec 037 — applicant company selection (FR-018 / FR-019, no disclosure).
+        UserFacingErrorCode.CompanyInvalid =>
+            "Debe seleccionar una empresa válida.",
+
         // Spec 018 — reviewer LineCode invariants (FR-012 / FR-013 / FR-014)
         UserFacingErrorCode.LineCodeRequired =>
             "Debe ingresar un código de línea.",

@@ -35,7 +35,7 @@ public class ApplicationFundAnchorTests : AuthenticatedTestBase
         // Choose a Process/convocatoria + company name → the draft is created and
         // anchored, opening the editor (FR-018 happy path). The server-side block
         // when no group is chosen is covered by unit + integration tests.
-        await appPage.CompanyNameInput.FillAsync($"Empresa {u}");
+        await appPage.SelectCompanyIfPresentAsync();
         await groupSelect.SelectOptionAsync(new SelectOptionValue { Index = 1 });
         await appPage.SubmitDraftButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));

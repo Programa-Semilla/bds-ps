@@ -163,5 +163,24 @@ public static class IdentityConfiguration
             }
             await dbContext.SaveChangesAsync();
         }
+
+        // Spec 037 / T024 — seed two active companies for the demo applicant so the
+        // application-create flow (and E2E) has selectable companies out of the box.
+        // Two companies exercises the multi-company (explicit-choice) path by default.
+        var demoApplicantUser = await userManager.FindByEmailAsync("applicant@programa-semilla.test");
+        if (demoApplicantUser is not null)
+        {
+            var demoApplicantId = await dbContext.Applicants
+                .Where(a => a.UserId == demoApplicantUser.Id)
+                .Select(a => a.Id)
+                .FirstOrDefaultAsync();
+            if (demoApplicantId != 0
+                && !await dbContext.Companies.AnyAsync(c => c.ApplicantId == demoApplicantId))
+            {
+                dbContext.Companies.Add(new Company(demoApplicantId, "Acme Consulting S.A."));
+                dbContext.Companies.Add(new Company(demoApplicantId, "TechCorp Ltda."));
+                await dbContext.SaveChangesAsync();
+            }
+        }
     }
 }

@@ -87,6 +87,22 @@ public enum UserFacingErrorCode
     /// <summary>FR-016 — applicant submitted a company name that exceeds 200 chars after trim.</summary>
     CompanyNameTooLong,
 
+    // Spec 037 — applicant company selection (FR-018 / FR-019).
+    /// <summary>Spec 037 / FR-018 / FR-019 — the submitted company is not one of the
+    /// applicant's active companies (missing, archived, or owned by someone else).
+    /// Surfaced without disclosure.</summary>
+    CompanyInvalid,
+    /// <summary>Spec 037 / FR-003 — admin tried to add/rename to a name that already
+    /// matches an active company for this applicant.</summary>
+    CompanyNameDuplicate,
+    /// <summary>Spec 037 / FR-008 — admin tried to archive the applicant's only active company.</summary>
+    CompanyArchiveLastActive,
+    /// <summary>Spec 037 / FR-007 — admin tried to unarchive a company whose name now
+    /// collides with an active one.</summary>
+    CompanyUnarchiveNameCollision,
+    /// <summary>Spec 037 / FR-004 — admin tried to create a Solicitante without at least one company.</summary>
+    CompanyAtLeastOneRequired,
+
     // Spec 018 — reviewer LineCode invariants (FR-012 / FR-013 / FR-014).
     /// <summary>FR-012 / FR-014 — reviewer attempted to record an Approve/Reject decision
     /// without a non-blank line code (whitespace-only also fails per trim semantics).</summary>

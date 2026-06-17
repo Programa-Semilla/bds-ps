@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using FundingPlatform.Application.Admin.Companies;
 using FundingPlatform.Application.Admin.Users;
 using FundingPlatform.Application.Admin.Users.Batch;
 using FundingPlatform.Application.Admin.Users.DTOs;
@@ -231,6 +232,7 @@ public class UserAdministrationService : IUserAdministrationService
             var normalizedUserCode = string.IsNullOrWhiteSpace(request.UserCode) ? null : request.UserCode.Trim();
             var existingApplicant = await _dbContext.Applicants
                 .FirstOrDefaultAsync(a => a.UserId == user.Id, ct);
+            Applicant applicant;
             if (existingApplicant is null)
             {
                 if (await _dbContext.Applicants.AnyAsync(a => a.LegalId == request.LegalId, ct))
@@ -249,7 +251,7 @@ public class UserAdministrationService : IUserAdministrationService
                         new DomainError("USER_CODE_IN_USE", nameof(CreateUserRequest.UserCode),
                             "User code already in use by another applicant."));
                 }
-                _dbContext.Applicants.Add(new Applicant(
+                applicant = new Applicant(
                     userId: user.Id,
                     legalId: request.LegalId!,
                     firstName: request.FirstName,
@@ -258,13 +260,22 @@ public class UserAdministrationService : IUserAdministrationService
                     phone: request.Phone,
                     performanceScore: null,
                     identificationType: request.IdentificationType,
-                    userCode: normalizedUserCode));
+                    userCode: normalizedUserCode);
+                _dbContext.Applicants.Add(applicant);
             }
             else
             {
                 existingApplicant.UpdateProfile(request.LegalId!, request.FirstName, request.LastName, request.Email, request.Phone, request.IdentificationType, normalizedUserCode);
+                applicant = existingApplicant;
             }
             await _dbContext.SaveChangesAsync(ct);
+
+            // Spec 037 / FR-004/FR-005 / D4 — attach the at-creation companies. The
+            // Applicant.Id is assigned by the SaveChanges above; the Company rows + their
+            // company.create audit then commit in a second SaveChanges (no explicit
+            // transaction — the retrying execution strategy forbids BeginTransaction;
+            // matches the FundService/FundsUsageEvidence pattern, spec-036 gotcha).
+            await AttachCompaniesAtCreationAsync(applicant.Id, request.CompanyNames, actorUserId, ct);
         }
 
         var detail = await MapToDetailAsync(user, ct);
@@ -363,6 +374,11 @@ public class UserAdministrationService : IUserAdministrationService
                 continue;
             }
 
+            // --- spec 037 / FR-009: required company name (one company per applicant) ---
+            var companyName = (row.NombreEmpresa ?? string.Empty).Trim();
+            if (companyName.Length == 0) { errored.Add(Err(row, keyField, BatchUserRowReasons.CompanyNameBlank)); continue; }
+            if (companyName.Length > Company.MaxNameLength) { errored.Add(Err(row, keyField, BatchUserRowReasons.CompanyNameTooLong)); continue; }
+
             // --- create via the single-create path (no password; invited later) ---
             var lastName = $"{row.Apellido1.Trim()} {(row.Apellido2 ?? string.Empty).Trim()}".Trim();
             var request = new CreateUserRequest(
@@ -374,7 +390,8 @@ public class UserAdministrationService : IUserAdministrationService
                 LegalId: canonicalCedula,
                 GroupIds: new[] { group.Id },
                 IdentificationType: cedula!.Type,
-                UserCode: codigo);
+                UserCode: codigo,
+                CompanyNames: new[] { companyName });
 
             try
             {
@@ -784,15 +801,28 @@ public class UserAdministrationService : IUserAdministrationService
         string? legalId = null;
         Domain.Enums.IdentificationType? identificationType = null;
         string? userCode = null;
+        IReadOnlyList<CompanyDto>? companies = null;
         if (string.Equals(role, ApplicantRole, StringComparison.Ordinal))
         {
             var applicantRow = await _dbContext.Applicants
                 .Where(a => a.UserId == user.Id)
-                .Select(a => new { a.LegalId, a.IdentificationType, a.UserCode })
+                .Select(a => new { a.Id, a.LegalId, a.IdentificationType, a.UserCode })
                 .FirstOrDefaultAsync(ct);
             legalId = applicantRow?.LegalId;
             identificationType = applicantRow?.IdentificationType;
             userCode = applicantRow?.UserCode;
+
+            // Spec 037 — surface the applicant's companies (active + archived) for the
+            // Edit-page management card.
+            if (applicantRow is not null)
+            {
+                companies = await _dbContext.Companies
+                    .Where(c => c.ApplicantId == applicantRow.Id)
+                    .OrderBy(c => c.ArchivedAt == null ? 0 : 1)
+                    .ThenBy(c => c.Name)
+                    .Select(c => new CompanyDto(c.Id, c.Name, c.ArchivedAt != null))
+                    .ToListAsync(ct);
+            }
         }
         var status = IsDisabled(user, DateTimeOffset.UtcNow) ? "Disabled" : "Active";
         // Spec 016 — surface current memberships so the edit form pre-selects them.
@@ -814,7 +844,8 @@ public class UserAdministrationService : IUserAdministrationService
             GroupIds: groupIds,
             ConcurrencyStamp: user.ConcurrencyStamp,
             IdentificationType: identificationType,
-            UserCode: userCode);
+            UserCode: userCode,
+            Companies: companies);
     }
 
     /// <summary>
@@ -966,5 +997,64 @@ public class UserAdministrationService : IUserAdministrationService
         var last = user.LastName ?? "";
         var full = $"{first} {last}".Trim();
         return string.IsNullOrWhiteSpace(full) ? (user.Email ?? user.Id) : full;
+    }
+
+    /// <summary>
+    /// Spec 037 / FR-004/FR-005 / D4 — attaches the at-creation companies to a freshly
+    /// created applicant. Blank names are skipped; names that are duplicates within the
+    /// request (es-CR accent/case folding) collapse to the first occurrence. Each kept
+    /// company is added with a <c>company.create</c> audit row and committed in one
+    /// SaveChanges. Invalid name shapes (e.g. &gt; 200 chars) are skipped defensively —
+    /// the controller boundary validates these before the request reaches here.
+    /// </summary>
+    private async Task AttachCompaniesAtCreationAsync(
+        int applicantId, IReadOnlyList<string>? companyNames, string actorUserId, CancellationToken ct)
+    {
+        if (companyNames is null || companyNames.Count == 0)
+        {
+            return;
+        }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var added = false;
+        foreach (var rawName in companyNames)
+        {
+            if (string.IsNullOrWhiteSpace(rawName))
+            {
+                continue;
+            }
+
+            var normalized = CompanyNameNormalizer.Normalize(rawName);
+            if (!seen.Add(normalized))
+            {
+                continue; // duplicate within the request — first occurrence wins
+            }
+
+            Company company;
+            try
+            {
+                company = new Company(applicantId, rawName);
+            }
+            catch (ArgumentException)
+            {
+                continue; // invalid shape — controller boundary already guards this
+            }
+
+            _dbContext.Companies.Add(company);
+            await _audit.WriteAsync(
+                AdminAuditEvent.Record(
+                    actorUserId,
+                    AdminAuditEvent.ActionCompanyCreate,
+                    AdminAuditEvent.TargetTypeCompany,
+                    applicantId.ToString(),
+                    JsonSerializer.Serialize(new { applicantId, name = company.Name })),
+                ct);
+            added = true;
+        }
+
+        if (added)
+        {
+            await _dbContext.SaveChangesAsync(ct);
+        }
     }
 }

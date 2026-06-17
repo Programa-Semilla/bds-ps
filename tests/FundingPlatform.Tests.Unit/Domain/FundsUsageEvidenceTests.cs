@@ -9,7 +9,7 @@ public class FundsUsageEvidenceTests
 {
     private static AppEntity ExecutedApplication()
     {
-        var app = new AppEntity(applicantId: 1, groupId: 1, companyName: "Test Company");
+        var app = new AppEntity(applicantId: 1, groupId: 1, null,companyName: "Test Company");
         ApplicationResponseTransitionsTests.SetState(app, ApplicationState.AgreementExecuted);
         return app;
     }
@@ -43,7 +43,7 @@ public class FundsUsageEvidenceTests
     [TestCase(ApplicationState.ResponseFinalized)]
     public void CreateForExecutedApplication_NonExecutedState_Throws(ApplicationState state)
     {
-        var app = new AppEntity(applicantId: 1, groupId: 1, companyName: "Test Company");
+        var app = new AppEntity(applicantId: 1, groupId: 1, null,companyName: "Test Company");
         ApplicationResponseTransitionsTests.SetState(app, state);
 
         Assert.Throws<InvalidOperationException>(() => Create(app));

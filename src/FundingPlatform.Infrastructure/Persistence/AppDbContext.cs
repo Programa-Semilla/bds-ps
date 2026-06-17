@@ -59,6 +59,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     // Spec 036 — funds-usage evidence files on AgreementExecuted applications.
     public DbSet<FundsUsageEvidence> FundsUsageEvidence => Set<FundsUsageEvidence>();
 
+    // Spec 037 — admin-managed companies (Empresas) owned by applicants.
+    public DbSet<Company> Companies => Set<Company>();
+
     // Spec 021-feedback-session-may13 — Process / Plantilla aggregates,
     // Province/Cantón catalog, PasswordResetToken single-use marker.
     public DbSet<Process> Processes => Set<Process>();

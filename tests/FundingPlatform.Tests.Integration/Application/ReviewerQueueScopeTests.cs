@@ -65,7 +65,7 @@ public class ReviewerQueueScopeTests
                 ctx.UserGroupMemberships.Add(new UserGroupMembership(u.Id, gid));
             }
             await ctx.SaveChangesAsync();
-            var app = new AppEntity(applicantId: ap.Id, groupIds[0], companyName: "Test Company");
+            var app = new AppEntity(applicantId: ap.Id, groupIds[0], null,companyName: "Test Company");
             app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);
             ctx.Applications.Add(app);

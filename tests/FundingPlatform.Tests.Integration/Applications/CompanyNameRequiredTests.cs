@@ -16,8 +16,10 @@ using AppEntity = FundingPlatform.Domain.Entities.Application;
 namespace FundingPlatform.Tests.Integration.Applications;
 
 /// <summary>
-/// Spec 018 / SC-008 — applicant Create flow rejects blank / over-length
-/// company names. Hits the real EF stack so the entity-level invariant +
+/// Spec 037 / FR-002 / FR-018 / FR-019 — the applicant Create flow resolves the
+/// selected company by id, snapshots its name, and rejects any company that is not
+/// one of the applicant's active companies (missing / archived / cross-applicant)
+/// without disclosure. Hits the real EF stack so the repository resolution +
 /// command-side mapping path are both exercised.
 /// </summary>
 [TestFixture]
@@ -79,7 +81,7 @@ public class CompanyNameRequiredTests
             .Returns(_ => Task.FromResult(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next()));
 
         _service = new ApplicationService(
-            appRepo, categoryRepo, supplierRepo, objectStorage, impactRepo,
+            appRepo, new CompanyRepository(_ctx), categoryRepo, supplierRepo, objectStorage, impactRepo,
             sysconfRepo, docRepo, supplierCatalog, conversion,
             outboxWriter, txScope,
             NullLogger<ApplicationService>.Instance,
@@ -89,66 +91,74 @@ public class CompanyNameRequiredTests
     [TearDown]
     public void TearDown() => _ctx.Dispose();
 
+    private async Task<int> SeedCompanyAsync(int applicantId, string name, bool archived = false)
+    {
+        var company = new Company(applicantId, name);
+        if (archived) company.Archive();
+        _ctx.Companies.Add(company);
+        await _ctx.SaveChangesAsync();
+        return company.Id;
+    }
+
     [Test]
-    public async Task Create_BlankCompanyName_ReturnsCompanyNameRequired()
+    public async Task Create_WithActiveCompany_SnapshotsNameAndPersists()
+    {
+        var companyId = await SeedCompanyAsync(_applicantId, "Sazón Vegetariano");
+
+        var result = await _service.CreateApplicationAsync(
+            new CreateApplicationCommand(_applicantId, companyId, 1), userId: "applicant-user");
+
+        Assert.That(result.Error, Is.Null);
+        Assert.That(result.ApplicationId, Is.GreaterThan(0));
+
+        var persisted = await _ctx.Applications.FirstAsync(a => a.Id == result.ApplicationId);
+        Assert.That(persisted.CompanyId, Is.EqualTo(companyId));
+        Assert.That(persisted.CompanyName, Is.EqualTo("Sazón Vegetariano"));
+    }
+
+    [Test]
+    public async Task Create_WithNonexistentCompany_ReturnsCompanyInvalid_AndPersistsNothing()
     {
         var result = await _service.CreateApplicationAsync(
-            new CreateApplicationCommand(_applicantId, "", 1), userId: "applicant-user");
+            new CreateApplicationCommand(_applicantId, 999_999, 1), userId: "applicant-user");
 
         Assert.That(result.Error, Is.Not.Null);
-        Assert.That(result.Error!.Code, Is.EqualTo(UserFacingErrorCode.CompanyNameRequired));
+        Assert.That(result.Error!.Code, Is.EqualTo(UserFacingErrorCode.CompanyInvalid));
         Assert.That(result.ApplicationId, Is.EqualTo(0));
         Assert.That(await _ctx.Applications.AnyAsync(), Is.False, "No row should be persisted on validation failure");
     }
 
     [Test]
-    public async Task Create_WhitespaceOnly_ReturnsCompanyNameRequired()
+    public async Task Create_WithArchivedCompany_ReturnsCompanyInvalid()
     {
+        var companyId = await SeedCompanyAsync(_applicantId, "Archivada", archived: true);
+
         var result = await _service.CreateApplicationAsync(
-            new CreateApplicationCommand(_applicantId, "    ", 1), userId: "applicant-user");
+            new CreateApplicationCommand(_applicantId, companyId, 1), userId: "applicant-user");
 
         Assert.That(result.Error, Is.Not.Null);
-        Assert.That(result.Error!.Code, Is.EqualTo(UserFacingErrorCode.CompanyNameRequired));
+        Assert.That(result.Error!.Code, Is.EqualTo(UserFacingErrorCode.CompanyInvalid));
     }
 
     [Test]
-    public async Task Create_OverLengthCompanyName_ReturnsCompanyNameTooLong()
+    public async Task Create_WithAnotherApplicantsCompany_ReturnsCompanyInvalid()
     {
-        var name = new string('a', 201);
+        var other = new Applicant(
+            userId: $"u-{Guid.NewGuid():N}",
+            legalId: "2-2345-6789",
+            firstName: "Otra",
+            lastName: "Persona",
+            email: $"o-{Guid.NewGuid():N}@example.com",
+            phone: null,
+            performanceScore: null);
+        _ctx.Applicants.Add(other);
+        await _ctx.SaveChangesAsync();
+        var foreignCompanyId = await SeedCompanyAsync(other.Id, "Ajena");
 
         var result = await _service.CreateApplicationAsync(
-            new CreateApplicationCommand(_applicantId, name, 1), userId: "applicant-user");
+            new CreateApplicationCommand(_applicantId, foreignCompanyId, 1), userId: "applicant-user");
 
         Assert.That(result.Error, Is.Not.Null);
-        Assert.That(result.Error!.Code, Is.EqualTo(UserFacingErrorCode.CompanyNameTooLong));
-    }
-
-    [Test]
-    public async Task Create_TrimsLeadingTrailingWhitespace_PersistsTrimmedValue()
-    {
-        var result = await _service.CreateApplicationAsync(
-            new CreateApplicationCommand(_applicantId, "  Sazón Vegetariano  ", 1),
-            userId: "applicant-user");
-
-        Assert.That(result.Error, Is.Null);
-        Assert.That(result.ApplicationId, Is.GreaterThan(0));
-
-        var persisted = await _ctx.Applications.FirstAsync(a => a.Id == result.ApplicationId);
-        Assert.That(persisted.CompanyName, Is.EqualTo("Sazón Vegetariano"));
-    }
-
-    [Test]
-    public async Task Create_AcceptsCompanyName_AtMaxLength_200()
-    {
-        var name = new string('a', 200);
-
-        var result = await _service.CreateApplicationAsync(
-            new CreateApplicationCommand(_applicantId, name, 1), userId: "applicant-user");
-
-        Assert.That(result.Error, Is.Null);
-        Assert.That(result.ApplicationId, Is.GreaterThan(0));
-
-        var persisted = await _ctx.Applications.FirstAsync(a => a.Id == result.ApplicationId);
-        Assert.That(persisted.CompanyName.Length, Is.EqualTo(200));
+        Assert.That(result.Error!.Code, Is.EqualTo(UserFacingErrorCode.CompanyInvalid));
     }
 }

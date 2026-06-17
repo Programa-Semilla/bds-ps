@@ -119,6 +119,90 @@
     </form>
 </div>
 
+@* Spec 037 / US2 — applicant company management card (Solicitante only). Each action
+   posts to its own sub-route, so this lives outside the user-edit form. *@
+@if (string.Equals(Model.Role, "Applicant", StringComparison.Ordinal))
+{
+    <div class="card mt-4" data-testid="admin-user-companies-card">
+        <div class="card-header">
+            <h3 class="card-title mb-0">@AdminCompaniesResources.CardTitle</h3>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">@AdminCompaniesResources.CardHelp</p>
+
+            <ul class="list-group mb-3" data-testid="admin-user-companies-rows">
+                @if (Model.Companies.Count == 0)
+                {
+                    <li class="list-group-item text-muted" data-testid="admin-user-companies-empty">
+                        @AdminCompaniesResources.NoCompanies
+                    </li>
+                }
+                @foreach (var company in Model.Companies)
+                {
+                    <li class="list-group-item" data-testid="admin-user-company-row" data-company-id="@company.Id">
+                        <form method="post"
+                              asp-controller="AdminUsers" asp-action="RenameCompany"
+                              asp-route-id="@Model.UserId" asp-route-companyId="@company.Id"
+                              class="d-flex align-items-center gap-2 flex-wrap">
+                            @Html.AntiForgeryToken()
+                            <input type="text" name="newName" value="@company.Name" maxlength="200"
+                                   class="form-control" style="max-width: 22rem;"
+                                   data-testid="admin-user-company-name-input" />
+                            @if (company.IsArchived)
+                            {
+                                <span class="badge bg-secondary" data-testid="admin-user-company-archived">@AdminCompaniesResources.ArchivedBadge</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success" data-testid="admin-user-company-active">@AdminCompaniesResources.ActiveBadge</span>
+                            }
+                            <button type="submit" class="btn btn-sm btn-outline-primary"
+                                    data-testid="admin-user-company-rename">@AdminCompaniesResources.RenameButton</button>
+                        </form>
+                        <div class="mt-2">
+                            @if (company.IsArchived)
+                            {
+                                <form method="post" class="d-inline"
+                                      asp-controller="AdminUsers" asp-action="UnarchiveCompany"
+                                      asp-route-id="@Model.UserId" asp-route-companyId="@company.Id">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-success"
+                                            data-confirm data-confirm-variant="primary"
+                                            data-confirm-body="@AdminCompaniesResources.UnarchiveConfirm"
+                                            data-testid="admin-user-company-unarchive">@AdminCompaniesResources.UnarchiveButton</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form method="post" class="d-inline"
+                                      asp-controller="AdminUsers" asp-action="ArchiveCompany"
+                                      asp-route-id="@Model.UserId" asp-route-companyId="@company.Id">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            data-confirm data-confirm-variant="destructive"
+                                            data-confirm-body="@AdminCompaniesResources.ArchiveConfirm"
+                                            data-testid="admin-user-company-archive">@AdminCompaniesResources.ArchiveButton</button>
+                                </form>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+
+            <form method="post" asp-controller="AdminUsers" asp-action="AddCompany"
+                  asp-route-id="@Model.UserId" class="d-flex gap-2 flex-wrap"
+                  data-testid="admin-user-company-add-form">
+                @Html.AntiForgeryToken()
+                <input type="text" name="name" maxlength="200" class="form-control" style="max-width: 22rem;"
+                       placeholder="@AdminCompaniesResources.NameLabel" data-testid="admin-user-company-add-name" />
+                <button type="submit" class="btn btn-primary" data-testid="admin-user-company-add-submit">
+                    <i class="ti ti-plus me-1"></i>@AdminCompaniesResources.AddButton
+                </button>
+            </form>
+        </div>
+    </div>
+}
+
 <script>
     (function () {
         var roleSelect = document.getElementById('roleSelect');

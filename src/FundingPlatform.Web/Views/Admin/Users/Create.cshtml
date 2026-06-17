@@ -92,6 +92,33 @@
             <span asp-validation-for="UserCode" class="text-danger"></span>
         </div>
 
+        @* Spec 037 / FR-004 — at-creation companies (Solicitante only; repeatable, ≥1 required). *@
+        <div class="col-md-12 mb-3" data-testid="admin-user-companies-field" id="companiesField">
+            <label class="form-label">@AdminCompaniesResources.CreateFieldLabel @await Html.PartialAsync("_RequiredMark")</label>
+            <div id="companiesList" data-testid="admin-user-companies-list">
+                @{
+                    var seedCompanies = (Model.Companies != null && Model.Companies.Length > 0)
+                        ? Model.Companies
+                        : new[] { "" };
+                }
+                @for (var i = 0; i < seedCompanies.Length; i++)
+                {
+                    <div class="input-group mb-2" data-company-row>
+                        <input type="text" name="Companies" value="@seedCompanies[i]" class="form-control"
+                               maxlength="200" placeholder="@AdminCompaniesResources.NameLabel"
+                               data-testid="admin-user-company-name" />
+                        <button type="button" class="btn btn-outline-danger" data-company-remove
+                                data-testid="admin-user-company-remove">@AdminCompaniesResources.CreateRemoveButton</button>
+                    </div>
+                }
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="addCompanyBtn"
+                    data-testid="admin-user-company-add">
+                <i class="ti ti-plus me-1"></i>@AdminCompaniesResources.CreateAddButton
+            </button>
+            <span asp-validation-for="Companies" class="text-danger d-block" data-testid="admin-user-companies-error"></span>
+        </div>
+
         <div class="col-md-12 mb-3" data-testid="admin-user-groups-field" id="groupsField">
             <label class="form-label" asp-for="GroupIds">@AdminUsersResources.GroupSelectorLabel</label>
             @await Html.PartialAsync("_GroupSelectorDrilldown", new GroupSelectorModel
@@ -128,6 +155,7 @@
         var legalField = document.getElementById('legalIdField');
         var userCodeField = document.getElementById('userCodeField');
         var groupsField = document.getElementById('groupsField');
+        var companiesField = document.getElementById('companiesField');
         function updateVisibility() {
             if (!roleSelect) return;
             var role = roleSelect.value;
@@ -137,6 +165,10 @@
             if (userCodeField) {
                 // Spec 032 — User Code is requested only for the Solicitante role.
                 userCodeField.style.display = role === 'Applicant' ? '' : 'none';
+            }
+            if (companiesField) {
+                // Spec 037 — companies are requested only for the Solicitante role.
+                companiesField.style.display = role === 'Applicant' ? '' : 'none';
             }
             if (groupsField) {
                 // Spec 016 / FR-009 — hide the group selector when role is Admin.
@@ -149,6 +181,47 @@
         if (roleSelect) {
             roleSelect.addEventListener('change', updateVisibility);
             updateVisibility();
+        }
+
+        // Spec 037 — repeatable company name inputs (add / remove).
+        var companiesList = document.getElementById('companiesList');
+        var addCompanyBtn = document.getElementById('addCompanyBtn');
+        function newCompanyRow() {
+            var row = document.createElement('div');
+            row.className = 'input-group mb-2';
+            row.setAttribute('data-company-row', '');
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'Companies';
+            input.className = 'form-control';
+            input.maxLength = 200;
+            input.setAttribute('data-testid', 'admin-user-company-name');
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-outline-danger';
+            btn.setAttribute('data-company-remove', '');
+            btn.setAttribute('data-testid', 'admin-user-company-remove');
+            btn.textContent = @Html.Raw(Json.Serialize(AdminCompaniesResources.CreateRemoveButton));
+            row.appendChild(input);
+            row.appendChild(btn);
+            return row;
+        }
+        if (addCompanyBtn && companiesList) {
+            addCompanyBtn.addEventListener('click', function () {
+                companiesList.appendChild(newCompanyRow());
+            });
+            companiesList.addEventListener('click', function (e) {
+                var btn = e.target.closest('[data-company-remove]');
+                if (!btn) return;
+                var rows = companiesList.querySelectorAll('[data-company-row]');
+                if (rows.length > 1) {
+                    btn.closest('[data-company-row]').remove();
+                } else {
+                    // Keep at least one row; just clear it.
+                    var input = btn.closest('[data-company-row]').querySelector('input');
+                    if (input) input.value = '';
+                }
+            });
         }
     })();
 </script>

@@ -11,8 +11,10 @@ public class ApplicationPage : BasePage
 
     public ILocator CreateButton => Page.Locator("a[href*='Application/Create']").First;
     public ILocator SubmitDraftButton => Page.Locator("[data-testid=application-create-submit]");
-    public ILocator CompanyNameInput => Page.Locator("[data-testid=application-create-company-name]");
-    public ILocator CompanyNameError => Page.Locator("[data-testid=application-create-company-name-error]");
+    // Spec 037 — company is a controlled selector (select when multi, hidden when single).
+    public ILocator CompanySelect => Page.Locator("select[data-testid=application-create-company]");
+    public ILocator CompanyError => Page.Locator("[data-testid=application-create-company-error]");
+    public ILocator NoCompaniesBlock => Page.Locator("[data-testid=application-create-no-companies]");
     public ILocator ApplicationsTable => Page.Locator("table");
     public ILocator AddItemButton => Page.Locator($"a:has-text('{UiCopy.AddItem}')").First;
     public ILocator SubmitApplicationButton => Page.Locator($"button[type=submit]:has-text('{UiCopy.SubmitApplication}')");
@@ -25,19 +27,30 @@ public class ApplicationPage : BasePage
     }
 
     /// <summary>
-    /// Spec 018 / FR-015 — fills the new CompanyName input and submits the
-    /// Create form. Existing tests that just clicked "Create draft" now have
-    /// to thread a name through; defaults to a deterministic test value so
-    /// every legacy E2E test gets a non-blank string without rewriting
-    /// every call site.
+    /// Spec 037 / FR-002 — opens the Create form, picks a company (when a multi-company
+    /// selector is rendered; single-company applicants auto-select via a hidden field),
+    /// anchors the eligible group, and submits. The legacy <c>companyName</c> parameter
+    /// is retained for call-site compatibility but is ignored — selection is by id now.
     /// </summary>
     public async Task CreateApplicationAsync(string companyName = "Test Company")
     {
         await CreateButton.ClickAsync();
-        await CompanyNameInput.FillAsync(companyName);
-
+        await SelectCompanyIfPresentAsync();
         await SelectEligibleGroupIfPresentAsync();
         await SubmitDraftButton.ClickAsync();
+    }
+
+    /// <summary>
+    /// Spec 037 — when a multi-company selector is rendered, pick the first real option.
+    /// Single-company applicants render a hidden auto-selected field (this locator matches
+    /// nothing) so we skip.
+    /// </summary>
+    public async Task SelectCompanyIfPresentAsync()
+    {
+        if (await CompanySelect.CountAsync() > 0)
+        {
+            await CompanySelect.SelectOptionAsync(new SelectOptionValue { Index = 1 });
+        }
     }
 
     /// <summary>

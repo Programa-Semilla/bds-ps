@@ -25,8 +25,17 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<AppEntity>
             .OnDelete(DeleteBehavior.NoAction);
         builder.HasIndex(a => a.GroupId).HasDatabaseName("IX_Applications_GroupId");
 
-        // Spec 018 / FR-015 / FR-016 — required commercial entity name, ≤200 chars.
+        // Spec 018 → 037 — required frozen company-name snapshot, ≤200 chars.
         builder.Property(a => a.CompanyName).IsRequired().HasMaxLength(200);
+
+        // Spec 037 / FR-002 — nullable live reference to the selected Company. NO
+        // ACTION: the snapshot preserves the name independently of the company row.
+        builder.Property(a => a.CompanyId);
+        builder.HasOne<Company>()
+            .WithMany()
+            .HasForeignKey(a => a.CompanyId)
+            .OnDelete(DeleteBehavior.NoAction);
+        builder.HasIndex(a => a.CompanyId).HasDatabaseName("IX_Applications_CompanyId");
 
         builder.Property(a => a.State).IsRequired();
         builder.HasIndex(a => a.State).HasDatabaseName("IX_Applications_State");

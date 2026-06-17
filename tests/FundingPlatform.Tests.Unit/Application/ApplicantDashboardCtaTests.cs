@@ -128,7 +128,7 @@ public class ApplicantDashboardCtaTests
 
     private static AppEntity BuildApplicationAwaitingSignature()
     {
-        var application = new AppEntity(applicantId: 42, 1, companyName: "Test Company");
+        var application = new AppEntity(applicantId: 42, 1, null,companyName: "Test Company");
         application.AddItem(new Item("Widget", categoryId: 1));
         SetState(application, ApplicationState.ResponseFinalized);
         SetId(application, 7);
@@ -145,7 +145,7 @@ public class ApplicantDashboardCtaTests
 
     private static AppEntity BuildDraftApplication()
     {
-        var application = new AppEntity(applicantId: 42, 1, companyName: "Test Company");
+        var application = new AppEntity(applicantId: 42, 1, null,companyName: "Test Company");
         application.AddItem(new Item("Widget", categoryId: 1));
         SetState(application, ApplicationState.Draft);
         SetId(application, 9);

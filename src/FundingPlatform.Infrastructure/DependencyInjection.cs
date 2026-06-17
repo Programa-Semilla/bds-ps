@@ -37,6 +37,8 @@ public static class DependencyInjection
     {
         services.AddScoped<IApplicationRepository, ApplicationRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
+        // Spec 037 — applicant company aggregate.
+        services.AddScoped<ICompanyRepository, CompanyRepository>();
         services.AddScoped<IImpactTemplateRepository, ImpactTemplateRepository>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<ISystemConfigurationRepository, SystemConfigurationRepository>();
@@ -174,6 +176,10 @@ public static class DependencyInjection
 
         // Spec 029 / US1 — Fund (Fondo) admin CRUD + lifecycle + regulation storage.
         services.AddScoped<Application.Funds.IFundService, Services.FundService>();
+
+        // Spec 037 / US2 — applicant company admin management (add/rename/archive/unarchive).
+        services.AddScoped<Application.Admin.Companies.ICompanyAdministrationService,
+            Services.CompanyAdministrationService>();
 
         // Spec 036 — funds-usage evidence service (reviewer post-execution stage).
         services.AddScoped<Application.FundsUsageEvidence.IFundsUsageEvidenceService,

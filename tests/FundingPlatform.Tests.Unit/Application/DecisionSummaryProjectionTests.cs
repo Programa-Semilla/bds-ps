@@ -22,7 +22,7 @@ public class DecisionSummaryProjectionTests
     [Test]
     public void Project_OrdersByLineCode_NullsLast_ThenById()
     {
-        var app = new AppEntity(applicantId: 1, 1, companyName: "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,companyName: "ACME");
         AddItem(app, id: 10, lineCode: "B-02", product: "B");
         AddItem(app, id: 11, lineCode: null, product: "NoCode-low-id");
         AddItem(app, id: 12, lineCode: "A-01", product: "A");
@@ -37,7 +37,7 @@ public class DecisionSummaryProjectionTests
     [Test]
     public void Project_ApprovedLine_CarriesSelectedSupplierAndAmount()
     {
-        var app = new AppEntity(applicantId: 1, 1, companyName: "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,companyName: "ACME");
         var item = AddItem(app, id: 1, lineCode: "A-01", product: "Laptop", category: "Equipo");
         AddQuotation(item, supplierId: 5, supplierName: "Proveedor Alfa", price: 900m, currency: "CRC");
         AddQuotation(item, supplierId: 6, supplierName: "Proveedor Beta", price: 1100m, currency: "CRC");
@@ -55,7 +55,7 @@ public class DecisionSummaryProjectionTests
     [Test]
     public void Project_RejectedLine_CarriesReasonAndAllQuotedSuppliers()
     {
-        var app = new AppEntity(applicantId: 1, 1, companyName: "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,companyName: "ACME");
         var item = AddItem(app, id: 1, lineCode: "A-01", product: "Laptop");
         AddQuotation(item, supplierId: 5, supplierName: "Proveedor Alfa", price: 900m, currency: "CRC");
         AddQuotation(item, supplierId: 6, supplierName: "Proveedor Beta", price: 1100m, currency: "CRC");
@@ -74,7 +74,7 @@ public class DecisionSummaryProjectionTests
     [Test]
     public void Project_PendingLine_HasStatusOnly()
     {
-        var app = new AppEntity(applicantId: 1, 1, companyName: "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,companyName: "ACME");
         AddItem(app, id: 1, lineCode: "A-01", product: "Laptop");
 
         var line = _projection.Project(app).Single();
@@ -88,7 +88,7 @@ public class DecisionSummaryProjectionTests
     [Test]
     public void Project_NonCrcQuote_HasConversionNote_CrcDoesNot()
     {
-        var app = new AppEntity(applicantId: 1, 1, companyName: "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,companyName: "ACME");
         var item = AddItem(app, id: 1, lineCode: "A-01", product: "Laptop");
         AddQuotation(item, supplierId: 5, supplierName: "CRC Co", price: 900m, currency: "CRC");
         var usd = AddQuotation(item, supplierId: 6, supplierName: "USD Co", price: 100m, currency: "USD");
@@ -110,7 +110,7 @@ public class DecisionSummaryProjectionTests
     [Test]
     public void Project_ApplicantDecision_ComesFromLatestResponse()
     {
-        var app = new AppEntity(applicantId: 1, 1, companyName: "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,companyName: "ACME");
         AddItem(app, id: 1, lineCode: "A-01", product: "Laptop");
         AddItem(app, id: 2, lineCode: "A-02", product: "Monitor");
 

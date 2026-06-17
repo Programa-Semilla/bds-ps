@@ -204,7 +204,7 @@ public class StageExpiryReminderServiceTests
         await _ctx.SaveChangesAsync();
 
         // Application in ResponseFinalized state with StageEnteredAt = 2 days ago.
-        var app = new AppEntity(applicant.Id, group.Id, "Sazón Crocus");
+        var app = new AppEntity(applicant.Id, group.Id, null,"Sazón Crocus");
         app.AssignPublicCode(new PublicCode("EEEE-6666"));
         _ctx.Applications.Add(app);
         await _ctx.SaveChangesAsync();
@@ -246,7 +246,7 @@ public class StageExpiryReminderServiceTests
         _ctx.Applicants.Add(applicant);
         await _ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, _defaultGroupId, $"Co-{userId}");
+        var app = new AppEntity(applicant.Id, _defaultGroupId, null,$"Co-{userId}");
         app.AssignPublicCode(new PublicCode(publicCode));
         _ctx.Applications.Add(app);
         await _ctx.SaveChangesAsync();

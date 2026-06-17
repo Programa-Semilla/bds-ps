@@ -12,7 +12,7 @@ namespace FundingPlatform.Tests.Unit.Domain;
 [TestFixture]
 public class ApplicationApplicantRemovalTests
 {
-    private static AppEntity NewApp() => new(applicantId: 1, groupId: 1, companyName: "Sazón Vegetariano");
+    private static AppEntity NewApp() => new(applicantId: 1, groupId: 1, companyId: null, companyName: "Sazón Vegetariano");
 
     private static void ForceState(AppEntity app, ApplicationState state)
         => typeof(AppEntity).GetProperty(nameof(AppEntity.State))!.SetValue(app, state);

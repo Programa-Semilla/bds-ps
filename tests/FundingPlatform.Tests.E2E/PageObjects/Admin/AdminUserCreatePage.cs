@@ -23,6 +23,10 @@ public class AdminUserCreatePage : AdminBasePage
     // Spec 032 — admin-assigned User Code (Solicitante only).
     public ILocator UserCode => Page.Locator("input[name=\"UserCode\"]");
     public ILocator UserCodeField => Page.Locator("[data-testid=\"admin-user-usercode\"]");
+    // Spec 037 — repeatable company inputs (Applicant only).
+    public ILocator CompanyInputs => Page.Locator("[data-testid=\"admin-user-company-name\"]");
+    public ILocator CompaniesError => Page.Locator("[data-testid=\"admin-user-companies-error\"]");
+    public ILocator AddCompanyButton => Page.Locator("[data-testid=\"admin-user-company-add\"]");
     public ILocator SubmitButton => Page.Locator("[data-testid=\"admin-user-create-submit\"]");
     public ILocator ValidationSummary => Page.Locator(".validation-summary-errors, .field-validation-error");
 
@@ -77,6 +81,14 @@ public class AdminUserCreatePage : AdminBasePage
         if (string.Equals(role, "Applicant", System.StringComparison.Ordinal))
         {
             await FillUserCodeIfPresentAsync(userCode ?? $"UC-{Guid.NewGuid():N}"[..12]);
+            // Spec 037 — ≥1 company is required for the Solicitante role. Default the
+            // first company input so legacy admin-create-applicant callers stay green;
+            // tests asserting company behavior fill explicit values via FillCompanyAsync.
+            if (await CompanyInputs.CountAsync() > 0
+                && string.IsNullOrWhiteSpace(await CompanyInputs.First.InputValueAsync()))
+            {
+                await CompanyInputs.First.FillAsync($"Empresa {Guid.NewGuid():N}"[..18]);
+            }
         }
 
         // Spec 016 / FR-008 — every Applicant or Reviewer MUST have at least

@@ -39,7 +39,7 @@ public class PerItemImpactCategoryTests
         ctx.Applicants.Add(applicant);
         await ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, 1, "ACME");
+        var app = new AppEntity(applicant.Id, 1, null,"ACME");
         app.AssignPublicCode(new FundingPlatform.Domain.ValueObjects.PublicCode("A7K2-9XF3"));
         // Spec 035 (evolved) — declare the impact at the application level (with values).
         var impact = app.AddImpact(template, new[] { new ImpactParameterValue(template.Parameters.First().Id, "5") });

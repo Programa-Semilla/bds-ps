@@ -53,6 +53,12 @@ public class AdminUserCreateViewModel
     /// multi-select. Empty when the resulting role is Admin (FR-009).</summary>
     public int[] GroupIds { get; set; } = Array.Empty<int>();
 
+    /// <summary>Spec 037 / FR-004 — at-creation company names for a Solicitante
+    /// (repeatable inputs; ≥1 non-blank required, enforced at the controller). Blank
+    /// entries are dropped; ignored for non-Applicant roles.</summary>
+    [Display(Name = "Empresas")]
+    public string[] Companies { get; set; } = Array.Empty<string>();
+
     /// <summary>Spec 016 — populated by the controller from the Group catalog.
     /// Used to resolve the names of the currently-selected groups (for the chips)
     /// and to detect the empty state. Includes groups under archived Funds so an

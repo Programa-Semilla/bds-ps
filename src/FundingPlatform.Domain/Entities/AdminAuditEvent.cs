@@ -75,6 +75,20 @@ public class AdminAuditEvent
     /// The <c>funds_evidence.</c> prefix routes here in <c>AdminAuditEventWriter</c>.</summary>
     public const string TargetTypeFundsEvidence = "funds_evidence";
 
+    // ---------- Spec 037 — applicant company (Empresa) mutations. ----------
+    /// <summary>Spec 037 / FR-005 — admin attached a company to an applicant (at creation or via Add).</summary>
+    public const string ActionCompanyCreate = "company.create";
+    /// <summary>Spec 037 / FR-006 — admin renamed a company (payload carries old/new name).</summary>
+    public const string ActionCompanyRename = "company.rename";
+    /// <summary>Spec 037 / FR-007 — admin archived a company.</summary>
+    public const string ActionCompanyArchive = "company.archive";
+    /// <summary>Spec 037 / FR-007 — admin unarchived a company.</summary>
+    public const string ActionCompanyUnarchive = "company.unarchive";
+
+    /// <summary>Spec 037 — target-type discriminator for company mutations.
+    /// The <c>company.</c> prefix routes here in <c>AdminAuditEventWriter</c>.</summary>
+    public const string TargetTypeCompany = "company";
+
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string ActorUserId { get; private set; } = string.Empty;

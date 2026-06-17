@@ -116,7 +116,7 @@ public class ItemCategoryImpactTests
     [Test]
     public void AddImpact_DuplicateTemplate_Throws()
     {
-        var app = new AppEntity(applicantId: 1, 1, "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,"ACME");
         var template = MakeTemplate(42);
         app.AddImpact(template, System.Array.Empty<ImpactParameterValue>());
 
@@ -127,7 +127,7 @@ public class ItemCategoryImpactTests
     [Test]
     public void RemoveImpact_StripsItemAttributions()
     {
-        var app = new AppEntity(applicantId: 1, 1, "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,"ACME");
         var impact = DeclareImpact(app, impactId: 55, MakeTemplate(42));
         var item = new Item("Laptop", categoryId: 1);
         item.AttributeImpacts(new[] { 55 });
@@ -144,7 +144,7 @@ public class ItemCategoryImpactTests
     [Test]
     public void Validate_NoDeclaredImpact_ReportsIt()
     {
-        var app = new AppEntity(applicantId: 1, 1, "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,"ACME");
         var item = new Item("Laptop", categoryId: 1);
         item.AttributeImpacts(new[] { 1 });
         item.SetImpactJustification("apoya");
@@ -158,7 +158,7 @@ public class ItemCategoryImpactTests
     [Test]
     public void Validate_ItemWithoutAttribution_ReportsIt()
     {
-        var app = new AppEntity(applicantId: 1, 1, "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,"ACME");
         DeclareImpact(app, 1, MakeTemplate());
         var item = new Item("Laptop", categoryId: 1);
         item.SetImpactJustification("apoya");
@@ -172,7 +172,7 @@ public class ItemCategoryImpactTests
     [Test]
     public void Validate_ItemWithoutJustification_ReportsIt()
     {
-        var app = new AppEntity(applicantId: 1, 1, "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,"ACME");
         DeclareImpact(app, 1, MakeTemplate());
         var item = new Item("Laptop", categoryId: 1);
         item.AttributeImpacts(new[] { 1 });
@@ -190,7 +190,7 @@ public class ItemCategoryImpactTests
         category.AddField("modelo", "Modelo", ParameterDataType.Text, isRequired: true, sortOrder: 1);
         typeof(CategoryField).GetProperty("Id")!.SetValue(category.Fields[0], 5);
 
-        var app = new AppEntity(applicantId: 1, 1, "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,"ACME");
         DeclareImpact(app, 1, MakeTemplate());
         var item = new Item("Laptop", categoryId: 1);
         item.AttributeImpacts(new[] { 1 });
@@ -212,7 +212,7 @@ public class ItemCategoryImpactTests
         category.AddField("modelo", "Modelo", ParameterDataType.Text, isRequired: true, sortOrder: 1);
         typeof(CategoryField).GetProperty("Id")!.SetValue(category.Fields[0], 5);
 
-        var app = new AppEntity(applicantId: 1, 1, "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,"ACME");
         DeclareImpact(app, 1, MakeTemplate());
         var item = new Item("Laptop", categoryId: 1);
         item.AttributeImpacts(new[] { 1 });
@@ -229,7 +229,7 @@ public class ItemCategoryImpactTests
     [Test]
     public void CountQuotationsReferencingDocument_CountsAcrossItems()
     {
-        var app = new AppEntity(applicantId: 1, 1, "ACME");
+        var app = new AppEntity(applicantId: 1, 1, null,"ACME");
         var itemA = new Item("A", 1);
         var itemB = new Item("B", 1);
         StuffQuotation(itemA, documentId: 7);

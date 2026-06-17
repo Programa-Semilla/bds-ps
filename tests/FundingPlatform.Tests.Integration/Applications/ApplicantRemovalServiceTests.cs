@@ -38,6 +38,7 @@ public class ApplicantRemovalServiceTests
     private static ApplicationService BuildService(AppDbContext ctx) =>
         new(
             applicationRepository: new ApplicationRepository(ctx),
+            companyRepository: null!,
             categoryRepository: null!,
             supplierRepository: null!,
             objectStorage: null!,
@@ -71,7 +72,7 @@ public class ApplicantRemovalServiceTests
             await ctx.SaveChangesAsync();
         }
 
-        var app = new AppEntity(ap.Id, 1, "Test Company");
+        var app = new AppEntity(ap.Id, 1, null,"Test Company");
         app.AssignPublicCode(TestPublicCodes.Next());
         if (state != ApplicationState.Draft)
         {

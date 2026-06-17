@@ -10,6 +10,9 @@ namespace FundingPlatform.Application.Admin.Users.DTOs;
 /// Spec 032 — adds <c>UserCode</c>, the admin-assigned unique code (required for Solicitante).
 /// Spec 033 — <c>InitialPassword</c> removed: accounts are created with no password and
 /// the user sets their own via an emailed 72h invitation (the controller issues + sends it).
+/// Spec 037 — adds <c>CompanyNames</c>: the at-creation companies for a Solicitante
+/// (≥1 required). The service attaches a Company row per name in the same SaveChanges
+/// as the Applicant (D4); ignored for non-Applicant roles.
 /// </summary>
 public record CreateUserRequest(
     string FirstName,
@@ -20,4 +23,5 @@ public record CreateUserRequest(
     string? LegalId,
     IReadOnlyList<int> GroupIds,
     IdentificationType? IdentificationType = null,
-    string? UserCode = null);
+    string? UserCode = null,
+    IReadOnlyList<string>? CompanyNames = null);

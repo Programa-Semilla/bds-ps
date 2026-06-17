@@ -37,7 +37,7 @@ public class CascadeSearchTests : AuthenticatedTestBase
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Create"));
 
         var appPage = new ApplicationPage(Page);
-        await appPage.CompanyNameInput.FillAsync($"Cascada {uniqueId}");
+        await appPage.SelectCompanyIfPresentAsync();
         await appPage.SelectEligibleGroupIfPresentAsync();
         await appPage.SubmitDraftButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));

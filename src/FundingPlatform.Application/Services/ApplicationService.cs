@@ -61,6 +61,7 @@ public class ApplicationService
     private const FileCategory QuotationCategory = FileCategory.ApplicationAttachment;
 
     private readonly IApplicationRepository _applicationRepository;
+    private readonly ICompanyRepository _companyRepository;
     private readonly ICategoryRepository _categoryRepository;
     private readonly ISupplierRepository _supplierRepository;
     private readonly IObjectStorage _objectStorage;
@@ -82,6 +83,7 @@ public class ApplicationService
 
     public ApplicationService(
         IApplicationRepository applicationRepository,
+        ICompanyRepository companyRepository,
         ICategoryRepository categoryRepository,
         ISupplierRepository supplierRepository,
         IObjectStorage objectStorage,
@@ -98,6 +100,7 @@ public class ApplicationService
         ICurrencyRepository? currencyRepository = null)
     {
         _applicationRepository = applicationRepository;
+        _companyRepository = companyRepository;
         _categoryRepository = categoryRepository;
         _supplierRepository = supplierRepository;
         _objectStorage = objectStorage;
@@ -115,38 +118,39 @@ public class ApplicationService
     }
 
     /// <summary>
-    /// Spec 018 / FR-015 / FR-016 — creates a new draft Application with the
-    /// applicant-supplied company name. Domain-level validation (required, ≤200,
-    /// trim semantics) happens inside the entity constructor; ArgumentException
-    /// from the entity is mapped to a user-facing code via <see cref="UserFacingError"/>.
+    /// Spec 037 / FR-002 / FR-018 / FR-019 — creates a new draft Application referencing
+    /// the admin-assigned <see cref="Company"/> the applicant selected. The company is
+    /// resolved by id and must be one of the applicant's <b>active</b> companies; any
+    /// other value (missing, archived, or owned by someone else) is rejected without
+    /// disclosure (<see cref="UserFacingErrorCode.CompanyInvalid"/>). On success the
+    /// company's name is frozen into the <c>CompanyName</c> snapshot.
     /// </summary>
     public async Task<CreateApplicationResult> CreateApplicationAsync(
         CreateApplicationCommand cmd, string? userId = null)
     {
+        // FR-018/019 — ownership + active resolution. Returns null for an
+        // unowned / archived / non-existent company; surfaced with no disclosure.
+        var company = await _companyRepository.GetActiveByIdForApplicantAsync(cmd.CompanyId, cmd.ApplicantId);
+        if (company is null)
+        {
+            return new CreateApplicationResult(0, UserFacingError.From(UserFacingErrorCode.CompanyInvalid));
+        }
+
         AppEntity application;
         try
         {
             // Spec 029 / FR-017 — anchor the application to its Group at creation.
             // Eligible-group resolution + membership validation happen in US6
             // (controller + service) before this point; the constructor enforces
-            // GroupId > 0.
-            application = new AppEntity(cmd.ApplicantId, cmd.GroupId, cmd.CompanyName);
+            // GroupId > 0. Spec 037 — snapshot the resolved company name.
+            application = new AppEntity(cmd.ApplicantId, cmd.GroupId, company.Id, company.Name);
         }
         catch (ArgumentException ex)
         {
-            // Map entity-level validation failures to user-facing codes via the
-            // stable Data["FundingPlatform.ValidationReason"] discriminator the
-            // entity sets (instead of fragile message-string matching). Lets the
-            // Web layer pick the right Spanish message per FR-014 / NFR-001
-            // even if the English exception text is later edited.
-            var reason = ex.Data[Item.ValidationReasonKey] as string;
-            var code = reason switch
-            {
-                AppEntity.CompanyNameTooLongReason => UserFacingErrorCode.CompanyNameTooLong,
-                AppEntity.CompanyNameRequiredReason => UserFacingErrorCode.CompanyNameRequired,
-                _ => UserFacingErrorCode.CompanyNameRequired,
-            };
-            return new CreateApplicationResult(0, UserFacingError.From(code, ex.Message));
+            // Defensive: the company name was already validated when the company
+            // was created, so this should not fire. Map any residual entity-level
+            // validation failure to the company-invalid code (no disclosure).
+            return new CreateApplicationResult(0, UserFacingError.From(UserFacingErrorCode.CompanyInvalid, ex.Message));
         }
 
         // Spec 021 / FR-008 — stamp the opaque PublicCode before the first

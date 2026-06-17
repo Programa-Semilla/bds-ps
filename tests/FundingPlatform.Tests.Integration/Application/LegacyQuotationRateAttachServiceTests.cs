@@ -70,7 +70,7 @@ public class LegacyQuotationRateAttachServiceTests
         ctx.Applicants.Add(applicant);
         await ctx.SaveChangesAsync();
 
-        var application = new AppEntity(applicant.Id, 1, "Test Company");
+        var application = new AppEntity(applicant.Id, 1, null,"Test Company");
         application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         application.AddItem(new Item("Server", category.Id));
         ctx.Applications.Add(application);

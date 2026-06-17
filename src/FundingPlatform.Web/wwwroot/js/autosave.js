@@ -109,6 +109,11 @@
             timer = setTimeout(function () { postSave(form, field); }, DEBOUNCE_MS);
         }
         field.addEventListener('blur', schedule);
+        // Spec 037 — <select> fields (e.g. the company re-select) autosave on change,
+        // since a dropdown choice does not reliably emit a blur.
+        if (field.tagName === 'SELECT') {
+            field.addEventListener('change', schedule);
+        }
 
         var indicator = findIndicator(field);
         if (indicator) {

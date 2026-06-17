@@ -68,7 +68,7 @@ public class US4_StageExpiry : AuthenticatedTestBase
         var ctaButton = Page.Locator("a:has-text('Iniciar acompañamiento')").First;
         await ctaButton.ClickAsync();
         var appPage = new ApplicationPage(Page);
-        await appPage.CompanyNameInput.FillAsync($"Vencida {uniqueId}");
+        await appPage.SelectCompanyIfPresentAsync();
         await appPage.SelectEligibleGroupIfPresentAsync();
         await appPage.SubmitDraftButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));

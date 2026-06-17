@@ -33,6 +33,7 @@ public class AutosaveEndpointTests
     private AutosaveFieldHandler _handler = null!;
     private FakeStageExpiryClock _clock = null!;
     private int _applicantId;
+    private int _companyId;
     private AppEntity _application = null!;
 
     [SetUp]
@@ -57,7 +58,14 @@ public class AutosaveEndpointTests
         await _ctx.SaveChangesAsync();
         _applicantId = applicant.Id;
 
-        _application = new AppEntity(_applicantId, 1, "Sazón Vegetariano");
+        // Spec 037 — the autosave company re-select resolves an active company owned
+        // by the applicant; seed one to drive the happy path.
+        var company = new Company(_applicantId, "Nueva razón social");
+        _ctx.Companies.Add(company);
+        await _ctx.SaveChangesAsync();
+        _companyId = company.Id;
+
+        _application = new AppEntity(_applicantId, 1, null,"Sazón Vegetariano");
         _application.AssignPublicCode(new PublicCode("A7K2-9XF3"));
         _ctx.Applications.Add(_application);
         await _ctx.SaveChangesAsync();
@@ -76,8 +84,8 @@ public class AutosaveEndpointTests
         // to bypass the check and verify the happy-path mutation persists.
         var cmd = new AutosaveFieldCommand(
             PublicCode: "A7K2-9XF3",
-            FieldKey: "CompanyName",
-            Value: "Nueva razón social",
+            FieldKey: "CompanyId",
+            Value: _companyId.ToString(),
             Etag: null);
 
         var result = await _handler.HandleAsync(cmd, _applicantId);
@@ -86,6 +94,7 @@ public class AutosaveEndpointTests
         Assert.That(result.Etag, Is.Not.Null);
         var reloaded = await _ctx.Applications.AsNoTracking()
             .FirstAsync(a => a.Id == _application.Id);
+        Assert.That(reloaded.CompanyId, Is.EqualTo(_companyId));
         Assert.That(reloaded.CompanyName, Is.EqualTo("Nueva razón social"));
     }
 
@@ -94,8 +103,8 @@ public class AutosaveEndpointTests
     {
         var cmd = new AutosaveFieldCommand(
             PublicCode: "A7K2-9XF3",
-            FieldKey: "CompanyName",
-            Value: "Nueva razón social",
+            FieldKey: "CompanyId",
+            Value: _companyId.ToString(),
             Etag: "not-the-current-etag");
 
         Assert.That(
@@ -116,8 +125,8 @@ public class AutosaveEndpointTests
 
         var cmd = new AutosaveFieldCommand(
             PublicCode: "A7K2-9XF3",
-            FieldKey: "CompanyName",
-            Value: "Cualquier valor",
+            FieldKey: "CompanyId",
+            Value: _companyId.ToString(),
             Etag: null);
 
         Assert.That(

@@ -14,7 +14,8 @@ public sealed class ApplicationDraftPage
 
     public ApplicationDraftPage(IPage page) { _page = page; }
 
-    public ILocator CompanyNameInput => _page.Locator("[data-testid=application-edit-company-name]");
+    // Spec 037 — the company is re-selected via a dropdown (autosaved under field-key CompanyId).
+    public ILocator CompanySelect => _page.Locator("[data-testid=application-edit-company]");
     public ILocator AutosaveIndicator => _page.Locator("[data-autosave-indicator]").First;
 
     /// <summary>The "Agregar línea" link — routes to the category-first item form.</summary>
@@ -25,10 +26,18 @@ public sealed class ApplicationDraftPage
     public ILocator SubmitButton => _page.Locator("[data-testid=application-edit-submit]");
     public ILocator StageCountdownBanner => _page.Locator("[data-testid=stage-countdown-banner-slot]");
 
-    public async Task FillCompanyNameAsync(string value)
+    /// <summary>Spec 037 — selects a company by its visible label (autosaves on change/blur).</summary>
+    public async Task SelectCompanyByLabelAsync(string label)
     {
-        await CompanyNameInput.FillAsync(value);
-        await CompanyNameInput.BlurAsync();
+        await CompanySelect.SelectOptionAsync(new SelectOptionValue { Label = label });
+        await CompanySelect.BlurAsync();
+    }
+
+    /// <summary>Spec 037 — selects a company by option index (skips the placeholder at 0).</summary>
+    public async Task SelectCompanyByIndexAsync(int index)
+    {
+        await CompanySelect.SelectOptionAsync(new SelectOptionValue { Index = index });
+        await CompanySelect.BlurAsync();
     }
 
     /// <summary>Clicks the gated submit button; routes to the /review page.</summary>

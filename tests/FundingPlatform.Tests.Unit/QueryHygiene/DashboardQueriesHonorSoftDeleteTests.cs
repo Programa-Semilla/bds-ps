@@ -130,6 +130,20 @@ public class DashboardQueriesHonorSoftDeleteTests
             // FR-001 / 021-feedback-session-may13 R-10 cross-ref.)
             ["src/FundingPlatform.Infrastructure/Notifications/Persistence/NotificationOutboxWriter.cs"] =
                 "Spec 021-email-notifications — workflow-event read, not dashboard surface.",
+
+            // FundsUsageEvidenceService (spec 036) — single-row by-Id load of the
+            // owning application to gate the post-execution evidence stage on the
+            // AgreementExecuted state. Write-side path, not a dashboard list. (This
+            // exemption was missed when 036 shipped (PR #65 ran filtered E2E, not the
+            // full unit hygiene sweep); added here under spec 037.)
+            ["src/FundingPlatform.Infrastructure/Services/FundsUsageEvidenceService.cs"] =
+                "Spec 036 — single-row by-Id application load for the evidence-stage gate; not a dashboard surface.",
+
+            // FundsUsageEvidenceController (spec 036) — single-row by-Id AsNoTracking
+            // read of the application state for the reviewer evidence surface (group +
+            // executed-state gate). Not a dashboard list source. (Same 036 omission as above.)
+            ["src/FundingPlatform.Web/Controllers/FundsUsageEvidenceController.cs"] =
+                "Spec 036 — single-row by-Id state read for the evidence-stage gate; not a dashboard surface.",
         };
 
     /// <summary>

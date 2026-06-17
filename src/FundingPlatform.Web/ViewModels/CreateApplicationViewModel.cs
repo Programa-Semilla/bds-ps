@@ -4,21 +4,34 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 namespace FundingPlatform.Web.ViewModels;
 
 /// <summary>
-/// Spec 018 / FR-015 / FR-016 — applicant captures the commercial entity name
-/// (`Empresa solicitante`) at Application creation. The Spanish error messages
-/// here are surfaced via ModelState; the entity-level invariants in
-/// <c>Application.SetCompanyName</c> are the canonical source per Constitution II.
+/// Spec 037 / FR-002 / FR-012–FR-014 — the applicant selects an admin-assigned
+/// company at Application creation (controlled dropdown, replacing the spec-018
+/// free-text name). Resolution mirrors the spec-029 Group anchor: 0 companies →
+/// blocked; 1 → auto-selected and hidden; ≥2 → required choice. The posted
+/// <see cref="CompanyId"/> is validated against the applicant's active companies
+/// server-side (FR-018/019).
 ///
 /// Spec 029 / FR-017 / FR-018 — the applicant also anchors the application to an
-/// eligible Group (Process/convocatoria) under an Active Fund. Resolution rules:
-/// 0 eligible → blocked; 1 eligible → auto-selected and hidden; ≥2 → required choice.
+/// eligible Group (Process/convocatoria) under an Active Fund. Same 0/1/many rules.
 /// </summary>
 public class CreateApplicationViewModel
 {
-    [Required(ErrorMessage = "Debe ingresar el nombre de la empresa.")]
-    [StringLength(200, ErrorMessage = "El nombre de la empresa no puede exceder 200 caracteres.")]
-    [Display(Name = "Empresa solicitante (nombre comercial)")]
-    public string CompanyName { get; set; } = string.Empty;
+    /// <summary>
+    /// Spec 037 / FR-002 — the chosen company. Required; validated against the
+    /// applicant's active companies server-side.
+    /// </summary>
+    [Required(ErrorMessage = "Debe seleccionar una empresa.")]
+    [Display(Name = "Empresa solicitante")]
+    public int? CompanyId { get; set; }
+
+    /// <summary>The applicant's active companies, labelled by name.</summary>
+    public IReadOnlyList<SelectListItem> Companies { get; set; } = [];
+
+    /// <summary>True when the applicant has no active company (blocks creation, FR-014).</summary>
+    public bool HasNoCompanies { get; set; }
+
+    /// <summary>True when exactly one company is active (auto-selected, hidden field, FR-012).</summary>
+    public bool IsSingleCompany { get; set; }
 
     /// <summary>
     /// Spec 029 / FR-018 — the chosen Group anchor. Required; validated against

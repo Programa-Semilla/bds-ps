@@ -111,7 +111,7 @@ public class ComparisonOrchestratorIntegrationTests
         _ctx.Suppliers.AddRange(supplierA, supplierB);
         await _ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, 1, "Test Company");
+        var app = new AppEntity(applicant.Id, 1, null,"Test Company");
         app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         var item = new Item("Bomba centrífuga", category.Id);
         app.AddItem(item);

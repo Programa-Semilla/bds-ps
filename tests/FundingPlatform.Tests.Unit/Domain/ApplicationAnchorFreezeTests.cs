@@ -31,7 +31,7 @@ public class ApplicationAnchorFreezeTests
         var group = Group.Create("Norte", 1);
         SetNav(group, nameof(Group.Process), process);
 
-        var app = new AppEntity(applicantId: 1, groupId: 7, companyName: "Empresa");
+        var app = new AppEntity(applicantId: 1, groupId: 7, null,companyName: "Empresa");
         SetNav(app, nameof(AppEntity.Group), group);
         return app;
     }
@@ -39,7 +39,7 @@ public class ApplicationAnchorFreezeTests
     [TestCase(0)]
     [TestCase(-3)]
     public void Constructor_RejectsNonPositiveGroupId(int groupId)
-        => Assert.Throws<ArgumentException>(() => new AppEntity(1, groupId, "Empresa"));
+        => Assert.Throws<ArgumentException>(() => new AppEntity(1, groupId, null,"Empresa"));
 
     [Test]
     public void IsFrozen_False_WhenFundActive()
@@ -47,7 +47,7 @@ public class ApplicationAnchorFreezeTests
         var app = AnchoredApp(FundStatus.Active);
         Assert.That(app.IsFrozen, Is.False);
         // A mutating method on an active-Fund application succeeds.
-        Assert.DoesNotThrow(() => app.SetCompanyName("Nueva Empresa"));
+        Assert.DoesNotThrow(() => app.SetCompany(7, "Nueva Empresa"));
     }
 
     [Test]
@@ -62,7 +62,7 @@ public class ApplicationAnchorFreezeTests
     {
         var app = AnchoredApp(FundStatus.Archived);
 
-        Assert.Throws<FundArchivedException>(() => app.SetCompanyName("Otra"));
+        Assert.Throws<FundArchivedException>(() => app.SetCompany(7, "Otra"));
         Assert.Throws<FundArchivedException>(() => app.AddItem(new Item("Servidor", Cat().Id)));
         Assert.Throws<FundArchivedException>(() => app.RemoveItem(1));
         Assert.Throws<FundArchivedException>(() => app.Submit(2));
@@ -74,8 +74,8 @@ public class ApplicationAnchorFreezeTests
     {
         // Defense-in-depth: with no loaded nav chain the domain guard is inert
         // (the controller boundary guard is the primary enforcement).
-        var app = new AppEntity(1, 7, "Empresa");
+        var app = new AppEntity(1, 7, null,"Empresa");
         Assert.That(app.IsFrozen, Is.False);
-        Assert.DoesNotThrow(() => app.SetCompanyName("Otra"));
+        Assert.DoesNotThrow(() => app.SetCompany(7, "Otra"));
     }
 }

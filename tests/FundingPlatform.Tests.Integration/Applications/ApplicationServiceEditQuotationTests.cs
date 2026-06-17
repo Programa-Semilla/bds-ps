@@ -97,6 +97,7 @@ public class ApplicationServiceEditQuotationTests
 
         return new ApplicationService(
             appRepo,
+            new CompanyRepository(ctx),
             new CategoryRepository(ctx),
             supplierRepo,
             new NoopObjectStorage(),
@@ -139,7 +140,7 @@ public class ApplicationServiceEditQuotationTests
         ctx.Applicants.Add(applicant);
         await ctx.SaveChangesAsync();
 
-        var application = new AppEntity(applicant.Id, 1, "Test Co");
+        var application = new AppEntity(applicant.Id, 1, null,"Test Co");
         application.AssignPublicCode(Helpers.TestPublicCodes.Next());
         var category = await ctx.Categories.FirstAsync();
         application.AddItem(new Item("Server", category.Id));

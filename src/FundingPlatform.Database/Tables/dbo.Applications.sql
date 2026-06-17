@@ -11,6 +11,11 @@ CREATE TABLE [dbo].[Applications]
     -- supplies a real GroupId.
     [GroupId]           INT            NOT NULL CONSTRAINT [DF_Applications_GroupId] DEFAULT (0),
     [CompanyName]       NVARCHAR(200)  NOT NULL,
+    -- Spec 037 / FR-002 — live reference to the admin-managed company the applicant
+    -- selected. CompanyName remains the frozen name snapshot. Nullable + no backfill
+    -- (greenfield, D9): adding a nullable FK to a populated table publishes cleanly,
+    -- so the column + FK + index are declared inline (no post-deploy anchor script).
+    [CompanyId]         INT            NULL,
     [State]             INT            NOT NULL CONSTRAINT [DF_Applications_State] DEFAULT (0),
     -- Spec 021 / FR-008 — PublicCode is the human-facing identifier displayed
     -- on every surface (dashboards, /review, reviewer queue, signing inbox,
@@ -39,6 +44,9 @@ CREATE TABLE [dbo].[Applications]
 
     CONSTRAINT [PK_Applications] PRIMARY KEY CLUSTERED ([Id]),
     CONSTRAINT [FK_Applications_Applicants] FOREIGN KEY ([ApplicantId]) REFERENCES [dbo].[Applicants] ([Id]) ON DELETE NO ACTION,
+    -- Spec 037 / FR-002 — nullable company reference (NO ACTION; the snapshot
+    -- preserves the name independently of the company row's lifecycle).
+    CONSTRAINT [FK_Applications_Companies] FOREIGN KEY ([CompanyId]) REFERENCES [dbo].[Companies] ([Id]) ON DELETE NO ACTION,
     -- FK_Applications_Groups is added in post-deploy (05_Fund029Anchors) after backfill.
     -- Spec 021 / FR-008 — Crockford-base32 4-4 with hyphen (alphabet excludes
     -- I, L, O, U, 0, 1). The check matches the regex enforced by the
@@ -61,6 +69,11 @@ GO
 
 CREATE NONCLUSTERED INDEX [IX_Applications_State]
     ON [dbo].[Applications] ([State]);
+GO
+
+-- Spec 037 / FR-002 — covers the company-reference FK join.
+CREATE NONCLUSTERED INDEX [IX_Applications_CompanyId]
+    ON [dbo].[Applications] ([CompanyId]);
 GO
 
 -- Spec 021 / FR-008 — PublicCode is globally unique; the unique index is the

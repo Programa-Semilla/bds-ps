@@ -74,7 +74,7 @@ public sealed class AutosaveFieldHandler : IAutosaveFieldHandler
             }
         }
 
-        ApplyFieldMutation(application, cmd.FieldKey, cmd.Value);
+        await ApplyFieldMutationAsync(application, cmd.FieldKey, cmd.Value, ct);
 
         await _db.SaveChangesAsync(ct);
 
@@ -82,7 +82,8 @@ public sealed class AutosaveFieldHandler : IAutosaveFieldHandler
         return new AutosaveFieldResult(newEtag, _clock.UtcNow);
     }
 
-    private static void ApplyFieldMutation(AppEntity application, string fieldKey, string? value)
+    private async Task ApplyFieldMutationAsync(
+        AppEntity application, string fieldKey, string? value, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(fieldKey))
         {
@@ -91,8 +92,22 @@ public sealed class AutosaveFieldHandler : IAutosaveFieldHandler
 
         switch (fieldKey)
         {
-            case "CompanyName":
-                application.SetCompanyName(value ?? string.Empty);
+            // Spec 037 / FR-015/016 — draft re-select of the company. The posted
+            // value is the CompanyId; it must belong to this application's applicant
+            // and be active. SetCompany re-copies the name into the frozen snapshot.
+            case "CompanyId":
+                if (!int.TryParse(value, out var companyId))
+                {
+                    throw new ArgumentException(
+                        "El valor de la empresa no es válido.", nameof(value));
+                }
+                var company = await _db.Companies.FirstOrDefaultAsync(
+                    c => c.Id == companyId
+                        && c.ApplicantId == application.ApplicantId
+                        && c.ArchivedAt == null, ct)
+                    ?? throw new ArgumentException(
+                        "Debe seleccionar una empresa válida.", nameof(value));
+                application.SetCompany(company.Id, company.Name);
                 break;
             default:
                 throw new ArgumentException(

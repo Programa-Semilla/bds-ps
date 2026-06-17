@@ -7,6 +7,7 @@ namespace FundingPlatform.Application.Admin.Users.DTOs;
 /// form can pre-select current memberships and round-trip the optimistic stamp.
 /// Spec 026 — adds <c>IdentificationType</c> so the edit form pre-selects the kind.
 /// Spec 032 — adds <c>UserCode</c> so the edit form pre-fills it and lists/detail can show it.
+/// Spec 037 — adds <c>Companies</c> (active + archived) for the Edit-page management card.
 /// </summary>
 public record UserDetailDto(
     string Id,
@@ -21,4 +22,5 @@ public record UserDetailDto(
     IReadOnlyList<int> GroupIds,
     string? ConcurrencyStamp,
     IdentificationType? IdentificationType = null,
-    string? UserCode = null);
+    string? UserCode = null,
+    IReadOnlyList<CompanyDto>? Companies = null);
