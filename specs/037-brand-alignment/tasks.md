@@ -88,7 +88,7 @@ sidebar logo, teal primaries, de-zebra'd tables, footer image; PDF handoff reads
 
 - [X] T018 [US1] Sweep applicant surfaces (`Views/Home`, `Views/Applications`, journey/appeal/signing partials) for any view carrying a legacy class, inline hex, or blue primary that bypasses the token bridge; fix to token-driven equivalents. No copy changes (localization invariant FR-034).
 - [X] T019 [P] [US1] Extend/confirm `tests/FundingPlatform.Tests.E2E/Brand/BrandPresenceApplicantTests.cs`: assert dark sidebar background, `sidebar-brand` logo, and `sponsor-strip` image across applicant home + detail + journey; run filtered.
-- [ ] T020 [P] [US1] Visual check the funding-agreement preview surface (`src/FundingPlatform.Web/Views/Applications/` detail/signing views with the PDF-preview iframe + download CTA) still renders correctly against the new chrome (no layout regression at the iframe border); note the PDF brand asset itself is US5.
+- [X] T020 [P] [US1] Visual check the funding-agreement preview surface (`src/FundingPlatform.Web/Views/Applications/` detail/signing views with the PDF-preview iframe + download CTA) still renders correctly against the new chrome (no layout regression at the iframe border); note the PDF brand asset itself is US5.
 
 **Checkpoint**: Applicant journey is brand-consistent from login through the signing surface.
 
@@ -124,7 +124,7 @@ Restablecer/Inhabilitar — each still hitting its original route.
 - [X] T026 [P] [US3] Apply `_RowActionsMenu` to the other admin list views whose rows carry ≥2 actions, preserving each view's existing action testids/routes/verbs. Concrete targets (grep `Views/Admin/` for rows with ≥2 `<a>`/`<form>` actions before editing): `Views/Admin/Suppliers/Index.cshtml`, `Views/Admin/Groups/Index.cshtml`, `Views/Admin/Currencies.cshtml`, `Views/Admin/ExchangeRates.cshtml`, `Views/Admin/Funds/Index.cshtml`, `Views/Admin/Processes/Index.cshtml`, `Views/Admin/Categories.cshtml`, `Views/Admin/ImpactTemplates/Index.cshtml` (skip any that have only a single action — leave those inline).
 - [X] T027 [US3] Sweep the remaining admin sub-surfaces (`/Admin` index + the ~18 sub-views) for token cascade + standardized `_PageHeader` teal primary CTA (research D10); fix any blue primary or legacy class.
 - [X] T028 [US3] Update `tests/FundingPlatform.Tests.E2E/PageObjects/AdminUsersListPage.cs` to open the kebab (`row-actions-menu-*`) before clicking the relocated `row-action-*` items; cascade the same helper to other admin list page objects touched by T026.
-- [ ] T029 [P] [US3] Run admin/user E2E green: `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~BrandPresenceAdmin|FullyQualifiedName~AdminUserLifecycle|FullyQualifiedName~AdminUserCode|FullyQualifiedName~UserInvitation|FullyQualifiedName~AdminResetPassword|FullyQualifiedName~SentinelImmutability"`.
+- [X] T029 [P] [US3] Run admin/user E2E green: `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~BrandPresenceAdmin|FullyQualifiedName~AdminUserLifecycle|FullyQualifiedName~AdminUserCode|FullyQualifiedName~UserInvitation|FullyQualifiedName~AdminResetPassword|FullyQualifiedName~SentinelImmutability"`.
 
 **Checkpoint**: Admin area uniform; Users page is the reference treatment; all relocated actions work via their original routes.
 
@@ -169,7 +169,7 @@ reduced-motion green, snapshots refreshed.
 - [X] T038 [P] Run `bash scripts/asset-budget-check.sh` (and `verify-asset-budget.sh`) — record total brand-asset wire weight ≤ 400 KB gz (SC-015).
 - [X] T039 [P] Run `node scripts/compare-perf.mjs` vs the T001 baseline — no >10% LCP/TBT regression on applicant home + reviewer queue (NFR-001).
 - [X] T040 Confirm `git diff --stat main -- src/FundingPlatform.Database/` is empty (SC-014).
-- [ ] T041 Run the filtered E2E delivery bar green: `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~Brand|FullyQualifiedName~AdminUser|FullyQualifiedName~UserInvitation|FullyQualifiedName~AdminResetPassword"` (SC-016).
+- [X] T041 Run the filtered E2E delivery bar green: `dotnet test tests/FundingPlatform.Tests.E2E --filter "FullyQualifiedName~Brand|FullyQualifiedName~AdminUser|FullyQualifiedName~UserInvitation|FullyQualifiedName~AdminResetPassword"` (SC-016).
 - [ ] T042 Run `specs/037-brand-alignment/quickstart.md` acceptance walk; present the palette + dark sidebar + footer image + Users-page reference treatment for the user sign-off gate (SC-017).
 - [ ] T043 [P] Update `CLAUDE.md` Recent Changes + Last-updated; mark spec 037 implemented (post-merge: PR number + squash hash).
 

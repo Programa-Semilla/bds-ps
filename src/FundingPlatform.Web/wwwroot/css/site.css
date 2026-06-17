@@ -248,3 +248,15 @@ select[data-searchable-enhanced] {
 .fl-filter-card .btn {
     min-height: 40px;
 }
+
+/* --- D8: the row-actions kebab dropdown must not be clipped by the Users table's
+   card / horizontal-scroll wrapper. At ≥lg the table fits, so let the dropdown
+   overflow those wrappers; narrow viewports keep overflow-x:auto for horizontal
+   scroll (FR-024). Scoped to the only multi-action admin table (Users). --- */
+@media (min-width: 992px) {
+    [data-testid="admin-users-table"],
+    [data-testid="admin-users-table"] .table-responsive,
+    [data-testid="admin-users-table"] .fl-table {
+        overflow: visible;
+    }
+}

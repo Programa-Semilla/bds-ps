@@ -52,20 +52,36 @@
                               method="post"
                               onsubmit="@item.FormOnSubmit">
                             @Html.AntiForgeryToken()
-                            <button type="submit"
-                                    class="@itemClass"
-                                    data-testid="@item.TestId"
-                                    data-confirm="@(hasConfirm ? "" : null)"
-                                    data-confirm-variant="@(hasConfirm ? item.ConfirmVariant : null)"
-                                    data-confirm-title="@(hasConfirm ? item.ConfirmTitle : null)"
-                                    data-confirm-body="@(hasConfirm ? item.ConfirmBody : null)"
-                                    data-confirm-label="@(hasConfirm ? item.ConfirmLabel : null)">
-                                @if (!string.IsNullOrWhiteSpace(item.Icon))
-                                {
-                                    <i class="@item.Icon me-1"></i>
-                                }
-                                @item.Label
-                            </button>
+                            @* Branch on confirm so non-confirm actions (resend / enable) emit NO
+                               data-confirm — a conditional @() value renders an empty attribute,
+                               which confirm-dialog.js would wrongly treat as a confirm trigger. *@
+                            @if (hasConfirm)
+                            {
+                                <button type="submit"
+                                        class="@itemClass"
+                                        data-testid="@item.TestId"
+                                        data-confirm
+                                        data-confirm-variant="@item.ConfirmVariant"
+                                        data-confirm-title="@item.ConfirmTitle"
+                                        data-confirm-body="@item.ConfirmBody"
+                                        data-confirm-label="@item.ConfirmLabel">
+                                    @if (!string.IsNullOrWhiteSpace(item.Icon))
+                                    {
+                                        <i class="@item.Icon me-1"></i>
+                                    }
+                                    @item.Label
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="submit" class="@itemClass" data-testid="@item.TestId">
+                                    @if (!string.IsNullOrWhiteSpace(item.Icon))
+                                    {
+                                        <i class="@item.Icon me-1"></i>
+                                    }
+                                    @item.Label
+                                </button>
+                            }
                         </form>
                     }
                 }
