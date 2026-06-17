@@ -18,6 +18,19 @@
             <div class="alert alert-success" role="alert" data-testid="funding-agreement-executed-badge">
                 Convenio ejecutado.
             </div>
+
+            @* Spec 036 / D7 / FR-001 — funds-usage evidence stage. Reviewer/admin-only
+               (this partial is also shown to applicants), rendered only once the
+               convenio is executed. *@
+            @if (User.IsInRole("Reviewer") || User.IsInRole("Admin"))
+            {
+                <a class="btn btn-outline-primary mb-2"
+                   data-testid="evidence-stage-link"
+                   asp-controller="FundsUsageEvidence" asp-action="Index"
+                   asp-route-applicationId="@Model.ApplicationId">
+                    <i class="ti ti-folder"></i> @FundingPlatform.Web.Resources.FundsUsageEvidenceResources.Stage_CardLink
+                </a>
+            }
         }
 
         @if (Model.AgreementExists)
