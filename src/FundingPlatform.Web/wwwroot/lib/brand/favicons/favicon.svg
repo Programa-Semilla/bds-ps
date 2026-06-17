@@ -1,7 +1,0 @@
-<!-- PLACEHOLDER: pending designer pass — Programa Semilla seedling-mark favicon (32x32). Geometric stand-in. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#1FA0A0"/>
-  <path d="M16 24 V 14" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" fill="none"/>
-  <path d="M16 15 C 12 13, 11 9, 11 7 C 14 8, 16 11, 16 15" fill="#FFFFFF"/>
-  <path d="M16 15 C 20 13, 21 9, 21 7 C 18 8, 16 11, 16 15" fill="#FFFFFF" opacity="0.85"/>
-</svg>

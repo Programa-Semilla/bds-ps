@@ -1,8 +1,0 @@
-<!-- PLACEHOLDER: pending designer pass — Banca para el Desarrollo SBD logo (re-trace from PDF wwwroot/lib/brand/pdf/footer-partners-strip.png). -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 40" role="img" aria-label="Sistema de Banca para el Desarrollo">
-  <rect x="2" y="2" width="36" height="36" rx="6" fill="none" stroke="#1FA0A0" stroke-width="2"/>
-  <text x="20" y="27" text-anchor="middle"
-        font-family="Inter, system-ui, sans-serif" font-weight="700" font-size="16" fill="#1FA0A0">SBD</text>
-  <text x="48" y="18" font-family="Inter, system-ui, sans-serif" font-weight="600" font-size="11" fill="#1A1A1A">Sistema de Banca</text>
-  <text x="48" y="32" font-family="Inter, system-ui, sans-serif" font-weight="500" font-size="11" fill="#5A5A5A">para el Desarrollo</text>
-</svg>

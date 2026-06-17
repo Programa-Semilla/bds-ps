@@ -7,6 +7,6 @@
   </defs>
   <rect width="200" height="200" rx="24" fill="url(#seed-bg)"/>
   <ellipse cx="100" cy="160" rx="56" ry="8" fill="#E2E5E5"/>
-  <path d="M100 158 Q 96 120 80 96 Q 90 100 100 124 Q 110 100 120 96 Q 104 120 100 158 Z" fill="#1FA0A0"/>
-  <circle cx="100" cy="156" r="6" fill="#F2C014"/>
+  <path d="M100 158 Q 96 120 80 96 Q 90 100 100 124 Q 110 100 120 96 Q 104 120 100 158 Z" fill="#008A9E"/>
+  <circle cx="100" cy="156" r="6" fill="#FFC729"/>
 </svg>

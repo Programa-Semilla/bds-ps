@@ -34,7 +34,7 @@ for f in src/FundingPlatform.Web/wwwroot/lib/canvas-confetti/*.js; do
 done
 
 echo "Brand assets:"
-for f in src/FundingPlatform.Web/wwwroot/lib/brand/*.svg src/FundingPlatform.Web/wwwroot/lib/brand/favicons/*; do
+for f in src/FundingPlatform.Web/wwwroot/lib/brand/*.svg src/FundingPlatform.Web/wwwroot/lib/brand/*.png src/FundingPlatform.Web/wwwroot/lib/brand/favicons/*; do
   [ -f "$f" ] || continue
   size=$(gzip -c "$f" | wc -c)
   total=$((total + size))
