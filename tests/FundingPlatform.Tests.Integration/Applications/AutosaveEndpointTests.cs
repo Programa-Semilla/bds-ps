@@ -33,6 +33,7 @@ public class AutosaveEndpointTests
     private AutosaveFieldHandler _handler = null!;
     private FakeStageExpiryClock _clock = null!;
     private int _applicantId;
+    private int _companyId;
     private AppEntity _application = null!;
 
     [SetUp]
@@ -57,7 +58,14 @@ public class AutosaveEndpointTests
         await _ctx.SaveChangesAsync();
         _applicantId = applicant.Id;
 
-        _application = new AppEntity(_applicantId, 1, "Sazón Vegetariano");
+        // Spec 037 — the autosave company re-select resolves an active company owned
+        // by the applicant; seed one to drive the happy path.
+        var company = new Company(_applicantId, "Nueva razón social");
+        _ctx.Companies.Add(company);
+        await _ctx.SaveChangesAsync();
+        _companyId = company.Id;
+
+        _application = new AppEntity(_applicantId, 1, null,"Sazón Vegetariano");
         _application.AssignPublicCode(new PublicCode("A7K2-9XF3"));
         _ctx.Applications.Add(_application);
         await _ctx.SaveChangesAsync();
@@ -76,8 +84,8 @@ public class AutosaveEndpointTests
         // to bypass the check and verify the happy-path mutation persists.
         var cmd = new AutosaveFieldCommand(
             PublicCode: "A7K2-9XF3",
-            FieldKey: "CompanyName",
-            Value: "Nueva razón social",
+            FieldKey: "CompanyId",
+            Value: _companyId.ToString(),
             Etag: null);
 
         var result = await _handler.HandleAsync(cmd, _applicantId);
@@ -86,7 +94,65 @@ public class AutosaveEndpointTests
         Assert.That(result.Etag, Is.Not.Null);
         var reloaded = await _ctx.Applications.AsNoTracking()
             .FirstAsync(a => a.Id == _application.Id);
+        Assert.That(reloaded.CompanyId, Is.EqualTo(_companyId));
         Assert.That(reloaded.CompanyName, Is.EqualTo("Nueva razón social"));
+    }
+
+    [Test]
+    public void Handle_CompanyId_CrossApplicant_IsRejected_AndSnapshotUnchanged()
+    {
+        // Spec 037 / FR-018/019 — re-selecting another applicant's company is rejected.
+        var other = new Applicant("u-other", "9-9999-9999", "Otra", "Persona", "o@example.com", null, null);
+        _ctx.Applicants.Add(other);
+        _ctx.SaveChanges();
+        var foreign = new Company(other.Id, "Ajena");
+        _ctx.Companies.Add(foreign);
+        _ctx.SaveChanges();
+
+        var cmd = new AutosaveFieldCommand("A7K2-9XF3", "CompanyId", foreign.Id.ToString(), Etag: null);
+
+        Assert.That(async () => await _handler.HandleAsync(cmd, _applicantId),
+            Throws.InstanceOf<ArgumentException>());
+        var reloaded = _ctx.Applications.AsNoTracking().First(a => a.Id == _application.Id);
+        Assert.That(reloaded.CompanyId, Is.Null);
+    }
+
+    [Test]
+    public void Handle_CompanyId_Archived_IsRejected()
+    {
+        var archived = new Company(_applicantId, "Archivada");
+        archived.Archive();
+        _ctx.Companies.Add(archived);
+        _ctx.SaveChanges();
+
+        var cmd = new AutosaveFieldCommand("A7K2-9XF3", "CompanyId", archived.Id.ToString(), Etag: null);
+
+        Assert.That(async () => await _handler.HandleAsync(cmd, _applicantId),
+            Throws.InstanceOf<ArgumentException>());
+    }
+
+    [Test]
+    public void Handle_CompanyId_Nonexistent_IsRejected()
+    {
+        var cmd = new AutosaveFieldCommand("A7K2-9XF3", "CompanyId", "999999", Etag: null);
+
+        Assert.That(async () => await _handler.HandleAsync(cmd, _applicantId),
+            Throws.InstanceOf<ArgumentException>());
+    }
+
+    [Test]
+    public async Task Handle_CompanyId_OnNonDraftApplication_IsRejected()
+    {
+        // Spec 037 / FR-015 — the company is frozen once submitted; a forged re-select
+        // against a non-Draft application is rejected (InvalidOperationException).
+        typeof(AppEntity).GetProperty(nameof(AppEntity.State))!
+            .SetValue(_application, FundingPlatform.Domain.Enums.ApplicationState.Submitted);
+        await _ctx.SaveChangesAsync();
+
+        var cmd = new AutosaveFieldCommand("A7K2-9XF3", "CompanyId", _companyId.ToString(), Etag: null);
+
+        Assert.That(async () => await _handler.HandleAsync(cmd, _applicantId),
+            Throws.InstanceOf<InvalidOperationException>());
     }
 
     [Test]
@@ -94,8 +160,8 @@ public class AutosaveEndpointTests
     {
         var cmd = new AutosaveFieldCommand(
             PublicCode: "A7K2-9XF3",
-            FieldKey: "CompanyName",
-            Value: "Nueva razón social",
+            FieldKey: "CompanyId",
+            Value: _companyId.ToString(),
             Etag: "not-the-current-etag");
 
         Assert.That(
@@ -116,8 +182,8 @@ public class AutosaveEndpointTests
 
         var cmd = new AutosaveFieldCommand(
             PublicCode: "A7K2-9XF3",
-            FieldKey: "CompanyName",
-            Value: "Cualquier valor",
+            FieldKey: "CompanyId",
+            Value: _companyId.ToString(),
             Etag: null);
 
         Assert.That(

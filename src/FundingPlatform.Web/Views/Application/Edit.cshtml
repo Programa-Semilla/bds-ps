@@ -62,20 +62,26 @@ else
         <h4 class="mb-3">Empresa solicitante</h4>
         <div class="row g-3" data-autosave-row>
             <div class="col-md-8">
-                <label class="form-label" for="company-name">
-                    Nombre comercial @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Application.CompanyName"))
+                @* Spec 037 / FR-015 — draft re-select of the company (autosaved under
+                   field-key CompanyId). The free-text name input is gone. *@
+                <label class="form-label" for="company-id">
+                    Empresa solicitante @await Html.PartialAsync("_RequiredMark")
                 </label>
-                <input id="company-name"
-                       name="CompanyName"
-                       type="text"
-                       class="form-control"
-                       value="@Model.CompanyName"
-                       maxlength="200"
-                       required
-                       data-autosave-field="CompanyName"
-                       data-required="true"
-                       data-field-label="Nombre comercial"
-                       data-testid="application-edit-company-name" />
+                <select id="company-id"
+                        name="CompanyId"
+                        class="form-select"
+                        required
+                        data-autosave-field="CompanyId"
+                        data-required="true"
+                        data-field-label="Empresa solicitante"
+                        data-searchable
+                        data-testid="application-edit-company">
+                    <option value="">— Seleccione una empresa —</option>
+                    @foreach (var company in Model.Companies)
+                    {
+                        <option value="@company.Value" selected="@(Model.CompanyId?.ToString() == company.Value)">@company.Text</option>
+                    }
+                </select>
             </div>
             <div class="col-md-4 d-flex align-items-end">
                 @await Html.PartialAsync("_AutosaveIndicator")

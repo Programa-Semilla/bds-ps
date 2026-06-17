@@ -35,7 +35,7 @@ public class BrandedDocumentProjectionTests
         using var ctx = NewContext(dbName);
 
         var applicant = SeedApplicant(ctx);
-        var app = new AppEntity(applicant.Id, 1, "Sazón Vegetariano");
+        var app = new AppEntity(applicant.Id, 1, null,"Sazón Vegetariano");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         ctx.Applications.Add(app);
         await ctx.SaveChangesAsync();
@@ -70,7 +70,7 @@ public class BrandedDocumentProjectionTests
         ctx.Categories.Add(category);
         await ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, 1, "Sazón Vegetariano");
+        var app = new AppEntity(applicant.Id, 1, null,"Sazón Vegetariano");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         var approvedItem = new Item("Laptop", category.Id);
         var rejectedItem = new Item("Antena", category.Id);
@@ -117,7 +117,7 @@ public class BrandedDocumentProjectionTests
         ctx.Categories.Add(category);
         await ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, 1, "Sazón Vegetariano");
+        var app = new AppEntity(applicant.Id, 1, null,"Sazón Vegetariano");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         var item = new Item("Laptop", category.Id);
         app.AddItem(item);
@@ -144,7 +144,7 @@ public class BrandedDocumentProjectionTests
         ctx.Categories.Add(category);
         await ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, 1, "Sazón Vegetariano");
+        var app = new AppEntity(applicant.Id, 1, null,"Sazón Vegetariano");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         var item = new Item("Laptop", category.Id);
         app.AddItem(item);
@@ -165,7 +165,7 @@ public class BrandedDocumentProjectionTests
         var dbName = $"branded-single-{Guid.NewGuid():N}";
         using var ctx = NewContext(dbName);
         var applicant = SeedApplicant(ctx);
-        var app = new AppEntity(applicant.Id, 1, "Sazón Vegetariano");
+        var app = new AppEntity(applicant.Id, 1, null,"Sazón Vegetariano");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         ctx.Applications.Add(app);
         await ctx.SaveChangesAsync();

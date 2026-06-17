@@ -26,11 +26,21 @@ public class Application
     public int GroupId { get; private set; }
     public Group? Group { get; private set; }
     /// <summary>
-    /// Spec 018 / FR-015 / FR-016 — commercial entity name (`Empresa solicitante`)
-    /// distinct from the applicant representative's legal name. Required (non-nullable),
-    /// trimmed, ≤200 chars. Mutated via <see cref="SetCompanyName"/>.
+    /// Spec 018 → 037 — commercial entity name (`Empresa solicitante`). Since spec
+    /// 037 this is a <b>frozen name snapshot</b> copied from the selected
+    /// <see cref="Company"/> at creation (and re-copied on draft re-select), not
+    /// applicant free text. Required (non-nullable), trimmed, ≤200 chars. Renaming
+    /// the source Company never rewrites this snapshot (FR-016 historical preservation).
     /// </summary>
     public string CompanyName { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Spec 037 / FR-002 — live reference to the admin-managed <see cref="Company"/>
+    /// the applicant selected. Nullable (greenfield; pre-037 rows + test builders
+    /// keep <c>null</c> + their snapshot). Set at creation and on draft re-select
+    /// (<see cref="SetCompany"/>); frozen at submission via <see cref="EnsureNotFrozen"/>.
+    /// </summary>
+    public int? CompanyId { get; private set; }
 
     /// <summary>
     /// Spec 021 / FR-008 — opaque, human-readable identifier surfaced on every
@@ -102,7 +112,15 @@ public class Application
 
     private Application() { }
 
-    public Application(int applicantId, int groupId, string companyName)
+    /// <summary>
+    /// Spec 037 / D7 — creates a draft anchored to its Group, referencing the
+    /// selected <see cref="Company"/> (<paramref name="companyId"/>) and freezing
+    /// its name into the <see cref="CompanyName"/> snapshot. <paramref name="companyId"/>
+    /// is nullable: the production applicant-create path always supplies a real,
+    /// ownership-validated company id, while test builders and pre-037 rows pass
+    /// <c>null</c> (the FK is nullable).
+    /// </summary>
+    public Application(int applicantId, int groupId, int? companyId, string companyName)
     {
         if (groupId <= 0)
         {
@@ -110,6 +128,7 @@ public class Application
         }
         ApplicantId = applicantId;
         GroupId = groupId;
+        CompanyId = companyId;
         State = ApplicationState.Draft;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
@@ -238,14 +257,38 @@ public class Application
     }
 
     /// <summary>
-    /// Spec 018 / FR-015 / FR-016 — sets the commercial entity name. Trims whitespace,
-    /// rejects null/empty/whitespace-only input, and enforces a 200-character maximum
-    /// after trim. Persists the trimmed value and bumps <see cref="UpdatedAt"/>.
+    /// Spec 037 / FR-015 / FR-016 — re-selects the application's company while it is
+    /// still a mutable Draft (autosave draft re-select). Updates the live
+    /// <see cref="CompanyId"/> reference and re-copies the name into the frozen
+    /// <see cref="CompanyName"/> snapshot. Guarded by <see cref="EnsureNotFrozen"/>;
+    /// the snapshot is frozen once the application is submitted.
+    /// </summary>
+    public void SetCompany(int companyId, string nameSnapshot)
+    {
+        EnsureNotFrozen();
+        // Spec 037 / FR-015 — the selected company is mutable only while Draft and is
+        // frozen at submission. Guard here (not just in the UI / autosave handler) so
+        // a forged re-select against a submitted application is rejected (FR-019).
+        if (State != ApplicationState.Draft)
+        {
+            throw new InvalidOperationException(
+                "La empresa solo puede cambiarse mientras la solicitud es un borrador.");
+        }
+        CompanyId = companyId;
+        SetCompanyName(nameSnapshot);
+    }
+
+    /// <summary>
+    /// Spec 018 → 037 — private snapshot setter for the commercial entity name.
+    /// Trims whitespace, rejects null/empty/whitespace-only input, and enforces a
+    /// 200-character maximum after trim. Persists the trimmed value and bumps
+    /// <see cref="UpdatedAt"/>. Since spec 037 the only callers are the constructor
+    /// and <see cref="SetCompany"/> (the applicant free-text path is gone).
     /// </summary>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="companyName"/> is null/whitespace or exceeds 200 chars after trim.
     /// </exception>
-    public void SetCompanyName(string companyName)
+    private void SetCompanyName(string companyName)
     {
         EnsureNotFrozen();
         if (companyName is null)

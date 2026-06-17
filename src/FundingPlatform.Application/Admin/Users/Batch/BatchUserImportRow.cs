@@ -17,4 +17,6 @@ public sealed record BatchUserImportRow(
     string Email,
     string Telefono,
     string Cedula,
-    string CodigoUsuario);
+    string CodigoUsuario,
+    // Spec 037 / FR-009 — trailing company-name cell (one company per created applicant).
+    string? NombreEmpresa = null);

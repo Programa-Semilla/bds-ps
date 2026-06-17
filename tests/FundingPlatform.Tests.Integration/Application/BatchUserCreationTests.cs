@@ -86,8 +86,9 @@ public class BatchUserCreationTests
     private static BatchUserImportRow Row(
         int n, string grupo, string proceso, string fondo,
         string nombre, string ap1, string ap2,
-        string email, string telefono, string cedula, string codigo) =>
-        new(n, grupo, proceso, fondo, nombre, ap1, ap2, email, telefono, cedula, codigo);
+        string email, string telefono, string cedula, string codigo,
+        string? empresa = "Empresa Demo") =>
+        new(n, grupo, proceso, fondo, nombre, ap1, ap2, email, telefono, cedula, codigo, empresa);
 
     // ---- US1 ------------------------------------------------------------------
 
@@ -271,16 +272,111 @@ public class BatchUserCreationTests
     [Test]
     public void Template_Header_MatchesCanonicalColumns()
     {
+        // Spec 037 — trailing company column; Count = 11.
         Assert.That(BatchUserCsvColumns.Ordered, Is.EqualTo(new[]
         {
             "Grupo", "Proceso", "Fondo", "Nombre", "Apellido 1", "Apellido 2",
-            "Email", "Teléfono", "Cédula", "Código de usuario",
+            "Email", "Teléfono", "Cédula", "Código de usuario", "Nombre de la empresa",
         }));
+        Assert.That(BatchUserCsvColumns.Count, Is.EqualTo(11));
         // Accent/case-insensitive, BOM-tolerant header match (FR-003).
         Assert.That(BatchUserCsvColumns.HeaderMatches(new[]
         {
             "﻿grupo", "PROCESO", "fondo", "nombre", "apellido 1", "apellido 2",
-            "email", "telefono", "cedula", "codigo de usuario",
+            "email", "telefono", "cedula", "codigo de usuario", "nombre de la empresa",
         }), Is.True);
+    }
+
+    // ---- US4 company column (spec 037) ---------------------------------------
+
+    [Test]
+    public async Task AllValid_AttachesOneCompanyPerApplicant()
+    {
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+        await SeedChainAsync(ctx, "Fondo General", "Migración inicial", "Norte");
+
+        var rows = new[]
+        {
+            Row(1, "Norte", "Migración inicial", "Fondo General", "Ana", "Rojas", "Mora",
+                "ana.rojas@example.cr", "", "1-1234-5678", "COD-001", empresa: "Acme S.A."),
+        };
+
+        var result = await sut.CreateUsersBatchAsync(rows, ActorAdminId, CancellationToken.None);
+
+        Assert.That(result.Succeeded.Count, Is.EqualTo(1));
+        var ana = await ctx.Applicants.SingleAsync(a => a.Email == "ana.rojas@example.cr");
+        var companies = await ctx.Companies.Where(c => c.ApplicantId == ana.Id).ToListAsync();
+        Assert.That(companies, Has.Count.EqualTo(1));
+        Assert.That(companies[0].Name, Is.EqualTo("Acme S.A."));
+        Assert.That(companies[0].IsActive, Is.True);
+    }
+
+    [Test]
+    public async Task BlankCompany_RowErrored()
+    {
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+        await SeedChainAsync(ctx, "Fondo General", "Migración inicial", "Norte");
+
+        var rows = new[]
+        {
+            Row(1, "Norte", "Migración inicial", "Fondo General", "Ana", "Rojas", "",
+                "ana@example.cr", "", "1-1234-5678", "COD-001", empresa: "   "),
+        };
+
+        var result = await sut.CreateUsersBatchAsync(rows, ActorAdminId, CancellationToken.None);
+
+        Assert.That(result.Succeeded, Is.Empty);
+        Assert.That(result.Errored.Single().Reason, Is.EqualTo(BatchUserRowReasons.CompanyNameBlank));
+        Assert.That(await ctx.Applicants.AnyAsync(), Is.False);
+    }
+
+    [Test]
+    public async Task OverLengthCompany_RowErrored()
+    {
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+        await SeedChainAsync(ctx, "Fondo General", "Migración inicial", "Norte");
+
+        var rows = new[]
+        {
+            Row(1, "Norte", "Migración inicial", "Fondo General", "Ana", "Rojas", "",
+                "ana@example.cr", "", "1-1234-5678", "COD-001", empresa: new string('a', 201)),
+        };
+
+        var result = await sut.CreateUsersBatchAsync(rows, ActorAdminId, CancellationToken.None);
+
+        Assert.That(result.Succeeded, Is.Empty);
+        Assert.That(result.Errored.Single().Reason, Is.EqualTo(BatchUserRowReasons.CompanyNameTooLong));
+    }
+
+    [Test]
+    public async Task CreateUser_WithDuplicateCompanyNames_AttachesOnePerDistinctName()
+    {
+        // Spec 037 / D4 — the at-creation attach collapses case/accent duplicates within
+        // the request (first occurrence wins) and writes one company.create audit each.
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+        await SeedChainAsync(ctx, "Fondo General", "Migración inicial", "Norte");
+        var norte = await ctx.Groups.SingleAsync(g => g.Name == "Norte");
+
+        var request = new CreateUserRequest(
+            FirstName: "Ana", LastName: "Rojas", Email: "ana.dup@example.cr", Phone: null,
+            Role: "Applicant", LegalId: "1-1234-5678",
+            GroupIds: new[] { norte.Id },
+            IdentificationType: Domain.Enums.IdentificationType.CedulaFisica,
+            UserCode: "DUP-001",
+            CompanyNames: new[] { "Acme S.A.", "  ACME s.a.  ", "Otra", "Acme S.A." });
+
+        var result = await sut.CreateUserAsync(request, ActorAdminId, CancellationToken.None);
+
+        Assert.That(result.Succeeded, Is.True);
+        var applicant = await ctx.Applicants.SingleAsync(a => a.Email == "ana.dup@example.cr");
+        var companies = await ctx.Companies.Where(c => c.ApplicantId == applicant.Id).ToListAsync();
+        Assert.That(companies.Select(c => c.Name), Is.EquivalentTo(new[] { "Acme S.A.", "Otra" }));
+        Assert.That(
+            await ctx.AdminAuditEvents.CountAsync(a => a.Action == AdminAuditEvent.ActionCompanyCreate),
+            Is.EqualTo(2));
     }
 }

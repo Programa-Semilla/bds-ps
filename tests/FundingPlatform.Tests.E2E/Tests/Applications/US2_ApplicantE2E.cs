@@ -59,7 +59,7 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
 
         // 4. Create the draft — opens straight in the draft editor (US2).
         var appPage = new ApplicationPage(Page);
-        await appPage.CompanyNameInput.FillAsync($"Sazón {uniqueId}");
+        await appPage.SelectCompanyIfPresentAsync();
         await appPage.SelectEligibleGroupIfPresentAsync();
         await appPage.SubmitDraftButton.ClickAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
@@ -78,8 +78,8 @@ public class US2_ApplicantE2E : AuthenticatedTestBase
         // 7. Still gated — the item has no impact template yet ("Impacto pendiente").
         await Expect(draft.SubmitButton).ToBeDisabledAsync();
 
-        // 8. FR-016 — editing a field autosaves on blur.
-        await draft.FillCompanyNameAsync($"Sazón Cocina {uniqueId}");
+        // 8. Spec 037 / FR-015/016 — re-selecting the company autosaves on change/blur.
+        await draft.SelectCompanyByIndexAsync(2);
         await Expect(draft.AutosaveIndicator).ToHaveAttributeAsync("data-autosave-state", "saved");
 
         // 9. Spec 035 — set the per-item impact; the gate then OPENS.

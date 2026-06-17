@@ -4,9 +4,10 @@ using AppEntity = FundingPlatform.Domain.Entities.Application;
 namespace FundingPlatform.Tests.Unit.Domain;
 
 /// <summary>
-/// Spec 018 / FR-015 / FR-016 — entity-level invariants for
-/// <see cref="AppEntity.SetCompanyName"/>. These rules belong on the entity per
-/// Constitution II; the controller / service layers are thin pass-throughs.
+/// Spec 018 → 037 / FR-015 / FR-016 — entity-level company-name snapshot
+/// invariants, exercised through the constructor and (since spec 037) the public
+/// <see cref="AppEntity.SetCompany"/> draft re-select path. These rules belong on
+/// the entity per Constitution II; the controller / service layers are thin pass-throughs.
 /// </summary>
 [TestFixture]
 public class ApplicationCompanyNameTests
@@ -14,7 +15,7 @@ public class ApplicationCompanyNameTests
     [Test]
     public void Constructor_PersistsTrimmedCompanyName()
     {
-        var app = new AppEntity(applicantId: 1, 1, companyName: "  Sazón Vegetariano  ");
+        var app = new AppEntity(applicantId: 1, 1, null,companyName: "  Sazón Vegetariano  ");
 
         Assert.That(app.CompanyName, Is.EqualTo("Sazón Vegetariano"));
     }
@@ -26,7 +27,7 @@ public class ApplicationCompanyNameTests
     public void Constructor_RejectsNullOrWhitespaceCompanyName(string? blank)
     {
         Assert.That(
-            () => new AppEntity(applicantId: 1, 1, companyName: blank!),
+            () => new AppEntity(applicantId: 1, 1, null,companyName: blank!),
             Throws.ArgumentException);
     }
 
@@ -36,7 +37,7 @@ public class ApplicationCompanyNameTests
         var name = new string('a', 200);
 
         Assert.That(
-            () => new AppEntity(applicantId: 1, 1, companyName: name),
+            () => new AppEntity(applicantId: 1, 1, null,companyName: name),
             Throws.Nothing);
     }
 
@@ -46,29 +47,31 @@ public class ApplicationCompanyNameTests
         var name = new string('a', 201);
 
         Assert.That(
-            () => new AppEntity(applicantId: 1, 1, companyName: name),
+            () => new AppEntity(applicantId: 1, 1, null,companyName: name),
             Throws.ArgumentException);
     }
 
     [Test]
-    public void SetCompanyName_AcceptsExactly200CharsAfterTrim()
+    public void SetCompany_AcceptsExactly200CharsAfterTrim()
     {
-        var app = new AppEntity(applicantId: 1, 1, companyName: "Initial");
+        var app = new AppEntity(applicantId: 1, 1, null, companyName: "Initial");
         var name = "  " + new string('a', 200) + "  ";
 
-        Assert.That(() => app.SetCompanyName(name), Throws.Nothing);
+        Assert.That(() => app.SetCompany(7, name), Throws.Nothing);
         Assert.That(app.CompanyName.Length, Is.EqualTo(200));
+        Assert.That(app.CompanyId, Is.EqualTo(7));
     }
 
     [Test]
-    public void SetCompanyName_BumpsUpdatedAt()
+    public void SetCompany_BumpsUpdatedAtAndSnapshotsName()
     {
-        var app = new AppEntity(applicantId: 1, 1, companyName: "Initial");
+        var app = new AppEntity(applicantId: 1, 1, null, companyName: "Initial");
         var beforeTouch = DateTime.UtcNow.AddSeconds(-1);
 
-        app.SetCompanyName("Sazón Vegetariano");
+        app.SetCompany(9, "Sazón Vegetariano");
 
         Assert.That(app.UpdatedAt, Is.GreaterThanOrEqualTo(beforeTouch));
         Assert.That(app.CompanyName, Is.EqualTo("Sazón Vegetariano"));
+        Assert.That(app.CompanyId, Is.EqualTo(9));
     }
 }

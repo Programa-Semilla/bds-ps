@@ -74,7 +74,7 @@ public class ReviewerApplicantCodeTests
         ctx.UserGroupMemberships.Add(new UserGroupMembership(applicantUser.Id, norte.Id));
         await ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicantId: applicant.Id, norte.Id, companyName: "ACME");
+        var app = new AppEntity(applicantId: applicant.Id, norte.Id, null,companyName: "ACME");
         app.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.Submitted);
         ctx.Applications.Add(app);

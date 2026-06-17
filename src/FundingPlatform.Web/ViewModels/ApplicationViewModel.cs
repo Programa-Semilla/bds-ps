@@ -8,6 +8,10 @@ public class ApplicationViewModel
     /// <summary>Spec 021 / FR-008 — opaque PublicCode (e.g. <c>A7K2-9XF3</c>).</summary>
     public string? PublicCode { get; set; }
     public string? CompanyName { get; set; }
+    /// <summary>Spec 037 — current company reference (drives the draft re-select dropdown).</summary>
+    public int? CompanyId { get; set; }
+    /// <summary>Spec 037 — the applicant's active companies for the draft re-select dropdown.</summary>
+    public List<SelectListItem> Companies { get; set; } = new();
     public string State { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

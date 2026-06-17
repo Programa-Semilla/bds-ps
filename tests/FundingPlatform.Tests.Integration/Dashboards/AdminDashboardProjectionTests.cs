@@ -94,7 +94,7 @@ public class AdminDashboardProjectionTests
                 ctx.Applicants.Add(applicant);
                 await ctx.SaveChangesAsync();
 
-                var app = new AppEntity(applicant.Id, groupId, $"Co {i}");
+                var app = new AppEntity(applicant.Id, groupId, null,$"Co {i}");
                 app.AssignPublicCode(NextPublicCode());
                 app.AddItem(new Item("Server", category.Id));
                 ctx.Applications.Add(app);
@@ -138,7 +138,7 @@ public class AdminDashboardProjectionTests
                 email: "live@example.com", phone: null, performanceScore: null);
             ctx.Applicants.Add(live);
             await ctx.SaveChangesAsync();
-            var liveApp = new AppEntity(live.Id, groupId, "Live Co");
+            var liveApp = new AppEntity(live.Id, groupId, null,"Live Co");
             liveApp.AssignPublicCode(NextPublicCode());
             liveApp.AddItem(new Item("Server", category.Id));
             ctx.Applications.Add(liveApp);
@@ -153,7 +153,7 @@ public class AdminDashboardProjectionTests
             await ctx.SaveChangesAsync();
             deletedApplicantId = ghost.Id;
 
-            var deletedApp = new AppEntity(ghost.Id, groupId, "Ghost Co");
+            var deletedApp = new AppEntity(ghost.Id, groupId, null,"Ghost Co");
             deletedApp.AssignPublicCode(NextPublicCode());
             deletedApp.AddItem(new Item("Server", category.Id));
             ctx.Applications.Add(deletedApp);
@@ -277,7 +277,7 @@ public class AdminDashboardProjectionTests
         var branchId = supplier.Branches.First().Id;
 
         var groupId = await SeedActiveGroupAsync(ctx);
-        var app = new AppEntity(applicant.Id, groupId, $"Co {label}");
+        var app = new AppEntity(applicant.Id, groupId, null,$"Co {label}");
         app.AssignPublicCode(NextPublicCode());
         var item = new Item($"Item {label}", categoryId);
         app.AddItem(item);

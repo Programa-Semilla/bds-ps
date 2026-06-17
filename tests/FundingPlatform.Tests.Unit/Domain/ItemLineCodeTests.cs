@@ -15,7 +15,7 @@ public class ItemLineCodeTests
 {
     private static AppEntity BuildAppWithItems(int itemCount)
     {
-        var app = new AppEntity(applicantId: 1, 1, companyName: "Test Company");
+        var app = new AppEntity(applicantId: 1, 1, null,companyName: "Test Company");
         for (var i = 0; i < itemCount; i++)
         {
             var item = new Item($"Product-{i + 1}", categoryId: 1);

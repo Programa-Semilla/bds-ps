@@ -32,23 +32,51 @@
                 </div>
             </div>
         }
+        else if (Model.HasNoCompanies)
+        {
+            @* Spec 037 / FR-014 — applicant has no active company: block creation. *@
+            <div class="empty" data-testid="application-create-no-companies">
+                <div class="empty-icon"><i class="ti ti-building-off"></i></div>
+                <p class="empty-title">No tiene empresas asignadas.</p>
+                <p class="empty-subtitle text-secondary">
+                    No tiene empresas asignadas. Contacte a un administrador para continuar.
+                </p>
+                <div class="empty-action">
+                    <a asp-action="Index" asp-controller="Application" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left me-1"></i>Volver a mis solicitudes
+                    </a>
+                </div>
+            </div>
+        }
         else
         {
-            <p class="text-secondary">Indique el nombre comercial de la empresa solicitante; podrá agregar ítems y enviarla cuando esté lista.</p>
+            <p class="text-secondary">Seleccione la empresa solicitante y el proceso; podrá agregar ítems y enviarla cuando esté lista.</p>
             <form asp-action="Create" asp-controller="Application" method="post">
                 @Html.AntiForgeryToken()
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
-                <div class="mb-3">
-                    <label asp-for="CompanyName" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
-                    <input asp-for="CompanyName"
-                           class="form-control"
-                           autocomplete="organization"
-                           maxlength="200"
-                           data-testid="application-create-company-name" />
-                    <span asp-validation-for="CompanyName" class="invalid-feedback d-block"
-                          data-testid="application-create-company-name-error"></span>
-                </div>
+                @* Spec 037 / FR-002 / FR-012–FR-013 — company selector (0/1/many). *@
+                @if (Model.IsSingleCompany)
+                {
+                    <input type="hidden" asp-for="CompanyId" data-testid="application-create-company" />
+                    <div class="mb-3">
+                        <label class="form-label">@Html.DisplayNameFor(m => m.CompanyId)</label>
+                        <input type="text" class="form-control" value="@Model.Companies.FirstOrDefault()?.Text"
+                               disabled data-testid="application-create-company-readonly" />
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <label asp-for="CompanyId" class="form-label"></label> @await Html.PartialAsync("_RequiredMark")
+                        <select asp-for="CompanyId" asp-items="Model.Companies"
+                                class="form-select" data-testid="application-create-company" data-searchable>
+                            <option value="">— Seleccione una empresa —</option>
+                        </select>
+                        <span asp-validation-for="CompanyId" class="invalid-feedback d-block"
+                              data-testid="application-create-company-error"></span>
+                    </div>
+                }
 
                 @* Spec 029 / FR-018 — Process/convocatoria anchor. *@
                 @if (Model.IsSingleEligibleGroup)

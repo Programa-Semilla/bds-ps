@@ -12,7 +12,7 @@ public class ApplicationFundingAgreementTests
     [Test]
     public void CanGenerate_WhenReviewStillInProgress_ReturnsFalseWithReviewOpenError()
     {
-        var application = new AppEntity(applicantId: 1, 1, companyName: "Test Company");
+        var application = new AppEntity(applicantId: 1, 1, null,companyName: "Test Company");
         ApplicationResponseTransitionsTests.SetState(application, ApplicationState.UnderReview);
 
         Assert.That(application.CanGenerateFundingAgreement(out var errors), Is.False);
@@ -32,7 +32,7 @@ public class ApplicationFundingAgreementTests
     [Test]
     public void CanGenerate_WhenNoResponseYet_ReturnsFalseWithPartialResponseError()
     {
-        var application = new AppEntity(applicantId: 1, 1, companyName: "Test Company");
+        var application = new AppEntity(applicantId: 1, 1, null,companyName: "Test Company");
         AddItem(application, 1);
         ApplicationResponseTransitionsTests.SetState(application, ApplicationState.ResponseFinalized);
 
@@ -208,7 +208,7 @@ public class ApplicationFundingAgreementTests
 
     private static AppEntity BuildFinalizedApplication(int[] acceptItemIds, int[] rejectItemIds)
     {
-        var application = new AppEntity(applicantId: 1, 1, companyName: "Test Company");
+        var application = new AppEntity(applicantId: 1, 1, null,companyName: "Test Company");
         foreach (var id in acceptItemIds.Concat(rejectItemIds))
         {
             AddItem(application, id);

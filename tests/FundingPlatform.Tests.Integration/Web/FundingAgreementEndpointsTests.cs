@@ -291,7 +291,7 @@ public class FundingAgreementEndpointsTests
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new AppEntity(applicant.Id, 1, "Test Company");
+        var application = new AppEntity(applicant.Id, 1, null,"Test Company");
         application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         application.AddItem(new Item("Item 1", category.Id));
         ctx.Applications.Add(application);
@@ -515,7 +515,7 @@ public class FundingAgreementEndpointsTests
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new AppEntity(applicant.Id, 1, "Test Company");
+        var application = new AppEntity(applicant.Id, 1, null,"Test Company");
         application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         application.AddItem(new Item("Laptop", category.Id));
         typeof(AppEntity).GetProperty("State")!.SetValue(application, ApplicationState.Resolved);
@@ -547,7 +547,7 @@ public class FundingAgreementEndpointsTests
         ctx.Categories.Add(category);
         ctx.SaveChanges();
 
-        var application = new AppEntity(applicant.Id, 1, "Test Company");
+        var application = new AppEntity(applicant.Id, 1, null,"Test Company");
         application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
         application.AddItem(new Item("Laptop", category.Id));
         ctx.Applications.Add(application);

@@ -154,7 +154,7 @@ public class FundServiceTests
             await ctx.SaveChangesAsync();
             applicantId = applicant.Id;
 
-            var app = new AppEntity(applicant.Id, group.Id, "Empresa");
+            var app = new AppEntity(applicant.Id, group.Id, null,"Empresa");
             app.AssignPublicCode(Helpers.TestPublicCodes.Next());
             ctx.Applications.Add(app);
             await ctx.SaveChangesAsync();

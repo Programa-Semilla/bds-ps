@@ -57,6 +57,21 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
             ?? throw new InvalidOperationException(
                 $"Application {cmd.ApplicationId} not found.");
 
+        // Spec 037 / FR-020 — the selected company must still be active at submit.
+        // The draft re-select dropdown excludes archived companies, so the applicant
+        // simply re-picks. (Pre-037 rows with no CompanyId are unaffected.) Surfaced
+        // via the controller's InvalidOperationException → validation-errors path.
+        if (application.CompanyId is int companyId)
+        {
+            var companyIsArchived = await _db.Companies
+                .AnyAsync(c => c.Id == companyId && c.ArchivedAt != null, ct);
+            if (companyIsArchived)
+            {
+                throw new InvalidOperationException(
+                    "La empresa seleccionada fue archivada. Seleccione una empresa activa para enviar.");
+            }
+        }
+
         var minQuotations = await ResolveMinimumQuotationsAsync(application, ct);
         var stageClosesAt = await ResolveStageClosesAtAsync(application, ct);
 

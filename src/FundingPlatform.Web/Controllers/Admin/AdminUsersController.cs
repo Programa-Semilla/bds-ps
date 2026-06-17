@@ -27,6 +27,8 @@ namespace FundingPlatform.Web.Controllers.Admin;
 public class AdminUsersController : Controller
 {
     private readonly IUserAdministrationService _service;
+    private readonly Application.Admin.Companies.ICompanyAdministrationService _companies;
+    private readonly Localization.IUserFacingErrorTranslator _errorTranslator;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IGroupService _groups;
     private readonly AppDbContext _db;
@@ -45,6 +47,8 @@ public class AdminUsersController : Controller
 
     public AdminUsersController(
         IUserAdministrationService service,
+        Application.Admin.Companies.ICompanyAdministrationService companies,
+        Localization.IUserFacingErrorTranslator errorTranslator,
         UserManager<ApplicationUser> userManager,
         IGroupService groups,
         AppDbContext db,
@@ -57,6 +61,8 @@ public class AdminUsersController : Controller
         ILogger<AdminUsersController> logger)
     {
         _service = service;
+        _companies = companies;
+        _errorTranslator = errorTranslator;
         _userManager = userManager;
         _groups = groups;
         _db = db;
@@ -319,6 +325,19 @@ public class AdminUsersController : Controller
         {
             ModelState.AddModelError(nameof(vm.GroupIds), AdminUsersResources.AtLeastOneGroupRequired);
         }
+        // Spec 037 / FR-004 — at least one non-blank company for the Solicitante role.
+        var companyNames = (vm.Companies ?? Array.Empty<string>())
+            .Select(c => c?.Trim() ?? string.Empty)
+            .Where(c => c.Length > 0)
+            .ToList();
+        if (string.Equals(vm.Role, "Applicant", StringComparison.Ordinal) && companyNames.Count == 0)
+        {
+            ModelState.AddModelError(nameof(vm.Companies), AdminCompaniesResources.AtLeastOneRequired);
+        }
+        if (companyNames.Any(c => c.Length > Company.MaxNameLength))
+        {
+            ModelState.AddModelError(nameof(vm.Companies), AdminCompaniesResources.NameTooLong);
+        }
         if (!ModelState.IsValid)
         {
             vm.AvailableGroups = await LoadGroupOptionsAsync(ct);
@@ -335,7 +354,8 @@ public class AdminUsersController : Controller
                     vm.LegalId,
                     GroupIds: vm.GroupIds ?? Array.Empty<int>(),
                     IdentificationType: vm.IdentificationType,
-                    UserCode: vm.UserCode),
+                    UserCode: vm.UserCode,
+                    CompanyNames: companyNames),
                 actorId, ct);
             if (!result.Succeeded)
             {
@@ -412,6 +432,10 @@ public class AdminUsersController : Controller
             ConcurrencyStamp = detail.ConcurrencyStamp,
             AvailableGroups = await LoadGroupOptionsAsync(ct),
             FundCatalog = await LoadFundCatalogAsync(ct),
+            // Spec 037 — applicant company management card source (active + archived).
+            Companies = (detail.Companies ?? Array.Empty<CompanyDto>())
+                .Select(c => new AdminUserCompanyOption(c.Id, c.Name, c.IsArchived))
+                .ToList(),
         };
         return View(vm);
     }
@@ -519,6 +543,96 @@ public class AdminUsersController : Controller
             return View(vm);
         }
     }
+
+    // ---- Spec 037 / US2 — applicant company management (sub-routes under the user) ----
+
+    [HttpPost("{id}/Companies/Add")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddCompany(string id, string? name, CancellationToken ct)
+    {
+        var applicantId = await ResolveApplicantIdAsync(id, ct);
+        if (applicantId is null) return NotFound();
+
+        var actorId = _userManager.GetUserId(User) ?? "";
+        var result = await _companies.AddAsync(applicantId.Value, name ?? string.Empty, actorId, ct);
+        SurfaceCompanyResult(result, AdminCompaniesResources.AddedToast);
+        return RedirectToEditAnchorCompanies(id);
+    }
+
+    [HttpPost("{id}/Companies/{companyId:int}/Rename")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RenameCompany(string id, int companyId, string? newName, CancellationToken ct)
+    {
+        if (!await CompanyBelongsToUserAsync(id, companyId, ct)) return NotFound();
+
+        var actorId = _userManager.GetUserId(User) ?? "";
+        var result = await _companies.RenameAsync(companyId, newName ?? string.Empty, actorId, ct);
+        SurfaceCompanyResult(result, AdminCompaniesResources.RenamedToast);
+        return RedirectToEditAnchorCompanies(id);
+    }
+
+    [HttpPost("{id}/Companies/{companyId:int}/Archive")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ArchiveCompany(string id, int companyId, CancellationToken ct)
+    {
+        if (!await CompanyBelongsToUserAsync(id, companyId, ct)) return NotFound();
+
+        var actorId = _userManager.GetUserId(User) ?? "";
+        var result = await _companies.ArchiveAsync(companyId, actorId, ct);
+        SurfaceCompanyResult(result, AdminCompaniesResources.ArchivedToast);
+        return RedirectToEditAnchorCompanies(id);
+    }
+
+    [HttpPost("{id}/Companies/{companyId:int}/Unarchive")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UnarchiveCompany(string id, int companyId, CancellationToken ct)
+    {
+        if (!await CompanyBelongsToUserAsync(id, companyId, ct)) return NotFound();
+
+        var actorId = _userManager.GetUserId(User) ?? "";
+        var result = await _companies.UnarchiveAsync(companyId, actorId, ct);
+        SurfaceCompanyResult(result, AdminCompaniesResources.UnarchivedToast);
+        return RedirectToEditAnchorCompanies(id);
+    }
+
+    /// <summary>Resolves a user id to its Applicant.Id; null when not an applicant.</summary>
+    private async Task<int?> ResolveApplicantIdAsync(string userId, CancellationToken ct)
+    {
+        var row = await _db.Applicants
+            .Where(a => a.UserId == userId)
+            .Select(a => (int?)a.Id)
+            .FirstOrDefaultAsync(ct);
+        return row;
+    }
+
+    /// <summary>
+    /// Spec 037 — asserts the company belongs to the user identified by the route
+    /// (no-disclosure: a cross-user company id is treated as not-found).
+    /// </summary>
+    private async Task<bool> CompanyBelongsToUserAsync(string userId, int companyId, CancellationToken ct)
+    {
+        var applicantId = await ResolveApplicantIdAsync(userId, ct);
+        if (applicantId is null) return false;
+        return await _db.Companies.AnyAsync(c => c.Id == companyId && c.ApplicantId == applicantId.Value, ct);
+    }
+
+    private void SurfaceCompanyResult(
+        Application.Admin.Companies.CompanyMutationResult result, string successToast)
+    {
+        if (result.Succeeded)
+        {
+            TempData["SuccessMessage"] = successToast;
+        }
+        else
+        {
+            // Spec 037 — render the company error via the single es-CR source of truth
+            // (IUserFacingErrorTranslator), shared with the applicant-facing surfaces.
+            TempData["ErrorMessage"] = _errorTranslator.Translate(result.Error!.Code);
+        }
+    }
+
+    private IActionResult RedirectToEditAnchorCompanies(string id)
+        => RedirectToAction(nameof(Edit), new { id });
 
     [HttpPost("{id}/Disable")]
     [ValidateAntiForgeryToken]
@@ -677,7 +791,7 @@ public class AdminUsersController : Controller
         sb.Append(string.Join(',', new[]
         {
             "Norte", "Migración inicial", "Fondo General", "Ana", "Rojas", "Mora",
-            "ana.rojas@example.cr", "506 8888 1111", "1-1234-5678", "COD-001",
+            "ana.rojas@example.cr", "506 8888 1111", "1-1234-5678", "COD-001", "Empresa ABC",
         }.Select(CsvField)));
         sb.Append("\r\n");
         return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv; charset=utf-8", "plantilla-usuarios.csv");
@@ -757,7 +871,8 @@ public class AdminUsersController : Controller
                 Email: Cell(cells, 6),
                 Telefono: Cell(cells, 7),
                 Cedula: Cell(cells, 8),
-                CodigoUsuario: Cell(cells, 9)));
+                CodigoUsuario: Cell(cells, 9),
+                NombreEmpresa: Cell(cells, 10)));
         }
 
         var actorId = _userManager.GetUserId(User) ?? "";

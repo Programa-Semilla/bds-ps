@@ -38,10 +38,14 @@ Last updated: 2026-06-17 (session #33)
 | 30 | 2026-06-12 | user-invite-email | spec-created | 033 |
 | 31 | 2026-06-12 | line-item-category-templates | spec-created | 035 |
 | 32 | 2026-06-16 | funds-usage-evidence | spec-created | 036 |
-| 33 | 2026-06-17 | official-brand-alignment | spec-created | 037 |
+| 33 | 2026-06-17 | official-brand-alignment | shipped (PR #67) | 037 |
+| 34 | 2026-06-17 | applicant-companies | shipped (PR #68) | 037 |
 
 ## Open Threads
 
+- Admin UI placement for the per-applicant company list (inline on user Edit vs. dedicated `/Admin/Users/{id}/Companies` sub-surface) — HOW, deferred to plan (from #34)
+- Audit-event naming prefix for company create/rename/archive/unarchive (likely `company.*`, mirroring `fund.*`/`process.*`/`funds_evidence.*`) — pin in plan (from #34)
+- Whether a one-time backfill of existing applicants/applications into the company model is wanted later (currently greenfield; pre-existing applicants can't submit until an admin adds a company) (from #34)
 - Raster-as-provided vs. request a vector original if the auth-hero vertical logo renders soft (OQ-001) (from #33)
 - Exact sidebar white-container treatment — full-bleed white pill vs. subtle off-white card (OQ-002) (from #33)
 - Is `#F9A61C` orange wired to any existing status today, or held purely in reserve? (OQ-003) (from #33)

@@ -35,6 +35,10 @@ public static class BatchUserRowReasons
     public const string CodigoInUse = "El código de usuario ya está en uso.";
     public const string CodigoDupInFile = "Código de usuario duplicado en el archivo.";
 
+    // Empresa (spec 037)
+    public const string CompanyNameBlank = "Falta el nombre de la empresa.";
+    public const string CompanyNameTooLong = "El nombre de la empresa supera los 200 caracteres.";
+
     // Grupo / Proceso / Fondo chain (spec 029)
     public const string GroupNotFound = "El grupo indicado no existe.";
     public const string ProcessNotFound = "El proceso indicado no existe.";

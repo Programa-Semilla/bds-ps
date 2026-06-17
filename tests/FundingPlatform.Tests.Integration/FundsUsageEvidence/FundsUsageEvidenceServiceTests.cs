@@ -46,7 +46,7 @@ public class FundsUsageEvidenceServiceTests
         ctx.Applicants.Add(applicant);
         await ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, groupId: 1, companyName: "Empresa");
+        var app = new AppEntity(applicant.Id, groupId: 1, null,companyName: "Empresa");
         app.AssignPublicCode(TestPublicCodes.Next());
         typeof(AppEntity).GetProperty(nameof(AppEntity.State))!
             .SetValue(app, state);

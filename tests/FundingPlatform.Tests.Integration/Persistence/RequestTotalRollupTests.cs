@@ -65,7 +65,7 @@ public class RequestTotalRollupTests
             ctx.ExchangeRates.Add(rate);
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id, 1, "Test Company");
+            var application = new AppEntity(applicant.Id, 1, null,"Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             application.AddItem(new Item("ItemCrc", category.Id));
             application.AddItem(new Item("ItemUsd", category.Id));
@@ -205,7 +205,7 @@ public class RequestTotalRollupTests
             ctx.ExchangeRates.Add(new ExchangeRate(CurrencyCode.Usd, CurrencyCode.Crc, 520m, 525m, Past(10), "admin"));
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id, 1, "Test Company");
+            var application = new AppEntity(applicant.Id, 1, null,"Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             application.AddItem(new Item("ItemTwoCrc", category.Id));
             application.AddItem(new Item("ItemMixed", category.Id));
@@ -306,7 +306,7 @@ public class RequestTotalRollupTests
             ctx.Categories.Add(category);
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id, 1, "Test Company");
+            var application = new AppEntity(applicant.Id, 1, null,"Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             application.AddItem(new Item("ItemA", category.Id));
             ctx.Applications.Add(application);
@@ -346,7 +346,7 @@ public class RequestTotalRollupTests
             ctx.Categories.Add(category);
             await ctx.SaveChangesAsync();
 
-            var application = new AppEntity(applicant.Id, 1, "Test Company");
+            var application = new AppEntity(applicant.Id, 1, null,"Test Company");
             application.AssignPublicCode(FundingPlatform.Tests.Integration.Helpers.TestPublicCodes.Next());
             application.AddItem(new Item("ItemA", category.Id));
             ctx.Applications.Add(application);

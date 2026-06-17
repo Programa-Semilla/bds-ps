@@ -575,7 +575,7 @@ public class AccountController : Controller
 
         await _userManager.AddToRoleAsync(user, "Applicant");
 
-        _dbContext.Applicants.Add(new Applicant(
+        var applicant = new Applicant(
             userId: user.Id,
             legalId: legalId,
             firstName: firstName,
@@ -583,7 +583,17 @@ public class AccountController : Controller
             email: email,
             phone: null,
             performanceScore: null,
-            identificationType: Domain.Enums.IdentificationType.CedulaFisica));
+            identificationType: Domain.Enums.IdentificationType.CedulaFisica);
+        _dbContext.Applicants.Add(applicant);
+        await _dbContext.SaveChangesAsync();
+
+        // Spec 037 — seed two active companies so the seeded applicant can create
+        // applications out of the box. Two (not one) keeps the create selector a
+        // real multi-option <select> (matching the demo seed) and gives the draft
+        // re-select autosave path a second company to switch to.
+        var baseName = $"Empresa {firstName} {lastName}".Trim();
+        _dbContext.Companies.Add(new Company(applicant.Id, $"{baseName} 1"));
+        _dbContext.Companies.Add(new Company(applicant.Id, $"{baseName} 2"));
         await _dbContext.SaveChangesAsync();
 
         return Ok($"User '{email}' seeded.");

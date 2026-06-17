@@ -105,7 +105,7 @@ public class OutboxTransactionalEnqueueTests
         _ctx.Applicants.Add(applicant);
         await _ctx.SaveChangesAsync();
 
-        var app = new Domain.Entities.Application(applicant.Id, 1, "TestCo");
+        var app = new Domain.Entities.Application(applicant.Id, 1, null,"TestCo");
         app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         app.AddVersionHistory(new Domain.Entities.VersionHistory("u-1", "SendBack", null));
         _ctx.Applications.Add(app);

@@ -65,4 +65,13 @@ public class AdminUserEditViewModel
     /// <summary>Spec 016 — round-trips the existing
     /// <c>IdentityUser.ConcurrencyStamp</c> for optimistic concurrency.</summary>
     public string? ConcurrencyStamp { get; set; }
+
+    /// <summary>Spec 037 — the applicant's companies (active + archived) for the
+    /// "Empresas" management card. Populated by the controller from
+    /// <c>UserDetailDto.Companies</c>; not posted back (managed via sub-routes).</summary>
+    public IReadOnlyList<AdminUserCompanyOption> Companies { get; set; }
+        = Array.Empty<AdminUserCompanyOption>();
 }
+
+/// <summary>Spec 037 — one company row on the Edit-page management card.</summary>
+public sealed record AdminUserCompanyOption(int Id, string Name, bool IsArchived);

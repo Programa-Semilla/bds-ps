@@ -21,15 +21,17 @@ public static class BatchUserCsvColumns
     public const string Telefono = "Teléfono";
     public const string Cedula = "Cédula";
     public const string CodigoUsuario = "Código de usuario";
+    // Spec 037 / FR-009 — trailing required company-name column.
+    public const string NombreEmpresa = "Nombre de la empresa";
 
     /// <summary>Canonical header columns in template order.</summary>
     public static readonly IReadOnlyList<string> Ordered =
     [
-        Grupo, Proceso, Fondo, Nombre, Apellido1, Apellido2, Email, Telefono, Cedula, CodigoUsuario,
+        Grupo, Proceso, Fondo, Nombre, Apellido1, Apellido2, Email, Telefono, Cedula, CodigoUsuario, NombreEmpresa,
     ];
 
     /// <summary>Number of columns (also the cell count of every data row).</summary>
-    public const int Count = 10;
+    public const int Count = 11;
 
     /// <summary>FR-003 — maximum number of data rows (header excluded) per upload.</summary>
     public const int MaxDataRows = 200;

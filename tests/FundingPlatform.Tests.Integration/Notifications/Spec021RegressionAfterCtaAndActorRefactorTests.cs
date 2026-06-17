@@ -104,7 +104,7 @@ public class Spec021RegressionAfterCtaAndActorRefactorTests
         ctx.UserGroupMemberships.Add(new UserGroupMembership(reviewerUser.Id, group.Id));
         await ctx.SaveChangesAsync();
 
-        var app = new AppEntity(applicant.Id, 1, "Reg-Co");
+        var app = new AppEntity(applicant.Id, 1, null,"Reg-Co");
         app.AssignPublicCode(Helpers.TestPublicCodes.Next());
         // Admin authored a VersionHistory row → qualifies as a participating admin.
         app.AddVersionHistory(new VersionHistory(adminUser.Id, "ReviewItem", null));

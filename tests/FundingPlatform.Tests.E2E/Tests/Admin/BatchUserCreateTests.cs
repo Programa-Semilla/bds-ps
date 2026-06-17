@@ -17,9 +17,9 @@ public class BatchUserCreateTests : AuthenticatedTestBase
 {
     private const string AdminPassword = "Test123!";
 
-    // Canonical es-CR template header.
+    // Canonical es-CR template header (spec 037 — trailing company column).
     private const string Header =
-        "Grupo,Proceso,Fondo,Nombre,Apellido 1,Apellido 2,Email,Teléfono,Cédula,Código de usuario";
+        "Grupo,Proceso,Fondo,Nombre,Apellido 1,Apellido 2,Email,Teléfono,Cédula,Código de usuario,Nombre de la empresa";
 
     private async Task SignInAsAdminAsync(string unique)
     {
@@ -47,8 +47,8 @@ public class BatchUserCreateTests : AuthenticatedTestBase
         var email2 = $"batch_{unique}_2@programa-semilla.test";
         var csv = WriteCsv(string.Join("\n", new[]
         {
-            $"Norte,Migración inicial,Fondo General,Ana,Rojas,Mora,{email1},506 8888 1111,{IdentificationData.CedulaFisica($"BU1-{unique}")},BUC-{unique}-1",
-            $"Sur,Migración inicial,Fondo General,Luis,Mora,,{email2},7777-2222,{IdentificationData.CedulaFisica($"BU2-{unique}")},BUC-{unique}-2",
+            $"Norte,Migración inicial,Fondo General,Ana,Rojas,Mora,{email1},506 8888 1111,{IdentificationData.CedulaFisica($"BU1-{unique}")},BUC-{unique}-1,Empresa Demo",
+            $"Sur,Migración inicial,Fondo General,Luis,Mora,,{email2},7777-2222,{IdentificationData.CedulaFisica($"BU2-{unique}")},BUC-{unique}-2,Empresa Demo",
         }));
 
         var page = new AdminBatchUsersPage(Page);
@@ -91,11 +91,11 @@ public class BatchUserCreateTests : AuthenticatedTestBase
         var csv = WriteCsv(string.Join("\n", new[]
         {
             // valid
-            $"Norte,Migración inicial,Fondo General,Ana,Rojas,,{goodEmail},,{IdentificationData.CedulaFisica($"BM1-{unique}")},BMC-{unique}-1",
+            $"Norte,Migración inicial,Fondo General,Ana,Rojas,,{goodEmail},,{IdentificationData.CedulaFisica($"BM1-{unique}")},BMC-{unique}-1,Empresa Demo",
             // blank email
-            $"Norte,Migración inicial,Fondo General,Bob,Soto,,,,{IdentificationData.CedulaFisica($"BM2-{unique}")},BMC-{unique}-2",
+            $"Norte,Migración inicial,Fondo General,Bob,Soto,,,,{IdentificationData.CedulaFisica($"BM2-{unique}")},BMC-{unique}-2,Empresa Demo",
             // unrecognized id shape (10 digits → no inferred individual type → errored)
-            $"Norte,Migración inicial,Fondo General,Cyn,Vega,,{badEmail},,1234567890,BMC-{unique}-3",
+            $"Norte,Migración inicial,Fondo General,Cyn,Vega,,{badEmail},,1234567890,BMC-{unique}-3,Empresa Demo",
         }));
 
         var page = new AdminBatchUsersPage(Page);
@@ -134,9 +134,9 @@ public class BatchUserCreateTests : AuthenticatedTestBase
         var csv = WriteCsv(string.Join("\n", new[]
         {
             // coherent chain
-            $"Norte,Migración inicial,Fondo General,Ana,Rojas,,{goodEmail},,{IdentificationData.CedulaFisica($"BC1-{unique}")},BCC-{unique}-1",
+            $"Norte,Migración inicial,Fondo General,Ana,Rojas,,{goodEmail},,{IdentificationData.CedulaFisica($"BC1-{unique}")},BCC-{unique}-1,Empresa Demo",
             // wrong chain — real group, but a Fondo that does not exist
-            $"Norte,Migración inicial,Fondo Inexistente,Bob,Soto,,{badEmail},,{IdentificationData.CedulaFisica($"BC2-{unique}")},BCC-{unique}-2",
+            $"Norte,Migración inicial,Fondo Inexistente,Bob,Soto,,{badEmail},,{IdentificationData.CedulaFisica($"BC2-{unique}")},BCC-{unique}-2,Empresa Demo",
         }));
 
         var page = new AdminBatchUsersPage(Page);
@@ -185,7 +185,7 @@ public class BatchUserCreateTests : AuthenticatedTestBase
         await SignInAsAdminAsync(unique);
 
         var lines = Enumerable.Range(1, 201).Select(i =>
-            $"Norte,Migración inicial,Fondo General,N{i},A{i},,row{i}_{unique}@programa-semilla.test,,{IdentificationData.CedulaFisica($"BT{i}-{unique}")},BTC-{unique}-{i}");
+            $"Norte,Migración inicial,Fondo General,N{i},A{i},,row{i}_{unique}@programa-semilla.test,,{IdentificationData.CedulaFisica($"BT{i}-{unique}")},BTC-{unique}-{i},Empresa Demo");
         var csv = WriteCsv(string.Join("\n", lines));
 
         var page = new AdminBatchUsersPage(Page);
@@ -195,5 +195,54 @@ public class BatchUserCreateTests : AuthenticatedTestBase
         await Expect(page.FileError).ToBeVisibleAsync();
         await Expect(page.FileError).ToContainTextAsync("200");
         await Expect(page.Summary).Not.ToBeVisibleAsync();
+    }
+
+    // ---- Spec 037 — company column -------------------------------------------
+
+    [Test]
+    public async Task Template_IncludesCompanyColumn()
+    {
+        var unique = Guid.NewGuid().ToString("N")[..8];
+        await SignInAsAdminAsync(unique);
+
+        // Use the browser context's request API so the admin auth cookie + the
+        // dev TLS cert handling carry over automatically.
+        var response = await Page.APIRequest.GetAsync($"{BaseUrl}/Admin/Users/Batch/Template");
+        Assert.That(response.Ok, Is.True);
+        var csvText = await response.TextAsync();
+        Assert.That(csvText, Does.Contain("Nombre de la empresa"));
+    }
+
+    [Test]
+    public async Task BlankCompany_RowErrored()
+    {
+        var unique = Guid.NewGuid().ToString("N")[..8];
+        await SignInAsAdminAsync(unique);
+
+        var goodEmail = $"batch_{unique}_co_ok@programa-semilla.test";
+        var badEmail = $"batch_{unique}_co_blank@programa-semilla.test";
+        var csv = WriteCsv(string.Join("\n", new[]
+        {
+            // valid (with company)
+            $"Norte,Migración inicial,Fondo General,Ana,Rojas,,{goodEmail},,{IdentificationData.CedulaFisica($"CO1-{unique}")},COC-{unique}-1,Empresa Válida",
+            // blank company cell → errored
+            $"Norte,Migración inicial,Fondo General,Bob,Soto,,{badEmail},,{IdentificationData.CedulaFisica($"CO2-{unique}")},COC-{unique}-2,",
+        }));
+
+        var page = new AdminBatchUsersPage(Page);
+        await page.GoToAsync(BaseUrl);
+        await page.UploadAsync(csv);
+
+        await Expect(page.Summary).ToBeVisibleAsync();
+        Assert.That(await page.SucceededCountValueAsync(), Is.EqualTo(1));
+        Assert.That(await page.ErroredCountValueAsync(), Is.EqualTo(1));
+
+        var erroredText = string.Join(" | ", await page.ErroredRows.AllInnerTextsAsync());
+        Assert.That(erroredText, Does.Contain("empresa"));
+
+        var list = new AdminUsersListPage(Page);
+        await list.GoToAsync(BaseUrl);
+        await list.SearchAsync(badEmail);
+        await Expect(list.RowFor(badEmail)).Not.ToBeVisibleAsync();
     }
 }

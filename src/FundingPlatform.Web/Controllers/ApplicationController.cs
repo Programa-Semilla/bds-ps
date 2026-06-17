@@ -95,8 +95,11 @@ public class ApplicationController : Controller
     public async Task<IActionResult> Create()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var applicantId = await GetCurrentApplicantIdAsync();
         var model = new CreateApplicationViewModel();
         await PopulateEligibleGroupsAsync(model, userId);
+        // Spec 037 / FR-002 — populate the company selector (0/1/many rules).
+        PopulateActiveCompaniesFrom(model, await ResolveActiveCompaniesAsync(applicantId));
         return View(model);
     }
 
@@ -105,14 +108,20 @@ public class ApplicationController : Controller
     public async Task<IActionResult> Create(CreateApplicationViewModel model)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var applicantId = await GetCurrentApplicantIdAsync();
 
         // Spec 029 / FR-018 — resolve the applicant's eligible Groups and validate
         // the chosen anchor against that set (defense against tampering + the
         // 0/1/many rendering rules). Re-populate for redisplay on any failure.
         var eligible = await ResolveEligibleGroupsAsync(userId);
-        if (eligible.Count == 0)
+        // Spec 037 / FR-018/019 — resolve the applicant's active companies for the
+        // same defense + 0/1/many rendering.
+        var companies = await ResolveActiveCompaniesAsync(applicantId);
+
+        if (eligible.Count == 0 || companies.Count == 0)
         {
             PopulateEligibleGroupsFrom(model, eligible);
+            PopulateActiveCompaniesFrom(model, companies);
             return View(model);
         }
         if (model.GroupId is null || eligible.All(g => g.GroupId != model.GroupId.Value))
@@ -120,22 +129,30 @@ public class ApplicationController : Controller
             ModelState.AddModelError(nameof(CreateApplicationViewModel.GroupId),
                 "Debe seleccionar un proceso activo válido para postular.");
         }
+        // Spec 037 / FR-018 — the posted CompanyId must be one of the applicant's
+        // active companies (tamper defense; no disclosure).
+        if (model.CompanyId is null || companies.All(c => c.Id != model.CompanyId.Value))
+        {
+            ModelState.AddModelError(nameof(CreateApplicationViewModel.CompanyId),
+                "Debe seleccionar una empresa válida.");
+        }
 
         if (!ModelState.IsValid)
         {
             PopulateEligibleGroupsFrom(model, eligible);
+            PopulateActiveCompaniesFrom(model, companies);
             return View(model);
         }
 
-        var applicantId = await GetCurrentApplicantIdAsync();
-        var command = new CreateApplicationCommand(applicantId, model.CompanyName, model.GroupId!.Value);
+        var command = new CreateApplicationCommand(applicantId, model.CompanyId!.Value, model.GroupId!.Value);
         var result = await _applicationService.CreateApplicationAsync(command, userId);
 
         if (result.Error is not null)
         {
-            ModelState.AddModelError(nameof(CreateApplicationViewModel.CompanyName),
+            ModelState.AddModelError(nameof(CreateApplicationViewModel.CompanyId),
                 _errorTranslator.Translate(result.Error));
             PopulateEligibleGroupsFrom(model, eligible);
+            PopulateActiveCompaniesFrom(model, companies);
             return View(model);
         }
 
@@ -189,6 +206,20 @@ public class ApplicationController : Controller
         var categories = await _categoryRepository.GetAllActiveAsync();
         viewModel.Categories = categories
             .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
+            .ToList();
+
+        // Spec 037 / FR-015 — draft re-select dropdown: the applicant's active
+        // companies + the application's current company reference (the snapshot is
+        // already on the view model as CompanyName).
+        var companies = await ResolveActiveCompaniesAsync(applicantId);
+        viewModel.CompanyId = await _dbContext.Applications
+            .Where(a => a.Id == id)
+            .Select(a => a.CompanyId)
+            .FirstOrDefaultAsync();
+        viewModel.Companies = companies
+            .Select(c => new SelectListItem(
+                c.Name,
+                c.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)))
             .ToList();
         return View(viewModel);
     }
@@ -482,6 +513,17 @@ public class ApplicationController : Controller
                 Status = StatusCodes.Status400BadRequest,
             });
         }
+        catch (InvalidOperationException)
+        {
+            // Spec 037 / FR-015/FR-019 — e.g. a re-select against a non-Draft application,
+            // or an unresolvable PublicCode. Reject without a 500 or information leak.
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Operación no permitida",
+                Detail = "No se pudo guardar el cambio.",
+                Status = StatusCodes.Status400BadRequest,
+            });
+        }
     }
 
     /// <summary>
@@ -630,6 +672,44 @@ public class ApplicationController : Controller
     /// <summary>Resolves the applicant's eligible groups then fills the view model.</summary>
     private async Task PopulateEligibleGroupsAsync(CreateApplicationViewModel model, string userId)
         => PopulateEligibleGroupsFrom(model, await ResolveEligibleGroupsAsync(userId));
+
+    /// <summary>Spec 037 / FR-002 — one active company for the create-flow selector.</summary>
+    private sealed record ActiveCompany(int Id, string Name);
+
+    /// <summary>
+    /// Spec 037 / FR-002 / FR-018 — the applicant's active (non-archived) companies,
+    /// ordered by name. These are the only valid selections for a new application.
+    /// </summary>
+    private async Task<IReadOnlyList<ActiveCompany>> ResolveActiveCompaniesAsync(int applicantId)
+    {
+        return await _dbContext.Companies
+            .Where(c => c.ApplicantId == applicantId && c.ArchivedAt == null)
+            .OrderBy(c => c.Name)
+            .Select(c => new ActiveCompany(c.Id, c.Name))
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Spec 037 / FR-012–FR-014 — applies the 0/1/many rendering rules to the view
+    /// model's company fields (mirrors the Group anchor).
+    /// </summary>
+    private static void PopulateActiveCompaniesFrom(
+        CreateApplicationViewModel model, IReadOnlyList<ActiveCompany> companies)
+    {
+        model.HasNoCompanies = companies.Count == 0;
+        model.IsSingleCompany = companies.Count == 1;
+
+        model.Companies = companies
+            .Select(c => new SelectListItem(
+                c.Name,
+                c.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            .ToList();
+
+        if (companies.Count == 1 && model.CompanyId is null)
+        {
+            model.CompanyId = companies[0].Id;
+        }
+    }
 
     /// <summary>
     /// Spec 029 / FR-018 — applies the 0/1/many rendering rules to the view model.

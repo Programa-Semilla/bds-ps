@@ -91,6 +91,13 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
         {
             return (AdminAuditEvent.TargetTypeFundsEvidence, "0");
         }
+        // Spec 037 — applicant company mutations (company.create/rename/archive/…).
+        // The real company/applicant ids ride in the payload JSON; TargetId stays
+        // the "0" sentinel, matching the fund.*/funds_evidence.* patterns above.
+        if (eventKind.StartsWith("company.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeCompany, "0");
+        }
         return ("system", "0");
     }
 }
