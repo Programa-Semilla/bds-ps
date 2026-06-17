@@ -8,8 +8,11 @@
 @using FundingPlatform.Web.Models
 @model FundingPlatform.Web.ViewModels.Admin.AdminProcessDetailsViewModel
 @{
-    ViewData["Title"] = Model.Detail.Name;
     var detail = Model.Detail;
+    // Process names repeat across funds now (per-fund uniqueness), so the title is
+    // compound — Fondo › Proceso — to keep the screen unambiguous.
+    var compoundTitle = $"{detail.FundName} › {detail.Name}";
+    ViewData["Title"] = compoundTitle;
     string StatusLabel(ProcessStatus s) => s switch
     {
         ProcessStatus.Active => "Activo",
@@ -21,11 +24,12 @@
 <div data-testid="admin-process-details-area">
     @await Html.PartialAsync("Components/_PageHeader",
         new PageHeaderViewModel(
-            Title: detail.Name,
+            Title: compoundTitle,
             Subtitle: $"Estado: {StatusLabel(detail.Status)} · Creado {detail.CreatedAt:yyyy-MM-dd}",
             Breadcrumbs: new[]
             {
                 new BreadcrumbItem("Procesos", Url.Action("Index", "AdminProcesses")),
+                new BreadcrumbItem(detail.FundName),
                 new BreadcrumbItem(detail.Name),
             }))
 

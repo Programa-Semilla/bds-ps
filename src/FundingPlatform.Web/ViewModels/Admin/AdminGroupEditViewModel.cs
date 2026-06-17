@@ -37,6 +37,13 @@ public class AdminGroupEditViewModel
 
     /// <summary>Pre-deletion member count, used to render the delete-confirm copy.</summary>
     public int MemberCount { get; set; }
+
+    /// <summary>Owning Process name — for the compound page title (names repeat across
+    /// processes/funds, so the title disambiguates Fondo › Proceso › Grupo).</summary>
+    public string ProcessName { get; set; } = "";
+
+    /// <summary>Owning Fund name — for the compound page title.</summary>
+    public string FundName { get; set; } = "";
 }
 
 /// <summary>Spec 021 / FR-001 — one selectable Process for the reparent dropdown.</summary>
