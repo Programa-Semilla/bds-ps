@@ -1,0 +1,89 @@
+@using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.FundsUsageEvidenceIndexViewModel
+@{
+    ViewData["Title"] = FundsUsageEvidenceResources.Stage_Title;
+}
+
+<div data-testid="evidence-stage">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: FundsUsageEvidenceResources.Stage_Title,
+            Subtitle: FundsUsageEvidenceResources.Stage_Subtitle,
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem("Inicio", Url.Action("Index", "Home")),
+                new BreadcrumbItem(FundsUsageEvidenceResources.Stage_Title),
+            }))
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="post"
+                  asp-controller="FundsUsageEvidence" asp-action="Upload"
+                  asp-route-applicationId="@Model.ApplicationId"
+                  enctype="multipart/form-data"
+                  data-testid="evidence-upload-form">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-3">
+                    <label class="form-label">@FundsUsageEvidenceResources.Upload_FileLabel @await Html.PartialAsync("_RequiredMark")</label>
+                    <input type="file" name="file" class="form-control"
+                           accept="@Model.AcceptExtensions"
+                           data-testid="evidence-file-input" required />
+                    <div class="form-hint">@FundsUsageEvidenceResources.Upload_AcceptHint</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">@FundsUsageEvidenceResources.Upload_NoteLabel</label>
+                    <textarea name="note" class="form-control" rows="2" maxlength="250"
+                              data-testid="evidence-note-input"
+                              data-char-counter="evidence-upload-note-counter"></textarea>
+                    <div class="form-hint text-end">
+                        <span id="evidence-upload-note-counter">0</span>@FundsUsageEvidenceResources.Upload_NoteCounterSuffix
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" data-testid="evidence-upload-submit">
+                    <i class="ti ti-upload"></i> @FundsUsageEvidenceResources.Upload_Submit
+                </button>
+            </form>
+        </div>
+    </div>
+
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty" data-testid="evidence-empty">
+            <p class="empty-title">@FundsUsageEvidenceResources.Empty_Message</p>
+        </div>
+    }
+    else
+    {
+        <div class="list-group" data-testid="evidence-list">
+            @foreach (var item in Model.Items)
+            {
+                @await Html.PartialAsync("_EvidenceRow",
+                    new FundingPlatform.Web.ViewModels.FundsUsageEvidenceRowViewModel
+                    {
+                        ApplicationId = Model.ApplicationId,
+                        Item = item,
+                    })
+            }
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Live char-counter — updates only the numeric span; the "/250 caracteres"
+        // suffix lives in the Razor markup so no Spanish literal lives in JS (FR-010/D10).
+        (function () {
+            document.querySelectorAll('[data-char-counter]').forEach(function (el) {
+                var target = document.getElementById(el.getAttribute('data-char-counter'));
+                if (!target) return;
+                var update = function () { target.textContent = String(el.value.length); };
+                el.addEventListener('input', update);
+                update();
+            });
+        })();
+    </script>
+}

@@ -84,6 +84,13 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
         {
             return (AdminAuditEvent.TargetTypeUser, "0");
         }
+        // Spec 036 — funds-usage evidence mutations (funds_evidence.uploaded/…).
+        // The real evidence/application ids ride in the payload JSON; TargetId
+        // stays the "0" sentinel, matching the fund.*/process.* patterns above.
+        if (eventKind.StartsWith("funds_evidence.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeFundsEvidence, "0");
+        }
         return ("system", "0");
     }
 }

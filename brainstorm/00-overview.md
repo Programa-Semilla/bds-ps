@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-12 (session #31)
+Last updated: 2026-06-16 (session #32)
 
 ## Sessions
 
@@ -37,8 +37,16 @@ Last updated: 2026-06-12 (session #31)
 | 29 | 2026-06-11 | admin-user-code | spec-created | 032 |
 | 30 | 2026-06-12 | user-invite-email | spec-created | 033 |
 | 31 | 2026-06-12 | line-item-category-templates | spec-created | 035 |
+| 32 | 2026-06-16 | funds-usage-evidence | spec-created | 036 |
 
 ## Open Threads
+
+- Confirm `AgreementExecuted` is the right proxy for "funds disbursed" vs. a dedicated disbursement event (from #32)
+- Curated file-type allow-list vs. genuinely-any type (raw ask said "all types") — confirm with stakeholders (from #32)
+- Applicant visibility of funds-usage evidence — deferred this iteration; revisit (from #32)
+- dacpac ordering for the new `dbo.FundsUsageEvidence` table (+ FK to `Applications`) — greenfield add, no backfill; confirm in plan (from #32)
+- Audit-event verb names (`funds_evidence.uploaded`/`.note_edited`/`.deleted`) and es-CR rejection copy — pin during planning (from #32)
+- Whether a per-application storage quota / max evidence count is ever needed (currently unbounded, 20 MiB/file only) — parked (from #32)
 
 - Category-field values flowing into the AI quote-comparison context (spec 020) — subject them to the existing PII/redaction boundary? Pin in plan (from #31)
 - Deactivating the *last* active impact template — guard it, given per-item impact is now required to submit? Pin in plan (from #31)

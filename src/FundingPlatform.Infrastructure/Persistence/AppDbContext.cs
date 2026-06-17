@@ -56,6 +56,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     // Spec 029 — Fund (Fondo) aggregate above Process.
     public DbSet<Fund> Funds => Set<Fund>();
 
+    // Spec 036 — funds-usage evidence files on AgreementExecuted applications.
+    public DbSet<FundsUsageEvidence> FundsUsageEvidence => Set<FundsUsageEvidence>();
+
     // Spec 021-feedback-session-may13 — Process / Plantilla aggregates,
     // Province/Cantón catalog, PasswordResetToken single-use marker.
     public DbSet<Process> Processes => Set<Process>();

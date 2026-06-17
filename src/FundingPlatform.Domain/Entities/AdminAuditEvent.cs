@@ -63,6 +63,18 @@ public class AdminAuditEvent
     /// in <c>AdminAuditEventWriter</c>.</summary>
     public const string ProcessRenamed = "process.renamed";
 
+    // ---------- Spec 036 — funds-usage evidence mutations. ----------
+    /// <summary>Spec 036 / FR-003 — reviewer/admin uploaded an evidence file.</summary>
+    public const string FundsEvidenceUploaded = "funds_evidence.uploaded";
+    /// <summary>Spec 036 / FR-006 — reviewer/admin set/cleared/changed an evidence note.</summary>
+    public const string FundsEvidenceNoteEdited = "funds_evidence.note_edited";
+    /// <summary>Spec 036 / FR-007 — reviewer/admin deleted an evidence file.</summary>
+    public const string FundsEvidenceDeleted = "funds_evidence.deleted";
+
+    /// <summary>Spec 036 — target-type discriminator for funds-usage evidence mutations.
+    /// The <c>funds_evidence.</c> prefix routes here in <c>AdminAuditEventWriter</c>.</summary>
+    public const string TargetTypeFundsEvidence = "funds_evidence";
+
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string ActorUserId { get; private set; } = string.Empty;

@@ -175,6 +175,10 @@ public static class DependencyInjection
         // Spec 029 / US1 — Fund (Fondo) admin CRUD + lifecycle + regulation storage.
         services.AddScoped<Application.Funds.IFundService, Services.FundService>();
 
+        // Spec 036 — funds-usage evidence service (reviewer post-execution stage).
+        services.AddScoped<Application.FundsUsageEvidence.IFundsUsageEvidenceService,
+            Services.FundsUsageEvidenceService>();
+
         // Spec 020 — AI quote comparison wiring.
         services.AddAiComparison(configuration);
 
