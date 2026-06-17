@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-16 (session #32)
+Last updated: 2026-06-17 (session #33)
 
 ## Sessions
 
@@ -38,8 +38,13 @@ Last updated: 2026-06-16 (session #32)
 | 30 | 2026-06-12 | user-invite-email | spec-created | 033 |
 | 31 | 2026-06-12 | line-item-category-templates | spec-created | 035 |
 | 32 | 2026-06-16 | funds-usage-evidence | spec-created | 036 |
+| 33 | 2026-06-17 | applicant-companies | spec-created | 037 |
 
 ## Open Threads
+
+- Admin UI placement for the per-applicant company list (inline on user Edit vs. dedicated `/Admin/Users/{id}/Companies` sub-surface) — HOW, deferred to plan (from #33)
+- Audit-event naming prefix for company create/rename/archive/unarchive (likely `company.*`, mirroring `fund.*`/`process.*`/`funds_evidence.*`) — pin in plan (from #33)
+- Whether a one-time backfill of existing applicants/applications into the company model is wanted later (currently greenfield; pre-existing applicants can't submit until an admin adds a company) (from #33)
 
 - Confirm `AgreementExecuted` is the right proxy for "funds disbursed" vs. a dedicated disbursement event (from #32)
 - Curated file-type allow-list vs. genuinely-any type (raw ask said "all types") — confirm with stakeholders (from #32)
