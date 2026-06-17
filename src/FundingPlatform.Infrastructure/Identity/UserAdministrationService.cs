@@ -275,7 +275,33 @@ public class UserAdministrationService : IUserAdministrationService
             // company.create audit then commit in a second SaveChanges (no explicit
             // transaction — the retrying execution strategy forbids BeginTransaction;
             // matches the FundService/FundsUsageEvidence pattern, spec-036 gotcha).
-            await AttachCompaniesAtCreationAsync(applicant.Id, request.CompanyNames, actorUserId, ct);
+            // Compensation: if the second save fails (e.g. a transient SQL error), roll
+            // the just-created user AND the already-committed Applicant row back so we
+            // never persist a Solicitante with zero companies (FR-004). The Applicant is
+            // committed by the SaveChanges above and FK_Applicants_AspNetUsers is NO
+            // ACTION, so the user delete would be FK-rejected unless the Applicant is
+            // removed first; we also Clear() the change-tracker to discard the failed
+            // (uncommitted) Company/audit adds before re-removing the orphan.
+            try
+            {
+                await AttachCompaniesAtCreationAsync(applicant.Id, request.CompanyNames, actorUserId, ct);
+            }
+            catch
+            {
+                try
+                {
+                    _dbContext.ChangeTracker.Clear();
+                    var orphan = await _dbContext.Applicants.FirstOrDefaultAsync(a => a.Id == applicant.Id, ct);
+                    if (orphan is not null)
+                    {
+                        _dbContext.Applicants.Remove(orphan);
+                        await _dbContext.SaveChangesAsync(ct);
+                    }
+                    await _userManager.DeleteAsync(user);
+                }
+                catch { /* best effort — the throw below surfaces the original failure */ }
+                throw;
+            }
         }
 
         var detail = await MapToDetailAsync(user, ct);

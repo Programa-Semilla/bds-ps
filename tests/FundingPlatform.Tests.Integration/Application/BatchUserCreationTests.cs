@@ -350,4 +350,33 @@ public class BatchUserCreationTests
         Assert.That(result.Succeeded, Is.Empty);
         Assert.That(result.Errored.Single().Reason, Is.EqualTo(BatchUserRowReasons.CompanyNameTooLong));
     }
+
+    [Test]
+    public async Task CreateUser_WithDuplicateCompanyNames_AttachesOnePerDistinctName()
+    {
+        // Spec 037 / D4 — the at-creation attach collapses case/accent duplicates within
+        // the request (first occurrence wins) and writes one company.create audit each.
+        var (sut, ctx, sp) = Build();
+        await SeedRolesAsync(sp);
+        await SeedChainAsync(ctx, "Fondo General", "Migración inicial", "Norte");
+        var norte = await ctx.Groups.SingleAsync(g => g.Name == "Norte");
+
+        var request = new CreateUserRequest(
+            FirstName: "Ana", LastName: "Rojas", Email: "ana.dup@example.cr", Phone: null,
+            Role: "Applicant", LegalId: "1-1234-5678",
+            GroupIds: new[] { norte.Id },
+            IdentificationType: Domain.Enums.IdentificationType.CedulaFisica,
+            UserCode: "DUP-001",
+            CompanyNames: new[] { "Acme S.A.", "  ACME s.a.  ", "Otra", "Acme S.A." });
+
+        var result = await sut.CreateUserAsync(request, ActorAdminId, CancellationToken.None);
+
+        Assert.That(result.Succeeded, Is.True);
+        var applicant = await ctx.Applicants.SingleAsync(a => a.Email == "ana.dup@example.cr");
+        var companies = await ctx.Companies.Where(c => c.ApplicantId == applicant.Id).ToListAsync();
+        Assert.That(companies.Select(c => c.Name), Is.EquivalentTo(new[] { "Acme S.A.", "Otra" }));
+        Assert.That(
+            await ctx.AdminAuditEvents.CountAsync(a => a.Action == AdminAuditEvent.ActionCompanyCreate),
+            Is.EqualTo(2));
+    }
 }

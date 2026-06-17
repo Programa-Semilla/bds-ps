@@ -266,6 +266,14 @@ public class Application
     public void SetCompany(int companyId, string nameSnapshot)
     {
         EnsureNotFrozen();
+        // Spec 037 / FR-015 — the selected company is mutable only while Draft and is
+        // frozen at submission. Guard here (not just in the UI / autosave handler) so
+        // a forged re-select against a submitted application is rejected (FR-019).
+        if (State != ApplicationState.Draft)
+        {
+            throw new InvalidOperationException(
+                "La empresa solo puede cambiarse mientras la solicitud es un borrador.");
+        }
         CompanyId = companyId;
         SetCompanyName(nameSnapshot);
     }

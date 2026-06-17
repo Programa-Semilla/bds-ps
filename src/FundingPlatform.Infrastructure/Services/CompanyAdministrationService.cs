@@ -63,7 +63,12 @@ public sealed class CompanyAdministrationService : ICompanyAdministrationService
         await _audit.WriteAsync(
             AdminAuditEvent.ActionCompanyCreate, actorUserId,
             JsonSerializer.Serialize(new { companyId = 0, applicantId, name = company.Name }), ct);
-        await _db.SaveChangesAsync(ct);
+        if (!await TrySaveAsync(ct))
+        {
+            // FR-003 — a concurrent add of the same active name raced past the
+            // app-level pre-check and tripped the filtered unique index.
+            return CompanyMutationResult.Fail(UserFacingError.From(UserFacingErrorCode.CompanyNameDuplicate));
+        }
 
         return CompanyMutationResult.Ok(new CompanyDto(company.Id, company.Name, IsArchived: false));
     }
@@ -106,7 +111,10 @@ public sealed class CompanyAdministrationService : ICompanyAdministrationService
         await _audit.WriteAsync(
             AdminAuditEvent.ActionCompanyRename, actorUserId,
             JsonSerializer.Serialize(new { companyId = company.Id, oldName, newName = company.Name }), ct);
-        await _db.SaveChangesAsync(ct);
+        if (!await TrySaveAsync(ct))
+        {
+            return CompanyMutationResult.Fail(UserFacingError.From(UserFacingErrorCode.CompanyNameDuplicate));
+        }
 
         return CompanyMutationResult.Ok(new CompanyDto(company.Id, company.Name, company.ArchivedAt != null));
     }
@@ -120,16 +128,25 @@ public sealed class CompanyAdministrationService : ICompanyAdministrationService
             return CompanyMutationResult.Fail(UserFacingError.From(UserFacingErrorCode.CompanyInvalid));
         }
 
-        if (company.ArchivedAt == null)
+        if (company.ArchivedAt != null)
         {
-            // FR-008 — refuse to archive the applicant's only active company.
-            var otherActive = await _db.Companies.CountAsync(
-                c => c.ApplicantId == company.ApplicantId && c.ArchivedAt == null && c.Id != company.Id, ct);
-            if (otherActive == 0)
-            {
-                return CompanyMutationResult.Fail(
-                    UserFacingError.From(UserFacingErrorCode.CompanyArchiveLastActive));
-            }
+            // Idempotent: already archived.
+            return CompanyMutationResult.Ok(new CompanyDto(company.Id, company.Name, IsArchived: true));
+        }
+
+        // FR-008 — refuse to archive the applicant's only active company. This is a
+        // read-then-write check: two near-simultaneous archives of an applicant's last
+        // two active companies could in principle both pass and reach zero active. That
+        // TOCTOU window is accepted as a known low-probability limitation, matching the
+        // analogous last-active-admin floor in UserAdministrationService (the retrying
+        // execution strategy forbids a raw transaction, and a provider-specific guarded
+        // UPDATE is not supported by the InMemory provider the integration tests use).
+        var otherActive = await _db.Companies.CountAsync(
+            c => c.ApplicantId == company.ApplicantId && c.ArchivedAt == null && c.Id != company.Id, ct);
+        if (otherActive == 0)
+        {
+            return CompanyMutationResult.Fail(
+                UserFacingError.From(UserFacingErrorCode.CompanyArchiveLastActive));
         }
 
         company.Archive();
@@ -161,7 +178,10 @@ public sealed class CompanyAdministrationService : ICompanyAdministrationService
         await _audit.WriteAsync(
             AdminAuditEvent.ActionCompanyUnarchive, actorUserId,
             JsonSerializer.Serialize(new { companyId = company.Id, name = company.Name }), ct);
-        await _db.SaveChangesAsync(ct);
+        if (!await TrySaveAsync(ct))
+        {
+            return CompanyMutationResult.Fail(UserFacingError.From(UserFacingErrorCode.CompanyUnarchiveNameCollision));
+        }
 
         return CompanyMutationResult.Ok(new CompanyDto(company.Id, company.Name, IsArchived: false));
     }
@@ -184,6 +204,26 @@ public sealed class CompanyAdministrationService : ICompanyAdministrationService
             .ToListAsync(ct);
 
         return activeNames.Any(n => CompanyNameNormalizer.AreEquivalent(n, candidateName));
+    }
+
+    /// <summary>
+    /// Commits the staged mutation + audit. Returns false when the filtered unique
+    /// index (UX_Companies_ApplicantId_Name) rejects a concurrent active-name collision
+    /// that raced past the app-level pre-check (D3) — the caller maps this to the right
+    /// es-CR duplicate/collision message.
+    /// </summary>
+    private async Task<bool> TrySaveAsync(CancellationToken ct)
+    {
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateException ex) when (
+            ex.GetBaseException().Message.Contains("UX_Companies_ApplicantId_Name", StringComparison.Ordinal))
+        {
+            return false;
+        }
     }
 
     /// <summary>Validates a company name's shape via the entity, returning the trimmed value.</summary>

@@ -115,7 +115,9 @@ public class CompanyAdministrationTests
 
         Assert.That(result.Succeeded, Is.True);
         Assert.That(result.Company!.Name, Is.EqualTo("New Name"));
-        Assert.That(await ctx.AdminAuditEvents.CountAsync(a => a.Action == AdminAuditEvent.ActionCompanyRename), Is.EqualTo(1));
+        var renameAudit = await ctx.AdminAuditEvents.SingleAsync(a => a.Action == AdminAuditEvent.ActionCompanyRename);
+        Assert.That(renameAudit.ActorUserId, Is.EqualTo(Actor));
+        Assert.That(renameAudit.TargetType, Is.EqualTo(AdminAuditEvent.TargetTypeCompany));
     }
 
     [Test]
@@ -131,6 +133,10 @@ public class CompanyAdministrationTests
 
         Assert.That(result.Succeeded, Is.False);
         Assert.That(result.Error!.Code, Is.EqualTo(UserFacingErrorCode.CompanyArchiveLastActive));
+        // FR-008 — the company MUST remain active after a rejected archive.
+        var reloaded = await ctx.Companies.AsNoTracking().FirstAsync(c => c.Id == only.Company!.Id);
+        Assert.That(reloaded.IsActive, Is.True);
+        Assert.That(await ctx.AdminAuditEvents.AnyAsync(a => a.Action == AdminAuditEvent.ActionCompanyArchive), Is.False);
     }
 
     [Test]
@@ -147,7 +153,11 @@ public class CompanyAdministrationTests
 
         Assert.That(result.Succeeded, Is.True);
         Assert.That(result.Company!.IsArchived, Is.True);
-        Assert.That(await ctx.AdminAuditEvents.CountAsync(a => a.Action == AdminAuditEvent.ActionCompanyArchive), Is.EqualTo(1));
+        var archiveAudit = await ctx.AdminAuditEvents.SingleAsync(a => a.Action == AdminAuditEvent.ActionCompanyArchive);
+        Assert.That(archiveAudit.ActorUserId, Is.EqualTo(Actor));
+        // The DB row is actually archived (the guarded ExecuteUpdate fired).
+        var reloaded = await ctx.Companies.AsNoTracking().FirstAsync(c => c.Id == first.Company!.Id);
+        Assert.That(reloaded.IsActive, Is.False);
     }
 
     [Test]

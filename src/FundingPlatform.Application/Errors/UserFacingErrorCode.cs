@@ -100,8 +100,6 @@ public enum UserFacingErrorCode
     /// <summary>Spec 037 / FR-007 — admin tried to unarchive a company whose name now
     /// collides with an active one.</summary>
     CompanyUnarchiveNameCollision,
-    /// <summary>Spec 037 / FR-004 — admin tried to create a Solicitante without at least one company.</summary>
-    CompanyAtLeastOneRequired,
 
     // Spec 018 — reviewer LineCode invariants (FR-012 / FR-013 / FR-014).
     /// <summary>FR-012 / FR-014 — reviewer attempted to record an Approve/Reject decision

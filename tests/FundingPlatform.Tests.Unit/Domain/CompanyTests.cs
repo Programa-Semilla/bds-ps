@@ -99,16 +99,29 @@ public class CompanyTests
     }
 
     [Test]
-    public void SetCompany_AfterSubmit_Throws()
+    public void SetCompany_WhileDraft_ReSelectsSnapshot()
     {
-        // Snapshot-freeze interaction: a submitted application's company is frozen.
-        // Application.SetCompany is guarded by EnsureNotFrozen via the Fund chain;
-        // this asserts the freeze guard path indirectly through the application entity.
         var app = new AppEntity(applicantId: 1, groupId: 1, companyId: 7, companyName: "Snapshot Co");
-        // A freshly-constructed app with no loaded nav chain is not frozen, so
-        // re-select succeeds and re-copies the snapshot.
+        // A fresh Draft re-selects freely (re-copies the snapshot).
         Assert.That(() => app.SetCompany(8, "Re-selected Co"), Throws.Nothing);
         Assert.That(app.CompanyId, Is.EqualTo(8));
         Assert.That(app.CompanyName, Is.EqualTo("Re-selected Co"));
     }
+
+    [Test]
+    public void SetCompany_AfterSubmit_Throws()
+    {
+        // Spec 037 / FR-015 — the company is frozen once the application leaves Draft.
+        var app = new AppEntity(applicantId: 1, groupId: 1, companyId: 7, companyName: "Snapshot Co");
+        ForceState(app, FundingPlatform.Domain.Enums.ApplicationState.Submitted);
+
+        Assert.That(() => app.SetCompany(8, "Re-selected Co"),
+            Throws.InstanceOf<InvalidOperationException>());
+        // The snapshot + reference are unchanged.
+        Assert.That(app.CompanyId, Is.EqualTo(7));
+        Assert.That(app.CompanyName, Is.EqualTo("Snapshot Co"));
+    }
+
+    private static void ForceState(AppEntity app, FundingPlatform.Domain.Enums.ApplicationState state)
+        => typeof(AppEntity).GetProperty(nameof(AppEntity.State))!.SetValue(app, state);
 }

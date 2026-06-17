@@ -28,6 +28,7 @@ public class AdminUsersController : Controller
 {
     private readonly IUserAdministrationService _service;
     private readonly Application.Admin.Companies.ICompanyAdministrationService _companies;
+    private readonly Localization.IUserFacingErrorTranslator _errorTranslator;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IGroupService _groups;
     private readonly AppDbContext _db;
@@ -47,6 +48,7 @@ public class AdminUsersController : Controller
     public AdminUsersController(
         IUserAdministrationService service,
         Application.Admin.Companies.ICompanyAdministrationService companies,
+        Localization.IUserFacingErrorTranslator errorTranslator,
         UserManager<ApplicationUser> userManager,
         IGroupService groups,
         AppDbContext db,
@@ -60,6 +62,7 @@ public class AdminUsersController : Controller
     {
         _service = service;
         _companies = companies;
+        _errorTranslator = errorTranslator;
         _userManager = userManager;
         _groups = groups;
         _db = db;
@@ -622,7 +625,9 @@ public class AdminUsersController : Controller
         }
         else
         {
-            TempData["ErrorMessage"] = AdminCompaniesResources.ForError(result.Error!.Code);
+            // Spec 037 — render the company error via the single es-CR source of truth
+            // (IUserFacingErrorTranslator), shared with the applicant-facing surfaces.
+            TempData["ErrorMessage"] = _errorTranslator.Translate(result.Error!.Code);
         }
     }
 

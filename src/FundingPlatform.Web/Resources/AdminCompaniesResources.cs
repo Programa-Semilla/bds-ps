@@ -1,5 +1,3 @@
-using FundingPlatform.Application.Errors;
-
 namespace FundingPlatform.Web.Resources;
 
 /// <summary>
@@ -36,25 +34,10 @@ public static class AdminCompaniesResources
     public const string ArchivedToast = "Empresa archivada.";
     public const string UnarchivedToast = "Empresa reactivada.";
 
-    // Validation / error messages (canonical strings, contracts/interfaces.md).
+    // Create-form ModelState validation strings used directly by AdminUsersController.
+    // (Service-produced company errors — duplicate / archive-last / unarchive-collision /
+    //  invalid — are rendered via IUserFacingErrorTranslator, the single es-CR source of
+    //  truth shared with the applicant surfaces; they are NOT duplicated here.)
     public const string AtLeastOneRequired = "Debe indicar al menos una empresa para el solicitante.";
-    public const string NameRequired = "Debe ingresar el nombre de la empresa.";
     public const string NameTooLong = "El nombre de la empresa supera los 200 caracteres.";
-    public const string Duplicate = "Ya existe una empresa activa con ese nombre para este solicitante.";
-    public const string ArchiveLastActive = "No puede archivar la única empresa activa del solicitante.";
-    public const string UnarchiveCollision = "No se puede reactivar: ya existe una empresa activa con ese nombre.";
-    public const string NotFound = "Empresa no encontrada.";
-
-    /// <summary>Maps a company <see cref="UserFacingErrorCode"/> to its es-CR message.</summary>
-    public static string ForError(UserFacingErrorCode code) => code switch
-    {
-        UserFacingErrorCode.CompanyNameRequired => NameRequired,
-        UserFacingErrorCode.CompanyNameTooLong => NameTooLong,
-        UserFacingErrorCode.CompanyNameDuplicate => Duplicate,
-        UserFacingErrorCode.CompanyArchiveLastActive => ArchiveLastActive,
-        UserFacingErrorCode.CompanyUnarchiveNameCollision => UnarchiveCollision,
-        UserFacingErrorCode.CompanyAtLeastOneRequired => AtLeastOneRequired,
-        UserFacingErrorCode.CompanyInvalid => NotFound,
-        _ => "No se pudo completar la operación sobre la empresa.",
-    };
 }

@@ -101,6 +101,18 @@ public class SubmitGuardTests
             async () => await _handler.SubmitAsync(new SubmitApplicationCommand(application.Id)),
             Throws.InstanceOf<InvalidOperationException>()
                   .With.Message.Contain("archivada"));
+
+        // FR-020 — re-selecting an ACTIVE company clears the archived-company gate. The
+        // submit may still fail on other guards (no items), but no longer on "archivada".
+        var active = new Company(_applicantId, "Empresa Activa");
+        _ctx.Companies.Add(active);
+        await _ctx.SaveChangesAsync();
+        application.SetCompany(active.Id, active.Name);
+        await _ctx.SaveChangesAsync();
+
+        var ex = Assert.CatchAsync<InvalidOperationException>(
+            async () => await _handler.SubmitAsync(new SubmitApplicationCommand(application.Id)));
+        Assert.That(ex!.Message, Does.Not.Contain("archivada"));
     }
 
     [Test]

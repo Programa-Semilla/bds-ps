@@ -513,6 +513,17 @@ public class ApplicationController : Controller
                 Status = StatusCodes.Status400BadRequest,
             });
         }
+        catch (InvalidOperationException)
+        {
+            // Spec 037 / FR-015/FR-019 — e.g. a re-select against a non-Draft application,
+            // or an unresolvable PublicCode. Reject without a 500 or information leak.
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Operación no permitida",
+                Detail = "No se pudo guardar el cambio.",
+                Status = StatusCodes.Status400BadRequest,
+            });
+        }
     }
 
     /// <summary>
