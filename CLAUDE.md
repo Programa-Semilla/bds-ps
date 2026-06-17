@@ -162,7 +162,7 @@ Per-spec architectural seams (interfaces, aggregates, tables) are summarized in 
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes
 
 <!-- SPECKIT START -->
-Active plan: **none** — 036-funds-usage-evidence shipped (PR #65). Next feature TBD; start with `/speckit-spex-brainstorm` or `/speckit-specify`.
+Active plan: **037-brand-alignment** (`specs/037-brand-alignment/plan.md`) — Programa Semilla Official Brand Alignment. Visual-only facelift re-anchoring the UI to the official brand book (exact palette `#008A9E`/`#42AFA8`/`#F9A61C`/`#FFC729`, real logos, dark teal sidebar `#12343B`, de-zebra tables, kebab actions, official partner-footer image, two-PNG PDF re-tint), superseding spec-019's PDF-sampled approximations. Token-driven (~20-token remap + asset swap); full surface re-sweep; no backend/schema/route/permission change. Spec SOUND; plan + research + contracts done. Next: `/speckit-tasks`.
 
 Last shipped: **036-funds-usage-evidence** (merged to main, PR #65, squash `2f5121f`) — post-disbursement reviewer **Evidencia de uso de fondos** stage (upload/annotate/download/delete evidence on an `AgreementExecuted` application); new `FundsUsageEvidence` aggregate + `FileCategory.FundsUsageEvidence` (20 MiB, BackendStream) + reviewer-scoped controller under `/Applications/{id}/Evidence`. No new state, no new deps. See `specs/036-funds-usage-evidence/`. Prior: **035-line-item-category-templates** (PR #63, squash `dd85313`); **034-batch-user-create** (PR #61); **033-user-invite-email** (PR #60); **032-admin-user-code** (PR #59).
 <!-- SPECKIT END -->

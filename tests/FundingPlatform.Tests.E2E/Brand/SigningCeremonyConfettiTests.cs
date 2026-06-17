@@ -41,13 +41,14 @@ public class SigningCeremonyConfettiTests : AuthenticatedTestBase
             }
         ");
 
-        Assert.That(colors[0].ToUpperInvariant(), Is.EqualTo("#1FA0A0"),
-            "--color-primary must be teal #1FA0A0 per FR-008");
-        Assert.That(colors[1].ToUpperInvariant(), Is.EqualTo("#F2C014"),
-            "--color-accent must be yellow #F2C014 per FR-009");
+        // Spec 037 — official Programa Semilla palette (supersedes the spec-019 values).
+        Assert.That(colors[0].ToUpperInvariant(), Is.EqualTo("#008A9E"),
+            "--color-primary must be the official teal #008A9E per FR-008");
+        Assert.That(colors[1].ToUpperInvariant(), Is.EqualTo("#FFC729"),
+            "--color-accent must be the official yellow #FFC729 per FR-009");
         Assert.That(colors[2].ToUpperInvariant(), Is.EqualTo("#FFFFFF"),
             "--color-bg-surface must be white #FFFFFF per FR-007");
-        Assert.That(colors[3].ToUpperInvariant(), Is.EqualTo("#D7EDED"),
-            "--color-primary-subtle must be #D7EDED per FR-008");
+        Assert.That(colors[3].ToUpperInvariant(), Is.EqualTo("#D6EEF1"),
+            "--color-primary-subtle must be #D6EEF1 per FR-008 (spec 037)");
     }
 }

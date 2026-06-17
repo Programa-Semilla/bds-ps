@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-16 (session #32)
+Last updated: 2026-06-17 (session #33)
 
 ## Sessions
 
@@ -38,8 +38,16 @@ Last updated: 2026-06-16 (session #32)
 | 30 | 2026-06-12 | user-invite-email | spec-created | 033 |
 | 31 | 2026-06-12 | line-item-category-templates | spec-created | 035 |
 | 32 | 2026-06-16 | funds-usage-evidence | spec-created | 036 |
+| 33 | 2026-06-17 | official-brand-alignment | spec-created | 037 |
 
 ## Open Threads
+
+- Raster-as-provided vs. request a vector original if the auth-hero vertical logo renders soft (OQ-001) (from #33)
+- Exact sidebar white-container treatment — full-bleed white pill vs. subtle off-white card (OQ-002) (from #33)
+- Is `#F9A61C` orange wired to any existing status today, or held purely in reserve? (OQ-003) (from #33)
+- Should the PDF partner-strip also adopt the new official partner set, or teal re-tint only? (OQ-004) (from #33)
+- Page background shifts to off-white `#F6F8FA` (spec 019 chose pure white) — confirm it reads well across dense admin tables (from #33)
+- E2E selector churn from the kebab + de-zebra + dark-sidebar restructure — POM rewrites budgeted; per-surface brand assertions replace per-sponsor-SVG footer assertions (from #33)
 
 - Confirm `AgreementExecuted` is the right proxy for "funds disbursed" vs. a dedicated disbursement event (from #32)
 - Curated file-type allow-list vs. genuinely-any type (raw ask said "all types") — confirm with stakeholders (from #32)

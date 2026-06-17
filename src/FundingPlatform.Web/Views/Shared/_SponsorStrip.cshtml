@@ -1,25 +1,19 @@
 @*
-    _SponsorStrip.cshtml — Spec 019 FR-003 sponsor partner-logo strip.
+    _SponsorStrip.cshtml — partner-logo footer strip.
 
-    Renders the five sponsor SVGs vendored under wwwroot/lib/brand/sponsors/:
-      - SBD (Sistema de Banca para el Desarrollo)
-      - CROCUS
-      - nexo
-      - Programa Semilla
-      - 10 años badge
+    Spec 037 D7: renders a SINGLE official combined-partner image
+    (~/lib/brand/partners-footer.png — Banca para el Desarrollo · CROCUS · nexo ·
+    De la mano con su PYME · Programa Semilla), centered and responsive, with a
+    yellow (--color-accent) 3px top border supplied by .fl-sponsor-strip in
+    tokens.css. Replaces the five per-sponsor SVGs.
 
-    Layout: full-width <footer>, max 56 px tall, sponsors centered with
-    flex-wrap so a narrow viewport (≤ 480 px) drops to two rows; if still
-    tight, the 10 años badge hides via the .fl-sponsor-strip @media query
-    in tokens.css. Component CSS lives in tokens.css (.fl-sponsor-strip).
+    Preserved contract: the <footer data-testid="sponsor-strip"> element, the
+    HideOnPrint reflection, and aria-label — so BrandPresence*Tests and
+    PrintLayoutTests stay green; only VisualRegression snapshots refresh.
 
     Optional model: anonymous { HideOnPrint = bool }. Pass HideOnPrint=true
     on application detail and reviewer queue / detail surfaces (research R13);
     omit / pass false on auth surfaces and the bare _Layout.
-
-    Voice / a11y: each <img> carries an alt attribute matching the sponsor
-    display name. role="contentinfo" / "complementary" is owned by the host
-    page footer; this partial only declares the strip element.
 *@
 @{
     // Read HideOnPrint without `dynamic` — _Layout passes the parent view's
@@ -38,9 +32,8 @@
         data-testid="sponsor-strip"
         data-print-hide="@(hideOnPrint ? "sponsor-strip" : null)"
         aria-label="Patrocinadores">
-    <img src="~/lib/brand/sponsors/sbd.svg" alt="Sistema de Banca para el Desarrollo" data-sponsor="sbd" />
-    <img src="~/lib/brand/sponsors/crocus.svg" alt="CROCUS" data-sponsor="crocus" />
-    <img src="~/lib/brand/sponsors/nexo.svg" alt="nexo" data-sponsor="nexo" />
-    <img src="~/lib/brand/sponsors/programa-semilla.svg" alt="Programa Semilla" data-sponsor="programa-semilla" />
-    <img src="~/lib/brand/sponsors/10-anos.svg" alt="10 años" data-sponsor="10-anos" />
+    <img src="~/lib/brand/partners-footer.png"
+         class="fl-sponsor-image"
+         alt="Sistema de Banca para el Desarrollo · CROCUS · nexo · De la mano con su PYME · Programa Semilla"
+         data-sponsor="partners" />
 </footer>

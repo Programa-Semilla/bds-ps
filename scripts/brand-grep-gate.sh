@@ -7,7 +7,7 @@
 #   (b) Literal "Forge" or "Capital Semilla" outside git history,
 #       archived specs/011-warm-modern-facelift/BRAND-VOICE.md, and the
 #       specs/ / brainstorm/ / CHANGELOG.md documents (SC-002).
-#   (c) Yellow accent (#F2C014 or --color-accent) used in semantic-context
+#   (c) Yellow accent (#FFC729 or --color-accent) used in semantic-context
 #       selectors per research R11 keyword heuristics (NFR-003).
 #
 # Each violation prints file:line that triggered it.
@@ -23,7 +23,10 @@ TOKENS_CSS="$WEB_ROOT/wwwroot/css/tokens.css"
 violations=0
 
 echo "[1/3] Legacy palette hex outside tokens.css and wwwroot/lib/brand/pdf/..."
-LEGACY_HEX_PATTERN='#2E5E4E|#1F4438|#E1ECE6|#D98A1B|#FBEED6|#FAF7F2|#F4EFE6|#E5DED2'
+# Spec 011 legacy palette + spec 019 palette (superseded by spec 037's official
+# Programa Semilla palette). All must be absent outside tokens.css history comments
+# and the PDF carve-out dir.
+LEGACY_HEX_PATTERN='#2E5E4E|#1F4438|#E1ECE6|#D98A1B|#FBEED6|#FAF7F2|#F4EFE6|#E5DED2|#1FA0A0|#15807F|#D7EDED|#F2C014|#FBEBA6|#FFF3E5'
 legacy_hits=$(grep -RIn --include='*.css' --include='*.cshtml' --include='*.js' --include='*.svg' \
   --exclude-dir=obj --exclude-dir=bin --exclude-dir=node_modules \
   -E "$LEGACY_HEX_PATTERN" "$WEB_ROOT" 2>/dev/null \
@@ -56,7 +59,7 @@ if [ -n "$NAME_HITS" ]; then
 fi
 
 echo "[3/3] Yellow accent in semantic-context selectors (NFR-003)..."
-# Heuristic per research R11: yellow (--color-accent / #F2C014) MUST NOT carry
+# Heuristic per research R11: yellow (--color-accent / #FFC729) MUST NOT carry
 # semantic meaning. Flag rules whose selector carries semantic-state intent
 # AND whose body sets the high-saturation accent value as a state-bearing prop.
 # The decorative subtle variant (--color-accent-subtle) is allowed as a fill
@@ -67,13 +70,13 @@ echo "[3/3] Yellow accent in semantic-context selectors (NFR-003)..."
 # Note: ".fl-status-pill" is a generic UI primitive and NOT semantic by itself —
 # its meaning is keyed by data-tone="…" — so plain "status" is excluded.
 ACCENT_HITS=$(grep -RInE \
-  '(\.[a-z]*-(error|danger|warning|invalid)|-?error[^a-z-]|-?danger[^a-z-]|-?warning[^a-z-]|-?invalid[^a-z-]|focus-ring|icon-status-|icon-warning-|icon-error-)[^\{]*\{[^}]*(var\(--color-accent\)|#F2C014\b)' \
+  '(\.[a-z]*-(error|danger|warning|invalid)|-?error[^a-z-]|-?danger[^a-z-]|-?warning[^a-z-]|-?invalid[^a-z-]|focus-ring|icon-status-|icon-warning-|icon-error-)[^\{]*\{[^}]*(var\(--color-accent\)|#FFC729\b)' \
   --include='*.css' --include='*.cshtml' \
   --exclude-dir=obj --exclude-dir=bin \
   "$WEB_ROOT" 2>/dev/null \
   || true)
 # Also flag outline-color: accent on any rule (focus semantics).
-ACCENT_OUTLINE_HITS=$(grep -RInE 'outline-color\s*:\s*(var\(--color-accent\)|#F2C014\b)' \
+ACCENT_OUTLINE_HITS=$(grep -RInE 'outline-color\s*:\s*(var\(--color-accent\)|#FFC729\b)' \
   --include='*.css' --include='*.cshtml' \
   --exclude-dir=obj --exclude-dir=bin \
   "$WEB_ROOT" 2>/dev/null \

@@ -56,6 +56,22 @@ public class VisualRegressionTests : AuthenticatedTestBase
     }
 
     [Test]
+    public async Task UsersPage_Snapshot()
+    {
+        // Spec 037 SC-012 — the Users page is the reference treatment (filter card +
+        // Limpiar filtros + de-zebra table + kebab actions); capture its baseline.
+        await Page.GotoAsync($"{BaseUrl}/Account/Login");
+        await Page.Locator("[name=Email]").FillAsync("admin@programa-semilla.test");
+        await Page.Locator("[name=Password]").FillAsync("Sentinel123!");
+        await Page.Locator("main button[type=submit]").ClickAsync();
+        await Page.GotoAsync($"{BaseUrl}/Admin/Users");
+        await Page.SetViewportSizeAsync(1280, 800);
+        var bytes = await Page.ScreenshotAsync(new() { FullPage = true });
+        Directory.CreateDirectory(SnapshotDir);
+        await File.WriteAllBytesAsync(Path.Combine(SnapshotDir, "admin-users.png"), bytes);
+    }
+
+    [Test]
     public async Task ApplicantHome_Snapshot()
     {
         var unique = Guid.NewGuid().ToString("N")[..8];

@@ -1,7 +1,0 @@
-<!-- PLACEHOLDER: pending designer pass — Programa Semilla seedling mark (re-trace from PDF wwwroot/lib/brand/pdf/header-seedling.png). Geometric stand-in: teal disc + stylized seedling stems. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Programa Semilla">
-  <circle cx="32" cy="32" r="30" fill="#1FA0A0"/>
-  <path d="M32 46 V 28" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" fill="none"/>
-  <path d="M32 30 C 24 26, 22 18, 22 14 C 28 16, 32 22, 32 30" fill="#FFFFFF"/>
-  <path d="M32 30 C 40 26, 42 18, 42 14 C 36 16, 32 22, 32 30" fill="#FFFFFF" opacity="0.85"/>
-</svg>

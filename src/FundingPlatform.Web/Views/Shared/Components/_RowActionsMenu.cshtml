@@ -1,0 +1,91 @@
+@model RowActionsMenuViewModel
+@*
+    _RowActionsMenu.cshtml — Spec 037 D8 / FR-020 kebab actions for admin list rows.
+
+    Renders a visible "Editar" link (when EditUrl is set) + a "⋯" dropdown toggle
+    (data-testid="row-actions-menu-{MenuId}") opening a dropdown-menu-end. Each
+    Item keeps its exact route/verb/antiforgery/testid/data-confirm wiring; only
+    the presentation moves into the dropdown. The Bootstrap/Tabler dropdown JS
+    (already loaded) makes the kebab keyboard- and SR-operable. When Items is
+    empty no kebab renders (Edit-only row).
+*@
+<div class="btn-list justify-content-end flex-nowrap">
+    @if (!string.IsNullOrWhiteSpace(Model.EditUrl))
+    {
+        <a class="btn btn-sm btn-outline-secondary" data-testid="@Model.EditTestId" href="@Model.EditUrl">
+            <i class="@Model.EditIcon"></i> @Model.EditLabel
+        </a>
+    }
+    @if (Model.Items.Count > 0)
+    {
+        <div class="dropdown">
+            <button type="button"
+                    class="btn btn-sm btn-icon"
+                    data-bs-toggle="dropdown"
+                    data-bs-boundary="viewport"
+                    aria-expanded="false"
+                    aria-label="@Model.MenuLabel"
+                    title="@Model.MenuLabel"
+                    data-testid="row-actions-menu-@Model.MenuId">
+                <i class="ti ti-dots-vertical"></i>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end">
+                @foreach (var item in Model.Items)
+                {
+                    var itemClass = item.IsDanger ? "dropdown-item text-danger" : "dropdown-item";
+                    var hasConfirm = !string.IsNullOrWhiteSpace(item.ConfirmBody);
+                    if (!string.IsNullOrWhiteSpace(item.Url))
+                    {
+                        <a class="@itemClass" data-testid="@item.TestId" href="@item.Url">
+                            @if (!string.IsNullOrWhiteSpace(item.Icon))
+                            {
+                                <i class="@item.Icon me-1"></i>
+                            }
+                            @item.Label
+                        </a>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(item.FormController) && !string.IsNullOrWhiteSpace(item.FormAction))
+                    {
+                        <form asp-controller="@item.FormController"
+                              asp-action="@item.FormAction"
+                              asp-all-route-data="@(item.FormRouteValues as Dictionary<string, string>)"
+                              method="post"
+                              onsubmit="@item.FormOnSubmit">
+                            @Html.AntiForgeryToken()
+                            @* Branch on confirm so non-confirm actions (resend / enable) emit NO
+                               data-confirm — a conditional @() value renders an empty attribute,
+                               which confirm-dialog.js would wrongly treat as a confirm trigger. *@
+                            @if (hasConfirm)
+                            {
+                                <button type="submit"
+                                        class="@itemClass"
+                                        data-testid="@item.TestId"
+                                        data-confirm
+                                        data-confirm-variant="@item.ConfirmVariant"
+                                        data-confirm-title="@item.ConfirmTitle"
+                                        data-confirm-body="@item.ConfirmBody"
+                                        data-confirm-label="@item.ConfirmLabel">
+                                    @if (!string.IsNullOrWhiteSpace(item.Icon))
+                                    {
+                                        <i class="@item.Icon me-1"></i>
+                                    }
+                                    @item.Label
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="submit" class="@itemClass" data-testid="@item.TestId">
+                                    @if (!string.IsNullOrWhiteSpace(item.Icon))
+                                    {
+                                        <i class="@item.Icon me-1"></i>
+                                    }
+                                    @item.Label
+                                </button>
+                            }
+                        </form>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>

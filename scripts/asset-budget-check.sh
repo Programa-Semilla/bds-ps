@@ -32,10 +32,10 @@ scan_dir "Empty-state illustrations (9 SVGs, re-stroked teal by FR-026)" \
 scan_dir "Canvas confetti" \
   "src/FundingPlatform.Web/wwwroot/lib/canvas-confetti/*.js"
 
-scan_dir "Brand assets (mark / wordmark / seal)" \
-  "src/FundingPlatform.Web/wwwroot/lib/brand/*.svg"
+scan_dir "Brand assets (seal SVG + official logos/footer PNG — spec 037)" \
+  "src/FundingPlatform.Web/wwwroot/lib/brand/*.svg src/FundingPlatform.Web/wwwroot/lib/brand/*.png"
 
-scan_dir "Sponsor partner logos (5 SVGs — FR-003)" \
+scan_dir "Sponsor partner logos (retired by spec 037 — folded into partners-footer.png)" \
   "src/FundingPlatform.Web/wwwroot/lib/brand/sponsors/*.svg"
 
 scan_dir "Favicons" \

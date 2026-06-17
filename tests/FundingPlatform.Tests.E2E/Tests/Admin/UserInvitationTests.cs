@@ -179,6 +179,7 @@ public class UserInvitationTests : AuthenticatedTestBase
         var listPage = new AdminUsersListPage(Page);
         await listPage.GoToAsync(BaseUrl);
         await listPage.SearchAsync(email);
+        await listPage.OpenRowActionsAsync(email);
         await listPage.RowResendInviteButton(email).ClickAsync();
         await Expect(sentPage.Root).ToBeVisibleAsync();
         var secondLink = await sentPage.GetInviteLinkAsync();
