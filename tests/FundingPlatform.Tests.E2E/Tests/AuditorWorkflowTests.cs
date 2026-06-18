@@ -46,6 +46,10 @@ public class AuditorWorkflowTests : AuthenticatedTestBase
         await AssignRoleAsync(auditorEmail, "Auditor");
         await LoginAsync(Page, auditorEmail, Password);
 
+        // The auditor (Auditor-only → narrowed sidebar) sees the Auditoría inbox nav entry.
+        await Page.GotoAsync($"{BaseUrl}/");
+        await Expect(Page.Locator("[data-testid=sidebar-entry-audit-inbox]")).ToBeVisibleAsync();
+
         // Inbox shows the PendingAudit application.
         await Page.GotoAsync($"{BaseUrl}/Audit");
         await Expect(Page.Locator($"[data-testid=audit-inbox-row][data-application-id='{appId}']")).ToBeVisibleAsync();
