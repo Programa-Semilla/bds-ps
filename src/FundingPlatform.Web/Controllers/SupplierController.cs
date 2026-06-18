@@ -179,6 +179,7 @@ public class SupplierController : Controller
             ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(3)),
             EnabledCurrencies = enabledCurrencies,
             ReusableQuotations = await LoadReusableQuotationsAsync(appId, itemId),
+            ItemProductName = await LoadItemProductNameAsync(itemId),
         };
 
         // R4: redirect-to-existing recovery — pre-load the supplier and show the
@@ -285,6 +286,44 @@ public class SupplierController : Controller
             return await RenderAddAsync(model);
         }
 
+        // Spec 039 — required delivery lead time + warranty (value > 0). Reject up
+        // front so the TimeDuration construction below never throws (FR-001/FR-002/SC-004).
+        // Targeted (not a global ModelState gate) to preserve the existing path
+        // dispatch that tolerates unbound NewBranch/NewSupplier sub-fields.
+        var durationsInvalid = false;
+        if (model.DeliveryLeadTimeValue <= 0)
+        {
+            ModelState.AddModelError(nameof(model.DeliveryLeadTimeValue),
+                "El tiempo de entrega debe ser mayor a cero.");
+            durationsInvalid = true;
+        }
+        if (model.WarrantyValue <= 0)
+        {
+            ModelState.AddModelError(nameof(model.WarrantyValue),
+                "La garantía debe ser mayor a cero.");
+            durationsInvalid = true;
+        }
+        // Reject a tampered POST that sets an out-of-range unit (TINYINT) so the
+        // TimeDuration ctor never throws an unhandled ArgumentException → 500 (FR-026).
+        if (!Enum.IsDefined(model.DeliveryLeadTimeUnit))
+        {
+            ModelState.AddModelError(nameof(model.DeliveryLeadTimeUnit),
+                "La unidad de tiempo de entrega no es válida.");
+            durationsInvalid = true;
+        }
+        if (!Enum.IsDefined(model.WarrantyUnit))
+        {
+            ModelState.AddModelError(nameof(model.WarrantyUnit),
+                "La unidad de garantía no es válida.");
+            durationsInvalid = true;
+        }
+        if (durationsInvalid)
+        {
+            return await RenderAddAsync(model);
+        }
+        var deliveryLeadTime = new TimeDuration(model.DeliveryLeadTimeValue, model.DeliveryLeadTimeUnit);
+        var warranty = new TimeDuration(model.WarrantyValue, model.WarrantyUnit);
+
         // Re-run lookup so the view can re-render the right partial on validation error.
         var applicantId = await GetCurrentApplicantIdAsync();
         if (!string.IsNullOrWhiteSpace(model.SupplierLegalId))
@@ -311,6 +350,7 @@ public class SupplierController : Controller
                     model.LookupResult.Supplier.Id,
                     model.SelectedBranchId.Value,
                     model.Price, model.Currency, model.ValidUntil,
+                    deliveryLeadTime, warranty,
                     stream, model.QuotationFile.FileName,
                     model.QuotationFile.ContentType, model.QuotationFile.Length);
 
@@ -363,6 +403,7 @@ public class SupplierController : Controller
                     model.LookupResult.Supplier.Id,
                     newBranchId,
                     model.Price, model.Currency, model.ValidUntil,
+                    deliveryLeadTime, warranty,
                     stream, model.QuotationFile.FileName,
                     model.QuotationFile.ContentType, model.QuotationFile.Length);
 
@@ -429,6 +470,7 @@ public class SupplierController : Controller
                     appId, itemId,
                     newSupplier.Id, defaultBranch.Id,
                     model.Price, model.Currency, model.ValidUntil,
+                    deliveryLeadTime, warranty,
                     stream, model.QuotationFile.FileName,
                     model.QuotationFile.ContentType, model.QuotationFile.Length);
 
@@ -469,10 +511,21 @@ public class SupplierController : Controller
         model.EnabledCurrencies = await LoadEnabledCurrenciesAsync();
         // Spec 035 / US3 — repopulate the reuse candidates on re-render.
         model.ReusableQuotations = await LoadReusableQuotationsAsync(model.ApplicationId, model.ItemId);
+        // Spec 039 — keep the item product name on validation re-renders.
+        model.ItemProductName = await LoadItemProductNameAsync(model.ItemId);
         // Spec 025 — rebuild the cascade view-models so the user's province/cantón/
         // distrito selections survive a validation re-render (incl. the dependent options).
         await PopulateLocationViewDataAsync(model);
         return View(model);
+    }
+
+    /// <summary>Spec 039 — product name of the item being quoted, for the form header.</summary>
+    private async Task<string> LoadItemProductNameAsync(int itemId)
+    {
+        return await _dbContext.Items
+            .Where(i => i.Id == itemId)
+            .Select(i => i.ProductName)
+            .FirstOrDefaultAsync() ?? string.Empty;
     }
 
     /// <summary>Spec 035 / US3 — reuse candidates for the picker (excludes this item).</summary>
@@ -509,6 +562,28 @@ public class SupplierController : Controller
             ModelState.AddModelError(nameof(model.Price), "El precio debe ser mayor a cero.");
         }
 
+        // Spec 039 — delivery lead time + warranty are required on the reuse path too.
+        if (model.DeliveryLeadTimeValue <= 0)
+        {
+            ModelState.AddModelError(nameof(model.DeliveryLeadTimeValue),
+                "El tiempo de entrega debe ser mayor a cero.");
+        }
+        if (model.WarrantyValue <= 0)
+        {
+            ModelState.AddModelError(nameof(model.WarrantyValue),
+                "La garantía debe ser mayor a cero.");
+        }
+        if (!Enum.IsDefined(model.DeliveryLeadTimeUnit))
+        {
+            ModelState.AddModelError(nameof(model.DeliveryLeadTimeUnit),
+                "La unidad de tiempo de entrega no es válida.");
+        }
+        if (!Enum.IsDefined(model.WarrantyUnit))
+        {
+            ModelState.AddModelError(nameof(model.WarrantyUnit),
+                "La unidad de garantía no es válida.");
+        }
+
         CurrencyCode parsedCurrency = default;
         var currencyValid = false;
         try
@@ -531,7 +606,9 @@ public class SupplierController : Controller
         {
             await _applicationService.ReuseQuotationAsync(
                 appId, itemId, sourceQuotationId,
-                model.Price, model.Currency, model.ValidUntil);
+                model.Price, model.Currency, model.ValidUntil,
+                new TimeDuration(model.DeliveryLeadTimeValue, model.DeliveryLeadTimeUnit),
+                new TimeDuration(model.WarrantyValue, model.WarrantyUnit));
         }
         catch (InvalidOperationException ex)
         {

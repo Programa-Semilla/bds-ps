@@ -12,7 +12,13 @@
 
 <div class="row">
     <div class="col-md-10">
-        <h2 class="mb-3">Agregar proveedor con cotización</h2>
+        <h2 class="mb-1">Agregar proveedor con cotización</h2>
+        @if (!string.IsNullOrWhiteSpace(Model.ItemProductName))
+        {
+            <p class="text-muted mb-3" data-testid="supplier-add-item-name">
+                Ítem: <strong>@Model.ItemProductName</strong>
+            </p>
+        }
 
         @if (Model.ShowConcurrentBanner)
         {

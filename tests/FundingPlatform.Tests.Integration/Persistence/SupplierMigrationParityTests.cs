@@ -56,10 +56,13 @@ public class SupplierMigrationParityTests
 
         Assert.That(preScores[0].Score.Total, Is.EqualTo(postScores[0].Score.Total));
         Assert.That(preScores[0].Score.IsRecommended, Is.EqualTo(postScores[0].Score.IsRecommended));
-        Assert.That(preScores[0].Score.HasLowestPrice, Is.EqualTo(postScores[0].Score.HasLowestPrice));
-        Assert.That(preScores[0].Score.IsCompliantCCSS, Is.EqualTo(postScores[0].Score.IsCompliantCCSS));
-        Assert.That(preScores[0].Score.IsCompliantHacienda, Is.EqualTo(postScores[0].Score.IsCompliantHacienda));
-        Assert.That(preScores[0].Score.IsCompliantSICOP, Is.EqualTo(postScores[0].Score.IsCompliantSICOP));
+        // Spec 039 — parity now over the seven-criterion scores.
+        Assert.That(preScores[0].Score.PriceScore, Is.EqualTo(postScores[0].Score.PriceScore));
+        Assert.That(preScores[0].Score.CcssScore, Is.EqualTo(postScores[0].Score.CcssScore));
+        Assert.That(preScores[0].Score.HaciendaScore, Is.EqualTo(postScores[0].Score.HaciendaScore));
+        Assert.That(preScores[0].Score.SicopScore, Is.EqualTo(postScores[0].Score.SicopScore));
+        Assert.That(preScores[0].Score.DeliveryLeadTimeScore, Is.EqualTo(postScores[0].Score.DeliveryLeadTimeScore));
+        Assert.That(preScores[0].Score.WarrantyTimeScore, Is.EqualTo(postScores[0].Score.WarrantyTimeScore));
     }
 
     [Test]
@@ -137,7 +140,9 @@ public class SupplierMigrationParityTests
         typeof(Supplier).GetProperty("VerificationStatus")!.SetValue(s, SupplierVerificationStatus.Verified);
 
         var q = new Quotation(supplierId: 1, supplierBranchId: 1, documentId: 1,
-            price: price, validUntil: DateOnly.FromDateTime(DateTime.Today.AddMonths(3)), currency: "USD");
+            price: price, validUntil: DateOnly.FromDateTime(DateTime.Today.AddMonths(3)), currency: "USD",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         typeof(Quotation).GetProperty("Id")!.SetValue(q, 100);
         return (s, q);
     }
@@ -159,7 +164,9 @@ public class SupplierMigrationParityTests
         typeof(SupplierBranch).GetProperty("SupplierId")!.SetValue(b, 1);
 
         var q = new Quotation(supplierId: 1, supplierBranchId: 1, documentId: 1,
-            price: price, validUntil: DateOnly.FromDateTime(DateTime.Today.AddMonths(3)), currency: "USD");
+            price: price, validUntil: DateOnly.FromDateTime(DateTime.Today.AddMonths(3)), currency: "USD",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         typeof(Quotation).GetProperty("Id")!.SetValue(q, 100);
         return (s, q, b);
     }

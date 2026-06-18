@@ -16,6 +16,10 @@ public class AddSupplierViewModel : IQuoteFieldsModel
     public int ApplicationId { get; set; }
     public int ItemId { get; set; }
 
+    /// <summary>Spec 039 — product name of the item this quotation is being added to,
+    /// shown on the form header so the applicant knows which item they are quoting.</summary>
+    public string ItemProductName { get; set; } = string.Empty;
+
     // Spec 026 — supplier identification kind (Cédula jurídica or NITE). The
     // sibling-property name is passed explicitly to [IdentificationFormat] since it
     // differs from the attribute's default "IdentificationType".
@@ -64,6 +68,25 @@ public class AddSupplierViewModel : IQuoteFieldsModel
     [Required(ErrorMessage = "La fecha de vigencia es obligatoria.")]
     [Display(Name = "Vigente hasta")]
     public DateOnly ValidUntil { get; set; }
+
+    // Spec 039 — required delivery lead time + warranty (value + unit días/meses).
+    // Range(1,…) realizes "greater than zero" (FR-001/FR-002/SC-004); the unit
+    // defaults to días.
+    [Required(ErrorMessage = "El tiempo de entrega es obligatorio.")]
+    [Range(1, int.MaxValue, ErrorMessage = "El tiempo de entrega debe ser mayor a cero.")]
+    [Display(Name = "Tiempo de entrega")]
+    public int DeliveryLeadTimeValue { get; set; }
+
+    [Display(Name = "Unidad de tiempo de entrega")]
+    public DurationUnit DeliveryLeadTimeUnit { get; set; } = DurationUnit.Days;
+
+    [Required(ErrorMessage = "La garantía es obligatoria.")]
+    [Range(1, int.MaxValue, ErrorMessage = "La garantía debe ser mayor a cero.")]
+    [Display(Name = "Garantía")]
+    public int WarrantyValue { get; set; }
+
+    [Display(Name = "Unidad de garantía")]
+    public DurationUnit WarrantyUnit { get; set; } = DurationUnit.Months;
 
     // Spec 035 / US3 — optional: required only on the add-new path (the controller
     // enforces it). Omitted when reusing an existing quotation's document.

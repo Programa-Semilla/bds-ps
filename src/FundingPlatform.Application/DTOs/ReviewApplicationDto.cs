@@ -29,7 +29,11 @@ public record ReviewItemDto(
     List<CategoryFieldValueDto> CategoryFields,
     /// <summary>Spec 018 / FR-012 — reviewer-assigned line code, null until first
     /// assignment.</summary>
-    string? LineCode = null);
+    string? LineCode = null,
+    /// <summary>Spec 039 / FR-021 — ≥2 eligible providers share the top total.</summary>
+    bool HasRecommendationTie = false,
+    /// <summary>Spec 039 / FR-020 — at least one provider is eligible (not CCSS-blocked).</summary>
+    bool HasAnyEligible = true);
 
 // Spec 035 (evolved 2026-06-16, D16) — one declared application impact for display.
 public record ReviewImpactGroupDto(
@@ -45,12 +49,23 @@ public record ReviewQuotationDto(
     DateOnly ValidUntil,
     string DocumentFileName,
     bool IsRecommended,
-    int Score,
-    bool ScoreCCSS,
-    bool ScoreHacienda,
-    bool ScoreSICOP,
-    bool ScoreLowestPrice,
-    bool IsPreSelected,
+    // Spec 039 — seven-criterion explainable score + eligibility (replaces the
+    // /4 Score + four compliance bools + IsPreSelected).
+    bool IsEligible,
+    SupplierBlockReason BlockReason,
+    int Total,
+    int PriceScore,
+    int DeliveryLeadTimeScore,
+    int WarrantyTimeScore,
+    int HaciendaScore,
+    int CcssScore,
+    int SicopScore,
+    int PmeOrPymeScore,
+    // Spec 039 — raw delivery/warranty for the breakdown display (FR-022).
+    int DeliveryLeadTimeValue,
+    DurationUnit DeliveryLeadTimeUnit,
+    int WarrantyValue,
+    DurationUnit WarrantyUnit,
     bool IsSupplierVerified = false,
     bool IsSupplierRejected = false,
     // Spec 015 / T415 — multi-currency surface on the review screen so the

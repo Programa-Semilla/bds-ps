@@ -38,7 +38,14 @@ public interface IUserFacingErrorTranslator
 /// <inheritdoc />
 public sealed class UserFacingErrorTranslator : IUserFacingErrorTranslator
 {
-    public string Translate(UserFacingError error) => Translate(error.Code);
+    public string Translate(UserFacingError error) => error.Code switch
+    {
+        // Spec 039 / FR-019 — incorporate the (data, not English copy) provider name
+        // from Detail into the es-CR block message naming the offending provider.
+        UserFacingErrorCode.SupplierCcssSinInscripcion when !string.IsNullOrWhiteSpace(error.Detail) =>
+            $"No se puede aprobar el ítem: el proveedor «{error.Detail}» no está inscrito en la CCSS.",
+        _ => Translate(error.Code),
+    };
 
     public string Translate(UserFacingErrorCode code) => code switch
     {
@@ -166,6 +173,10 @@ public sealed class UserFacingErrorTranslator : IUserFacingErrorTranslator
             "Ya existe otro ítem con el mismo código de línea en esta solicitud.",
         UserFacingErrorCode.LineCodeMissingOnApprovedItems =>
             "Falta el código de línea en uno o más ítems aprobados.",
+
+        // Spec 039 / FR-019 — code-only fallback (provider name unavailable).
+        UserFacingErrorCode.SupplierCcssSinInscripcion =>
+            "No se puede aprobar el ítem: el proveedor no está inscrito en la CCSS.",
 
         _ => "La operación no se pudo completar. Inténtelo nuevamente o contacte al soporte.",
     };

@@ -1,3 +1,5 @@
+using FundingPlatform.Domain.Enums;
+
 namespace FundingPlatform.Application.Applications.Commands;
 
 /// <summary>
@@ -19,4 +21,10 @@ public sealed record EditQuotationCommand
     public DateOnly ValidUntil { get; init; }
     public int SupplierBranchId { get; init; }
     public int ApplicantId { get; init; }
+
+    // Spec 039 — delivery lead time + warranty remain editable and required (FR-003).
+    public int DeliveryLeadTimeValue { get; init; }
+    public DurationUnit DeliveryLeadTimeUnit { get; init; } = DurationUnit.Days;
+    public int WarrantyValue { get; init; }
+    public DurationUnit WarrantyUnit { get; init; } = DurationUnit.Months;
 }

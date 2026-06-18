@@ -182,6 +182,13 @@ public class ReviewService
             await _applicationRepository.SaveChangesAsync();
             return null;
         }
+        catch (FundingPlatform.Domain.Exceptions.SupplierIneligibleException ex)
+        {
+            // Spec 039 / FR-019 — block the approval; the Detail carries the provider
+            // name for the templated es-CR reviewer message. No approval persisted.
+            return UserFacingError.From(
+                UserFacingErrorCode.SupplierCcssSinInscripcion, ex.SupplierName);
+        }
         catch (InvalidOperationException ex)
         {
             return UserFacingError.From(UserFacingErrorCode.OperationRejected, ex.Message);
@@ -272,6 +279,22 @@ public class ReviewService
         if (application is null)
             return (UserFacingError.From(UserFacingErrorCode.ApplicationNotFound), null);
 
+        // Spec 039 / FR-019 — defence-in-depth: the per-item Approve gate blocks
+        // approving with a CCSS sin inscripción provider, but a provider's status can
+        // flip to sin inscripción AFTER an item was approved (slice-A live edit). Re-check
+        // every approved item's selected provider at advance time so the application can
+        // never finalize while a blocked provider is selected (SC-003 "100% of attempts").
+        foreach (var item in application.Items
+            .Where(i => i.ReviewStatus == ItemReviewStatus.Approved && i.SelectedSupplierId.HasValue))
+        {
+            var selected = item.Quotations.FirstOrDefault(q => q.SupplierId == item.SelectedSupplierId!.Value);
+            if (selected?.Supplier?.CcssStatus == CcssStatus.SinInscripcion)
+            {
+                return (UserFacingError.From(
+                    UserFacingErrorCode.SupplierCcssSinInscripcion, selected.Supplier.Name), null);
+            }
+        }
+
         try
         {
             application.Finalize(force);
@@ -343,8 +366,9 @@ public class ReviewService
                     cfv.Value))
                 .ToList();
             var quotations = item.Quotations.ToList();
-            // Spec 013 R5: SupplierScore signature now requires (Q, Supplier, Branch).
-            // The branch is reserved for reviewer-UI display use; score math is unchanged.
+            // Spec 013 R5 / Spec 039: SupplierScore signature is (Q, Supplier, Branch).
+            // The branch is reserved for reviewer-UI display use; the math is the
+            // seven-criterion §14 algorithm.
             var scoreInputs = quotations
                 .Where(q => q.Supplier is not null)
                 .Select(q => (q, q.Supplier!, (SupplierBranch?)q.SupplierBranch))
@@ -352,9 +376,17 @@ public class ReviewService
             var scoreResults = SupplierScore.ComputeForItem(scoreInputs);
             var scoreMap = scoreResults.ToDictionary(s => s.QuotationId, s => s.Score);
 
+            // Spec 039 — item-level recommendation flags derived from the score set.
+            // "No eligible provider" (FR-020) only applies when candidates EXIST but are
+            // all blocked; an item with zero quotations is a different state, so treat
+            // empty as "has eligible" to avoid the misleading all-CCSS-blocked message.
+            var hasAnyEligible = scoreMap.Count == 0 || scoreMap.Values.Any(s => s.IsEligible); // FR-020
+            var hasRecommendationTie = scoreMap.Values.Count(s => s.IsTiedAtTop) >= 2; // FR-021
+
             var quotationDtos = quotations.Select(q =>
             {
                 var score = scoreMap.GetValueOrDefault(q.Id);
+                var isRejected = q.Supplier?.VerificationStatus == SupplierVerificationStatus.Rejected;
                 return new ReviewQuotationDto(
                     q.Id,
                     q.SupplierId,
@@ -363,15 +395,24 @@ public class ReviewService
                     q.Price,
                     q.ValidUntil,
                     q.Document?.OriginalFileName ?? string.Empty,
-                    score?.IsRecommended ?? false,
-                    score?.Total ?? 0,
-                    score?.IsCompliantCCSS ?? false,
-                    score?.IsCompliantHacienda ?? false,
-                    score?.IsCompliantSICOP ?? false,
-                    score?.HasLowestPrice ?? false,
-                    score?.IsPreSelected ?? false,
-                    score?.IsSupplierVerified ?? false,
-                    score?.IsSupplierRejected ?? false,
+                    // Spec 013 FR-043 (preserved) — a Rejected supplier is never recommended.
+                    IsRecommended: (score?.IsRecommended ?? false) && !isRejected,
+                    IsEligible: score?.IsEligible ?? false,
+                    BlockReason: score?.BlockReason ?? SupplierBlockReason.None,
+                    Total: score?.Total ?? 0,
+                    PriceScore: score?.PriceScore ?? 0,
+                    DeliveryLeadTimeScore: score?.DeliveryLeadTimeScore ?? 0,
+                    WarrantyTimeScore: score?.WarrantyTimeScore ?? 0,
+                    HaciendaScore: score?.HaciendaScore ?? 0,
+                    CcssScore: score?.CcssScore ?? 0,
+                    SicopScore: score?.SicopScore ?? 0,
+                    PmeOrPymeScore: score?.PmeOrPymeScore ?? 0,
+                    DeliveryLeadTimeValue: q.DeliveryLeadTime.Value,
+                    DeliveryLeadTimeUnit: q.DeliveryLeadTime.Unit,
+                    WarrantyValue: q.Warranty.Value,
+                    WarrantyUnit: q.Warranty.Unit,
+                    IsSupplierVerified: q.Supplier?.VerificationStatus == SupplierVerificationStatus.Verified,
+                    IsSupplierRejected: isRejected,
                     Currency: string.IsNullOrEmpty(q.Currency) ? "CRC" : q.Currency,
                     ConvertedCrcAmount: q.ConvertedCrcAmount,
                     SnapshotRateValue: q.Snapshot?.RateValue,
@@ -392,7 +433,9 @@ public class ReviewService
                         SicopReviewedAt: q.Supplier.SicopLastReviewedAt,
                         SicopSource: q.Supplier.SicopLastReviewedSource));
             })
-            .OrderByDescending(q => q.Score)
+            .OrderByDescending(q => q.IsEligible)
+            .ThenByDescending(q => q.Total)
+            .ThenBy(q => q.QuotationId)
             .ToList();
 
             return new ReviewItemDto(
@@ -407,7 +450,9 @@ public class ReviewService
                 itemAttributedImpactNames,
                 item.ImpactJustification,
                 itemCategoryFields,
-                LineCode: item.LineCode);
+                LineCode: item.LineCode,
+                HasRecommendationTie: hasRecommendationTie,
+                HasAnyEligible: hasAnyEligible);
         }).ToList();
 
         // Spec 013 FR-052: count distinct quotations referencing a Rejected supplier

@@ -175,7 +175,9 @@ public class ApplicationServiceEditQuotationTests
             documentId: doc.Id,
             price: price,
             validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
-            currency: currency);
+            currency: currency,
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         item.AttachQuotation(supplier, firstBranch, quotation);
         await ctx.SaveChangesAsync();
 
@@ -220,6 +222,10 @@ public class ApplicationServiceEditQuotationTests
                 ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
                 SupplierBranchId = seed.FirstBranchId,
                 ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
             });
             Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.Success));
         }
@@ -260,6 +266,10 @@ public class ApplicationServiceEditQuotationTests
                 ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
                 SupplierBranchId = seed.FirstBranchId,
                 ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
             });
             Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.StateChanged));
             Assert.That(res.GlobalError, Does.Contain("El estado de la solicitud cambió"));
@@ -292,6 +302,10 @@ public class ApplicationServiceEditQuotationTests
                 ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
                 SupplierBranchId = seed.FirstBranchId,
                 ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
             });
             Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.LegacyFlagged));
         }
@@ -347,6 +361,10 @@ public class ApplicationServiceEditQuotationTests
                 ValidUntil = q.ValidUntil,
                 SupplierBranchId = q.SupplierBranchId,
                 ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
             });
             Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.Success));
         }
@@ -376,6 +394,10 @@ public class ApplicationServiceEditQuotationTests
                 ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
                 SupplierBranchId = seed.FirstBranchId,
                 ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
             });
             Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.ValidationFailed));
             Assert.That(res.FieldErrors!.ContainsKey("Price"), Is.True);
@@ -407,6 +429,10 @@ public class ApplicationServiceEditQuotationTests
                 ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
                 SupplierBranchId = seed.SecondBranchId,
                 ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
             });
             Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.Success));
         }
@@ -456,6 +482,10 @@ public class ApplicationServiceEditQuotationTests
                 ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
                 SupplierBranchId = foreignBranchId,
                 ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
             });
             Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.ValidationFailed));
             Assert.That(res.FieldErrors!.ContainsKey(nameof(EditQuotationCommand.SupplierBranchId)), Is.True);
@@ -494,6 +524,10 @@ public class ApplicationServiceEditQuotationTests
                 ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
                 SupplierBranchId = seed.FirstBranchId,
                 ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
             });
             Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.Success));
         }
@@ -536,6 +570,10 @@ public class ApplicationServiceEditQuotationTests
                 ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
                 SupplierBranchId = seed.FirstBranchId,
                 ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
             });
             Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.MissingRate));
         }
@@ -563,6 +601,10 @@ public class ApplicationServiceEditQuotationTests
                 ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
                 SupplierBranchId = seed.FirstBranchId,
                 ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
             });
             Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.Success));
         }
@@ -570,5 +612,118 @@ public class ApplicationServiceEditQuotationTests
         Assert.That(invalidator.Calls,
             Has.Count.EqualTo(1).And.Contains(seed.ItemId),
             "Cache invalidator must fire once with the Item id on the non-idempotent success path.");
+    }
+
+    // ----------------------- Spec 039 (US2): delivery + warranty -----------------------
+
+    [Test]
+    public async Task EditQuotation_ZeroDeliveryLeadTime_ReturnsValidationFailed()
+    {
+        var db = $"edit-delivery-zero-{Guid.NewGuid():N}";
+        TestSeed seed;
+        using (var ctx = CreateContext(db))
+        {
+            seed = await SeedDraftWithQuotationAsync(ctx);
+        }
+
+        using (var ctx = CreateContext(db))
+        {
+            var sut = BuildService(ctx);
+            var res = await sut.EditQuotationAsync(new EditQuotationCommand
+            {
+                ApplicationId = seed.ApplicationId,
+                ItemId = seed.ItemId,
+                QuotationId = seed.QuotationId,
+                Price = 1000m,
+                Currency = "CRC",
+                ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                SupplierBranchId = seed.FirstBranchId,
+                ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 0, // invalid
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 12,
+                WarrantyUnit = DurationUnit.Months,
+            });
+
+            Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.ValidationFailed));
+            Assert.That(res.FieldErrors, Does.ContainKey(nameof(EditQuotationCommand.DeliveryLeadTimeValue)));
+        }
+    }
+
+    [Test]
+    public async Task EditQuotation_ZeroWarranty_ReturnsValidationFailed()
+    {
+        var db = $"edit-warranty-zero-{Guid.NewGuid():N}";
+        TestSeed seed;
+        using (var ctx = CreateContext(db))
+        {
+            seed = await SeedDraftWithQuotationAsync(ctx);
+        }
+
+        using (var ctx = CreateContext(db))
+        {
+            var sut = BuildService(ctx);
+            var res = await sut.EditQuotationAsync(new EditQuotationCommand
+            {
+                ApplicationId = seed.ApplicationId,
+                ItemId = seed.ItemId,
+                QuotationId = seed.QuotationId,
+                Price = 1000m,
+                Currency = "CRC",
+                ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                SupplierBranchId = seed.FirstBranchId,
+                ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 30,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 0, // invalid
+                WarrantyUnit = DurationUnit.Months,
+            });
+
+            Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.ValidationFailed));
+            Assert.That(res.FieldErrors, Does.ContainKey(nameof(EditQuotationCommand.WarrantyValue)));
+        }
+    }
+
+    [Test]
+    public async Task EditQuotation_ChangesDeliveryAndWarranty_PersistsRoundTrip()
+    {
+        var db = $"edit-delivery-roundtrip-{Guid.NewGuid():N}";
+        TestSeed seed;
+        using (var ctx = CreateContext(db))
+        {
+            seed = await SeedDraftWithQuotationAsync(ctx);
+        }
+
+        using (var ctx = CreateContext(db))
+        {
+            var q = await ctx.Quotations.AsNoTracking().SingleAsync(x => x.Id == seed.QuotationId);
+            var sut = BuildService(ctx);
+            var res = await sut.EditQuotationAsync(new EditQuotationCommand
+            {
+                ApplicationId = seed.ApplicationId,
+                ItemId = seed.ItemId,
+                QuotationId = seed.QuotationId,
+                Price = q.Price,
+                Currency = q.Currency,
+                ValidUntil = q.ValidUntil,
+                SupplierBranchId = seed.FirstBranchId,
+                ApplicantId = seed.ApplicantId,
+                DeliveryLeadTimeValue = 45,
+                DeliveryLeadTimeUnit = DurationUnit.Days,
+                WarrantyValue = 24,
+                WarrantyUnit = DurationUnit.Months,
+            });
+
+            Assert.That(res.Outcome, Is.EqualTo(EditQuotationOutcome.Success));
+        }
+
+        using (var ctx = CreateContext(db))
+        {
+            var q = await ctx.Quotations.AsNoTracking().SingleAsync(x => x.Id == seed.QuotationId);
+            Assert.That(q.DeliveryLeadTime.Value, Is.EqualTo(45));
+            Assert.That(q.DeliveryLeadTime.Unit, Is.EqualTo(DurationUnit.Days));
+            Assert.That(q.Warranty.Value, Is.EqualTo(24));
+            Assert.That(q.Warranty.Unit, Is.EqualTo(DurationUnit.Months));
+        }
     }
 }

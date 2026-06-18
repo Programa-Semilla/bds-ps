@@ -4,89 +4,159 @@ using FundingPlatform.Domain.Enums;
 namespace FundingPlatform.Domain.ValueObjects;
 
 /// <summary>
-/// Spec 003 supplier-evaluation score. Spec 038 replaced the four admin booleans
-/// with enumerated regulatory statuses: the three compliance points are now
-/// awarded when each status is the favorable value
-/// (see <see cref="RegulatoryStatusFavorability"/>) and the electronic-invoice
-/// point was removed with the field. The scoring algorithm itself is otherwise
-/// unchanged; a full redesign against the enum is deferred to slice B.
-/// IsRecommended masks Rejected suppliers (FR-043).
+/// Spec 039 — the client's seven-criterion, deterministic, explainable supplier
+/// recommendation (master §14), replacing the price-dominant /4 score. Each
+/// criterion gives every <b>eligible</b> provider a base 1 point and the winner(s)
+/// 2; the total is the sum (7–14). The eligible provider with the strict single
+/// maximum total is recommended; a top-score tie yields no auto-recommendation
+/// (FR-021). A provider with CCSS <c>sin inscripción</c> is excluded from scoring
+/// (FR-016) — never scored, never recommended, flagged <see cref="BlockReason"/>.
+///
+/// Two distinct tie rules (research D2): price ties → all tied get 1 (FR-008);
+/// delivery (shortest) and warranty (longest) ties → all tied get 2 (FR-009/FR-010).
+/// Price is compared on the spec-015 CRC-normalized amount (research D6); delivery
+/// and warranty on their normalized-to-days value (research D5).
+///
+/// Pure function — no I/O, deterministic, recomputed on every read (no persisted
+/// score table, research D7).
+///
+/// <para><b>Scope note:</b> this algorithm knows only CCSS eligibility (spec 039);
+/// it is intentionally agnostic of supplier <c>VerificationStatus</c>. The spec-013
+/// FR-043 rule "a Rejected supplier is never recommended" is applied DOWNSTREAM in
+/// <c>ReviewService.MapToReviewDto</c> (<c>IsRecommended &amp;&amp; !isRejected</c>),
+/// not here — so a Rejected provider may still appear as the strict-max winner inside
+/// this result and is masked at the mapping layer.</para>
 /// </summary>
 public record SupplierScore(
+    int SupplierId,
+    bool IsEligible,
+    SupplierBlockReason BlockReason,
+    int PriceScore,
+    int DeliveryLeadTimeScore,
+    int WarrantyTimeScore,
+    int HaciendaScore,
+    int CcssScore,
+    int SicopScore,
+    int PmeOrPymeScore,
     int Total,
-    bool IsCompliantCCSS,
-    bool IsCompliantHacienda,
-    bool IsCompliantSICOP,
-    bool HasLowestPrice,
     bool IsRecommended,
-    bool IsPreSelected,
-    bool IsSupplierVerified,
-    bool IsSupplierRejected)
+    bool IsTiedAtTop)
 {
     /// <summary>
     /// Computes scores for every quotation on an item. The branch is reserved for
-    /// reviewer-UI display use and does not affect the score math (research.md R5).
+    /// reviewer-UI display use and does not affect the score math.
     /// </summary>
     public static List<(int QuotationId, SupplierScore Score)> ComputeForItem(
         List<(Quotation Quotation, Supplier Supplier, SupplierBranch? Branch)> quotations)
     {
         if (quotations.Count == 0)
-            return [];
-
-        var minPrice = quotations.Min(q => q.Quotation.Price);
-
-        var scored = quotations.Select(q =>
         {
-            bool ccss = q.Supplier.CcssStatus.IsFavorable();
-            bool hacienda = q.Supplier.HaciendaStatus.IsFavorable();
-            bool sicop = q.Supplier.SicopStatus.IsFavorable();
-            bool lowestPrice = q.Quotation.Price == minPrice;
-            bool isVerified = q.Supplier.VerificationStatus == SupplierVerificationStatus.Verified;
-            bool isRejected = q.Supplier.VerificationStatus == SupplierVerificationStatus.Rejected;
+            return [];
+        }
 
-            int total = (ccss ? 1 : 0)
-                      + (hacienda ? 1 : 0)
-                      + (sicop ? 1 : 0)
-                      + (lowestPrice ? 1 : 0);
+        // FR-016 — CCSS sin inscripción is excluded from the candidate set before
+        // scoring. null CCSS (sin revisar) is NOT a block (research D4).
+        var eligible = quotations
+            .Where(q => q.Supplier.CcssStatus != CcssStatus.SinInscripcion)
+            .ToList();
 
-            return new
+        // Quote-level winner thresholds are computed over the eligible set only.
+        decimal? minPrice = eligible.Count > 0 ? eligible.Min(q => PriceKey(q.Quotation)) : null;
+        var lowestPriceCount = eligible.Count(q => PriceKey(q.Quotation) == minPrice);
+        var priceTie = lowestPriceCount >= 2; // FR-008 — price tie → all tied get 1.
+
+        int? minDeliveryDays = eligible.Count > 0 ? eligible.Min(q => q.Quotation.DeliveryLeadTime.InDays) : null;
+        int? maxWarrantyDays = eligible.Count > 0 ? eligible.Max(q => q.Quotation.Warranty.InDays) : null;
+
+        var maxTotal = 0;
+        var scored = new Dictionary<int, (int total, int supplierId, int price, int delivery, int warranty, int hac, int ccss, int sicop, int pme)>();
+
+        foreach (var q in eligible)
+        {
+            // FR-008 — lowest CRC price → 2; price ties → all 1.
+            var priceScore = (!priceTie && PriceKey(q.Quotation) == minPrice) ? 2 : 1;
+            // FR-009 — shortest delivery → 2; ties → all 2.
+            var deliveryScore = q.Quotation.DeliveryLeadTime.InDays == minDeliveryDays ? 2 : 1;
+            // FR-010 — longest warranty → 2; ties → all 2.
+            var warrantyScore = q.Quotation.Warranty.InDays == maxWarrantyDays ? 2 : 1;
+            // FR-011/FR-012/FR-013/FR-014 — binary status criteria.
+            var haciendaScore = q.Supplier.HaciendaStatus == HaciendaStatus.AlDia ? 2 : 1;
+            var ccssScore = q.Supplier.CcssStatus == CcssStatus.AlDia ? 2 : 1;
+            var sicopScore = q.Supplier.SicopStatus == SicopStatus.SinSanciones ? 2 : 1;
+            var pmeScore = q.Supplier.IsPmeOrPyme ? 2 : 1;
+
+            var total = priceScore + deliveryScore + warrantyScore
+                + haciendaScore + ccssScore + sicopScore + pmeScore;
+
+            scored[q.Quotation.Id] = (total, q.Supplier.Id, priceScore, deliveryScore,
+                warrantyScore, haciendaScore, ccssScore, sicopScore, pmeScore);
+
+            if (total > maxTotal)
             {
-                QuotationId = q.Quotation.Id,
-                SupplierId = q.Supplier.Id,
-                Total = total,
-                CCSS = ccss,
-                Hacienda = hacienda,
-                SICOP = sicop,
-                LowestPrice = lowestPrice,
-                Verified = isVerified,
-                Rejected = isRejected,
-            };
-        }).ToList();
+                maxTotal = total;
+            }
+        }
 
-        int maxScore = scored.Max(s => s.Total);
+        // FR-015 / FR-021 — strict single max is recommended; a top-score tie yields
+        // no auto-recommendation, the tied set is flagged IsTiedAtTop.
+        var winnerCount = scored.Values.Count(s => s.total == maxTotal);
+        var hasStrictWinner = winnerCount == 1;
 
-        // Pre-selected: highest score, tie-break by lowest supplier ID.
-        int preSelectedSupplierId = scored
-            .Where(s => s.Total == maxScore)
-            .OrderBy(s => s.SupplierId)
-            .First()
-            .SupplierId;
+        var results = new List<(int QuotationId, SupplierScore Score)>(quotations.Count);
+        foreach (var q in quotations)
+        {
+            if (scored.TryGetValue(q.Quotation.Id, out var s))
+            {
+                var isTop = s.total == maxTotal;
+                results.Add((q.Quotation.Id, new SupplierScore(
+                    SupplierId: s.supplierId,
+                    IsEligible: true,
+                    BlockReason: SupplierBlockReason.None,
+                    PriceScore: s.price,
+                    DeliveryLeadTimeScore: s.delivery,
+                    WarrantyTimeScore: s.warranty,
+                    HaciendaScore: s.hac,
+                    CcssScore: s.ccss,
+                    SicopScore: s.sicop,
+                    PmeOrPymeScore: s.pme,
+                    Total: s.total,
+                    IsRecommended: isTop && hasStrictWinner,
+                    IsTiedAtTop: isTop && !hasStrictWinner)));
+            }
+            else
+            {
+                // Ineligible (CCSS sin inscripción): not scored, never recommended.
+                results.Add((q.Quotation.Id, new SupplierScore(
+                    SupplierId: q.Supplier.Id,
+                    IsEligible: false,
+                    BlockReason: SupplierBlockReason.CcssSinInscripcion,
+                    PriceScore: 0,
+                    DeliveryLeadTimeScore: 0,
+                    WarrantyTimeScore: 0,
+                    HaciendaScore: 0,
+                    CcssScore: 0,
+                    SicopScore: 0,
+                    PmeOrPymeScore: 0,
+                    Total: 0,
+                    IsRecommended: false,
+                    IsTiedAtTop: false)));
+            }
+        }
 
-        return scored
-            .Select(s => (
-                s.QuotationId,
-                new SupplierScore(
-                    Total: s.Total,
-                    IsCompliantCCSS: s.CCSS,
-                    IsCompliantHacienda: s.Hacienda,
-                    IsCompliantSICOP: s.SICOP,
-                    HasLowestPrice: s.LowestPrice,
-                    IsRecommended: s.Total == maxScore && !s.Rejected,
-                    IsPreSelected: s.SupplierId == preSelectedSupplierId,
-                    IsSupplierVerified: s.Verified,
-                    IsSupplierRejected: s.Rejected)))
-            .OrderByDescending(s => s.Item2.Total)
-            .ThenBy(s => s.QuotationId)
+        // Stable ordering: eligible first by descending total, then by quotation id;
+        // ineligible (Total 0) sink to the bottom.
+        return results
+            .OrderByDescending(r => r.Score.IsEligible)
+            .ThenByDescending(r => r.Score.Total)
+            .ThenBy(r => r.QuotationId)
             .ToList();
     }
+
+    /// <summary>
+    /// Spec 015 / research D6 — price comparison key. CRC quotes set
+    /// <c>ConvertedCrcAmount = Price</c>; non-CRC quotes carry the snapshotted CRC
+    /// amount. Falling back to raw <c>Price</c> keeps a single-currency item correct
+    /// even if a snapshot is absent.
+    /// </summary>
+    private static decimal PriceKey(Quotation q) => q.ConvertedCrcAmount ?? q.Price;
 }

@@ -214,6 +214,18 @@
 
             <div class="mb-3">
                 <strong>Cotizaciones:</strong>
+                @if (!item.HasAnyEligible)
+                {
+                    <div class="alert alert-danger mt-1" data-testid="no-eligible-supplier">
+                        Ningún proveedor elegible — todos los proveedores de este ítem están bloqueados por la CCSS.
+                    </div>
+                }
+                else if (item.HasRecommendationTie)
+                {
+                    <div class="alert alert-warning mt-1" data-testid="recommendation-tie">
+                        Selección manual requerida — varios proveedores empatan en el puntaje más alto.
+                    </div>
+                }
                 <table class="fl-table mt-1" data-density="reviewer">
                     <thead>
                         <tr>
@@ -242,7 +254,7 @@
                             }
                             CurrencyCode? qOriginalCurrency = string.IsNullOrEmpty(q.Currency)
                                 ? null : CurrencyCode.From(q.Currency);
-                            <tr class="quotation-row @(q.IsRecommended ? "table-success" : "")"
+                            <tr class="quotation-row @(q.IsRecommended ? "table-success" : "") @(q.IsEligible ? "" : "table-danger")"
                                 data-testid="review-quotation-row" data-quotation-id="@q.QuotationId">
                                 <td>
                                     @q.SupplierName
@@ -252,14 +264,33 @@
                                     }
                                 </td>
                                 <td>@q.SupplierLegalId</td>
-                                <td><span class="supplier-score">@q.Score/4</span></td>
                                 <td>
-                                    <span class="score-breakdown">
-                                        @if (q.ScoreCCSS) { <span class="status status-blue" title="CCSS">CCSS</span> }
-                                        @if (q.ScoreHacienda) { <span class="status status-blue" title="Hacienda">Hac</span> }
-                                        @if (q.ScoreSICOP) { <span class="status status-blue" title="SICOP">SICOP</span> }
-                                        @if (q.ScoreLowestPrice) { <span class="status status-blue" title="Menor precio">Precio</span> }
-                                    </span>
+                                    @if (q.IsEligible)
+                                    {
+                                        <span class="supplier-score fw-bold" data-testid="quotation-total">@q.Total<span class="text-muted">/14</span></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status status-red" data-testid="quotation-blocked">Bloqueado</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (q.IsEligible)
+                                    {
+                                        <div class="score-breakdown small" data-testid="score-breakdown">
+                                            <div><span class="text-muted">Precio:</span> <strong>@q.PriceScore</strong></div>
+                                            <div><span class="text-muted">Entrega:</span> <strong>@q.DeliveryLeadTimeScore</strong> <span class="text-muted">(@q.DeliveryLeadTimeValue @FundingPlatform.Web.Helpers.DurationUnitLabels.Label(q.DeliveryLeadTimeUnit))</span></div>
+                                            <div><span class="text-muted">Garantía:</span> <strong>@q.WarrantyTimeScore</strong> <span class="text-muted">(@q.WarrantyValue @FundingPlatform.Web.Helpers.DurationUnitLabels.Label(q.WarrantyUnit))</span></div>
+                                            <div><span class="text-muted">Hacienda:</span> <strong>@q.HaciendaScore</strong> <span class="text-muted">(@FundingPlatform.Web.Helpers.RegulatoryStatusLabels.Label(q.Compliance?.Hacienda))</span></div>
+                                            <div><span class="text-muted">CCSS:</span> <strong>@q.CcssScore</strong> <span class="text-muted">(@FundingPlatform.Web.Helpers.RegulatoryStatusLabels.Label(q.Compliance?.Ccss))</span></div>
+                                            <div><span class="text-muted">SICOP:</span> <strong>@q.SicopScore</strong> <span class="text-muted">(@FundingPlatform.Web.Helpers.RegulatoryStatusLabels.Label(q.Compliance?.Sicop))</span></div>
+                                            <div><span class="text-muted">PYME:</span> <strong>@q.PmeOrPymeScore</strong> <span class="text-muted">(@(q.PmeOrPymeScore == 2 ? "Sí" : "No"))</span></div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-danger small" data-testid="block-reason">No inscrito en la CCSS</span>
+                                    }
                                 </td>
                                 <td>
                                     @* Spec 015 / T415 — replace raw "C"-format Price with the multi-currency component. *@
@@ -290,6 +321,13 @@
                                     </a>
                                 </td>
                                 <td>
+                                    @if (!q.IsEligible)
+                                    {
+                                        <span class="status status-red" data-testid="blocked-supplier-badge"
+                                              title="Proveedor no inscrito en la CCSS">
+                                            <i class="ti ti-ban"></i> Bloqueado — no inscrito en la CCSS
+                                        </span>
+                                    }
                                     @if (q.IsRecommended)
                                     {
                                         <span class="recommended-badge status status-green"><i class="ti ti-star"></i> Recomendada</span>
@@ -415,7 +453,7 @@
                                         {
                                             var isSelected = item.SelectedSupplierId.HasValue
                                                 ? item.SelectedSupplierId == q.SupplierId
-                                                : q.IsPreSelected;
+                                                : q.IsRecommended;
                                             // Spec 015 / T415 — show currency and (when non-CRC) converted CRC
                                             // in the dropdown label so the reviewer sees the comparison context.
                                             var priceLabel = q.Currency == "CRC" || string.IsNullOrEmpty(q.Currency)
@@ -424,7 +462,9 @@
                                                   + (q.ConvertedCrcAmount.HasValue
                                                       ? $" (≈₡{q.ConvertedCrcAmount.Value.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-CR"))})"
                                                       : string.Empty);
-                                            var label = $"{q.SupplierName} - {priceLabel} ({q.Score}/5)";
+                                            var label = q.IsEligible
+                                                ? $"{q.SupplierName} - {priceLabel} ({q.Total}/14)"
+                                                : $"{q.SupplierName} - {priceLabel} — Bloqueado (CCSS)";
                                             if (q.IsRecommended)
                                             {
                                                 label += " (Recomendada)";

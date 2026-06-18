@@ -146,7 +146,9 @@ public class DecisionSummaryProjectionTests
         decimal price, string currency)
     {
         var quotation = new Quotation(supplierId, supplierBranchId: 1, documentId: 1, price,
-            validUntil: new DateOnly(2027, 12, 31), currency: currency);
+            validUntil: new DateOnly(2027, 12, 31), currency: currency,
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         SetProp(quotation, "Id", supplierId); // unique enough for these tests
         SetProp(quotation, "Supplier", MakeSupplier(supplierId, supplierName));
         QuotationsField(item).Add(quotation);

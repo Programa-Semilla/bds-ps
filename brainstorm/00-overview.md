@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-17 (session #35)
+Last updated: 2026-06-18 (session #36)
 
 ## Sessions
 
@@ -40,11 +40,17 @@ Last updated: 2026-06-17 (session #35)
 | 32 | 2026-06-16 | funds-usage-evidence | spec-created | 036 |
 | 33 | 2026-06-17 | official-brand-alignment | shipped (PR #67) | 037 |
 | 34 | 2026-06-17 | applicant-companies | shipped (PR #68) | 037 |
-| 35 | 2026-06-17 | feedback-3-provider-compliance | spec-created | 038 |
+| 35 | 2026-06-17 | feedback-3-provider-compliance | shipped (PR #69) | 038 |
+| 36 | 2026-06-18 | supplier-recommendation | spec-created | 039 |
 
 ## Open Threads
 
-- Feedback-3 slices B–H remain unspecified; B (supplier recommendation algorithm) is the natural next foundation-dependent slice. Master doc + slice map: `seeds/feedback-3/` (from #35)
+- Feedback-3 slices C–H remain unspecified; B (supplier recommendation) is now spec-created (#36 → spec 039). C (auditor workflow stage) and D (regulatory freshness + Hacienda API) are the next foundation-dependent slices; C inherits slice B's reviewer-advance progression gate. Master doc + slice map: `seeds/feedback-3/` (from #35, #36)
+- Spec-039 plan-time: where the CCSS-`sin inscripción` progression-gate evaluation lives (a single advance-guard/eligibility service) so slice C re-anchors it with minimal churn (from #36)
+- Spec-039 plan-time: total-score display treatment — raw total + breakdown vs. an "X/14" fraction (spec leaves presentation open) (from #36)
+- Spec-039 plan-time: introduce the two new required quote fields via dacpac + post-deploy seed-data update; ensure every seeded quote is populated so existing seeds don't fail the new validation (Constitution IV) (from #36)
+- Spec-039 business confirmation: warranty direction (longer = better) and month→days = 30 for scoring comparison (from #36)
+- Long-term: revisit whether the AI quote comparison (spec 020) should be demoted/retired once the transparent deterministic score is in place (from #36; relates to #18)
 - Spec-038 plan-time: audit-trail storage approach — extend generic `AdminAuditEvent` vs a dedicated `ProviderRegulatoryAuditEvent` table (seed wants richer fields: previous/new value, source, reviewedBy) (from #35)
 - Spec-038 plan-time: es-CR Auditor role display label ("Auditor" vs "Auditoría"); whether "reviewed — no change" is available before a value is set; warning-note max length (from #35)
 - Spec-038 plan-time: inventory every `SupplierAdmin` reference (auth checks, role seeds, E2E fixtures, demo `supplieradmin@…` account) for the role rename → Auditor with capability parity (from #35)

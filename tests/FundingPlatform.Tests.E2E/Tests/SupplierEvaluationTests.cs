@@ -103,8 +103,9 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
     }
 
     [Test]
-    public async Task US1_TiedScores_BothRecommended_LowestIdPreSelected()
+    public async Task US1_TiedScores_NoneRecommended_ManualSelectionRequired()
     {
+        // Spec 039 / FR-021 — a top-score tie no longer auto-recommends anyone.
         var appId = await SetupSubmittedApplicationWithTiedSuppliersAsync();
 
         var reviewerEmail = $"se_tie_{_uniqueId}@example.com";
@@ -116,17 +117,11 @@ public class SupplierEvaluationTests : AuthenticatedTestBase
         await reviewPage.GotoAsync(BaseUrl, appId);
 
         var firstItem = reviewPage.ItemCards.First;
-        var itemId = int.Parse((await firstItem.GetAttributeAsync("data-item-id"))!);
 
-        // Both tied suppliers should be recommended
-        var recommendedBadges = firstItem.Locator(".recommended-badge");
-        await Expect(recommendedBadges).ToHaveCountAsync(2);
-
-        // The supplier dropdown should have one option pre-selected (lowest supplier ID)
-        await reviewPage.ItemDecisionRadio(itemId, "Approve").CheckAsync();
-        var dropdown = reviewPage.ItemSupplierDropdown(itemId);
-        var selectedValue = await dropdown.InputValueAsync();
-        Assert.That(selectedValue, Is.Not.Empty, "A supplier should be pre-selected");
+        // No provider is auto-recommended on a tie.
+        await Expect(firstItem.Locator(".recommended-badge")).ToHaveCountAsync(0);
+        // The "selección manual requerida" message is shown.
+        await Expect(firstItem.Locator("[data-testid=recommendation-tie]")).ToBeVisibleAsync();
     }
 
     [Test]

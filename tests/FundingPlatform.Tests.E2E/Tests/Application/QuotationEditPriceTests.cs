@@ -156,6 +156,8 @@ public class QuotationEditPriceTests : AuthenticatedTestBase
         await supplierPage.PriceInput.FillAsync(price);
         await supplierPage.SetCurrencyAsync("CRC");
         await supplierPage.ValidUntilInput.FillAsync("2027-12-31");
+        await supplierPage.DeliveryValueInput.FillAsync("30");
+        await supplierPage.WarrantyValueInput.FillAsync("12");
         await supplierPage.QuotationFileInput.SetInputFilesAsync(_testFilePath);
         await supplierPage.SubmitAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));

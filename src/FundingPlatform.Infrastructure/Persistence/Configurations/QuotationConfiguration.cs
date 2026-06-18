@@ -52,6 +52,34 @@ public class QuotationConfiguration : IEntityTypeConfiguration<Quotation>
                 .HasColumnType("datetime2(3)");
         });
 
+        // Spec 039 — delivery lead time and warranty as owned TimeDuration value
+        // objects mapped to flat columns (mirrors the Snapshot OwnsOne above). Units
+        // stored as TINYINT via HasConversion<byte>. Both required; the entity
+        // guarantees they are always set on a constructed quotation.
+        builder.OwnsOne(q => q.DeliveryLeadTime, d =>
+        {
+            d.Property(x => x.Value)
+                .HasColumnName("DeliveryLeadTimeValue")
+                .IsRequired();
+            d.Property(x => x.Unit)
+                .HasColumnName("DeliveryLeadTimeUnit")
+                .HasConversion<byte>()
+                .IsRequired();
+        });
+        builder.Navigation(q => q.DeliveryLeadTime).IsRequired();
+
+        builder.OwnsOne(q => q.Warranty, w =>
+        {
+            w.Property(x => x.Value)
+                .HasColumnName("WarrantyValue")
+                .IsRequired();
+            w.Property(x => x.Unit)
+                .HasColumnName("WarrantyUnit")
+                .HasConversion<byte>()
+                .IsRequired();
+        });
+        builder.Navigation(q => q.Warranty).IsRequired();
+
         builder.HasIndex(q => new { q.ItemId, q.SupplierId })
             .IsUnique()
             .HasDatabaseName("UX_Quotations_ItemId_SupplierId");

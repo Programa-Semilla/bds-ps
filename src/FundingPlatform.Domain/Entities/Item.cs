@@ -1,4 +1,5 @@
 using FundingPlatform.Domain.Enums;
+using FundingPlatform.Domain.ValueObjects;
 
 namespace FundingPlatform.Domain.Entities;
 
@@ -196,7 +197,9 @@ public class Item
         Document document,
         decimal price,
         DateOnly validUntil,
-        string currency)
+        string currency,
+        TimeDuration deliveryLeadTime,
+        TimeDuration warranty)
     {
         ArgumentNullException.ThrowIfNull(supplier);
         ArgumentNullException.ThrowIfNull(branch);
@@ -214,7 +217,9 @@ public class Item
                 $"Supplier '{supplier.Name}' already has a quotation on this item.");
         }
 
-        var quotation = new Quotation(supplier.Id, branch.Id, document.Id, price, validUntil, currency);
+        var quotation = new Quotation(
+            supplier.Id, branch.Id, document.Id, price, validUntil, currency,
+            deliveryLeadTime, warranty);
         _quotations.Add(quotation);
         UpdatedAt = DateTime.UtcNow;
     }
@@ -286,10 +291,24 @@ public class Item
                 "Cannot approve an item flagged as not technically equivalent.");
         }
 
-        if (!_quotations.Any(q => q.SupplierId == supplierId))
+        var selectedQuotation = _quotations.FirstOrDefault(q => q.SupplierId == supplierId);
+        if (selectedQuotation is null)
         {
             throw new InvalidOperationException(
                 "Selected supplier must have a quotation on this item.");
+        }
+
+        // Spec 039 / FR-019 — a provider with CCSS sin inscripción is a hard block:
+        // the reviewer may select it, but the item cannot be approved with it. null
+        // CCSS (sin revisar) is NOT a block (research D4). Guarded in the domain so
+        // the invariant is un-bypassable (Constitution II). The gate requires the
+        // Supplier nav to be loaded; the production review flow eager-loads it via
+        // IApplicationRepository.GetByIdWithDetailsAsync (Items→Quotations→Supplier),
+        // and ReviewService re-checks at finalize time (FR-019 defence-in-depth).
+        if (selectedQuotation.Supplier?.CcssStatus == CcssStatus.SinInscripcion)
+        {
+            throw new Exceptions.SupplierIneligibleException(
+                selectedQuotation.Supplier.Name);
         }
 
         ReviewStatus = ItemReviewStatus.Approved;

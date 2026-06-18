@@ -177,6 +177,10 @@ public class QuotationController : Controller
             ValidUntil = dto.ValidUntil,
             SupplierBranchId = dto.SupplierBranchId,
             SupplierName = dto.SupplierName,
+            DeliveryLeadTimeValue = dto.DeliveryLeadTimeValue,
+            DeliveryLeadTimeUnit = dto.DeliveryLeadTimeUnit,
+            WarrantyValue = dto.WarrantyValue,
+            WarrantyUnit = dto.WarrantyUnit,
             EnabledCurrencies = await LoadEnabledCurrenciesAsync(),
             BranchOptions = dto.Branches
                 .Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
@@ -229,6 +233,10 @@ public class QuotationController : Controller
             ValidUntil = vm.ValidUntil,
             SupplierBranchId = vm.SupplierBranchId,
             ApplicantId = applicantId,
+            DeliveryLeadTimeValue = vm.DeliveryLeadTimeValue,
+            DeliveryLeadTimeUnit = vm.DeliveryLeadTimeUnit,
+            WarrantyValue = vm.WarrantyValue,
+            WarrantyUnit = vm.WarrantyUnit,
         }, ct);
 
         switch (result.Outcome)
