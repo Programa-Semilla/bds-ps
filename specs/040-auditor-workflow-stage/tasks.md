@@ -71,7 +71,7 @@ Clean-Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Independent Test**: Seed a `PendingAudit` app in the auditor's group; as `auditor@`, audit→approve→generate→confirm→release; assert app returns to `ResponseFinalized` with an agreement and the applicant gets the "ready to sign" email; an out-of-group auditor sees neither the inbox row nor the detail page (403).
 
-- [ ] T021 [US1] Add `SeedPendingAuditApplicationAsync(appId, …)` to `tests/FundingPlatform.Tests.E2E/Fixtures/FundingAgreementSeeder.cs` (sets `State=7`, marks reviewer checklist complete).
+- [X] T021 [US1] Add `SeedPendingAuditApplicationAsync(appId, …)` to `tests/FundingPlatform.Tests.E2E/Fixtures/FundingAgreementSeeder.cs` (sets `State=7`, marks reviewer checklist complete).
 - [X] T022 [P] [US1] Add `IAuditorQueueProjection` + `AuditInboxRowDto` in `src/FundingPlatform.Application/Audit/`.
 - [X] T023 [US1] Implement `AuditorQueueProjection` (Infrastructure) querying `PendingAudit` via `IApplicationRepository.GetByStateForReviewerAsync` with the auditor's `ReviewerScopeHint` (group-scoped; admin short-circuit); excludes `ReturnedFromAudit`.
 - [X] T024 [P] [US1] Add `IAuditWorkflowService` + DTOs (`AuditChecklistView`, `AuditMark`, `Result`) in `src/FundingPlatform.Application/Audit/`.
@@ -83,7 +83,7 @@ Clean-Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [X] T030 [US1] Show the spec-016 group selector for the **Auditor** role on the admin user-edit form (`AdminUsersController` + view) so auditors can be assigned to groups (FR-017).
 - [X] T031 [US1] Add an "Auditoría" inbox sidebar entry for the Auditor role in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml`.
 - [X] T032 [P] [US1] Integration test (real DB) in `tests/FundingPlatform.Tests.Integration/`: `AuditWorkflowService` approve→generate→confirm→release path + `AuditorQueueProjection` group-scoping (in-group sees, out-of-group does not).
-- [ ] T033 [US1] E2E `AuditorWorkflowTests` in `tests/FundingPlatform.Tests.E2E/`: golden path (seed→inbox→audit→approve→generate→confirm→release→applicant "ready to sign" captured in smtp4dev) + out-of-group auditor negative (empty inbox + 403 detail).
+- [X] T033 [US1] E2E `AuditorWorkflowTests` in `tests/FundingPlatform.Tests.E2E/`: golden path (seed→inbox→audit→approve→generate→confirm→release→applicant "ready to sign" captured in smtp4dev) + out-of-group auditor negative (empty inbox + 403 detail).
 
 **Checkpoint**: an auditor can fully audit and release a seeded application; group-scope enforced.
 

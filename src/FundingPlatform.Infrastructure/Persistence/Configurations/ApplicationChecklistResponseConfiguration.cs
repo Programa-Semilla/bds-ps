@@ -20,10 +20,11 @@ public class ApplicationChecklistResponseConfiguration
         builder.HasKey(r => r.Id);
 
         builder.Property(r => r.ApplicationId).IsRequired();
-        builder.Property(r => r.Stage).IsRequired();
+        // Stored as TINYINT (dacpac) — convert int-backed enums to byte (see ChecklistTemplate).
+        builder.Property(r => r.Stage).HasConversion<byte>().IsRequired();
         builder.Property(r => r.ChecklistTemplateItemId).IsRequired();
         builder.Property(r => r.ItemTextSnapshot).IsRequired().HasMaxLength(500);
-        builder.Property(r => r.Status).IsRequired();
+        builder.Property(r => r.Status).HasConversion<byte>().IsRequired();
         builder.Property(r => r.NonComplianceReason).HasMaxLength(1000);
         builder.Property(r => r.CompletedByUserId).IsRequired().HasMaxLength(450);
         builder.Property(r => r.CompletedAtUtc).IsRequired();

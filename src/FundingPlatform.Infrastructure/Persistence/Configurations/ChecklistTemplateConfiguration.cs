@@ -19,7 +19,9 @@ public class ChecklistTemplateConfiguration : IEntityTypeConfiguration<Checklist
 
         builder.Property(t => t.Name).IsRequired().HasMaxLength(200);
         builder.Property(t => t.Description).HasMaxLength(500);
-        builder.Property(t => t.AppliesToStage).IsRequired();
+        // Stored as TINYINT (dacpac); convert the int-backed enum to byte so SQL
+        // materialization does not throw Byte→Int32 InvalidCastException.
+        builder.Property(t => t.AppliesToStage).HasConversion<byte>().IsRequired();
         builder.Property(t => t.IsActive).IsRequired();
         builder.Property(t => t.CreatedAtUtc).IsRequired();
         builder.Property(t => t.CreatedByUserId).IsRequired().HasMaxLength(450);
