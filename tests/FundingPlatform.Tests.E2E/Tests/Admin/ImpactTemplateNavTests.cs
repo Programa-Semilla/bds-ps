@@ -74,7 +74,7 @@ public class ImpactTemplateNavTests : AuthenticatedTestBase
         var unique = Guid.NewGuid().ToString("N")[..6];
         var email = $"supplier_admin_itnav_{unique}@example.com";
         await RegisterUserAsync(Page, email, Password, "Supplier", "Admin", $"SPADM-{unique}");
-        await AssignRoleAsync(email, "SupplierAdmin");
+        await AssignRoleAsync(email, "Auditor");
         await LoginAsync(Page, email, Password);
 
         // Canonical SupplierAdmin landing surface; the sidebar partial renders here.

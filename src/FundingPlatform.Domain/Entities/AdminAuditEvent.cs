@@ -89,6 +89,22 @@ public class AdminAuditEvent
     /// The <c>company.</c> prefix routes here in <c>AdminAuditEventWriter</c>.</summary>
     public const string TargetTypeCompany = "company";
 
+    // ---------- Spec 038 — provider regulatory compliance mutations (auditor). ----------
+    /// <summary>Spec 038 — auditor changed a Hacienda/CCSS/SICOP regulatory status.</summary>
+    public const string SupplierRegulatoryChanged = "supplier.regulatory_changed";
+    /// <summary>Spec 038 — auditor re-authorized a regulatory status with no value change.</summary>
+    public const string SupplierRegulatoryReviewed = "supplier.regulatory_reviewed";
+    /// <summary>Spec 038 — auditor toggled the PME/PYME flag.</summary>
+    public const string SupplierPmeChanged = "supplier.pme_changed";
+    /// <summary>Spec 038 — auditor changed the provider warning flag/note.</summary>
+    public const string SupplierWarningChanged = "supplier.warning_changed";
+
+    /// <summary>Spec 038 — target-type discriminator for provider regulatory mutations.
+    /// The <c>supplier.</c> prefix routes here in <c>AdminAuditEventWriter</c> and,
+    /// unlike the other prefixes, sets <c>TargetId = supplierId</c> (not the "0"
+    /// sentinel) so the trail is queryable per provider.</summary>
+    public const string TargetTypeSupplier = "supplier";
+
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string ActorUserId { get; private set; } = string.Empty;

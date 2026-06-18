@@ -49,7 +49,6 @@ public record ReviewQuotationDto(
     bool ScoreCCSS,
     bool ScoreHacienda,
     bool ScoreSICOP,
-    bool ScoreElectronicInvoice,
     bool ScoreLowestPrice,
     bool IsPreSelected,
     bool IsSupplierVerified = false,
@@ -62,7 +61,9 @@ public record ReviewQuotationDto(
     decimal? SnapshotRateValue = null,
     string? SnapshotRateType = null,
     DateTime? SnapshotEffectiveAtUtc = null,
-    bool LegacyNeedsReview = false);
+    bool LegacyNeedsReview = false,
+    // Spec 038 (US3) — provider warning + compliance/freshness snapshot for reviewers.
+    SupplierComplianceSnapshot? Compliance = null);
 
 public record ImpactParameterDisplayDto(
     string Name,

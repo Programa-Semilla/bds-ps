@@ -21,11 +21,6 @@
 
         <div class="row g-2 mb-3">
             <div class="col-auto">
-                <span class="badge @(Model.HasElectronicInvoice ? "bg-green-lt" : "bg-secondary-lt")" data-testid="badge-einvoice">
-                    <i class="ti @(Model.HasElectronicInvoice ? "ti-check" : "ti-x")"></i> Factura electrónica
-                </span>
-            </div>
-            <div class="col-auto">
                 <span class="badge @(Model.IsCompliantCCSS ? "bg-green-lt" : "bg-secondary-lt")" data-testid="badge-ccss">
                     <i class="ti @(Model.IsCompliantCCSS ? "ti-check" : "ti-x")"></i> CCSS
                 </span>

@@ -23,7 +23,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// <see cref="UploadSizeGuardAttribute"/> and validated for the PDF magic bytes
 /// at this boundary; the service streams the blob through <c>IObjectStorage</c>.
 /// </summary>
-[Authorize(Roles = "Admin,SupplierAdmin")]
+[Authorize(Roles = "Admin,Auditor")]
 [SupplierAdminDenied]
 [Route("Admin/Funds")]
 public class AdminFundsController : Controller

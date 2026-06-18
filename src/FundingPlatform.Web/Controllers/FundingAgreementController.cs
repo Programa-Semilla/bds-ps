@@ -886,9 +886,9 @@ public class FundingAgreementController : Controller
                     supplierByDate[supplier.Id] = (
                         supplier.UpdatedAt,
                         supplier.Name,
-                        FormatCompliance(supplier.IsCompliantHacienda),
-                        FormatCompliance(supplier.IsCompliantCCSS),
-                        FormatCompliance(supplier.IsCompliantSICOP));
+                        Helpers.RegulatoryStatusLabels.Label(supplier.HaciendaStatus),
+                        Helpers.RegulatoryStatusLabels.Label(supplier.CcssStatus),
+                        Helpers.RegulatoryStatusLabels.Label(supplier.SicopStatus));
                 }
             }
             else if (item.ReviewStatus == ItemReviewStatus.Rejected)
@@ -934,7 +934,6 @@ public class FundingAgreementController : Controller
         };
     }
 
-    private static string FormatCompliance(bool ok) => ok ? "Al día" : "Pendiente";
 
     private static string? BuildConversionNote(Domain.Entities.Quotation? q, System.Globalization.CultureInfo culture)
     {

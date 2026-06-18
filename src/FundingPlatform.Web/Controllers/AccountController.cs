@@ -397,11 +397,11 @@ public class AccountController : Controller
         {
             "Admin" => "Administrador",
             "Reviewer" => "Revisor",
-            "SupplierAdmin" => "Administrador de proveedores",
+            "Auditor" => "Auditor",
             "Applicant" => "Solicitante",
             _ => r,
         };
-        var rolePriority = new[] { "Admin", "Reviewer", "SupplierAdmin", "Applicant" };
+        var rolePriority = new[] { "Admin", "Reviewer", "Auditor", "Applicant" };
         var roleLabel = rolePriority.FirstOrDefault(roles.Contains);
 
         // Pull groups via the same query that AdminUsersController uses.
@@ -499,7 +499,7 @@ public class AccountController : Controller
         // Spec 021 / US3 / T103 — E2E provisioning supports the new
         // SupplierAdmin role so US3 can drive a real "role assigned" path
         // through the admin UI it would normally use in prod.
-        string[] allowedRoles = ["Admin", "Reviewer", "SupplierAdmin"];
+        string[] allowedRoles = ["Admin", "Reviewer", "Auditor"];
         if (!allowedRoles.Contains(role))
         {
             return BadRequest("Invalid role.");
@@ -678,7 +678,9 @@ public class AccountController : Controller
 
         await _dbContext.Database.ExecuteSqlRawAsync("DELETE FROM dbo.AdminAuditEvents;");
         await _dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE dbo.Suppliers SET VerificationStatus = 2, IsCompliantCCSS = 1, IsCompliantHacienda = 1, IsCompliantSICOP = 1, HasElectronicInvoice = 1;");
+            // Spec 038 — set the favorable regulatory statuses (Hacienda/CCSS 'al día' = 2,
+            // SICOP 'sin sanciones' = 2) in place of the removed compliance/e-invoice bits.
+            "UPDATE dbo.Suppliers SET VerificationStatus = 2, HaciendaStatus = 2, CcssStatus = 2, SicopStatus = 2;");
         await _dbContext.Database.ExecuteSqlRawAsync(
             "UPDATE dbo.Quotations SET LegacyNeedsReview = 0 WHERE LegacyNeedsReview = 1;");
 

@@ -18,7 +18,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// <see cref="Plantilla"/> rows. Routes follow <c>contracts/admin-routes.md</c>
 /// Plantillas section. Mirrors <c>AdminGroupsController</c> for style.
 /// </summary>
-[Authorize(Roles = "Admin,SupplierAdmin")]
+[Authorize(Roles = "Admin,Auditor")]
 [SupplierAdminDenied]
 [Route("Admin/Plantillas")]
 public class AdminPlantillasController : Controller

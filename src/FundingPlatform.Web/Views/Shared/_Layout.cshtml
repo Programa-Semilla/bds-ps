@@ -13,7 +13,7 @@
     // The role-only check explicitly excludes users who ALSO hold Admin so
     // dual-role platform admins keep the full sidebar.
     var isSupplierAdminOnly = User?.Identity?.IsAuthenticated == true
-        && User.IsInRole("SupplierAdmin")
+        && User.IsInRole("Auditor")
         && !User.IsInRole("Admin");
 
     var topLevelEntries = new List<SidebarEntry>
@@ -83,7 +83,7 @@
     // the narrowed sidebar deterministically.
     var supplierAdminEntries = new List<SidebarEntry>
     {
-        new("supplier-admin-suppliers", "Empresas proveedoras", "/Admin/Suppliers", "ti ti-building-store", new[] { "SupplierAdmin", "Admin" }),
+        new("supplier-admin-suppliers", "Empresas proveedoras", "/Admin/Suppliers", "ti ti-building-store", new[] { "Auditor", "Admin" }),
     };
 
     bool IsEntryVisible(SidebarEntry entry)

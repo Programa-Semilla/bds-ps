@@ -21,7 +21,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Web.Controllers.Admin;
 
-[Authorize(Roles = "Admin,SupplierAdmin")]
+[Authorize(Roles = "Admin,Auditor")]
 [SupplierAdminDenied]
 [Route("Admin/Users")]
 public class AdminUsersController : Controller
@@ -933,7 +933,7 @@ public class AdminUsersController : Controller
     /// </summary>
     private static bool IsGrouplessRole(string? role)
         => string.Equals(role, "Admin", StringComparison.Ordinal)
-        || string.Equals(role, "SupplierAdmin", StringComparison.Ordinal);
+        || string.Equals(role, "Auditor", StringComparison.Ordinal);
 
     private static string ResolveSelfMessage(SelfModificationAction action) => action switch
     {

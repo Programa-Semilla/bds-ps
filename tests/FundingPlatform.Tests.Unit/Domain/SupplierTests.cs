@@ -7,15 +7,18 @@ namespace FundingPlatform.Tests.Unit.Domain;
 public class SupplierTests
 {
     [Test]
-    public void CreateDraft_SetsDraftStatusAndAllFlagsFalse()
+    public void CreateDraft_SetsDraftStatusAndUnreviewedCompliance()
     {
         var s = MakeDraft();
 
         Assert.That(s.VerificationStatus, Is.EqualTo(SupplierVerificationStatus.Draft));
-        Assert.That(s.HasElectronicInvoice, Is.False);
-        Assert.That(s.IsCompliantCCSS, Is.False);
-        Assert.That(s.IsCompliantHacienda, Is.False);
-        Assert.That(s.IsCompliantSICOP, Is.False);
+        // Spec 038 — regulatory statuses start unreviewed (null) and the PME/warning
+        // flags default false.
+        Assert.That(s.HaciendaStatus, Is.Null);
+        Assert.That(s.CcssStatus, Is.Null);
+        Assert.That(s.SicopStatus, Is.Null);
+        Assert.That(s.IsPmeOrPyme, Is.False);
+        Assert.That(s.HasWarning, Is.False);
         Assert.That(s.CreatedByApplicantId, Is.EqualTo(42));
         Assert.That(s.Branches.Count, Is.EqualTo(1));
         Assert.That(s.Branches.First().IsDefault, Is.True);
@@ -130,14 +133,11 @@ public class SupplierTests
     }
 
     [Test]
-    public void EditByAdmin_TogglesAllAdminFlags()
+    public void EditByAdmin_RenamesOnly()
     {
         var s = MakeDraft();
-        s.EditByAdmin("X", true, true, true, true);
-        Assert.That(s.HasElectronicInvoice, Is.True);
-        Assert.That(s.IsCompliantCCSS, Is.True);
-        Assert.That(s.IsCompliantHacienda, Is.True);
-        Assert.That(s.IsCompliantSICOP, Is.True);
+        s.EditByAdmin("X");
+        Assert.That(s.Name, Is.EqualTo("X"));
     }
 
     private static Supplier MakeDraft() =>

@@ -1,7 +1,11 @@
 @using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.Helpers
 @using FundingPlatform.Web.Resources
 @using FundingPlatform.Web.ViewModels.Admin
 @model FundingPlatform.Web.ViewModels.Admin.AdminSupplierDetailViewModel
+@{
+    var rowVersionB64 = Convert.ToBase64String(Model.RowVersion);
+}
 @{
     ViewData["Title"] = $"Proveedor — {Model.Name}";
     string StatusLabel(SupplierVerificationStatus s) => s switch
@@ -31,47 +35,124 @@
         <div class="col-md-7">
             <div class="card">
                 <div class="card-body">
-                    <h4 class="card-title">Identidad y cumplimiento</h4>
+                    <h4 class="card-title">Identidad y cumplimiento regulatorio</h4>
                     <form method="post" asp-action="Edit" asp-route-supplierId="@Model.Id" data-testid="admin-supplier-edit-form">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="SupplierId" value="@Model.Id" />
+                        <input type="hidden" name="RowVersion" value="@rowVersionB64" />
                         <div class="mb-3">
                             <label class="form-label">Razón social</label>
                             <input class="form-control" name="Name" value="@Model.Name" required maxlength="300"
                                    data-testid="admin-supplier-name-input" />
                         </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="HasElectronicInvoice" value="true"
-                                           id="ha-einvoice" @(Model.HasElectronicInvoice ? "checked" : "")
-                                           data-testid="admin-supplier-einvoice-toggle" />
-                                    <label class="form-check-label" for="ha-einvoice">Factura electrónica</label>
-                                </div>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="IsCompliantCCSS" value="true"
-                                           id="ha-ccss" @(Model.IsCompliantCCSS ? "checked" : "")
-                                           data-testid="admin-supplier-ccss-toggle" />
-                                    <label class="form-check-label" for="ha-ccss">Al día con CCSS</label>
-                                </div>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="IsCompliantHacienda" value="true"
-                                           id="ha-hacienda" @(Model.IsCompliantHacienda ? "checked" : "")
-                                           data-testid="admin-supplier-hacienda-toggle" />
-                                    <label class="form-check-label" for="ha-hacienda">Al día con Hacienda</label>
-                                </div>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="IsCompliantSICOP" value="true"
-                                           id="ha-sicop" @(Model.IsCompliantSICOP ? "checked" : "")
-                                           data-testid="admin-supplier-sicop-toggle" />
-                                    <label class="form-check-label" for="ha-sicop">Inscrito en SICOP</label>
-                                </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="ha-hacienda">Hacienda</label>
+                            <select class="form-select" name="Hacienda" id="ha-hacienda" data-testid="admin-supplier-hacienda-select">
+                                @foreach (var it in RegulatoryStatusLabels.HaciendaItems(Model.HaciendaStatus))
+                                {
+                                    <option value="@it.Value" selected="@(it.Selected ? "selected" : null)">@it.Text</option>
+                                }
+                            </select>
+                            <div class="form-text" data-testid="hacienda-freshness">
+                                @ReviewFreshness.Describe(Model.HaciendaReviewedAt, Model.HaciendaReviewedByName, Model.HaciendaReviewedSource)
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary mt-3" data-testid="admin-supplier-edit-submit">
+
+                        <div class="mb-3">
+                            <label class="form-label" for="ha-ccss">CCSS</label>
+                            <select class="form-select" name="Ccss" id="ha-ccss" data-testid="admin-supplier-ccss-select">
+                                @foreach (var it in RegulatoryStatusLabels.CcssItems(Model.CcssStatus))
+                                {
+                                    <option value="@it.Value" selected="@(it.Selected ? "selected" : null)">@it.Text</option>
+                                }
+                            </select>
+                            <div class="form-text" data-testid="ccss-freshness">
+                                @ReviewFreshness.Describe(Model.CcssReviewedAt, Model.CcssReviewedByName, Model.CcssReviewedSource)
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="ha-sicop">SICOP</label>
+                            <select class="form-select" name="Sicop" id="ha-sicop" data-testid="admin-supplier-sicop-select">
+                                @foreach (var it in RegulatoryStatusLabels.SicopItems(Model.SicopStatus))
+                                {
+                                    <option value="@it.Value" selected="@(it.Selected ? "selected" : null)">@it.Text</option>
+                                }
+                            </select>
+                            <div class="form-text" data-testid="sicop-freshness">
+                                @ReviewFreshness.Describe(Model.SicopReviewedAt, Model.SicopReviewedByName, Model.SicopReviewedSource)
+                            </div>
+                        </div>
+
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="IsPmeOrPyme" value="true"
+                                   id="ha-pme" @(Model.IsPmeOrPyme ? "checked" : "")
+                                   data-testid="admin-supplier-pme-toggle" />
+                            <label class="form-check-label" for="ha-pme">PYME / PME</label>
+                        </div>
+
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="HasWarning" value="true"
+                                   id="ha-warning" @(Model.HasWarning ? "checked" : "")
+                                   data-testid="admin-supplier-warning-toggle" />
+                            <label class="form-check-label" for="ha-warning">Advertencia sobre el proveedor</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="ha-warning-note">Nota de advertencia</label>
+                            <textarea class="form-control" name="WarningNote" id="ha-warning-note" rows="2" maxlength="1000"
+                                      placeholder="Detalle de la advertencia (opcional)"
+                                      data-testid="admin-supplier-warning-note">@Model.WarningNote</textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary mt-1" data-testid="admin-supplier-edit-submit">
                             <i class="ti ti-device-floppy"></i> Guardar cambios
                         </button>
                     </form>
+
+                    @* Spec 038 (US2 / D9) — "reviewed — no change" re-authorization per
+                       field; rendered only when the status has a value. Separate forms
+                       (cannot nest inside the edit form). *@
+                    @if (Model.HaciendaStatus is not null || Model.CcssStatus is not null || Model.SicopStatus is not null)
+                    {
+                        <hr />
+                        <div class="text-muted small mb-2">Confirmar revisión sin cambios</div>
+                        <div class="d-flex flex-wrap gap-2" data-testid="confirm-review-group">
+                            @if (Model.HaciendaStatus is not null)
+                            {
+                                <form method="post" asp-action="ConfirmReviewed" asp-route-supplierId="@Model.Id" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="field" value="@RegulatoryField.Hacienda" />
+                                    <input type="hidden" name="rowVersion" value="@rowVersionB64" />
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" data-testid="confirm-review-hacienda">
+                                        <i class="ti ti-checkup-list"></i> Hacienda
+                                    </button>
+                                </form>
+                            }
+                            @if (Model.CcssStatus is not null)
+                            {
+                                <form method="post" asp-action="ConfirmReviewed" asp-route-supplierId="@Model.Id" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="field" value="@RegulatoryField.Ccss" />
+                                    <input type="hidden" name="rowVersion" value="@rowVersionB64" />
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" data-testid="confirm-review-ccss">
+                                        <i class="ti ti-checkup-list"></i> CCSS
+                                    </button>
+                                </form>
+                            }
+                            @if (Model.SicopStatus is not null)
+                            {
+                                <form method="post" asp-action="ConfirmReviewed" asp-route-supplierId="@Model.Id" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="field" value="@RegulatoryField.Sicop" />
+                                    <input type="hidden" name="rowVersion" value="@rowVersionB64" />
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" data-testid="confirm-review-sicop">
+                                        <i class="ti ti-checkup-list"></i> SICOP
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         </div>

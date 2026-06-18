@@ -12,7 +12,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 
 /// <summary>
 /// Spec 016 / 021 — admin-only catalog management for
-/// <see cref="Domain.Entities.Group"/>. `[Authorize(Roles = "Admin,SupplierAdmin")]`
+/// <see cref="Domain.Entities.Group"/>. `[Authorize(Roles = "Admin,Auditor")]`
 /// covers FR-002 (non-admins → 403). The `[Authorize]` attribute also handles
 /// unauthenticated callers (redirect to login / 401).
 ///
@@ -21,7 +21,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// implied by context. This controller keeps the catalog list, rename, the
 /// Process reparenting selector, and delete.
 /// </summary>
-[Authorize(Roles = "Admin,SupplierAdmin")]
+[Authorize(Roles = "Admin,Auditor")]
 [SupplierAdminDenied]
 [Route("Admin/Groups")]
 public class AdminGroupsController : Controller

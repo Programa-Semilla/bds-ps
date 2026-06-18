@@ -1,0 +1,25 @@
+@using FundingPlatform.Web.Helpers
+@model FundingPlatform.Application.DTOs.SupplierComplianceSnapshot
+@*
+    Spec 038 (US3 / FR-016/019) — read-only provider warning + regulatory
+    compliance/freshness shown to reviewers during application review. Reviewers
+    cannot edit; only auditors mutate via /Admin/Suppliers.
+*@
+@if (Model is not null)
+{
+    @if (Model.HasWarning)
+    {
+        <div class="alert alert-warning py-1 px-2 mt-1 mb-1" role="alert" data-testid="supplier-warning-banner">
+            <i class="ti ti-alert-triangle"></i> <strong>Advertencia</strong>
+            @if (!string.IsNullOrWhiteSpace(Model.WarningNote))
+            {
+                <span data-testid="supplier-warning-note">— @Model.WarningNote</span>
+            }
+        </div>
+    }
+    <div class="small text-muted" data-testid="supplier-compliance-badge">
+        <div>Hacienda: @RegulatoryStatusLabels.Label(Model.Hacienda) · @ReviewFreshness.Describe(Model.HaciendaReviewedAt, null, Model.HaciendaSource)</div>
+        <div>CCSS: @RegulatoryStatusLabels.Label(Model.Ccss) · @ReviewFreshness.Describe(Model.CcssReviewedAt, null, Model.CcssSource)</div>
+        <div>SICOP: @RegulatoryStatusLabels.Label(Model.Sicop) · @ReviewFreshness.Describe(Model.SicopReviewedAt, null, Model.SicopSource)</div>
+    </div>
+}

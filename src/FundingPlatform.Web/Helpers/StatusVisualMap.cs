@@ -55,7 +55,7 @@ public static class StatusVisualMap
         AdminUserRole.Applicant => new StatusVisual("bg-info", "ti ti-user", "Solicitante"),
         AdminUserRole.Reviewer => new StatusVisual("bg-primary", "ti ti-eye", "Revisor"),
         // Spec 021 / FR-007 — distinct chip styling so the Users list reads at a glance.
-        AdminUserRole.SupplierAdmin => new StatusVisual("bg-azure", "ti ti-building-store", "Administrador de proveedores"),
+        AdminUserRole.Auditor => new StatusVisual("bg-azure", "ti ti-clipboard-check", "Auditor"),
         AdminUserRole.Admin => new StatusVisual("bg-purple", "ti ti-shield-lock", "Administrador"),
         _ => throw new ArgumentOutOfRangeException(nameof(r), r, "Unhandled AdminUserRole"),
     };

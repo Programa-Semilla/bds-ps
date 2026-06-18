@@ -130,11 +130,18 @@ public class SupplierRepositoryTests
 
         using (var ctx = CreateContext(dbName))
         {
+            // Spec 038 — "incomplete" now means any regulatory status is unreviewed (null).
             var fullyCompliant = MakeWith(SupplierVerificationStatus.Verified, "C-1");
-            fullyCompliant.EditByAdmin("Compliant", true, true, true, true);
+            fullyCompliant.EditByAdmin("Compliant");
+            fullyCompliant.ApplyRegulatoryEdit(
+                HaciendaStatus.AlDia, CcssStatus.AlDia, SicopStatus.SinSanciones,
+                false, false, null, "test-actor", DateTime.UtcNow);
 
             var incomplete = MakeWith(SupplierVerificationStatus.Verified, "C-2");
-            incomplete.EditByAdmin("Incomplete", true, true, false, true);
+            incomplete.EditByAdmin("Incomplete");
+            incomplete.ApplyRegulatoryEdit(
+                HaciendaStatus.AlDia, null, null,
+                false, false, null, "test-actor", DateTime.UtcNow);
 
             ctx.Suppliers.AddRange(fullyCompliant, incomplete);
             await ctx.SaveChangesAsync();

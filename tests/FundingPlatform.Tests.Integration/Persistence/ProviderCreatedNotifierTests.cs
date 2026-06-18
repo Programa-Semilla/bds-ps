@@ -1,0 +1,129 @@
+using FundingPlatform.Application.Notifications;
+using FundingPlatform.Domain.Entities;
+using FundingPlatform.Infrastructure.Persistence;
+using FundingPlatform.Infrastructure.Suppliers;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace FundingPlatform.Tests.Integration.Persistence;
+
+/// <summary>
+/// Spec 038 (US4 / FR-021/022/024) — <see cref="ProviderCreatedNotifier"/> sends one
+/// message per Auditor with the required body fields, and a sender failure is
+/// swallowed (best-effort, never throws to the caller).
+/// </summary>
+[TestFixture]
+public class ProviderCreatedNotifierTests
+{
+    private static AppDbContext CreateContext(string dbName) =>
+        new(new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(dbName)
+            .ConfigureWarnings(w => w.Ignore(
+                Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
+            .Options);
+
+    private static async Task<int> SeedSupplierAndAuditorsAsync(string dbName, int auditorCount)
+    {
+        using var ctx = CreateContext(dbName);
+        var supplier = Supplier.CreateDraft("3-101-900900", "Proveedor Notif", 1, "Sede principal",
+            null, null, null, null, null, null, null);
+        ctx.Suppliers.Add(supplier);
+
+        var role = new IdentityRole("Auditor") { NormalizedName = "AUDITOR" };
+        ctx.Roles.Add(role);
+        for (var i = 0; i < auditorCount; i++)
+        {
+            var u = new ApplicationUser($"aud{i}@example.com", $"Aud{i}", "Itor", phone: null);
+            ctx.Users.Add(u);
+            ctx.UserRoles.Add(new IdentityUserRole<string> { UserId = u.Id, RoleId = role.Id });
+        }
+        await ctx.SaveChangesAsync();
+        return supplier.Id;
+    }
+
+    private static IConfiguration Config() =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Notifications:BaseUrl"] = "https://test.example" })
+            .Build();
+
+    [Test]
+    public async Task NotifyAuditorsAsync_SendsOnePerAuditor_WithRequiredBody()
+    {
+        var dbName = $"notifier-multi-{Guid.NewGuid():N}";
+        var supplierId = await SeedSupplierAndAuditorsAsync(dbName, auditorCount: 3);
+        var sender = new CapturingSender();
+
+        using var ctx = CreateContext(dbName);
+        var notifier = new ProviderCreatedNotifier(ctx, sender, Config(), new StubEnv(),
+            NullLogger<ProviderCreatedNotifier>.Instance);
+
+        await notifier.NotifyAuditorsAsync(supplierId, CancellationToken.None);
+
+        Assert.That(sender.Sent, Has.Count.EqualTo(3), "one message per auditor");
+        var msg = sender.Sent[0];
+        Assert.That(msg.Subject, Does.Contain("Proveedor Notif"));
+        var body = msg.HtmlBody + msg.TextBody;
+        Assert.That(body, Does.Contain("Proveedor Notif"));
+        Assert.That(body, Does.Contain("3-101-900900"));
+        Assert.That(body, Does.Contain($"/Admin/Suppliers/{supplierId}"));
+    }
+
+    [Test]
+    public async Task NotifyAuditorsAsync_SenderThrows_DoesNotPropagate()
+    {
+        var dbName = $"notifier-throw-{Guid.NewGuid():N}";
+        var supplierId = await SeedSupplierAndAuditorsAsync(dbName, auditorCount: 1);
+
+        using var ctx = CreateContext(dbName);
+        var notifier = new ProviderCreatedNotifier(ctx, new ThrowingSender(), Config(), new StubEnv(),
+            NullLogger<ProviderCreatedNotifier>.Instance);
+
+        // FR-024 — best-effort: must not throw to the caller.
+        Assert.DoesNotThrowAsync(() => notifier.NotifyAuditorsAsync(supplierId, CancellationToken.None));
+    }
+
+    [Test]
+    public async Task NotifyAuditorsAsync_NoAuditors_NoOp()
+    {
+        var dbName = $"notifier-none-{Guid.NewGuid():N}";
+        var supplierId = await SeedSupplierAndAuditorsAsync(dbName, auditorCount: 0);
+        var sender = new CapturingSender();
+
+        using var ctx = CreateContext(dbName);
+        var notifier = new ProviderCreatedNotifier(ctx, sender, Config(), new StubEnv(),
+            NullLogger<ProviderCreatedNotifier>.Instance);
+
+        await notifier.NotifyAuditorsAsync(supplierId, CancellationToken.None);
+
+        Assert.That(sender.Sent, Is.Empty);
+    }
+
+    private sealed class CapturingSender : IEmailSender
+    {
+        public List<EmailMessage> Sent { get; } = new();
+
+        public Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken ct)
+        {
+            Sent.Add(message);
+            return Task.FromResult(new EmailSendResult(EmailSendOutcome.Sent, "msg-id", null));
+        }
+    }
+
+    private sealed class ThrowingSender : IEmailSender
+    {
+        public Task<EmailSendResult> SendAsync(EmailMessage message, CancellationToken ct)
+            => throw new InvalidOperationException("simulated provider failure");
+    }
+
+    private sealed class StubEnv : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = "Development";
+        public string ApplicationName { get; set; } = "Tests";
+        public string ContentRootPath { get; set; } = Path.GetTempPath();
+        public IFileProvider ContentRootFileProvider { get; set; } = null!;
+    }
+}

@@ -370,6 +370,11 @@ GO
 -- Norte/Sur/Centro Groups (inline MERGE above) all exist.
 :r .\05_Fund029Anchors.sql
 
+-- Spec 038 — drop the four legacy BIT compliance/e-invoice columns explicitly
+-- (the Azure publish uses --no-drop, so DropObjectsNotInSource won't remove them).
+-- Idempotent + guarded; no-op once already dropped (e.g. in dev/E2E).
+:r .\06_DropLegacySupplierComplianceColumns.sql
+
 -- =============================================================================
 -- Spec 021 / data-model.md — SystemConfiguration rows for stage windows and the
 -- public-landing slot StorageKeys (admins upload via the AdminPublicLandingFiles

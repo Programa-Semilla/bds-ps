@@ -24,7 +24,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// Mirrors <c>AdminGroupsController</c> for style (constructor injection,
 /// per-route attributes, TempData flash + ModelState validation).
 /// </summary>
-[Authorize(Roles = "Admin,SupplierAdmin")]
+[Authorize(Roles = "Admin,Auditor")]
 [SupplierAdminDenied]
 [Route("Admin/Processes")]
 public class AdminProcessesController : Controller

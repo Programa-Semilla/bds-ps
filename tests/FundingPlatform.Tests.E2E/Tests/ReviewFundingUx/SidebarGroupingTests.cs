@@ -110,7 +110,7 @@ public class SidebarGroupingTests : AuthenticatedTestBase
     [Test]
     public async Task SupplierAdmin_SeesNarrowedVariant_NoProcesoSection()
     {
-        await RegisterAndLoginAsync("supplieradmin", "SupplierAdmin");
+        await RegisterAndLoginAsync("supplieradmin", "Auditor");
 
         await Expect(Page.Locator("[data-testid=sidebar-supplier-admin-variant]")).ToBeVisibleAsync();
         await Expect(Entry("supplier-admin-suppliers")).ToBeVisibleAsync();

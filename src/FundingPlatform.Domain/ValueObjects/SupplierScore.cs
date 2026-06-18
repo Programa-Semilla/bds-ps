@@ -4,17 +4,19 @@ using FundingPlatform.Domain.Enums;
 namespace FundingPlatform.Domain.ValueObjects;
 
 /// <summary>
-/// Spec 003 supplier-evaluation score, extended in spec 013 with two read-only
-/// verification flags (FR-042). Math is unchanged: one point each for the four
-/// admin-only flags (CCSS, Hacienda, SICOP, e-invoice) plus one for lowest price.
-/// IsRecommended now masks Rejected suppliers (FR-043).
+/// Spec 003 supplier-evaluation score. Spec 038 replaced the four admin booleans
+/// with enumerated regulatory statuses: the three compliance points are now
+/// awarded when each status is the favorable value
+/// (see <see cref="RegulatoryStatusFavorability"/>) and the electronic-invoice
+/// point was removed with the field. The scoring algorithm itself is otherwise
+/// unchanged; a full redesign against the enum is deferred to slice B.
+/// IsRecommended masks Rejected suppliers (FR-043).
 /// </summary>
 public record SupplierScore(
     int Total,
     bool IsCompliantCCSS,
     bool IsCompliantHacienda,
     bool IsCompliantSICOP,
-    bool HasElectronicInvoice,
     bool HasLowestPrice,
     bool IsRecommended,
     bool IsPreSelected,
@@ -22,10 +24,8 @@ public record SupplierScore(
     bool IsSupplierRejected)
 {
     /// <summary>
-    /// Computes scores for every quotation on an item. Spec 013 changed the
-    /// signature from (Quotation, Supplier) to (Quotation, Supplier, SupplierBranch);
-    /// the branch is reserved for reviewer-UI display use and does not affect the
-    /// score math (research.md R5).
+    /// Computes scores for every quotation on an item. The branch is reserved for
+    /// reviewer-UI display use and does not affect the score math (research.md R5).
     /// </summary>
     public static List<(int QuotationId, SupplierScore Score)> ComputeForItem(
         List<(Quotation Quotation, Supplier Supplier, SupplierBranch? Branch)> quotations)
@@ -37,10 +37,9 @@ public record SupplierScore(
 
         var scored = quotations.Select(q =>
         {
-            bool ccss = q.Supplier.IsCompliantCCSS;
-            bool hacienda = q.Supplier.IsCompliantHacienda;
-            bool sicop = q.Supplier.IsCompliantSICOP;
-            bool eInvoice = q.Supplier.HasElectronicInvoice;
+            bool ccss = q.Supplier.CcssStatus.IsFavorable();
+            bool hacienda = q.Supplier.HaciendaStatus.IsFavorable();
+            bool sicop = q.Supplier.SicopStatus.IsFavorable();
             bool lowestPrice = q.Quotation.Price == minPrice;
             bool isVerified = q.Supplier.VerificationStatus == SupplierVerificationStatus.Verified;
             bool isRejected = q.Supplier.VerificationStatus == SupplierVerificationStatus.Rejected;
@@ -48,7 +47,6 @@ public record SupplierScore(
             int total = (ccss ? 1 : 0)
                       + (hacienda ? 1 : 0)
                       + (sicop ? 1 : 0)
-                      + (eInvoice ? 1 : 0)
                       + (lowestPrice ? 1 : 0);
 
             return new
@@ -59,7 +57,6 @@ public record SupplierScore(
                 CCSS = ccss,
                 Hacienda = hacienda,
                 SICOP = sicop,
-                EInvoice = eInvoice,
                 LowestPrice = lowestPrice,
                 Verified = isVerified,
                 Rejected = isRejected,
@@ -83,7 +80,6 @@ public record SupplierScore(
                     IsCompliantCCSS: s.CCSS,
                     IsCompliantHacienda: s.Hacienda,
                     IsCompliantSICOP: s.SICOP,
-                    HasElectronicInvoice: s.EInvoice,
                     HasLowestPrice: s.LowestPrice,
                     IsRecommended: s.Total == maxScore && !s.Rejected,
                     IsPreSelected: s.SupplierId == preSelectedSupplierId,

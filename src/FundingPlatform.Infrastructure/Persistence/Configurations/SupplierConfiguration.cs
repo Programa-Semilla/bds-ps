@@ -20,10 +20,29 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
 
         builder.Property(s => s.Name).IsRequired().HasMaxLength(300);
 
-        builder.Property(s => s.HasElectronicInvoice).IsRequired();
-        builder.Property(s => s.IsCompliantCCSS).IsRequired();
-        builder.Property(s => s.IsCompliantHacienda).IsRequired();
-        builder.Property(s => s.IsCompliantSICOP).IsRequired();
+        // Spec 038 — enumerated regulatory statuses + per-field reviewed metadata.
+        // Nullable byte-enums stored as TINYINT (the IdentificationType pattern).
+        builder.Property(s => s.HaciendaStatus).HasConversion<byte?>();
+        builder.Property(s => s.HaciendaLastReviewedAt);
+        builder.Property(s => s.HaciendaLastReviewedBy).HasMaxLength(450);
+        builder.Property(s => s.HaciendaLastReviewedSource).HasConversion<byte?>();
+
+        builder.Property(s => s.CcssStatus).HasConversion<byte?>();
+        builder.Property(s => s.CcssLastReviewedAt);
+        builder.Property(s => s.CcssLastReviewedBy).HasMaxLength(450);
+        builder.Property(s => s.CcssLastReviewedSource).HasConversion<byte?>();
+
+        builder.Property(s => s.SicopStatus).HasConversion<byte?>();
+        builder.Property(s => s.SicopLastReviewedAt);
+        builder.Property(s => s.SicopLastReviewedBy).HasMaxLength(450);
+        builder.Property(s => s.SicopLastReviewedSource).HasConversion<byte?>();
+
+        builder.Property(s => s.IsPmeOrPyme).IsRequired();
+        builder.Property(s => s.HasWarning).IsRequired();
+        builder.Property(s => s.WarningNote).HasMaxLength(1000);
+
+        // Spec 038 / D15 — optimistic concurrency token.
+        builder.Property(s => s.RowVersion).IsRowVersion();
 
         // Spec 013 lifecycle.
         builder.Property(s => s.VerificationStatus)

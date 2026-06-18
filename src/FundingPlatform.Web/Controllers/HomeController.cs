@@ -45,7 +45,7 @@ public class HomeController : Controller
         {
             // Spec 021 — SupplierAdmin-only users (without Admin) land on the
             // suppliers admin index per FR-007 / US3.
-            if (User.IsInRole("SupplierAdmin") && !User.IsInRole("Admin"))
+            if (User.IsInRole("Auditor") && !User.IsInRole("Admin"))
             {
                 return Redirect("/Admin/Suppliers");
             }

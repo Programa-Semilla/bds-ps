@@ -44,7 +44,7 @@ public class StatusVisualMapCoverageTests
         "Revisor",
         "Administrador",
         // Spec 021 / FR-007 — SupplierAdmin role display label.
-        "Administrador de proveedores",
+        "Auditor",
         "Respuesta finalizada",
         "Convenio ejecutado",
     };

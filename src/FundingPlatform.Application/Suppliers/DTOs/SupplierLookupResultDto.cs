@@ -24,7 +24,9 @@ public record SupplierDetailViewDto(
     int Id,
     string LegalId,
     string Name,
-    bool HasElectronicInvoice,
+    // Spec 038 — compliance booleans re-sourced from the favorable regulatory
+    // status (the e-invoice flag was removed). Display-only signal for the
+    // applicant supplier-lookup card.
     bool IsCompliantCCSS,
     bool IsCompliantHacienda,
     bool IsCompliantSICOP,

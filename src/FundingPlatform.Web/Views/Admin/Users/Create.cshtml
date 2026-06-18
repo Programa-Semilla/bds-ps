@@ -9,12 +9,12 @@
     // a supplier-catalog-only user from this form (closes the impl gap that
     // forced dev-only `Account/AssignRole` use). The SupplierAdmin label
     // matches the profile-screen copy in AccountController.BuildProfileViewModelAsync.
-    var roles = new[] { "Applicant", "Reviewer", "SupplierAdmin", "Admin" };
+    var roles = new[] { "Applicant", "Reviewer", "Auditor", "Admin" };
     string RoleLabel(string r) => r switch
     {
         "Applicant" => "Solicitante",
         "Reviewer" => "Revisor",
-        "SupplierAdmin" => "Administrador de proveedores",
+        "Auditor" => "Auditor",
         "Admin" => "Administrador",
         _ => r,
     };
@@ -174,7 +174,7 @@
                 // Spec 016 / FR-009 — hide the group selector when role is Admin.
                 // Spec 021 / FR-007 — same for SupplierAdmin: scope is global supplier
                 // catalog, Process/Group does not apply.
-                var isGroupless = role === 'Admin' || role === 'SupplierAdmin';
+                var isGroupless = role === 'Admin' || role === 'Auditor';
                 groupsField.style.display = isGroupless ? 'none' : '';
             }
         }

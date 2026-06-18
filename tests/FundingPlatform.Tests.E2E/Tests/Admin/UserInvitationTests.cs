@@ -73,12 +73,12 @@ public class UserInvitationTests : AuthenticatedTestBase
     }
 
     [TestCase("Admin")]
-    [TestCase("SupplierAdmin")]
+    [TestCase("Auditor")]
     public async Task CreateStaffRole_SendsInvitation_UserSetsPasswordAndSignsIn(string role)
     {
         // FR-003 — the same invitation onboarding applies to every admin-created
         // role. Applicant + Reviewer are covered by the dedicated tests above;
-        // this covers Administrador + Administrador de proveedores.
+        // this covers Administrador + Auditor.
         await SignInAsAdminAsync();
 
         var unique = Guid.NewGuid().ToString("N")[..6];

@@ -36,7 +36,8 @@ public class SupplierScoreTests
         Assert.That(results, Has.Count.EqualTo(2));
 
         var score1 = results.First(r => r.QuotationId == 10).Score;
-        Assert.That(score1.Total, Is.EqualTo(4));
+        // Spec 038 — 3 favorable-compliance points (e-invoice point removed), no lowest price.
+        Assert.That(score1.Total, Is.EqualTo(3));
         Assert.That(score1.HasLowestPrice, Is.False);
 
         var score2 = results.First(r => r.QuotationId == 20).Score;
@@ -113,7 +114,8 @@ public class SupplierScoreTests
         var score2 = results.First(r => r.QuotationId == 20).Score;
         var score3 = results.First(r => r.QuotationId == 30).Score;
 
-        Assert.That(score1.Total, Is.EqualTo(5));
+        // Spec 038 — 3 favorable-compliance points + lowest price (e-invoice removed).
+        Assert.That(score1.Total, Is.EqualTo(4));
         Assert.That(score1.IsRecommended, Is.True);
         Assert.That(score2.IsRecommended, Is.False);
         Assert.That(score3.IsRecommended, Is.False);
@@ -226,12 +228,19 @@ public class SupplierScoreTests
             firstBranchShippingDetails: null,
             firstBranchWarrantyInfo: null);
 
-        // Apply admin flags via the entity's EditByAdmin method (Constitution II).
-        supplier.EditByAdmin(supplier.Name,
-            hasElectronicInvoice: eInvoice,
-            isCompliantCCSS: ccss,
-            isCompliantHacienda: hacienda,
-            isCompliantSICOP: sicop);
+        // Spec 038 — set favorable regulatory statuses for the compliance points via
+        // the rich-domain method. The e-invoice flag was removed from scoring, so the
+        // legacy `eInvoice` argument is intentionally ignored.
+        _ = eInvoice;
+        supplier.ApplyRegulatoryEdit(
+            hacienda ? HaciendaStatus.AlDia : null,
+            ccss ? CcssStatus.AlDia : null,
+            sicop ? SicopStatus.SinSanciones : null,
+            isPmeOrPyme: false,
+            hasWarning: false,
+            warningNote: null,
+            actorUserId: "test-actor",
+            nowUtc: DateTime.UtcNow);
 
         // Set Id + VerificationStatus via reflection (private setters).
         typeof(Supplier).GetProperty("Id")!.SetValue(supplier, id);

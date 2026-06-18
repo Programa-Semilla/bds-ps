@@ -7,12 +7,12 @@
     ViewData["Title"] = "Editar usuario";
     // Spec 021 / FR-007 — SupplierAdmin role exposed for assignment + editing
     // (matches the Create form). Label matches the profile-screen copy.
-    var roles = new[] { "Applicant", "Reviewer", "SupplierAdmin", "Admin" };
+    var roles = new[] { "Applicant", "Reviewer", "Auditor", "Admin" };
     string RoleLabel(string r) => r switch
     {
         "Applicant" => "Solicitante",
         "Reviewer" => "Revisor",
-        "SupplierAdmin" => "Administrador de proveedores",
+        "Auditor" => "Auditor",
         "Admin" => "Administrador",
         _ => r,
     };
@@ -222,7 +222,7 @@
             if (groupsField) {
                 // Spec 016 / FR-009 + spec 021 / FR-007 — Admin AND SupplierAdmin
                 // both bypass Process/Group scope.
-                var isGroupless = role === 'Admin' || role === 'SupplierAdmin';
+                var isGroupless = role === 'Admin' || role === 'Auditor';
                 groupsField.style.display = isGroupless ? 'none' : '';
             }
         }

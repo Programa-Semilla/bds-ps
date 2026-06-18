@@ -139,7 +139,7 @@ public class SupplierAdminAuthorizationTests
     public async Task SupplierAdminOnlyFilter_Allows_SupplierAdmin_Role()
     {
         var filter = new SupplierAdminOnlyAttribute();
-        var ctx = BuildContext(BuildPrincipal(SupplierAdminUserId, "SupplierAdmin"),
+        var ctx = BuildContext(BuildPrincipal(SupplierAdminUserId, "Auditor"),
             "/Admin/Suppliers");
 
         filter.OnAuthorization(ctx);
@@ -204,7 +204,7 @@ public class SupplierAdminAuthorizationTests
         var writer = new AdminAuditEventWriter(db);
         var filter = new SupplierAdminDeniedFilter(writer, db);
 
-        var ctx = BuildContext(BuildPrincipal(SupplierAdminUserId, "SupplierAdmin"),
+        var ctx = BuildContext(BuildPrincipal(SupplierAdminUserId, "Auditor"),
             "/Admin/Users",
             "GET");
 
@@ -240,7 +240,7 @@ public class SupplierAdminAuthorizationTests
         var writer = new AdminAuditEventWriter(db);
         var filter = new SupplierAdminDeniedFilter(writer, db);
 
-        var ctx = BuildContext(BuildPrincipal("dual-1", "Admin", "SupplierAdmin"),
+        var ctx = BuildContext(BuildPrincipal("dual-1", "Admin", "Auditor"),
             "/Admin/Processes");
 
         await filter.OnAuthorizationAsync(ctx);
@@ -267,7 +267,7 @@ public class SupplierAdminAuthorizationTests
         var writer = new AdminAuditEventWriter(db);
         var filter = new SupplierAdminDeniedFilter(writer, db);
 
-        var ctx = BuildContext(BuildPrincipal(SupplierAdminUserId, "SupplierAdmin"),
+        var ctx = BuildContext(BuildPrincipal(SupplierAdminUserId, "Auditor"),
             route);
 
         await filter.OnAuthorizationAsync(ctx);

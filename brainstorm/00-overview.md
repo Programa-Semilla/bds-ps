@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-17 (session #33)
+Last updated: 2026-06-17 (session #35)
 
 ## Sessions
 
@@ -40,8 +40,14 @@ Last updated: 2026-06-17 (session #33)
 | 32 | 2026-06-16 | funds-usage-evidence | spec-created | 036 |
 | 33 | 2026-06-17 | official-brand-alignment | shipped (PR #67) | 037 |
 | 34 | 2026-06-17 | applicant-companies | shipped (PR #68) | 037 |
+| 35 | 2026-06-17 | feedback-3-provider-compliance | spec-created | 038 |
 
 ## Open Threads
+
+- Feedback-3 slices B–H remain unspecified; B (supplier recommendation algorithm) is the natural next foundation-dependent slice. Master doc + slice map: `seeds/feedback-3/` (from #35)
+- Spec-038 plan-time: audit-trail storage approach — extend generic `AdminAuditEvent` vs a dedicated `ProviderRegulatoryAuditEvent` table (seed wants richer fields: previous/new value, source, reviewedBy) (from #35)
+- Spec-038 plan-time: es-CR Auditor role display label ("Auditor" vs "Auditoría"); whether "reviewed — no change" is available before a value is set; warning-note max length (from #35)
+- Spec-038 plan-time: inventory every `SupplierAdmin` reference (auth checks, role seeds, E2E fixtures, demo `supplieradmin@…` account) for the role rename → Auditor with capability parity (from #35)
 
 - Admin UI placement for the per-applicant company list (inline on user Edit vs. dedicated `/Admin/Users/{id}/Companies` sub-surface) — HOW, deferred to plan (from #34)
 - Audit-event naming prefix for company create/rename/archive/unarchive (likely `company.*`, mirroring `fund.*`/`process.*`/`funds_evidence.*`) — pin in plan (from #34)

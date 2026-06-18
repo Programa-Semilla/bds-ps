@@ -33,7 +33,7 @@
        status + incomplete filters are preserved for the platform-Admin path
        but hidden when the caller holds only the SupplierAdmin role. *@
     @{
-        var supplierAdminOnly = (User?.IsInRole("SupplierAdmin") == true) && (User?.IsInRole("Admin") != true);
+        var supplierAdminOnly = (User?.IsInRole("Auditor") == true) && (User?.IsInRole("Admin") != true);
     }
     <form method="get" class="mb-3 d-flex gap-2 flex-wrap" data-testid="admin-suppliers-filter-form">
         <div class="position-relative admin-suppliers-filter-control" style="min-width:260px;">

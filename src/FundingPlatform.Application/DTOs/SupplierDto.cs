@@ -8,7 +8,6 @@ public record SupplierDto(
     string? Email,
     string? Phone,
     string? Location,
-    bool HasElectronicInvoice,
     string? ShippingDetails,
     string? WarrantyInfo,
     bool IsCompliantCCSS,
