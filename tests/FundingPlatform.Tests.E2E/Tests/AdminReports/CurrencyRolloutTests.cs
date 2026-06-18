@@ -99,6 +99,8 @@ public class CurrencyRolloutTests : AuthenticatedTestBase
 
         await supplierPage.PriceInput.FillAsync("100");
         await supplierPage.ValidUntilInput.FillAsync("2027-12-31");
+        await supplierPage.DeliveryValueInput.FillAsync("30");
+        await supplierPage.WarrantyValueInput.FillAsync("12");
         await supplierPage.QuotationFileInput.SetInputFilesAsync(_testFilePath);
 
         // Force a bogus value into the <select> by appending an extra <option>

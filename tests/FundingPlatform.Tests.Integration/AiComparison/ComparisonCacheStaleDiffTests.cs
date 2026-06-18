@@ -3,6 +3,7 @@ using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.AiComparison;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
+using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.AiComparison;
 using FundingPlatform.Infrastructure.AiComparison.Anthropic;
 using FundingPlatform.Infrastructure.AiComparison.Redaction;
@@ -176,9 +177,11 @@ public class ComparisonCacheStaleDiffTests
         await _ctx.SaveChangesAsync();
 
         item.AddQuotation(sA, sA.Branches.First(), doc1, 100000m,
-            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)), "CRC");
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)), "CRC",
+            new TimeDuration(30, DurationUnit.Days), new TimeDuration(12, DurationUnit.Months));
         item.AddQuotation(sB, sB.Branches.First(), doc2, 150000m,
-            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)), "CRC");
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)), "CRC",
+            new TimeDuration(30, DurationUnit.Days), new TimeDuration(12, DurationUnit.Months));
         typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.UnderReview);
         await _ctx.SaveChangesAsync();
         return item.Id;

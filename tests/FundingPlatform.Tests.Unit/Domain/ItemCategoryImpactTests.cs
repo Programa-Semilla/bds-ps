@@ -1,5 +1,6 @@
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
+using FundingPlatform.Domain.ValueObjects;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
 namespace FundingPlatform.Tests.Unit.Domain;
@@ -251,7 +252,9 @@ public class ItemCategoryImpactTests
             documentId: documentId,
             price: 100m,
             validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
-            currency: "CRC");
+            currency: "CRC",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         var field = typeof(Item).GetField("_quotations",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         ((List<Quotation>)field!.GetValue(item)!).Add(quotation);

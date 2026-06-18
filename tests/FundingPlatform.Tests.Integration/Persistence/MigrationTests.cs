@@ -1,4 +1,5 @@
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -150,7 +151,9 @@ public class MigrationTests
             documentId: 1,
             price: price,
             validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
-            currency: currency);
+            currency: currency,
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         // Force the CRC-stamp from the ctor back to "legacy state" so the
         // migration has work to do. The setter is private; reach it via the
         // backing field (reflection-equivalent of a raw SQL UPDATE).

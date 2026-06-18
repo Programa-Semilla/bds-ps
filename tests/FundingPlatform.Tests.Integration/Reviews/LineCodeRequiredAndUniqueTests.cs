@@ -2,6 +2,7 @@ using FundingPlatform.Application.Errors;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
+using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -88,10 +89,14 @@ public class LineCodeRequiredAndUniqueTests
         // Add quotations so Approve has a valid supplier path.
         item1.AddQuotation(supplier, supplier.Branches.First(), doc,
             price: 1000m, validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
-            currency: "CRC");
+            currency: "CRC",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         item2.AddQuotation(supplier, supplier.Branches.First(), doc,
             price: 2000m, validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
-            currency: "CRC");
+            currency: "CRC",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
 
         typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.UnderReview);
         await _ctx.SaveChangesAsync();

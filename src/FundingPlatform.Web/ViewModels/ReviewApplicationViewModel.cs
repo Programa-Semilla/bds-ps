@@ -1,4 +1,5 @@
 using FundingPlatform.Application.DTOs;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Web.ViewModels.Review;
 
 namespace FundingPlatform.Web.ViewModels;
@@ -47,6 +48,10 @@ public class ReviewItemViewModel
     /// reviewer's input alongside the new decision controls.</summary>
     public string? LineCode { get; set; }
     public List<ReviewQuotationViewModel> Quotations { get; set; } = [];
+    /// <summary>Spec 039 / FR-021 — ≥2 eligible providers share the top total.</summary>
+    public bool HasRecommendationTie { get; set; }
+    /// <summary>Spec 039 / FR-020 — at least one provider is eligible (not CCSS-blocked).</summary>
+    public bool HasAnyEligible { get; set; } = true;
     /// <summary>Spec 035 (evolved 2026-06-16, D14) — attributed impact names + justification.</summary>
     public List<string> AttributedImpactNames { get; set; } = [];
     public string? ImpactJustification { get; set; }
@@ -66,12 +71,24 @@ public class ReviewQuotationViewModel
     public DateOnly ValidUntil { get; set; }
     public string DocumentFileName { get; set; } = string.Empty;
     public bool IsRecommended { get; set; }
-    public int Score { get; set; }
-    public bool ScoreCCSS { get; set; }
-    public bool ScoreHacienda { get; set; }
-    public bool ScoreSICOP { get; set; }
-    public bool ScoreLowestPrice { get; set; }
-    public bool IsPreSelected { get; set; }
+
+    // Spec 039 — seven-criterion explainable score + eligibility (replaces /4 Score +
+    // four compliance bools + IsPreSelected).
+    public bool IsEligible { get; set; }
+    public SupplierBlockReason BlockReason { get; set; }
+    public int Total { get; set; }
+    public int PriceScore { get; set; }
+    public int DeliveryLeadTimeScore { get; set; }
+    public int WarrantyTimeScore { get; set; }
+    public int HaciendaScore { get; set; }
+    public int CcssScore { get; set; }
+    public int SicopScore { get; set; }
+    public int PmeOrPymeScore { get; set; }
+    public int DeliveryLeadTimeValue { get; set; }
+    public DurationUnit DeliveryLeadTimeUnit { get; set; }
+    public int WarrantyValue { get; set; }
+    public DurationUnit WarrantyUnit { get; set; }
+
     /// <summary>Spec 013 FR-051: supplier verification flags surfaced to the reviewer.</summary>
     public bool IsSupplierVerified { get; set; }
     public bool IsSupplierRejected { get; set; }

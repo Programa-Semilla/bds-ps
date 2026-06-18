@@ -103,6 +103,8 @@ public class QuotationCreateUsdTests
                 appId, itemId, supplierId, branchId,
                 price: 1000m, currency: "USD",
                 validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                warranty: new TimeDuration(12, DurationUnit.Months),
                 fileStream: stream, fileName: "q.pdf",
                 contentType: "application/pdf", fileSize: 3);
         }
@@ -186,6 +188,8 @@ public class QuotationCreateUsdTests
                     appId, itemId, supplierId, branchId,
                     price: 1000m, currency: "USD",
                     validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                    deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                    warranty: new TimeDuration(12, DurationUnit.Months),
                     fileStream: stream, fileName: "q.pdf",
                     contentType: "application/pdf", fileSize: 3),
                 Throws.TypeOf<MissingRateException>());
@@ -249,6 +253,8 @@ public class QuotationCreateUsdTests
                 appId, itemId, supplierId, branchId,
                 price: 750_000m, currency: "CRC",
                 validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                warranty: new TimeDuration(12, DurationUnit.Months),
                 fileStream: stream, fileName: "q.pdf",
                 contentType: "application/pdf", fileSize: 3);
         }

@@ -20,7 +20,9 @@ public class QuotationCurrencyTests
 
     private static Quotation NewQuotation(string currency = "CRC", decimal price = 1m) =>
         new(supplierId: 1, supplierBranchId: 1, documentId: 1, price: price,
-            validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)), currency: currency);
+            validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)), currency: currency,
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
 
     [Test]
     public async Task SetCurrencyAndAmountAsync_Usd_SnapshotsRateAndStampsConvertedCrc()

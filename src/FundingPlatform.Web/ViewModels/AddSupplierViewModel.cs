@@ -65,6 +65,25 @@ public class AddSupplierViewModel : IQuoteFieldsModel
     [Display(Name = "Vigente hasta")]
     public DateOnly ValidUntil { get; set; }
 
+    // Spec 039 — required delivery lead time + warranty (value + unit días/meses).
+    // Range(1,…) realizes "greater than zero" (FR-001/FR-002/SC-004); the unit
+    // defaults to días.
+    [Required(ErrorMessage = "El tiempo de entrega es obligatorio.")]
+    [Range(1, int.MaxValue, ErrorMessage = "El tiempo de entrega debe ser mayor a cero.")]
+    [Display(Name = "Tiempo de entrega")]
+    public int DeliveryLeadTimeValue { get; set; }
+
+    [Display(Name = "Unidad de tiempo de entrega")]
+    public DurationUnit DeliveryLeadTimeUnit { get; set; } = DurationUnit.Days;
+
+    [Required(ErrorMessage = "La garantía es obligatoria.")]
+    [Range(1, int.MaxValue, ErrorMessage = "La garantía debe ser mayor a cero.")]
+    [Display(Name = "Garantía")]
+    public int WarrantyValue { get; set; }
+
+    [Display(Name = "Unidad de garantía")]
+    public DurationUnit WarrantyUnit { get; set; } = DurationUnit.Months;
+
     // Spec 035 / US3 — optional: required only on the add-new path (the controller
     // enforces it). Omitted when reusing an existing quotation's document.
     [Display(Name = "Archivo de la cotización")]

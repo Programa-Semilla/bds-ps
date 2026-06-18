@@ -299,7 +299,9 @@ public class AdminDashboardProjectionTests
             documentId: doc.Id,
             price: priceCrc,
             validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
-            currency: "CRC");
+            currency: "CRC",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         // The Item navigation is required by EF for the FK; attach by ItemId.
         typeof(Quotation).GetProperty("ItemId")!.SetValue(quote, item.Id);
         ctx.Quotations.Add(quote);

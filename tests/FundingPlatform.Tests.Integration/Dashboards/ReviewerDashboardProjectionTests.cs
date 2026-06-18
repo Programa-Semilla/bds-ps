@@ -85,8 +85,8 @@ public class ReviewerDashboardProjectionTests
             await ctx.SaveChangesAsync();
 
             var validUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1));
-            submitted.Items[0].AddQuotation(suppliers[0], suppliers[0].Branches.First(), docs[0], 100_000m, validUntil, "CRC");
-            submitted.Items[0].AddQuotation(suppliers[1], suppliers[1].Branches.First(), docs[1], 120_000m, validUntil, "CRC");
+            submitted.Items[0].AddQuotation(suppliers[0], suppliers[0].Branches.First(), docs[0], 100_000m, validUntil, "CRC", new TimeDuration(30, DurationUnit.Days), new TimeDuration(12, DurationUnit.Months));
+            submitted.Items[0].AddQuotation(suppliers[1], suppliers[1].Branches.First(), docs[1], 120_000m, validUntil, "CRC", new TimeDuration(30, DurationUnit.Days), new TimeDuration(12, DurationUnit.Months));
             await ctx.SaveChangesAsync();
         }
 

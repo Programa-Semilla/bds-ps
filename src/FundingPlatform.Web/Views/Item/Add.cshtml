@@ -23,6 +23,14 @@
 
             <input type="hidden" asp-for="ApplicationId" />
 
+            @* Spec 039 / §6 / FR-025 — field order: (1) product name, (2) category,
+               (3) category-specific dynamic fields, (4) remaining fields. *@
+            <div class="mb-3" data-testid="form-section" data-field="ProductName">
+                <label asp-for="ProductName" class="form-label"></label> @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Item.ProductName"))
+                <input asp-for="ProductName" class="form-control" />
+                <span asp-validation-for="ProductName" class="invalid-feedback d-block"></span>
+            </div>
+
             <div class="mb-3" data-testid="form-section" data-field="CategoryId">
                 <label asp-for="CategoryId" class="form-label"></label> @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Item.Category"))
                 <select asp-for="CategoryId" asp-items="Model.Categories" class="form-select" data-searchable
@@ -32,15 +40,11 @@
                 <span asp-validation-for="CategoryId" class="invalid-feedback d-block"></span>
             </div>
 
-            @* Spec 035 — dynamic category fields, rendered client-side on category change. *@
+            @* Spec 035 — dynamic category fields, rendered client-side on category change.
+               Stays positioned after the category select so the AJAX wiring (_DynamicFieldWiring
+               → Item/CategoryFields, targeting #category-fields) is unchanged. *@
             <div id="category-fields" data-testid="item-category-fields">
                 <partial name="_DynamicFieldInputs" model="@((Model.CategoryFields, "CategoryFieldValues"))" />
-            </div>
-
-            <div class="mb-3" data-testid="form-section" data-field="ProductName">
-                <label asp-for="ProductName" class="form-label"></label> @await Html.PartialAsync("_RequiredMark") @await Html.PartialAsync("_HintTooltip", new HintTooltipModel(ResourceKeyOverride: "Item.ProductName"))
-                <input asp-for="ProductName" class="form-control" />
-                <span asp-validation-for="ProductName" class="invalid-feedback d-block"></span>
             </div>
 
             <hr />

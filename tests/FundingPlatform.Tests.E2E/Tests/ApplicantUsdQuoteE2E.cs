@@ -87,6 +87,8 @@ public class ApplicantUsdQuoteE2E : AuthenticatedTestBase
         await Expect(supplierPage.PreviewRate).ToContainTextAsync(new Regex("520"));
 
         await supplierPage.ValidUntilInput.FillAsync("2027-12-31");
+        await supplierPage.DeliveryValueInput.FillAsync("30");
+        await supplierPage.WarrantyValueInput.FillAsync("12");
         await supplierPage.QuotationFileInput.SetInputFilesAsync(_testFilePath);
         await supplierPage.SubmitAsync();
 
@@ -140,6 +142,8 @@ public class ApplicantUsdQuoteE2E : AuthenticatedTestBase
         await supplierPage.PriceInput.FillAsync("1000");
         await supplierPage.SetCurrencyAsync("USD");
         await supplierPage.ValidUntilInput.FillAsync("2027-12-31");
+        await supplierPage.DeliveryValueInput.FillAsync("30");
+        await supplierPage.WarrantyValueInput.FillAsync("12");
         await supplierPage.QuotationFileInput.SetInputFilesAsync(_testFilePath);
         await supplierPage.SubmitAsync();
 

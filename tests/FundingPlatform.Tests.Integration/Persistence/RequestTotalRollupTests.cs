@@ -1,5 +1,6 @@
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
@@ -100,7 +101,9 @@ public class RequestTotalRollupTests
                 suppliers[0], suppliers[0].Branches.First(), docCrc,
                 price: 600_000m,
                 validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
-                currency: "CRC");
+                currency: "CRC",
+                deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                warranty: new TimeDuration(12, DurationUnit.Months));
             await ctx.SaveChangesAsync();
 
             // Item 2 — USD quotation. Build via SetCurrencyAndAmountAsync so the snapshot stamps.
@@ -113,7 +116,9 @@ public class RequestTotalRollupTests
                 docUsd.Id,
                 price: 1m,
                 validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
-                currency: "CRC");
+                currency: "CRC",
+                deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                warranty: new TimeDuration(12, DurationUnit.Months));
             await qUsd.SetCurrencyAndAmountAsync(CurrencyCode.Usd, 1000m, conversion);
             application.Items[1].AttachQuotation(suppliers[1], suppliers[1].Branches.First(), qUsd);
             await ctx.SaveChangesAsync();
@@ -126,7 +131,9 @@ public class RequestTotalRollupTests
                 suppliers[2], suppliers[2].Branches.First(), docLegacy,
                 price: 2000m,
                 validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
-                currency: "USD");
+                currency: "USD",
+                deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                warranty: new TimeDuration(12, DurationUnit.Months));
             var qLegacy = application.Items[2].Quotations.Single(q => q.SupplierId == suppliers[2].Id);
             // MarkLegacyNeedsReview is the internal API used by the post-deploy migration (FR-026).
             typeof(Quotation).GetMethod("MarkLegacyNeedsReview",
@@ -142,7 +149,9 @@ public class RequestTotalRollupTests
                 suppliers[3], suppliers[3].Branches.First(), docFour,
                 price: 99_999m,
                 validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
-                currency: "CRC");
+                currency: "CRC",
+                deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                warranty: new TimeDuration(12, DurationUnit.Months));
             await ctx.SaveChangesAsync();
 
             // Set SelectedSupplierId on items 1, 2, 3 via Approve(...). Item 4 stays unselected.
@@ -237,8 +246,8 @@ public class RequestTotalRollupTests
             var doc1b = new Document("1b.pdf", "k1b", 1L, "application/pdf");
             ctx.Documents.AddRange(doc1a, doc1b);
             await ctx.SaveChangesAsync();
-            application.Items[0].AddQuotation(suppliers[0], suppliers[0].Branches.First(), doc1a, 700_000m, validUntil, "CRC");
-            application.Items[0].AddQuotation(suppliers[1], suppliers[1].Branches.First(), doc1b, 600_000m, validUntil, "CRC");
+            application.Items[0].AddQuotation(suppliers[0], suppliers[0].Branches.First(), doc1a, 700_000m, validUntil, "CRC", new TimeDuration(30, DurationUnit.Days), new TimeDuration(12, DurationUnit.Months));
+            application.Items[0].AddQuotation(suppliers[1], suppliers[1].Branches.First(), doc1b, 600_000m, validUntil, "CRC", new TimeDuration(30, DurationUnit.Days), new TimeDuration(12, DurationUnit.Months));
             await ctx.SaveChangesAsync();
 
             // Item 2 — CRC 550,000 plus a USD 1000 @520 (=520,000); cheaper is the USD one.
@@ -246,9 +255,9 @@ public class RequestTotalRollupTests
             var doc2usd = new Document("2usd.pdf", "k2usd", 1L, "application/pdf");
             ctx.Documents.AddRange(doc2crc, doc2usd);
             await ctx.SaveChangesAsync();
-            application.Items[1].AddQuotation(suppliers[2], suppliers[2].Branches.First(), doc2crc, 550_000m, validUntil, "CRC");
+            application.Items[1].AddQuotation(suppliers[2], suppliers[2].Branches.First(), doc2crc, 550_000m, validUntil, "CRC", new TimeDuration(30, DurationUnit.Days), new TimeDuration(12, DurationUnit.Months));
             var conversion = new ConversionService(new ExchangeRateRepository(ctx));
-            var qUsd = new Quotation(suppliers[3].Id, suppliers[3].Branches.First().Id, doc2usd.Id, 1m, validUntil, "CRC");
+            var qUsd = new Quotation(suppliers[3].Id, suppliers[3].Branches.First().Id, doc2usd.Id, 1m, validUntil, "CRC", new TimeDuration(30, DurationUnit.Days), new TimeDuration(12, DurationUnit.Months));
             await qUsd.SetCurrencyAndAmountAsync(CurrencyCode.Usd, 1000m, conversion);
             application.Items[1].AttachQuotation(suppliers[3], suppliers[3].Branches.First(), qUsd);
             await ctx.SaveChangesAsync();
@@ -257,7 +266,7 @@ public class RequestTotalRollupTests
             var doc3 = new Document("3.pdf", "k3", 1L, "application/pdf");
             ctx.Documents.Add(doc3);
             await ctx.SaveChangesAsync();
-            application.Items[2].AddQuotation(suppliers[4], suppliers[4].Branches.First(), doc3, 2000m, validUntil, "USD");
+            application.Items[2].AddQuotation(suppliers[4], suppliers[4].Branches.First(), doc3, 2000m, validUntil, "USD", new TimeDuration(30, DurationUnit.Days), new TimeDuration(12, DurationUnit.Months));
             var qLegacy = application.Items[2].Quotations.Single(q => q.SupplierId == suppliers[4].Id);
             typeof(Quotation).GetMethod("MarkLegacyNeedsReview",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!

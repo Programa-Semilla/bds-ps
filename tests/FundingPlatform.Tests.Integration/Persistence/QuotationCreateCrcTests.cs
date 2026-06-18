@@ -2,6 +2,7 @@ using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Application.Suppliers.Services;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Infrastructure.Persistence.Repositories;
@@ -98,6 +99,8 @@ public class QuotationCreateCrcTests
                 appId, itemId, supplierId, branchId,
                 price: 750_000m, currency: "CRC",
                 validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                warranty: new TimeDuration(12, DurationUnit.Months),
                 fileStream: stream, fileName: "q.pdf",
                 contentType: "application/pdf", fileSize: 3);
         }

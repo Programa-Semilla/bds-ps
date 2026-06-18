@@ -84,6 +84,8 @@ public class ApplicantCrcQuoteE2E : AuthenticatedTestBase
         await Expect(supplierPage.ConversionPreview).ToBeHiddenAsync();
 
         await supplierPage.ValidUntilInput.FillAsync("2027-12-31");
+        await supplierPage.DeliveryValueInput.FillAsync("30");
+        await supplierPage.WarrantyValueInput.FillAsync("12");
         await supplierPage.QuotationFileInput.SetInputFilesAsync(_testFilePath);
         await supplierPage.SubmitAsync();
 

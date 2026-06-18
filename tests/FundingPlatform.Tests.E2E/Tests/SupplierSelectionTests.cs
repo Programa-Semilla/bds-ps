@@ -67,8 +67,10 @@ public class SupplierSelectionTests : AuthenticatedTestBase
     }
 
     [Test]
-    public async Task EqualPrices_BothRecommended()
+    public async Task EqualScores_NoneRecommended_ManualSelectionRequired()
     {
+        // Spec 039 / FR-021 — equal price + equal delivery + equal warranty + equal
+        // (unset) statuses → a top-score tie, so no provider is auto-recommended.
         var appId = await SetupSubmittedApplicationAsync(1000m, 1000m);
 
         var reviewerEmail = $"ss_tie_reviewer_{_uniqueId}@example.com";
@@ -81,13 +83,8 @@ public class SupplierSelectionTests : AuthenticatedTestBase
 
         var firstItem = reviewPage.ItemCards.First;
 
-        // With equal prices and no compliance, both get score 1/5 (price point only)
-        // Both tied at max score, so both should be recommended
-        var recommendedRows = firstItem.Locator(".quotation-row.table-success");
-        await Expect(recommendedRows).ToHaveCountAsync(2);
-
-        var recommendedBadges = firstItem.Locator(".recommended-badge");
-        await Expect(recommendedBadges).ToHaveCountAsync(2);
+        await Expect(firstItem.Locator(".recommended-badge")).ToHaveCountAsync(0);
+        await Expect(firstItem.Locator("[data-testid=recommendation-tie]")).ToBeVisibleAsync();
     }
 
     private async Task<int> SetupSubmittedApplicationAsync(decimal price1, decimal price2)

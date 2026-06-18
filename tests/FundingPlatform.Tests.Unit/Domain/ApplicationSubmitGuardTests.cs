@@ -1,6 +1,7 @@
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Exceptions;
+using FundingPlatform.Domain.ValueObjects;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
 namespace FundingPlatform.Tests.Unit.Domain;
@@ -37,7 +38,9 @@ public class ApplicationSubmitGuardTests
             documentId: 1,
             price: 100m,
             validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
-            currency: "CRC");
+            currency: "CRC",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
 
         var quotationsField = typeof(Item).GetField(
             "_quotations",

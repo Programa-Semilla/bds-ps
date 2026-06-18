@@ -4,6 +4,7 @@ using FundingPlatform.Application.AiComparison;
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
+using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.AiComparison;
 using FundingPlatform.Infrastructure.AiComparison.Anthropic;
 using FundingPlatform.Infrastructure.AiComparison.Redaction;
@@ -121,11 +122,15 @@ public class ComparisonOrchestratorIntegrationTests
         item.AddQuotation(supplierA, supplierA.Branches.First(), doc1,
             price: 120000m,
             validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
-            currency: "CRC");
+            currency: "CRC",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         item.AddQuotation(supplierB, supplierB.Branches.First(), doc2,
             price: 165000m,
             validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
-            currency: "CRC");
+            currency: "CRC",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         typeof(AppEntity).GetProperty("State")!.SetValue(app, ApplicationState.UnderReview);
         await _ctx.SaveChangesAsync();
 

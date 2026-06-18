@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FundingPlatform.Domain.Enums;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace FundingPlatform.Web.ViewModels;
@@ -27,6 +28,23 @@ public class EditQuotationViewModel : IQuoteFieldsModel
     [Required(ErrorMessage = "La fecha de vigencia es obligatoria.")]
     [Display(Name = "Vigente hasta")]
     public DateOnly ValidUntil { get; set; }
+
+    // Spec 039 — delivery lead time + warranty remain required on the edit path (FR-003).
+    [Required(ErrorMessage = "El tiempo de entrega es obligatorio.")]
+    [Range(1, int.MaxValue, ErrorMessage = "El tiempo de entrega debe ser mayor a cero.")]
+    [Display(Name = "Tiempo de entrega")]
+    public int DeliveryLeadTimeValue { get; set; }
+
+    [Display(Name = "Unidad de tiempo de entrega")]
+    public DurationUnit DeliveryLeadTimeUnit { get; set; } = DurationUnit.Days;
+
+    [Required(ErrorMessage = "La garantía es obligatoria.")]
+    [Range(1, int.MaxValue, ErrorMessage = "La garantía debe ser mayor a cero.")]
+    [Display(Name = "Garantía")]
+    public int WarrantyValue { get; set; }
+
+    [Display(Name = "Unidad de garantía")]
+    public DurationUnit WarrantyUnit { get; set; } = DurationUnit.Months;
 
     [Required(ErrorMessage = "La sucursal del proveedor es obligatoria.")]
     [Display(Name = "Sucursal del proveedor")]

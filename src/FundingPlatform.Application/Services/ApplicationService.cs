@@ -36,7 +36,12 @@ public sealed record EditQuotationReadDto(
     string SupplierName,
     int SupplierId,
     bool LegacyNeedsReview,
-    IReadOnlyList<EditQuotationBranchDto> Branches);
+    IReadOnlyList<EditQuotationBranchDto> Branches,
+    // Spec 039 — current delivery lead time + warranty so the edit form pre-populates.
+    int DeliveryLeadTimeValue = 1,
+    DurationUnit DeliveryLeadTimeUnit = DurationUnit.Days,
+    int WarrantyValue = 1,
+    DurationUnit WarrantyUnit = DurationUnit.Months);
 
 public sealed record EditQuotationBranchDto(int Id, string BranchName);
 
@@ -554,6 +559,8 @@ public class ApplicationService
         decimal price,
         string currency,
         DateOnly validUntil,
+        TimeDuration deliveryLeadTime,
+        TimeDuration warranty,
         Stream fileStream,
         string fileName,
         string contentType,
@@ -595,7 +602,9 @@ public class ApplicationService
                 documentId: document.Id,
                 price: price,
                 validUntil: validUntil,
-                currency: currency);
+                currency: currency,
+                deliveryLeadTime: deliveryLeadTime,
+                warranty: warranty);
 
             await quotation.SetCurrencyAndAmountAsync(
                 CurrencyCode.From(currency), price, _conversionService);
@@ -688,7 +697,8 @@ public class ApplicationService
     /// </summary>
     public async Task ReuseQuotationAsync(
         int applicationId, int itemId, int sourceQuotationId,
-        decimal price, string currency, DateOnly validUntil)
+        decimal price, string currency, DateOnly validUntil,
+        TimeDuration deliveryLeadTime, TimeDuration warranty)
     {
         var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId)
             ?? throw new InvalidOperationException($"Application {applicationId} not found.");
@@ -714,7 +724,9 @@ public class ApplicationService
             documentId: source.DocumentId,
             price: price,
             validUntil: validUntil,
-            currency: currency);
+            currency: currency,
+            deliveryLeadTime: deliveryLeadTime,
+            warranty: warranty);
 
         await quotation.SetCurrencyAndAmountAsync(
             CurrencyCode.From(currency), price, _conversionService);
@@ -786,7 +798,11 @@ public class ApplicationService
             LegacyNeedsReview: quotation.LegacyNeedsReview,
             Branches: supplier.Branches
                 .Select(b => new EditQuotationBranchDto(b.Id, b.BranchName))
-                .ToList());
+                .ToList(),
+            DeliveryLeadTimeValue: quotation.DeliveryLeadTime.Value,
+            DeliveryLeadTimeUnit: quotation.DeliveryLeadTime.Unit,
+            WarrantyValue: quotation.Warranty.Value,
+            WarrantyUnit: quotation.Warranty.Unit);
     }
 
     /// <summary>
@@ -912,6 +928,30 @@ public class ApplicationService
                 "La fecha de vigencia debe ser hoy o futura.";
         }
 
+        // Spec 039 — delivery lead time + warranty stay required and > 0 (FR-003).
+        if (command.DeliveryLeadTimeValue <= 0)
+        {
+            fieldErrors[nameof(command.DeliveryLeadTimeValue)] =
+                "El tiempo de entrega debe ser mayor a cero.";
+        }
+        if (command.WarrantyValue <= 0)
+        {
+            fieldErrors[nameof(command.WarrantyValue)] =
+                "La garantía debe ser mayor a cero.";
+        }
+        // Reject a tampered out-of-range unit before constructing TimeDuration (avoids
+        // an unhandled ArgumentException → 500; surfaces an es-CR field error instead).
+        if (!Enum.IsDefined(command.DeliveryLeadTimeUnit))
+        {
+            fieldErrors[nameof(command.DeliveryLeadTimeUnit)] =
+                "La unidad de tiempo de entrega no es válida.";
+        }
+        if (!Enum.IsDefined(command.WarrantyUnit))
+        {
+            fieldErrors[nameof(command.WarrantyUnit)] =
+                "La unidad de garantía no es válida.";
+        }
+
         var targetBranch = supplier.Branches.FirstOrDefault(b => b.Id == command.SupplierBranchId);
         if (targetBranch is null)
         {
@@ -932,8 +972,13 @@ public class ApplicationService
         var priceChanged = quotation.Price != command.Price;
         var validUntilChanged = quotation.ValidUntil != command.ValidUntil;
         var branchChanged = quotation.SupplierBranchId != command.SupplierBranchId;
+        var deliveryChanged = quotation.DeliveryLeadTime.Value != command.DeliveryLeadTimeValue
+            || quotation.DeliveryLeadTime.Unit != command.DeliveryLeadTimeUnit;
+        var warrantyChanged = quotation.Warranty.Value != command.WarrantyValue
+            || quotation.Warranty.Unit != command.WarrantyUnit;
 
-        if (!currencyChanged && !priceChanged && !validUntilChanged && !branchChanged)
+        if (!currencyChanged && !priceChanged && !validUntilChanged && !branchChanged
+            && !deliveryChanged && !warrantyChanged)
         {
             return new EditQuotationResult(EditQuotationOutcome.Success);
         }
@@ -965,6 +1010,13 @@ public class ApplicationService
             if (validUntilChanged)
             {
                 quotation.SetValidUntil(command.ValidUntil);
+            }
+
+            if (deliveryChanged || warrantyChanged)
+            {
+                quotation.SetDeliveryAndWarranty(
+                    new TimeDuration(command.DeliveryLeadTimeValue, command.DeliveryLeadTimeUnit),
+                    new TimeDuration(command.WarrantyValue, command.WarrantyUnit));
             }
         }
         catch (MissingRateException ex)

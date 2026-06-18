@@ -31,6 +31,14 @@ public class Quotation
     public ExchangeRateSnapshot? Snapshot { get; private set; }
     public bool LegacyNeedsReview { get; private set; }
 
+    // Spec 039 — required quote-level delivery lead time and warranty time, each a
+    // value + unit (días/meses). Normalized to days (TimeDuration.InDays) only for
+    // the recommendation comparison; the original value+unit is what is stored and
+    // displayed (FR-001/FR-002/FR-004). Mapped as owned types (OwnsOne) to flat
+    // columns. Never null on a constructed quotation.
+    public TimeDuration DeliveryLeadTime { get; private set; } = null!;
+    public TimeDuration Warranty { get; private set; } = null!;
+
     public Supplier Supplier { get; private set; } = null!;
     public SupplierBranch SupplierBranch { get; private set; } = null!;
     public Document Document { get; private set; } = null!;
@@ -43,14 +51,21 @@ public class Quotation
         int documentId,
         decimal price,
         DateOnly validUntil,
-        string currency)
+        string currency,
+        TimeDuration deliveryLeadTime,
+        TimeDuration warranty)
     {
+        ArgumentNullException.ThrowIfNull(deliveryLeadTime);
+        ArgumentNullException.ThrowIfNull(warranty);
+
         SupplierId = supplierId;
         SupplierBranchId = supplierBranchId;
         DocumentId = documentId;
         Price = price;
         ValidUntil = validUntil;
         Currency = NormalizeCurrency(currency);
+        DeliveryLeadTime = deliveryLeadTime;
+        Warranty = warranty;
         CreatedAt = DateTime.UtcNow;
 
         // Legacy/free-text constructor: stamp ConvertedCrcAmount only for CRC; non-CRC
@@ -206,6 +221,21 @@ public class Quotation
                 "La fecha de vigencia debe ser hoy o futura.", nameof(newValidUntil));
         }
         ValidUntil = newValidUntil;
+    }
+
+    /// <summary>
+    /// Spec 039 — sets the required delivery lead time and warranty time. Used by
+    /// the add/edit quotation paths. Both are required; the <see cref="TimeDuration"/>
+    /// value object enforces the value&gt;0 / defined-unit invariants on construction.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">When either duration is null.</exception>
+    public void SetDeliveryAndWarranty(TimeDuration deliveryLeadTime, TimeDuration warranty)
+    {
+        ArgumentNullException.ThrowIfNull(deliveryLeadTime);
+        ArgumentNullException.ThrowIfNull(warranty);
+
+        DeliveryLeadTime = deliveryLeadTime;
+        Warranty = warranty;
     }
 
     /// <summary>

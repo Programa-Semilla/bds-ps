@@ -102,7 +102,9 @@ public class LegacyQuotationRateAttachServiceTests
             documentId: document.Id,
             price: price,
             validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
-            currency: "USD");
+            currency: "USD",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         var item = application.Items.First();
         item.AttachQuotation(supplier, supplier.Branches.First(), quotation);
         // Force "legacy needs review" by clearing the stamping the ctor did and setting the flag.

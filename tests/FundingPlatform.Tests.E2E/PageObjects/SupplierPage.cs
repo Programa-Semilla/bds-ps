@@ -61,6 +61,11 @@ public class SupplierPage : BasePage
     public ILocator PriceInput => Page.GetByTestId("quotation-price-input");
     public ILocator CurrencyInput => Page.GetByTestId("quotation-currency-input");
     public ILocator ValidUntilInput => Page.GetByTestId("quotation-validuntil-input");
+    // Spec 039 — required delivery lead time + warranty (value + unit días/meses).
+    public ILocator DeliveryValueInput => Page.GetByTestId("quotation-delivery-value-input");
+    public ILocator DeliveryUnitInput => Page.GetByTestId("quotation-delivery-unit-input");
+    public ILocator WarrantyValueInput => Page.GetByTestId("quotation-warranty-value-input");
+    public ILocator WarrantyUnitInput => Page.GetByTestId("quotation-warranty-unit-input");
     public ILocator QuotationFileInput => Page.GetByTestId("quotation-file-input");
     public ILocator SubmitButton => Page.GetByTestId("supplier-submit-button");
     public ILocator ValidationSummary => Page.GetByTestId("supplier-validation-summary");
@@ -174,7 +179,8 @@ public class SupplierPage : BasePage
         await Microsoft.Playwright.Assertions.Expect(Page.Locator("input[type=checkbox][name=HasElectronicInvoice]")).ToHaveCountAsync(0);
     }
 
-    public async Task FillQuotationFieldsAsync(decimal price, string validUntil, string filePath, string? currency = null)
+    public async Task FillQuotationFieldsAsync(decimal price, string validUntil, string filePath, string? currency = null,
+        int deliveryLeadTimeDays = 30, int warrantyMonths = 12)
     {
         await PriceInput.FillAsync(price.ToString(System.Globalization.CultureInfo.InvariantCulture));
         if (currency is not null)
@@ -182,6 +188,9 @@ public class SupplierPage : BasePage
             await SetCurrencyAsync(currency);
         }
         await ValidUntilInput.FillAsync(validUntil);
+        // Spec 039 — units default to días/meses in the markup; fill the values.
+        await DeliveryValueInput.FillAsync(deliveryLeadTimeDays.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        await WarrantyValueInput.FillAsync(warrantyMonths.ToString(System.Globalization.CultureInfo.InvariantCulture));
         await QuotationFileInput.SetInputFilesAsync(filePath);
     }
 
@@ -304,6 +313,9 @@ public class SupplierPage : BasePage
             await SetCurrencyAsync(currency);
         }
         await ValidUntilInput.FillAsync(validUntil);
+        // Spec 039 — delivery + warranty are required on the reuse path too.
+        await DeliveryValueInput.FillAsync("30");
+        await WarrantyValueInput.FillAsync("12");
     }
 
     /// <summary>
@@ -326,7 +338,9 @@ public class SupplierPage : BasePage
         bool isCompliantCCSS = false,
         bool isCompliantHacienda = false,
         bool isCompliantSICOP = false,
-        string? currency = null)
+        string? currency = null,
+        int deliveryLeadTimeDays = 30,
+        int warrantyMonths = 12)
     {
         var outcome = await SearchByLegalIdAsync(legalId);
         if (outcome == "Empty")
@@ -346,6 +360,6 @@ public class SupplierPage : BasePage
         }
         // Rejected outcome: no save action. Caller will see the alert.
 
-        await FillQuotationFieldsAsync(price, validUntil, filePath, currency);
+        await FillQuotationFieldsAsync(price, validUntil, filePath, currency, deliveryLeadTimeDays, warrantyMonths);
     }
 }

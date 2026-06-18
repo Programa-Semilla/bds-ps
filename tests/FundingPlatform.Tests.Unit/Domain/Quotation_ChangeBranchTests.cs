@@ -1,5 +1,7 @@
 using System.Reflection;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
+using FundingPlatform.Domain.ValueObjects;
 
 namespace FundingPlatform.Tests.Unit.Domain;
 
@@ -27,7 +29,9 @@ public class Quotation_ChangeBranchTests
     /// </summary>
     private static Quotation NewQuotation(int supplierId = 1, int branchId = 10) =>
         new(supplierId: supplierId, supplierBranchId: branchId, documentId: 1, price: 100m,
-            validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)), currency: "CRC");
+            validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)), currency: "CRC",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
 
     private static SupplierBranch FabricateBranch(int branchId, int supplierId)
     {

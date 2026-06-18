@@ -113,4 +113,10 @@ public enum UserFacingErrorCode
     /// approved items still lack a line code. The reviewer flow guarantees this at write
     /// time; this code surfaces if a fixture or admin-edited row slipped past.</summary>
     LineCodeMissingOnApprovedItems,
+
+    // Spec 039 — supplier recommendation (FR-019).
+    /// <summary>Spec 039 / FR-019 — reviewer tried to approve an item whose selected
+    /// provider has CCSS status <c>sin inscripción</c> (a hard block). The Detail
+    /// carries the provider name for the templated es-CR message.</summary>
+    SupplierCcssSinInscripcion,
 }

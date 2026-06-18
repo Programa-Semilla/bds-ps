@@ -149,7 +149,9 @@ public class QuotationReuseTests
         var quotation = new Quotation(
             supplierId: supplier.Id, supplierBranchId: branch.Id,
             documentId: doc.Id, price: 900m,
-            validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)), currency: "CRC");
+            validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)), currency: "CRC",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
         itemA.AttachQuotation(supplier, branch, quotation);
         await ctx.SaveChangesAsync();
 
@@ -172,7 +174,9 @@ public class QuotationReuseTests
             await sut.ReuseQuotationAsync(
                 seed.ApplicationId, seed.ItemBId, seed.SourceQuotationId,
                 price: 1500m, currency: "CRC",
-                validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)));
+                validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                warranty: new TimeDuration(12, DurationUnit.Months));
         }
 
         using (var ctx = CreateContext(db))
@@ -240,7 +244,9 @@ public class QuotationReuseTests
             await sut.ReuseQuotationAsync(
                 seed.ApplicationId, seed.ItemBId, seed.SourceQuotationId,
                 price: 1500m, currency: "CRC",
-                validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)));
+                validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                warranty: new TimeDuration(12, DurationUnit.Months));
         }
 
         // Remove A's (originating) quotation — B still references the document.
@@ -273,7 +279,9 @@ public class QuotationReuseTests
             await sut.ReuseQuotationAsync(
                 seed.ApplicationId, seed.ItemBId, seed.SourceQuotationId,
                 price: 1500m, currency: "CRC",
-                validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)));
+                validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+                warranty: new TimeDuration(12, DurationUnit.Months));
         }
 
         using (var ctx = CreateContext(db))

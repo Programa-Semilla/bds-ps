@@ -36,7 +36,21 @@ CREATE TABLE [dbo].[Quotations]
     -- post-deploy migration; admins clear the flag via the legacy-attach UI (US6).
     [LegacyNeedsReview]       BIT              NOT NULL CONSTRAINT [DF_Quotations_LegacyNeedsReview] DEFAULT (0),
 
+    -- Spec 039: required delivery lead time + warranty time (value + unit; unit 1=días,
+    -- 2=meses). Added NOT NULL with a placeholder DEFAULT(1) so the dacpac publish
+    -- succeeds on the populated persistent dev volume and the E2E DB (research D8 —
+    -- bare NOT NULL would fail the publish and roll back the whole deploy). New rows
+    -- always carry real values set by the application boundary (FR-001/FR-002/FR-003).
+    [DeliveryLeadTimeValue]   INT     NOT NULL CONSTRAINT [DF_Quotations_DeliveryLeadTimeValue] DEFAULT (1),
+    [DeliveryLeadTimeUnit]    TINYINT NOT NULL CONSTRAINT [DF_Quotations_DeliveryLeadTimeUnit]  DEFAULT (1),
+    [WarrantyValue]           INT     NOT NULL CONSTRAINT [DF_Quotations_WarrantyValue]         DEFAULT (1),
+    [WarrantyUnit]            TINYINT NOT NULL CONSTRAINT [DF_Quotations_WarrantyUnit]          DEFAULT (1),
+
     CONSTRAINT [PK_Quotations] PRIMARY KEY CLUSTERED ([Id]),
+    CONSTRAINT [CK_Quotations_DeliveryLeadTimeValue] CHECK ([DeliveryLeadTimeValue] > 0),
+    CONSTRAINT [CK_Quotations_DeliveryLeadTimeUnit] CHECK ([DeliveryLeadTimeUnit] IN (1, 2)),
+    CONSTRAINT [CK_Quotations_WarrantyValue] CHECK ([WarrantyValue] > 0),
+    CONSTRAINT [CK_Quotations_WarrantyUnit] CHECK ([WarrantyUnit] IN (1, 2)),
     -- One quotation per (item, supplier) — branch is contact metadata, not a
     -- separate quote source (research.md R1).
     CONSTRAINT [UX_Quotations_ItemId_SupplierId] UNIQUE ([ItemId], [SupplierId]),
