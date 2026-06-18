@@ -200,6 +200,27 @@ US1 (audit a seeded app) → US2 (real reviewer hand-off + auditor notice) → U
 
 ---
 
+## Implementation deviations
+
+- **D-A (T008/T027):** `Application.CanUserGenerateFundingAgreement` was **left unchanged**
+  (its `isReviewerAssigned` param + many call sites/tests stay green). "Reviewer can no
+  longer generate" is enforced at the **controller** instead: `FundingAgreementController.Generate`
+  now requires `Auditor||Admin` (reviewer branch removed) + `PendingAudit` + a complete audit
+  checklist for the non-admin path. `CanGenerateFundingAgreement` was broadened to accept
+  `PendingAudit` so the auditor reuses the existing PDF pipeline.
+- **D-B (T027):** No separate `POST /Audit/{id}/Generate`. Per T027's "(or the auditor path)"
+  allowance, auditor generation reuses the re-gated `FundingAgreement/Generate` endpoint (no PDF
+  pipeline duplication); on success an auditor is redirected back to `/Audit/{id}`.
+- **D-C (T023):** `AuditorQueueProjection` lives in `Application/Services` (next to
+  `ReviewerQueueProjection`); inbox `EnteredAuditAtUtc` is proxied by `UpdatedAt`,
+  `HasProviderWarning` is surfaced on the detail page (not the row).
+- **D-D (T030):** Auditor is now group-scoped: `NormalizeGroupIdsForRole` keeps Auditor
+  memberships (only Admin stays groupless). `RoleRequiresGroups` unchanged — auditors MAY have
+  zero groups (empty inbox), to avoid breaking the spec-038 auditor seed.
+- **T036 front-loaded into US1:** the `SentToAuditAuditor`/`ReturnedToReviewerFromAudit` enum +
+  Auditor bucket + resolver + bindings + 4 es-CR templates were implemented during US1 (the
+  service references them), so US2/US3 only add the reviewer-facing surfaces + enqueue triggers.
+
 ## FR coverage map
 
 | FR | Tasks |
