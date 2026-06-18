@@ -73,6 +73,43 @@ public class SupplierRegulatoryTests
     }
 
     [Test]
+    public void ApplyRegulatoryEdit_WarningNoOp_ReturnsEmpty()
+    {
+        var s = MakeDraft();
+        s.ApplyRegulatoryEdit(null, null, null, false, true, "nota", "user-1", DateTime.UtcNow);
+
+        // Re-apply the identical warning flag + note → no change.
+        var changes = s.ApplyRegulatoryEdit(null, null, null, false, true, "nota", "user-1", DateTime.UtcNow);
+
+        Assert.That(changes, Is.Empty);
+        Assert.That(s.HasWarning, Is.True);
+        Assert.That(s.WarningNote, Is.EqualTo("nota"));
+    }
+
+    [Test]
+    public void ApplyRegulatoryEdit_WarningNoteTooLong_Throws()
+    {
+        var s = MakeDraft();
+        var tooLong = new string('x', Supplier.WarningNoteMaxLength + 1);
+
+        Assert.Throws<ArgumentException>(() =>
+            s.ApplyRegulatoryEdit(null, null, null, false, true, tooLong, "user-1", DateTime.UtcNow));
+    }
+
+    [Test]
+    public void ApplyRegulatoryEdit_MixedChange_ReturnsOnlyChangedField()
+    {
+        var s = MakeDraft();
+        s.ApplyRegulatoryEdit(HaciendaStatus.AlDia, null, null, false, false, null, "user-1", DateTime.UtcNow);
+
+        // Re-supply Hacienda unchanged, change CCSS → exactly one change record.
+        var changes = s.ApplyRegulatoryEdit(HaciendaStatus.AlDia, CcssStatus.AlDia, null, false, false, null, "user-1", DateTime.UtcNow);
+
+        Assert.That(changes, Has.Count.EqualTo(1));
+        Assert.That(changes[0].Field, Is.EqualTo(RegulatoryChangeField.Ccss));
+    }
+
+    [Test]
     public void ConfirmRegulatoryReviewed_RefreshesTimestampWithoutChangingValue()
     {
         var s = MakeDraft();

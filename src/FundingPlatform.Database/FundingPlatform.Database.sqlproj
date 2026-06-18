@@ -21,10 +21,13 @@
     <Build Remove="PostDeployment\03_SeedSupplierAdminRole.sql" />
     <!-- Spec 025 — distrito catalog seed (third cascade tier), :r-included from SeedData.sql. -->
     <Build Remove="PostDeployment\04_SeedDistricts.sql" />
+    <!-- Spec 038 — guarded drop of the four legacy BIT compliance columns (prod no-drop publish). -->
+    <Build Remove="PostDeployment\06_DropLegacySupplierComplianceColumns.sql" />
     <None Include="PostDeployment\01_SeedProvincesCantons.sql" />
     <None Include="PostDeployment\02_SeedMigracionInicialProcess.sql" />
     <None Include="PostDeployment\03_SeedSupplierAdminRole.sql" />
     <None Include="PostDeployment\04_SeedDistricts.sql" />
+    <None Include="PostDeployment\06_DropLegacySupplierComplianceColumns.sql" />
   </ItemGroup>
   <ItemGroup>
     <SqlCmdVariable Include="DefaultCurrency">

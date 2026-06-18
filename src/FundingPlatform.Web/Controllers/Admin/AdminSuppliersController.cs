@@ -318,6 +318,14 @@ public class AdminSuppliersController : Controller
     public async Task<IActionResult> ConfirmReviewed(
         int supplierId, RegulatoryField field, byte[] rowVersion, CancellationToken ct)
     {
+        // Default MVC enum binding admits any in-range byte; reject a tampered/
+        // out-of-defined-range field with an es-CR message instead of a 500.
+        if (!Enum.IsDefined(field))
+        {
+            TempData["ErrorMessage"] = "Campo regulatorio inválido.";
+            return RedirectToAction(nameof(Detail), new { supplierId });
+        }
+
         var actorId = _userManager.GetUserId(User)
             ?? throw new InvalidOperationException("Auditor user not found.");
 

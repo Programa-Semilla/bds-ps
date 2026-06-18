@@ -29,7 +29,10 @@ public sealed class ProviderCreatedNotifier : IProviderCreatedNotifier
     private readonly IConfiguration _config;
     private readonly IHostEnvironment _env;
     private readonly ILogger<ProviderCreatedNotifier> _logger;
-    private string? _cachedTemplate;
+    // Static so the template is read from disk once per process, not once per
+    // (scoped) instance. First-write-wins; concurrent first-reads write identical
+    // content, so the unsynchronized assignment is benign.
+    private static string? _cachedTemplate;
 
     public ProviderCreatedNotifier(
         AppDbContext db,
@@ -96,6 +99,8 @@ public sealed class ProviderCreatedNotifier : IProviderCreatedNotifier
                 $"Creado por: {creatorName}\n" +
                 $"Revisar: {reviewLink}";
 
+            var sent = 0;
+            var blocked = 0;
             foreach (var auditor in auditors)
             {
                 var displayName = $"{auditor.FirstName} {auditor.LastName}".Trim();
@@ -109,13 +114,28 @@ public sealed class ProviderCreatedNotifier : IProviderCreatedNotifier
                     Headers: null);
 
                 var result = await _emailSender.SendAsync(message, ct);
-                if (result.Outcome is EmailSendOutcome.TransientFailure or EmailSendOutcome.PermanentFailure)
+                switch (result.Outcome)
                 {
-                    _logger.LogWarning(
-                        "Provider-created notification to auditor {Email} for supplier {SupplierId} returned {Outcome}: {Error}",
-                        auditor.Email, supplier.Id, result.Outcome, result.ErrorMessage);
+                    case EmailSendOutcome.Sent:
+                        sent++;
+                        break;
+                    case EmailSendOutcome.BlockedByAllowlist:
+                        blocked++;
+                        _logger.LogInformation(
+                            "Provider-created notification to auditor {Email} for supplier {SupplierId} was dropped by the recipient allowlist.",
+                            auditor.Email, supplier.Id);
+                        break;
+                    default:
+                        _logger.LogWarning(
+                            "Provider-created notification to auditor {Email} for supplier {SupplierId} returned {Outcome}: {Error}",
+                            auditor.Email, supplier.Id, result.Outcome, result.ErrorMessage);
+                        break;
                 }
             }
+
+            _logger.LogInformation(
+                "Provider-created notification for supplier {SupplierId}: {Sent} sent, {Blocked} blocked by allowlist, of {Total} auditors.",
+                supplier.Id, sent, blocked, auditors.Count);
         }
         catch (Exception ex)
         {

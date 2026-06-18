@@ -7,6 +7,12 @@ namespace FundingPlatform.Domain.Enums;
 /// reviewer surfaces keep a green/neutral compliance signal until slice B
 /// reworks scoring against the full enum. An unreviewed (<c>null</c>) status is
 /// never favorable.
+///
+/// <para><b>Lossy by design:</b> only the single favorable value counts; every
+/// other reviewed status scores identically to unreviewed. For SICOP this means
+/// "sin suscripción" is treated the same as "con sanciones"/"inhabilitación".
+/// This is an interim stopgap until slice B redesigns scoring against the full
+/// enum — call sites should not infer fine-grained compliance from this flag.</para>
 /// </summary>
 public static class RegulatoryStatusFavorability
 {

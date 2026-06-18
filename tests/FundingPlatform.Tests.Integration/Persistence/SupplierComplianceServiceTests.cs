@@ -12,7 +12,11 @@ namespace FundingPlatform.Tests.Integration.Persistence;
 /// Spec 038 (US1/US2/US3) — <see cref="SupplierComplianceService"/> persists the
 /// regulatory edit and writes one <c>supplier.*</c> audit row per change, and the
 /// "reviewed — no change" path refreshes freshness without altering the value.
-/// EF InMemory (no ROWVERSION enforcement — concurrency is covered by E2E).
+/// EF InMemory does NOT enforce ROWVERSION, so these tests deliberately pass an
+/// empty RowVersion (the last-write-wins branch). The optimistic-concurrency
+/// conflict path (DbUpdateConcurrencyException → es-CR "recargue") is therefore
+/// NOT exercised here; it requires a real SQL Server and is currently unverified
+/// by an automated test (tracked in EVOLUTION.md §D-E).
 /// </summary>
 [TestFixture]
 public class SupplierComplianceServiceTests
@@ -68,7 +72,38 @@ public class SupplierComplianceServiceTests
             Assert.That(audits.All(a => a.TargetType == AdminAuditEvent.TargetTypeSupplier), Is.True);
             Assert.That(audits.All(a => a.TargetId == supplierId.ToString()), Is.True,
                 "supplier.* events carry the real supplier id as TargetId");
+
+            // FR-012 — the payload captures field, old/new value, source, kind.
+            var haciendaRow = audits.Single(a =>
+                a.Action == AdminAuditEvent.SupplierRegulatoryChanged
+                && a.PayloadJson != null
+                && a.PayloadJson.Contains("\"Hacienda\""));
+            using var doc = System.Text.Json.JsonDocument.Parse(haciendaRow.PayloadJson!);
+            var root = doc.RootElement;
+            Assert.That(root.GetProperty("field").GetString(), Is.EqualTo("Hacienda"));
+            Assert.That(root.GetProperty("oldValue").ValueKind, Is.EqualTo(System.Text.Json.JsonValueKind.Null));
+            Assert.That(root.GetProperty("newValue").GetString(), Is.EqualTo("2"));
+            Assert.That(root.GetProperty("source").GetString(), Is.EqualTo("Manual"));
+            Assert.That(root.GetProperty("kind").GetString(), Is.EqualTo("Changed"));
+            Assert.That(root.GetProperty("supplierId").GetInt32(), Is.EqualTo(supplierId));
         }
+    }
+
+    [Test]
+    public async Task EditComplianceAsync_WarningNoteTooLong_ReturnsEsCrError()
+    {
+        var dbName = $"sup-comp-warnlen-{Guid.NewGuid():N}";
+        var supplierId = await SeedSupplierAsync(dbName);
+
+        using var ctx = CreateContext(dbName);
+        var svc = new SupplierComplianceService(ctx, new AdminAuditEventWriter(ctx));
+        var result = await svc.EditComplianceAsync(new EditSupplierComplianceCommand(
+            supplierId, "Proveedor X", null, null, null,
+            IsPmeOrPyme: false, HasWarning: true, WarningNote: new string('x', 1001),
+            ActorUserId: "auditor-1", RowVersion: System.Array.Empty<byte>()), CancellationToken.None);
+
+        Assert.That(result.Ok, Is.False);
+        Assert.That(result.ErrorEsCr, Does.Contain("1000"));
     }
 
     [Test]

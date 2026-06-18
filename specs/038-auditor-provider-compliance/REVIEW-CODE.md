@@ -88,3 +88,49 @@ the FR-016 review-surface "by whom" gap).
 - The Azure prod publish uses `--no-drop`; dropping the 4 BIT columns there must be handled
   deliberately (dev/E2E are greenfield and drop freely). Question: does the prod migration
   path need an explicit pre-step before this ships beyond dev?
+
+---
+
+## Deep Review Report
+
+> Automated multi-perspective code review results.
+
+**Date:** 2026-06-17 | **Rounds:** 1/3 | **Gate:** PASS
+
+### Review Agents
+
+| Agent | Findings | Status |
+|-------|----------|--------|
+| Correctness | 3 | completed |
+| Architecture & Idioms | 5 | completed |
+| Security | 0 | completed |
+| Production Readiness | 4 | completed |
+| Test Quality | 9 | completed |
+| CodeRabbit (external) | — | skipped (not installed) |
+| Copilot (external) | — | skipped (not installed) |
+
+### Findings Summary
+
+| Severity | Found | Fixed | Remaining |
+|----------|-------|-------|-----------|
+| Critical | 0 | 0 | 0 |
+| Important | 5 | 4 | 1 (accepted) |
+| Minor | 16 | 14 | 2 (accepted) |
+
+### What was fixed automatically
+
+- **Robustness:** narrowed an over-broad `ArgumentException` catch; added an `Enum.IsDefined` guard on the `ConfirmReviewed` field; richer warning audit old/new delta.
+- **Prod safety:** added a guarded post-deploy script (`06_DropLegacySupplierComplianceColumns.sql`) to drop the four legacy BIT columns under the Azure no-drop publish (closes the dev/prod drift risk).
+- **Observability:** allowlist-dropped notifications + a per-call send summary are now logged; the email template cache is now process-wide.
+- **Test coverage:** new isolated [`ProviderCreatedNotifierTests`](review-findings.md) (multi-auditor, body fields, FR-024 failure-non-blocking, no-auditors no-op); the FR-023 allowlist *drop* is now asserted in E2E; audit *payload contents* (field/old/new/source/kind) are asserted; warning-length, warning no-op, and `ReviewFreshness` singular/source-suffix branches now covered.
+- **Clarity:** documented the favorability lossiness, the name-out-of-audit-scope decision, the enum-cast invariant, and corrected the stale "concurrency covered by E2E" comment.
+
+### What still needs human attention
+
+- **[FINDING-10](review-findings.md)** — the auditor notification sends synchronously on the applicant's create-supplier request. Accepted as a slice-A tradeoff (best-effort, small recipient set). Question: should this route through the spec-021 outbox/worker before the Auditor role grows?
+- **[FINDING-20](review-findings.md) / [FINDING-21](review-findings.md)** — two E2E assertions are weaker than ideal (re-confirm timestamp-refresh proof; FR-020 non-blocking proven by rendering, not a completed decision). The behaviors are covered at the integration layer. Question: worth strengthening the E2E, or is integration coverage sufficient?
+- The optimistic-concurrency conflict path is verified by neither unit nor integration tests (InMemory limitation), only by design. A real-SQL OC test is a reasonable follow-up.
+
+### Recommendation
+
+All Critical and Important findings are resolved or accepted with rationale. 3 Minor/accepted items remain (documented in [review-findings.md](review-findings.md) and [EVOLUTION.md](EVOLUTION.md)). Code is ready for human review with no known blockers.

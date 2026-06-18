@@ -41,6 +41,14 @@ public class ProviderCreatedNotificationTests : AuthenticatedTestBase
         var applicantEmail = $"pcn_applicant_{uid}@example.com";
         var supplierName = $"Proveedor Notif {uid}";
 
+        // FR-023 — provision a second Auditor whose email is NOT on the non-prod
+        // allowlist (@example.com). Its notification must be dropped by the
+        // RecipientAllowlistFilter while the seeded @programa-semilla.test auditor
+        // still receives.
+        var droppedAuditorEmail = $"pcn_dropped_auditor_{uid}@example.com";
+        await RegisterUserAsync(Page, droppedAuditorEmail, Password, "Drop", "Auditor", $"PCND-{uid}");
+        await AssignRoleAsync(droppedAuditorEmail, "Auditor");
+
         await RegisterUserAsync(Page, applicantEmail, Password, "Prov", "Applicant", $"PCN-{uid}");
         await LoginAsync(Page, applicantEmail, Password);
 
@@ -66,5 +74,10 @@ public class ProviderCreatedNotificationTests : AuthenticatedTestBase
         var message = captured[0];
         Assert.That(message.Subject, Does.Contain(supplierName));
         Assert.That(message.HtmlBody + message.TextBody, Does.Contain("/Admin/Suppliers/"));
+
+        // FR-023 — the non-allowlisted auditor received nothing (dropped by the filter).
+        var droppedMail = await MailCapture.ListAsync(recipientEmailFilter: droppedAuditorEmail);
+        Assert.That(droppedMail, Is.Empty,
+            "non-allowlisted auditor must not receive the provider-created notification");
     }
 }

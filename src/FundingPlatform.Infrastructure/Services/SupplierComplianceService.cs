@@ -43,11 +43,21 @@ public sealed class SupplierComplianceService : ISupplierComplianceService
         if (supplier is null)
             return SupplierComplianceResult.Fail(NotFoundMessage);
 
+        // FR-011 — reject arbitrary/out-of-range status codes (default MVC enum
+        // binding admits any in-range byte; the UI select only offers valid values).
+        if ((cmd.Hacienda is { } h && !Enum.IsDefined(h))
+            || (cmd.Ccss is { } c && !Enum.IsDefined(c))
+            || (cmd.Sicop is { } sc && !Enum.IsDefined(sc)))
+            return SupplierComplianceResult.Fail("Estado regulatorio inválido.");
+
         // Validate the warning note up front for a clean es-CR message (the domain
         // also guards as a backstop).
         if (cmd.HasWarning && cmd.WarningNote is { } note && note.Trim().Length > Supplier.WarningNoteMaxLength)
             return SupplierComplianceResult.Fail(WarningTooLongMessage);
 
+        // The provider name rides on the same Detail form but is intentionally
+        // out of the regulatory audit scope (spec 038 audits regulatory/PME/warning
+        // changes only); the name edit persists without an AdminAuditEvent.
         var nameChanged = !string.IsNullOrWhiteSpace(cmd.Name)
             && !string.Equals(cmd.Name.Trim(), supplier.Name, StringComparison.Ordinal);
         if (nameChanged)
@@ -60,8 +70,11 @@ public sealed class SupplierComplianceService : ISupplierComplianceService
                 cmd.Hacienda, cmd.Ccss, cmd.Sicop, cmd.IsPmeOrPyme,
                 cmd.HasWarning, cmd.WarningNote, cmd.ActorUserId, DateTime.UtcNow);
         }
-        catch (ArgumentException)
+        catch (ArgumentException ex) when (ex.ParamName == "warningNote")
         {
+            // Domain backstop for the note-length guard only; any other
+            // ArgumentException is a programmer error and must not be masked as
+            // "warning too long" (the up-front check above already validates length).
             return SupplierComplianceResult.Fail(WarningTooLongMessage);
         }
 
@@ -133,9 +146,10 @@ public sealed class SupplierComplianceService : ISupplierComplianceService
     {
         RegulatoryChangeField.Pme => AdminAuditEvent.SupplierPmeChanged,
         RegulatoryChangeField.Warning => AdminAuditEvent.SupplierWarningChanged,
-        _ => change.Kind == RegulatoryChangeKind.ReviewedNoChange
-            ? AdminAuditEvent.SupplierRegulatoryReviewed
-            : AdminAuditEvent.SupplierRegulatoryChanged,
+        // Hacienda/Ccss/Sicop changes from ApplyRegulatoryEdit are always Changed;
+        // the regulatory_reviewed (no-change) action is written directly by
+        // ConfirmReviewedAsync, never through this mapper.
+        _ => AdminAuditEvent.SupplierRegulatoryChanged,
     };
 
     private static string PayloadFor(int supplierId, RegulatoryChange change) =>

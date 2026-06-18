@@ -61,4 +61,20 @@ public class RegulatoryDisplayTests
         var text = ReviewFreshness.Describe(DateTime.UtcNow.Date.AddDays(-3), null, null);
         Assert.That(text, Is.EqualTo("revisado hace 3 días"));
     }
+
+    [Test]
+    public void Describe_OneDayAgo_UsesSingular()
+    {
+        var text = ReviewFreshness.Describe(DateTime.UtcNow.Date.AddDays(-1), null, null);
+        Assert.That(text, Is.EqualTo("revisado hace 1 día"));
+    }
+
+    [Test]
+    public void Describe_SourceSuffixes_ForApiAndSystem()
+    {
+        Assert.That(ReviewFreshness.Describe(DateTime.UtcNow, null, RegulatoryReviewSource.Api),
+            Is.EqualTo("revisado hoy (API)"));
+        Assert.That(ReviewFreshness.Describe(DateTime.UtcNow, null, RegulatoryReviewSource.System),
+            Is.EqualTo("revisado hoy (sistema)"));
+    }
 }

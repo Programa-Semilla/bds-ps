@@ -320,10 +320,12 @@ public partial class Supplier
 
         if (hasWarning != HasWarning || normalizedNote != WarningNote)
         {
+            // Encode flag + note so a note-only edit (flag unchanged) still records a
+            // meaningful old→new delta in the audit payload.
             changes.Add(new RegulatoryChange(
                 RegulatoryChangeField.Warning,
-                HasWarning.ToString(),
-                hasWarning.ToString(),
+                $"{HasWarning}|{WarningNote}",
+                $"{hasWarning}|{normalizedNote}",
                 RegulatoryChangeKind.Changed,
                 RegulatoryReviewSource.Manual));
             HasWarning = hasWarning;
@@ -379,6 +381,8 @@ public partial class Supplier
         }
 
         UpdatedAt = nowUtc;
+        // Safe cast: RegulatoryField and RegulatoryChangeField share identical
+        // numeric codes for Hacienda=1/Ccss=2/Sicop=3 (the only values `field` can be).
         return new RegulatoryChange(
             (RegulatoryChangeField)field,
             code?.ToString(),
