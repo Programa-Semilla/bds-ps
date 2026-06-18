@@ -82,7 +82,7 @@ Clean-Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [X] T029 [P] [US1] Create `src/FundingPlatform.Web/Views/Audit/Index.cshtml` (inbox), `Detail.cshtml` (reuse review partials incl. `_SupplierComplianceBadge`), `_AuditChecklist.cshtml` (es-CR; PDF-correct confirm; release/return buttons).
 - [X] T030 [US1] Show the spec-016 group selector for the **Auditor** role on the admin user-edit form (`AdminUsersController` + view) so auditors can be assigned to groups (FR-017).
 - [X] T031 [US1] Add an "Auditoría" inbox sidebar entry for the Auditor role in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml`.
-- [ ] T032 [P] [US1] Integration test (real DB) in `tests/FundingPlatform.Tests.Integration/`: `AuditWorkflowService` approve→generate→confirm→release path + `AuditorQueueProjection` group-scoping (in-group sees, out-of-group does not).
+- [X] T032 [P] [US1] Integration test (real DB) in `tests/FundingPlatform.Tests.Integration/`: `AuditWorkflowService` approve→generate→confirm→release path + `AuditorQueueProjection` group-scoping (in-group sees, out-of-group does not).
 - [ ] T033 [US1] E2E `AuditorWorkflowTests` in `tests/FundingPlatform.Tests.E2E/`: golden path (seed→inbox→audit→approve→generate→confirm→release→applicant "ready to sign" captured in smtp4dev) + out-of-group auditor negative (empty inbox + 403 detail).
 
 **Checkpoint**: an auditor can fully audit and release a seeded application; group-scope enforced.
