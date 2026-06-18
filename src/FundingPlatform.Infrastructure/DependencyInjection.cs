@@ -40,6 +40,8 @@ public static class DependencyInjection
         // Spec 037 — applicant company aggregate.
         services.AddScoped<ICompanyRepository, CompanyRepository>();
         services.AddScoped<IImpactTemplateRepository, ImpactTemplateRepository>();
+        // Spec 040 — checklist template gate-resolution reads.
+        services.AddScoped<IChecklistTemplateRepository, ChecklistTemplateRepository>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<ISystemConfigurationRepository, SystemConfigurationRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();

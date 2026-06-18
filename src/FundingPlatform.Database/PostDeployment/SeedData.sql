@@ -375,6 +375,10 @@ GO
 -- Idempotent + guarded; no-op once already dropped (e.g. in dev/E2E).
 :r .\06_DropLegacySupplierComplianceColumns.sql
 
+-- Spec 040 — seed one default active checklist template (Both stages) + es-CR items
+-- so the reviewer/auditor checklist gates resolve out of the box. Idempotent by name.
+:r .\07_SeedChecklistTemplates.sql
+
 -- =============================================================================
 -- Spec 021 / data-model.md — SystemConfiguration rows for stage windows and the
 -- public-landing slot StorageKeys (admins upload via the AdminPublicLandingFiles

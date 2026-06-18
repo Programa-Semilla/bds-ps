@@ -26,7 +26,7 @@ Clean-Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Purpose**: Baseline before changes.
 
-- [ ] T001 Confirm `dotnet build FundingPlatform.slnx` is green and record which `FundingAgreement` / `Signing` / `GenerateAgreementQueue` E2E classes currently pass (these are rewired in Phase 7); branch `040-auditor-workflow-stage` already exists.
+- [X] T001 Confirm `dotnet build FundingPlatform.slnx` is green and record which `FundingAgreement` / `Signing` / `GenerateAgreementQueue` E2E classes currently pass (these are rewired in Phase 7); branch `040-auditor-workflow-stage` already exists.
 
 ---
 
@@ -35,31 +35,31 @@ Clean-Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 **Purpose**: Shared domain, schema, and persistence every story depends on (states, checklist model, transitions, dacpac, EF). **No user story can begin until this phase is complete.**
 
 ### Domain — enums & entities
-- [ ] T002 [P] Add `PendingAudit = 7`, `ReturnedFromAudit = 8` to `src/FundingPlatform.Domain/Enums/ApplicationState.cs`.
-- [ ] T003 [P] Create `ChecklistStage` enum (`Reviewer=1, Auditor=2, Both=3`) in `src/FundingPlatform.Domain/Enums/ChecklistStage.cs`.
-- [ ] T004 [P] Create `ChecklistResponseStatus` enum (`Checked=1, NotCompliant=2`) in `src/FundingPlatform.Domain/Enums/ChecklistResponseStatus.cs`.
-- [ ] T005 [P] Create `ChecklistTemplate` aggregate (name/description/AppliesToStage/IsActive/CreatedAt/By/RowVersion + `AddItem`/`ClearItems`/`Update`/`Activate`/`Deactivate`) in `src/FundingPlatform.Domain/Entities/ChecklistTemplate.cs` (mirror `Category.cs`).
-- [ ] T006 [P] Create `ChecklistTemplateItem` child (Text/DisplayOrder/IsRequired/IsActive + FK) in `src/FundingPlatform.Domain/Entities/ChecklistTemplateItem.cs` (mirror `CategoryField.cs`).
-- [ ] T007 [P] Create `ApplicationChecklistResponse` entity (ApplicationId, Stage, ChecklistTemplateItemId, **ItemTextSnapshot**, Status, NonComplianceReason?, CompletedByUserId, CompletedAtUtc, RowVersion) in `src/FundingPlatform.Domain/Entities/ApplicationChecklistResponse.cs`.
-- [ ] T008 Add gated transitions `SendToAudit`/`ReturnFromAudit`/`ResendToAudit`/`ReleaseForSignature`, the `CanAuditorGenerateFundingAgreement(out errors)` gate, and change `CanUserGenerateFundingAgreement` to `isAdmin || isAuditor` (reviewer removed) in `src/FundingPlatform.Domain/Entities/Application.cs`; each transition appends a `VersionHistory` entry (per data-model §4 / research D3).
-- [ ] T009 Add `AuditorConfirmedAtUtc`/`AuditorConfirmedByUserId` + `ConfirmByAuditor(userId)` to `src/FundingPlatform.Domain/Entities/FundingAgreement.cs`; make `Replace()` clear both (regenerate invalidates confirm).
-- [ ] T010 [P] Add `IChecklistTemplateRepository` to `src/FundingPlatform.Domain/Interfaces/IChecklistTemplateRepository.cs`.
+- [X] T002 [P] Add `PendingAudit = 7`, `ReturnedFromAudit = 8` to `src/FundingPlatform.Domain/Enums/ApplicationState.cs`.
+- [X] T003 [P] Create `ChecklistStage` enum (`Reviewer=1, Auditor=2, Both=3`) in `src/FundingPlatform.Domain/Enums/ChecklistStage.cs`.
+- [X] T004 [P] Create `ChecklistResponseStatus` enum (`Checked=1, NotCompliant=2`) in `src/FundingPlatform.Domain/Enums/ChecklistResponseStatus.cs`.
+- [X] T005 [P] Create `ChecklistTemplate` aggregate (name/description/AppliesToStage/IsActive/CreatedAt/By/RowVersion + `AddItem`/`ClearItems`/`Update`/`Activate`/`Deactivate`) in `src/FundingPlatform.Domain/Entities/ChecklistTemplate.cs` (mirror `Category.cs`).
+- [X] T006 [P] Create `ChecklistTemplateItem` child (Text/DisplayOrder/IsRequired/IsActive + FK) in `src/FundingPlatform.Domain/Entities/ChecklistTemplateItem.cs` (mirror `CategoryField.cs`).
+- [X] T007 [P] Create `ApplicationChecklistResponse` entity (ApplicationId, Stage, ChecklistTemplateItemId, **ItemTextSnapshot**, Status, NonComplianceReason?, CompletedByUserId, CompletedAtUtc, RowVersion) in `src/FundingPlatform.Domain/Entities/ApplicationChecklistResponse.cs`.
+- [X] T008 Add gated transitions `SendToAudit`/`ReturnFromAudit`/`ResendToAudit`/`ReleaseForSignature`, the `CanAuditorGenerateFundingAgreement(out errors)` gate, and change `CanUserGenerateFundingAgreement` to `isAdmin || isAuditor` (reviewer removed) in `src/FundingPlatform.Domain/Entities/Application.cs`; each transition appends a `VersionHistory` entry (per data-model §4 / research D3).
+- [X] T009 Add `AuditorConfirmedAtUtc`/`AuditorConfirmedByUserId` + `ConfirmByAuditor(userId)` to `src/FundingPlatform.Domain/Entities/FundingAgreement.cs`; make `Replace()` clear both (regenerate invalidates confirm).
+- [X] T010 [P] Add `IChecklistTemplateRepository` to `src/FundingPlatform.Domain/Interfaces/IChecklistTemplateRepository.cs`.
 
 ### Database (dacpac)
-- [ ] T011 [P] Create `src/FundingPlatform.Database/Tables/dbo.ChecklistTemplates.sql` (IDENTITY PK, RowVersion; mirror `dbo.FundsUsageEvidence.sql`).
-- [ ] T012 [P] Create `src/FundingPlatform.Database/Tables/dbo.ChecklistTemplateItems.sql` (FK→ChecklistTemplates, NC index, DisplayOrder).
-- [ ] T013 [P] Create `src/FundingPlatform.Database/Tables/dbo.ApplicationChecklistResponses.sql` (FK→Applications + ChecklistTemplateItems both **NO ACTION**, RowVersion, NC indexes).
-- [ ] T014 Add `AuditorConfirmedAtUtc DATETIME2 NULL`, `AuditorConfirmedByUserId NVARCHAR(450) NULL` to `src/FundingPlatform.Database/Tables/dbo.FundingAgreements.sql`.
-- [ ] T015 Create `src/FundingPlatform.Database/PostDeployment/07_SeedChecklistTemplates.sql` (idempotent default **Both** template + es-CR items via `SCOPE_IDENTITY()`); register in `PostDeployment/SeedData.sql` (`:r .\07_...`) and `FundingPlatform.Database.sqlproj` (`<Build Remove>` + `<None Include>`).
+- [X] T011 [P] Create `src/FundingPlatform.Database/Tables/dbo.ChecklistTemplates.sql` (IDENTITY PK, RowVersion; mirror `dbo.FundsUsageEvidence.sql`).
+- [X] T012 [P] Create `src/FundingPlatform.Database/Tables/dbo.ChecklistTemplateItems.sql` (FK→ChecklistTemplates, NC index, DisplayOrder).
+- [X] T013 [P] Create `src/FundingPlatform.Database/Tables/dbo.ApplicationChecklistResponses.sql` (FK→Applications + ChecklistTemplateItems both **NO ACTION**, RowVersion, NC indexes).
+- [X] T014 Add `AuditorConfirmedAtUtc DATETIME2 NULL`, `AuditorConfirmedByUserId NVARCHAR(450) NULL` to `src/FundingPlatform.Database/Tables/dbo.FundingAgreements.sql`.
+- [X] T015 Create `src/FundingPlatform.Database/PostDeployment/07_SeedChecklistTemplates.sql` (idempotent default **Both** template + es-CR items via `SCOPE_IDENTITY()`); register in `PostDeployment/SeedData.sql` (`:r .\07_...`) and `FundingPlatform.Database.sqlproj` (`<Build Remove>` + `<None Include>`).
 
 ### Infrastructure — EF & persistence
-- [ ] T016 [P] Add `ChecklistTemplateConfiguration` + `ChecklistTemplateItemConfiguration` in `src/FundingPlatform.Infrastructure/Persistence/Configurations/` (mirror `CategoryConfiguration`; aggregate cascade, RowVersion).
-- [ ] T017 [P] Add `ApplicationChecklistResponseConfiguration` in `src/FundingPlatform.Infrastructure/Persistence/Configurations/` (FK NO ACTION/Restrict, lengths, RowVersion).
-- [ ] T018 Map `AuditorConfirmedAtUtc`/`AuditorConfirmedByUserId` in `FundingAgreementConfiguration`.
-- [ ] T019 Register the three new DbSets on `AppDbContext`, implement `ChecklistTemplateRepository` in `src/FundingPlatform.Infrastructure/Persistence/Repositories/`, and wire DI in `Application`/`Infrastructure` `DependencyInjection`.
+- [X] T016 [P] Add `ChecklistTemplateConfiguration` + `ChecklistTemplateItemConfiguration` in `src/FundingPlatform.Infrastructure/Persistence/Configurations/` (mirror `CategoryConfiguration`; aggregate cascade, RowVersion).
+- [X] T017 [P] Add `ApplicationChecklistResponseConfiguration` in `src/FundingPlatform.Infrastructure/Persistence/Configurations/` (FK NO ACTION/Restrict, lengths, RowVersion).
+- [X] T018 Map `AuditorConfirmedAtUtc`/`AuditorConfirmedByUserId` in `FundingAgreementConfiguration`.
+- [X] T019 Register the three new DbSets on `AppDbContext`, implement `ChecklistTemplateRepository` in `src/FundingPlatform.Infrastructure/Persistence/Repositories/`, and wire DI in `Application`/`Infrastructure` `DependencyInjection`.
 
 ### Foundational tests
-- [ ] T020 [P] Unit tests in `tests/FundingPlatform.Tests.Unit/`: `Application` transition guards (each gate's allowed/blocked states), `CanAuditorGenerateFundingAgreement`, `FundingAgreement.ConfirmByAuditor` + clear-on-`Replace`.
+- [X] T020 [P] Unit tests in `tests/FundingPlatform.Tests.Unit/`: `Application` transition guards (each gate's allowed/blocked states), `CanAuditorGenerateFundingAgreement`, `FundingAgreement.ConfirmByAuditor` + clear-on-`Replace`.
 
 **Checkpoint**: schema, domain, and persistence ready — user stories can begin.
 

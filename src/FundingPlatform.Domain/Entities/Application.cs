@@ -787,7 +787,11 @@ public class Application
     {
         var failures = new List<string>();
 
-        if (State != ApplicationState.ResponseFinalized)
+        // Spec 040 / D11 — PDF generation moved to the auditor stage. The agreement is
+        // generated while the application is in PendingAudit; the legacy ResponseFinalized
+        // path stays valid (e.g. an admin acting before/around the audit hand-off and the
+        // unchanged signing-phase regenerate). Both states satisfy the state precondition.
+        if (State is not (ApplicationState.ResponseFinalized or ApplicationState.PendingAudit))
         {
             if (State == ApplicationState.AppealOpen)
             {
@@ -799,6 +803,24 @@ public class Application
             }
         }
 
+        AddFundingContentPreconditionFailures(failures);
+
+        errors = failures
+            .Distinct(StringComparer.Ordinal)
+            .ToList()
+            .AsReadOnly();
+        return errors.Count == 0;
+    }
+
+    /// <summary>
+    /// Spec 040 / D3 — the content preconditions for generating a Funding Agreement,
+    /// independent of the workflow state check: no open appeal, an applicant response
+    /// exists, and at least one item was accepted. Shared by
+    /// <see cref="CanGenerateFundingAgreement"/> and
+    /// <see cref="CanAuditorGenerateFundingAgreement"/>.
+    /// </summary>
+    private void AddFundingContentPreconditionFailures(List<string> failures)
+    {
         if (_appeals.Any(a => a.Status == AppealStatus.Open))
         {
             failures.Add("An appeal is currently open on this application.");
@@ -824,6 +846,30 @@ public class Application
                 failures.Add("Nothing to fund: all items were rejected.");
             }
         }
+    }
+
+    /// <summary>
+    /// Spec 040 / D3 / D11 — the auditor generation gate. Composes the
+    /// PendingAudit state requirement, audit-checklist completeness (evaluated by the
+    /// Application service against the active Auditor-stage template items and passed
+    /// in), and the shared content preconditions. es-CR refusals (FR-015).
+    /// </summary>
+    public bool CanAuditorGenerateFundingAgreement(
+        bool auditChecklistComplete, out IReadOnlyList<string> errors)
+    {
+        var failures = new List<string>();
+
+        if (State != ApplicationState.PendingAudit)
+        {
+            failures.Add("La solicitud no está en auditoría.");
+        }
+
+        if (!auditChecklistComplete)
+        {
+            failures.Add("La lista de verificación de auditoría está incompleta.");
+        }
+
+        AddFundingContentPreconditionFailures(failures);
 
         errors = failures
             .Distinct(StringComparer.Ordinal)
@@ -1061,5 +1107,128 @@ public class Application
         var decision = agreement.RejectPendingUpload(reviewerUserId, comment);
         UpdatedAt = DateTime.UtcNow;
         return decision;
+    }
+
+    // --- Auditor workflow stage (spec 040) ---
+
+    /// <summary>
+    /// Spec 040 / D3 — the reviewer completes the reviewer checklist and hands the
+    /// finalized application off to audit. Guard: <c>ResponseFinalized</c>, no open
+    /// appeal, no agreement yet (the agreement is created later, during audit), and
+    /// the reviewer checklist complete (completeness is evaluated by the Application
+    /// service against live template items and passed in). Returns the
+    /// <see cref="VersionHistory"/> entry it appends (the notification idempotency anchor).
+    /// </summary>
+    public VersionHistory SendToAudit(string reviewerUserId, bool reviewerChecklistComplete)
+    {
+        if (string.IsNullOrWhiteSpace(reviewerUserId))
+            throw new InvalidOperationException("Reviewer user id must be non-empty.");
+        if (State != ApplicationState.ResponseFinalized)
+            throw new InvalidOperationException(
+                $"No se puede enviar a auditoría: la solicitud está en estado '{State}'.");
+        if (_appeals.Any(a => a.Status == AppealStatus.Open))
+            throw new InvalidOperationException(
+                "No se puede enviar a auditoría: hay una apelación abierta.");
+        if (_fundingAgreement is not null)
+            throw new InvalidOperationException(
+                "No se puede enviar a auditoría: ya existe un convenio para esta solicitud.");
+        if (!reviewerChecklistComplete)
+            throw new InvalidOperationException(
+                "No se puede enviar a auditoría: la lista de verificación del revisor está incompleta.");
+
+        State = ApplicationState.PendingAudit;
+        UpdatedAt = DateTime.UtcNow;
+        var vh = new VersionHistory(reviewerUserId, "SentToAudit", "Enviado a auditoría");
+        _versionHistory.Add(vh);
+        return vh;
+    }
+
+    /// <summary>
+    /// Spec 040 / D3 — the auditor finds the application non-compliant and returns it
+    /// to the reviewer. Guard: <c>PendingAudit</c>. The per-item non-compliance reasons
+    /// are recorded as checklist responses by the service; this transition only moves
+    /// the state and anchors the reviewer notification.
+    /// </summary>
+    public VersionHistory ReturnFromAudit(string auditorUserId)
+    {
+        if (string.IsNullOrWhiteSpace(auditorUserId))
+            throw new InvalidOperationException("Auditor user id must be non-empty.");
+        if (State != ApplicationState.PendingAudit)
+            throw new InvalidOperationException(
+                $"No se puede devolver de auditoría: la solicitud está en estado '{State}'.");
+
+        State = ApplicationState.ReturnedFromAudit;
+        UpdatedAt = DateTime.UtcNow;
+        var vh = new VersionHistory(auditorUserId, "ReturnedFromAudit", "Devuelto al revisor desde auditoría");
+        _versionHistory.Add(vh);
+        return vh;
+    }
+
+    /// <summary>
+    /// Spec 040 / D3 — after rework, the reviewer re-completes the reviewer checklist
+    /// and re-sends the application to audit (the loop). Guard: <c>ReturnedFromAudit</c>
+    /// and the reviewer checklist complete.
+    /// </summary>
+    public VersionHistory ResendToAudit(string reviewerUserId, bool reviewerChecklistComplete)
+    {
+        if (string.IsNullOrWhiteSpace(reviewerUserId))
+            throw new InvalidOperationException("Reviewer user id must be non-empty.");
+        if (State != ApplicationState.ReturnedFromAudit)
+            throw new InvalidOperationException(
+                $"No se puede reenviar a auditoría: la solicitud está en estado '{State}'.");
+        if (!reviewerChecklistComplete)
+            throw new InvalidOperationException(
+                "No se puede reenviar a auditoría: la lista de verificación del revisor está incompleta.");
+
+        State = ApplicationState.PendingAudit;
+        UpdatedAt = DateTime.UtcNow;
+        var vh = new VersionHistory(reviewerUserId, "ResentToAudit", "Reenviado a auditoría");
+        _versionHistory.Add(vh);
+        return vh;
+    }
+
+    /// <summary>
+    /// Spec 040 / D1 / D3 — the auditor releases the audited, confirmed agreement for
+    /// signature, returning the application to <c>ResponseFinalized</c> so the existing
+    /// signing ceremony runs unchanged. Guard: <c>PendingAudit</c>, an agreement exists,
+    /// and the auditor has confirmed the PDF (<see cref="FundingAgreement.AuditorConfirmedAtUtc"/>).
+    /// </summary>
+    public VersionHistory ReleaseForSignature(string auditorUserId)
+    {
+        if (string.IsNullOrWhiteSpace(auditorUserId))
+            throw new InvalidOperationException("Auditor user id must be non-empty.");
+        if (State != ApplicationState.PendingAudit)
+            throw new InvalidOperationException(
+                $"No se puede liberar para firma: la solicitud está en estado '{State}'.");
+        if (_fundingAgreement is null)
+            throw new InvalidOperationException(
+                "No se puede liberar para firma: no existe un convenio generado.");
+        if (_fundingAgreement.AuditorConfirmedAtUtc is null)
+            throw new InvalidOperationException(
+                "No se puede liberar para firma: el auditor no ha confirmado el PDF.");
+
+        State = ApplicationState.ResponseFinalized;
+        UpdatedAt = DateTime.UtcNow;
+        var vh = new VersionHistory(auditorUserId, "ReleasedForSignature", "Liberado para firma");
+        _versionHistory.Add(vh);
+        return vh;
+    }
+
+    /// <summary>
+    /// Spec 040 / D11 — applicant facade: the auditor confirms the generated PDF is
+    /// correct, unlocking <see cref="ReleaseForSignature"/>. Requires an existing
+    /// agreement and the application to be in audit.
+    /// </summary>
+    public void ConfirmAgreementPdf(string auditorUserId)
+    {
+        if (_fundingAgreement is null)
+            throw new InvalidOperationException(
+                "No se puede confirmar el PDF: no existe un convenio generado.");
+        if (State != ApplicationState.PendingAudit)
+            throw new InvalidOperationException(
+                $"No se puede confirmar el PDF: la solicitud está en estado '{State}'.");
+
+        _fundingAgreement.ConfirmByAuditor(auditorUserId);
+        UpdatedAt = DateTime.UtcNow;
     }
 }

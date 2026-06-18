@@ -62,6 +62,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     // Spec 037 — admin-managed companies (Empresas) owned by applicants.
     public DbSet<Company> Companies => Set<Company>();
 
+    // Spec 040 — per-stage checklist templates + recorded application responses.
+    public DbSet<ChecklistTemplate> ChecklistTemplates => Set<ChecklistTemplate>();
+    public DbSet<ChecklistTemplateItem> ChecklistTemplateItems => Set<ChecklistTemplateItem>();
+    public DbSet<ApplicationChecklistResponse> ApplicationChecklistResponses => Set<ApplicationChecklistResponse>();
+
     // Spec 021-feedback-session-may13 — Process / Plantilla aggregates,
     // Province/Cantón catalog, PasswordResetToken single-use marker.
     public DbSet<Process> Processes => Set<Process>();
