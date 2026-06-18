@@ -145,13 +145,13 @@ Clean-Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Purpose**: Rewire the known cross-cutting E2E ripple (reviewer-generates → auditor-generates) and final validation.
 
-- [ ] T053 Rewire `FundingAgreementSeeder` (`tests/.../Fixtures`): reposition `SeedGeneratedAgreementAsync` to seed a **released** post-audit agreement at `ResponseFinalized`; keep `SeedExecutedAgreementAsync` for downstream-signing tests.
-- [ ] T054 Rewire `FundingAgreementTests` (admin/reviewer generate → auditor generate; reviewer can no longer generate directly).
-- [ ] T055 Rewire `GenerateAgreementQueueTests` (reviewer "ready to generate" tab → auditor inbox semantics / removal).
-- [ ] T056 Rewire `SigningWayfindingTests` seeding to route through the audit stage before signing.
-- [ ] T057 [P] es-CR copy pass across all new surfaces + the two new emails (no English literals; mirror existing resource conventions).
-- [ ] T058 [P] Run `quickstart.md` walkthrough end-to-end on a local AppHost run.
-- [ ] T059 Run the **filtered E2E delivery gate** green: `AuditorWorkflow|ReviewerSendToAudit|AuditReturn|ChecklistTemplateAdmin` + rewired `FundingAgreement|Signing|GenerateAgreementQueue`; plus Unit + Integration suites.
+- [X] T053 Rewire `FundingAgreementSeeder` (`tests/.../Fixtures`): reposition `SeedGeneratedAgreementAsync` to seed a **released** post-audit agreement at `ResponseFinalized`; keep `SeedExecutedAgreementAsync` for downstream-signing tests.
+- [X] T054 Rewire `FundingAgreementTests` (admin/reviewer generate → auditor generate; reviewer can no longer generate directly).
+- [X] T055 Rewire `GenerateAgreementQueueTests` (reviewer "ready to generate" tab → auditor inbox semantics / removal).
+- [X] T056 Rewire `SigningWayfindingTests` seeding to route through the audit stage before signing.
+- [X] T057 [P] es-CR copy pass across all new surfaces + the two new emails (no English literals; mirror existing resource conventions).
+- [X] T058 [P] Run `quickstart.md` walkthrough end-to-end on a local AppHost run.
+- [X] T059 Run the **filtered E2E delivery gate** green: `AuditorWorkflow|ReviewerSendToAudit|AuditReturn|ChecklistTemplateAdmin` + rewired `FundingAgreement|Signing|GenerateAgreementQueue`; plus Unit + Integration suites.
 - [ ] T060 On merge-ready, update `CLAUDE.md` Recent Changes + the decomposition index (slice C → shipped) + brainstorm overview.
 
 ---

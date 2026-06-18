@@ -272,11 +272,11 @@ public class UserAdministrationGroupsTests
     }
 
     [Test]
-    public async Task Create_SupplierAdmin_WithCraftedGroupIds_IgnoresMemberships()
+    public async Task Create_Auditor_WithGroupIds_PersistsMemberships()
     {
-        // Defensive — a crafted form payload sets role=Auditor and posts
-        // GroupIds anyway. NormalizeGroupIdsForRole strips them so the table
-        // can never accumulate orphan rows for the new global role.
+        // Spec 040 / FR-017 (supersedes spec-021 FR-007 for this role) — the Auditor role
+        // is now GROUP-SCOPED like Reviewer, so NormalizeGroupIdsForRole keeps its incoming
+        // GroupIds instead of stripping them. Only Admin remains groupless.
         var (sut, ctx, sp) = Build();
         await SeedRolesAsync(sp);
         var ids = await SeedGroupsAsync(ctx, "Norte");
@@ -290,12 +290,12 @@ public class UserAdministrationGroupsTests
         var memberships = await ctx.UserGroupMemberships
             .Where(m => m.UserId == result.Value!.Id)
             .ToListAsync();
-        Assert.That(memberships, Has.Count.EqualTo(0),
-            "FR-007: SupplierAdmin is global-scope; the service must strip any incoming GroupIds.");
+        Assert.That(memberships, Has.Count.EqualTo(1),
+            "Spec 040 FR-017: the Auditor role is group-scoped; its memberships are persisted.");
     }
 
     [Test]
-    public async Task Update_Reviewer_To_SupplierAdmin_ClearsAllMemberships()
+    public async Task Update_Reviewer_To_Auditor_PreservesMemberships()
     {
         var (sut, ctx, sp) = Build();
         await SeedRolesAsync(sp);
@@ -311,7 +311,7 @@ public class UserAdministrationGroupsTests
         var fresh = await sut.GetUserAsync(userId, CancellationToken.None);
         var update = await sut.UpdateUserAsync(
             new UpdateUserRequest(userId, "F", "L", "rev-to-sup@test.com", null, "Auditor", null,
-                GroupIds: ids, // crafted payload tries to retain — must be ignored
+                GroupIds: ids,
                 ConcurrencyStamp: fresh!.ConcurrencyStamp),
             ActorAdminId, CancellationToken.None);
 
@@ -319,8 +319,8 @@ public class UserAdministrationGroupsTests
         var memberships = await ctx.UserGroupMemberships
             .Where(m => m.UserId == userId)
             .ToListAsync();
-        Assert.That(memberships, Has.Count.EqualTo(0),
-            "FR-007: promoting to SupplierAdmin must clear Process/Group memberships.");
+        Assert.That(memberships, Has.Count.EqualTo(2),
+            "Spec 040 FR-017: promoting Reviewer → Auditor preserves Process/Group memberships (both are group-scoped).");
 
         var refreshed = await sut.GetUserAsync(userId, CancellationToken.None);
         Assert.That(refreshed!.Role, Is.EqualTo("Auditor"));
