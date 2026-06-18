@@ -59,6 +59,30 @@
                     </div>
                 </div>
 
+                @if (app.Impacts.Count > 0)
+                {
+                    <div class="card mb-3" data-testid="audit-impacts">
+                        <div class="card-header"><h3 class="card-title">Impactos declarados</h3></div>
+                        <div class="card-body">
+                            @foreach (var impact in app.Impacts)
+                            {
+                                <div class="mb-2">
+                                    <strong>@impact.TemplateName</strong>
+                                    @if (impact.Parameters.Count > 0)
+                                    {
+                                        <ul class="mb-0">
+                                            @foreach (var p in impact.Parameters)
+                                            {
+                                                <li>@p.DisplayLabel: @p.Value</li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
                 @await Html.PartialAsync("_AuditChecklist", Model.Checklist)
             </div>
 

@@ -4,7 +4,16 @@
 
 Hola @Model.Recipient.DisplayName,
 
-Auditoría devolvió la solicitud de @Model.Payload.ApplicantDisplayName (#@Model.Payload.ApplicationId) por hallazgos de no conformidad. Revisá los motivos indicados por la persona auditora, realizá los ajustes necesarios y reenviá la solicitud a auditoría.
+Auditoría devolvió la solicitud de @Model.Payload.ApplicantDisplayName (#@Model.Payload.ApplicationId) por hallazgos de no conformidad. Realizá los ajustes necesarios y reenviá la solicitud a auditoría.
+@if (Model.Payload.AuditFindings is { Count: > 0 })
+{
+@:
+@:Ítems no conformes:
+@foreach (var finding in Model.Payload.AuditFindings)
+{
+@:- @finding
+}
+}
 
 Ver la solicitud:
 @Model.CtaUrl

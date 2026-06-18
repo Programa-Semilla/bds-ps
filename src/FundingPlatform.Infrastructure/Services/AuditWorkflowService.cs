@@ -375,8 +375,18 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
 
     private async Task EnqueueReturnedToReviewerAsync(AppEntity application, int versionHistoryId, string actorUserId, CancellationToken ct)
     {
+        // Spec 040 / FR-011 — include the auditor's per-item non-compliance findings in the
+        // email body ("item — reason") so the reviewer sees the reasons directly.
+        var findings = await _db.ApplicationChecklistResponses
+            .AsNoTracking()
+            .Where(r => r.ApplicationId == application.Id
+                && r.Stage == ChecklistStage.Auditor
+                && r.Status == ChecklistResponseStatus.NotCompliant)
+            .Select(r => r.ItemTextSnapshot + (r.NonComplianceReason == null ? "" : " — " + r.NonComplianceReason))
+            .ToListAsync(ct);
+
         var payload = BuildPayload(application, actorUserId,
-            await _outbox.GetApplicantStageGroupIdsAsync(application.Id, ct));
+            await _outbox.GetApplicantStageGroupIdsAsync(application.Id, ct)) with { AuditFindings = findings };
         await _outbox.EnqueueAsync(NotificationEvent.ReturnedToReviewerFromAudit, application.Id, versionHistoryId, payload, ct);
     }
 
