@@ -58,4 +58,17 @@ public class ChecklistTemplate
     }
 
     public void ClearItems() => _items.Clear();
+
+    /// <summary>
+    /// Spec 040 / FR-003 — edit full-replace deactivates the current items rather than
+    /// hard-deleting them, so recorded <see cref="ApplicationChecklistResponse"/> rows
+    /// (which reference items via a NO ACTION FK) survive. New items are then added fresh.
+    /// </summary>
+    public void DeactivateItems()
+    {
+        foreach (var item in _items)
+        {
+            item.Deactivate();
+        }
+    }
 }

@@ -184,6 +184,8 @@ public static class DependencyInjection
 
         // Spec 040 — auditor workflow orchestration (send-to-audit, audit, release, return).
         services.AddScoped<Application.Audit.IAuditWorkflowService, Services.AuditWorkflowService>();
+        // Spec 040 / US4 — admin checklist-template CRUD.
+        services.AddScoped<Application.Checklists.IChecklistTemplateService, Services.ChecklistTemplateService>();
 
         // Spec 037 / US2 — applicant company admin management (add/rename/archive/unarchive).
         services.AddScoped<Application.Admin.Companies.ICompanyAdministrationService,

@@ -128,14 +128,14 @@ Clean-Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Independent Test**: As `demo-admin@`, create a template, set stage + ordered items, activate; reviewer/auditor gates use its active items; edit an item's text → existing `ApplicationChecklistResponse` rows unchanged.
 
-- [ ] T045 [P] [US4] Add `IChecklistTemplateService` + commands/DTOs (`CreateChecklistTemplateCommand`, `EditChecklistTemplateCommand`, rows, `ActiveChecklist`, `GetActiveForStageAsync`) in `src/FundingPlatform.Application/Checklists/`.
-- [ ] T046 [US4] Implement `ChecklistTemplateService` in `src/FundingPlatform.Infrastructure/Services/` (mirror `FundService`): list/get/create/edit(full-replace items)/activate/deactivate; enforce **one active per effective stage**; `GetActiveForStageAsync` (stage-specific beats `Both`); write `checklist.*` audit; two-SaveChanges pattern.
-- [ ] T047 [P] [US4] Add `checklist.create/edit/activate/deactivate` constants + `TargetTypeChecklist` to `src/FundingPlatform.Domain/Entities/AdminAuditEvent.cs` and a `checklist.` branch in `AdminAuditEventWriter.DeriveTarget` (mirror `company.*`).
-- [ ] T048 [US4] Add `Checklists`/`CreateChecklist`/`EditChecklist` GET+POST actions to `AdminController` + `ChecklistAdminViewModels` (list/create/edit + ordered-item VMs) in `src/FundingPlatform.Web/ViewModels/Admin/`.
-- [ ] T049 [P] [US4] Create `Views/Admin/Checklists.cshtml`, `CreateChecklist.cshtml`, `EditChecklist.cshtml`, `_ChecklistItemsEditor.cshtml`, `_ChecklistItemsScript.cshtml` (mirror `_CategoryFieldsEditor`/`Script`; es-CR; `data-testid` hooks).
-- [ ] T050 [US4] Add a "Plantillas de checklist" admin sidebar entry to `_Layout.cshtml` `procesoEntries` (+ optional dashboard capability card in `AdminDashboardProjection`).
-- [ ] T051 [P] [US4] Integration test (real DB): create/edit/activate; one-active-per-stage enforced; editing items leaves existing `ApplicationChecklistResponse` snapshots unchanged (FR-003).
-- [ ] T052 [US4] E2E `ChecklistTemplateAdminTests`: create template (stage + ordered items + required), activate, gates use it; edit preserves recorded responses.
+- [X] T045 [P] [US4] Add `IChecklistTemplateService` + commands/DTOs (`CreateChecklistTemplateCommand`, `EditChecklistTemplateCommand`, rows, `ActiveChecklist`, `GetActiveForStageAsync`) in `src/FundingPlatform.Application/Checklists/`.
+- [X] T046 [US4] Implement `ChecklistTemplateService` in `src/FundingPlatform.Infrastructure/Services/` (mirror `FundService`): list/get/create/edit(full-replace items)/activate/deactivate; enforce **one active per effective stage**; `GetActiveForStageAsync` (stage-specific beats `Both`); write `checklist.*` audit; two-SaveChanges pattern.
+- [X] T047 [P] [US4] Add `checklist.create/edit/activate/deactivate` constants + `TargetTypeChecklist` to `src/FundingPlatform.Domain/Entities/AdminAuditEvent.cs` and a `checklist.` branch in `AdminAuditEventWriter.DeriveTarget` (mirror `company.*`).
+- [X] T048 [US4] Add `Checklists`/`CreateChecklist`/`EditChecklist` GET+POST actions to `AdminController` + `ChecklistAdminViewModels` (list/create/edit + ordered-item VMs) in `src/FundingPlatform.Web/ViewModels/Admin/`.
+- [X] T049 [P] [US4] Create `Views/Admin/Checklists.cshtml`, `CreateChecklist.cshtml`, `EditChecklist.cshtml`, `_ChecklistItemsEditor.cshtml`, `_ChecklistItemsScript.cshtml` (mirror `_CategoryFieldsEditor`/`Script`; es-CR; `data-testid` hooks).
+- [X] T050 [US4] Add a "Plantillas de checklist" admin sidebar entry to `_Layout.cshtml` `procesoEntries` (+ optional dashboard capability card in `AdminDashboardProjection`).
+- [X] T051 [P] [US4] Integration test (real DB): create/edit/activate; one-active-per-stage enforced; editing items leaves existing `ApplicationChecklistResponse` snapshots unchanged (FR-003).
+- [X] T052 [US4] E2E `ChecklistTemplateAdminTests`: create template (stage + ordered items + required), activate, gates use it; edit preserves recorded responses.
 
 **Checkpoint**: all four stories independently functional.
 

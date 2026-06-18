@@ -106,6 +106,12 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
         {
             return (AdminAuditEvent.TargetTypeCompany, "0");
         }
+        // Spec 040 — checklist-template mutations (checklist.create/edit/activate/…).
+        // The real template id rides in the payload JSON; TargetId stays "0".
+        if (eventKind.StartsWith("checklist.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeChecklist, "0");
+        }
         return ("system", "0");
     }
 

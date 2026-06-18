@@ -1,5 +1,8 @@
+using System.Security.Claims;
 using FundingPlatform.Application.Admin.Commands;
+using FundingPlatform.Application.Checklists;
 using FundingPlatform.Application.Services;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Web.Filters;
 using FundingPlatform.Web.ViewModels;
 using FundingPlatform.Web.ViewModels.Admin;
@@ -14,12 +17,20 @@ public class AdminController : Controller
 {
     private readonly AdminService _adminService;
     private readonly IAdminDashboardProjection _dashboard;
+    // Spec 040 / US4 — admin checklist-template CRUD.
+    private readonly IChecklistTemplateService _checklists;
 
-    public AdminController(AdminService adminService, IAdminDashboardProjection dashboard)
+    public AdminController(
+        AdminService adminService,
+        IAdminDashboardProjection dashboard,
+        IChecklistTemplateService checklists)
     {
         _adminService = adminService;
         _dashboard = dashboard;
+        _checklists = checklists;
     }
+
+    private string ActorUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -286,5 +297,104 @@ public class AdminController : Controller
 
         TempData["SuccessMessage"] = "Configuración del sistema actualizada con éxito.";
         return RedirectToAction(nameof(Configuration));
+    }
+
+    // ---------- Spec 040 / US4 — checklist template admin ----------
+
+    [HttpGet]
+    public async Task<IActionResult> Checklists(ChecklistStage? stage, bool? active, CancellationToken ct)
+    {
+        var rows = await _checklists.ListAsync(stage, active, ct);
+        return View(new ChecklistAdminViewModel
+        {
+            StageFilter = stage,
+            ActiveFilter = active,
+            Templates = rows.Select(r => new ChecklistListItemViewModel
+            {
+                Id = r.Id,
+                Name = r.Name,
+                AppliesToStage = r.AppliesToStage,
+                IsActive = r.IsActive,
+                ItemCount = r.ItemCount,
+            }).ToList()
+        });
+    }
+
+    [HttpGet]
+    public IActionResult CreateChecklist()
+    {
+        return View(new CreateChecklistViewModel
+        {
+            Items = [new ChecklistItemViewModel { Text = string.Empty, IsRequired = true }]
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateChecklist(CreateChecklistViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        var command = new CreateChecklistTemplateCommand(
+            model.Name, model.Description, model.AppliesToStage, model.Activate,
+            (model.Items ?? []).Select(i => new ChecklistItemInput(i.Text, i.IsRequired)).ToList());
+
+        await _checklists.CreateAsync(command, ActorUserId, ct);
+        TempData["SuccessMessage"] = "Lista de verificación creada con éxito.";
+        return RedirectToAction(nameof(Checklists));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> EditChecklist(int id, CancellationToken ct)
+    {
+        var detail = await _checklists.GetDetailAsync(id, ct);
+        if (detail is null) return NotFound();
+
+        return View(new EditChecklistViewModel
+        {
+            Id = detail.Id,
+            Name = detail.Name,
+            Description = detail.Description,
+            AppliesToStage = detail.AppliesToStage,
+            IsActive = detail.IsActive,
+            Items = detail.Items.Select(i => new ChecklistItemViewModel
+            {
+                Text = i.Text,
+                IsRequired = i.IsRequired,
+            }).ToList()
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditChecklist(EditChecklistViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        var command = new EditChecklistTemplateCommand(
+            model.Id, model.Name, model.Description, model.AppliesToStage,
+            (model.Items ?? []).Select(i => new ChecklistItemInput(i.Text, i.IsRequired)).ToList());
+
+        await _checklists.EditAsync(command, ActorUserId, ct);
+        TempData["SuccessMessage"] = "Lista de verificación actualizada con éxito.";
+        return RedirectToAction(nameof(Checklists));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ActivateChecklist(int id, CancellationToken ct)
+    {
+        await _checklists.ActivateAsync(id, ActorUserId, ct);
+        TempData["SuccessMessage"] = "Lista de verificación activada.";
+        return RedirectToAction(nameof(Checklists));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeactivateChecklist(int id, CancellationToken ct)
+    {
+        await _checklists.DeactivateAsync(id, ActorUserId, ct);
+        TempData["SuccessMessage"] = "Lista de verificación desactivada.";
+        return RedirectToAction(nameof(Checklists));
     }
 }

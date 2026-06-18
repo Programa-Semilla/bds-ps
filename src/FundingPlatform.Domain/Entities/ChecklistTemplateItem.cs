@@ -28,4 +28,7 @@ public class ChecklistTemplateItem
         IsRequired = isRequired;
         IsActive = isActive;
     }
+
+    /// <summary>Spec 040 / FR-003 — soft-deactivate on template edit (never hard-deleted while referenced).</summary>
+    public void Deactivate() => IsActive = false;
 }
