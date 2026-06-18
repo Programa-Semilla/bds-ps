@@ -32,6 +32,38 @@ public class ReviewApplicationViewModel
     public bool IsAdmin { get; set; }
     /// <summary>Spec 020 — poll interval for the JS Generate-All status updates (default 3 s).</summary>
     public int PollIntervalSeconds { get; set; } = 3;
+
+    // --- Spec 040 — reviewer send-to-audit / returned-from-audit surfaces ---
+
+    /// <summary>Spec 040 / US2 — true at ResponseFinalized with no agreement yet: show the
+    /// reviewer checklist + "Send to audit" (the former "Generate agreement" path).</summary>
+    public bool ShowReviewerChecklist { get; set; }
+
+    /// <summary>Spec 040 / US3 — true at ReturnedFromAudit: show the auditor's findings +
+    /// the reviewer re-complete checklist + "Re-send to audit".</summary>
+    public bool ShowReturnedFromAudit { get; set; }
+
+    /// <summary>Spec 040 — the active reviewer-stage checklist items (+ any recorded ticks).</summary>
+    public List<ReviewerChecklistItemViewModel> ReviewerChecklistItems { get; set; } = [];
+
+    /// <summary>Spec 040 / US3 — the auditor's per-item non-compliance findings.</summary>
+    public List<AuditFindingViewModel> AuditFindings { get; set; } = [];
+}
+
+/// <summary>Spec 040 — one reviewer-stage checklist line on the Review surface.</summary>
+public class ReviewerChecklistItemViewModel
+{
+    public int TemplateItemId { get; set; }
+    public string Text { get; set; } = string.Empty;
+    public bool IsRequired { get; set; }
+    public bool Checked { get; set; }
+}
+
+/// <summary>Spec 040 / US3 — one auditor non-compliance finding shown to the reviewer.</summary>
+public class AuditFindingViewModel
+{
+    public string ItemText { get; set; } = string.Empty;
+    public string? Reason { get; set; }
 }
 
 public class ReviewItemViewModel

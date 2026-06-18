@@ -83,6 +83,34 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
         }
     }
 
+    public async Task<ReviewerChecklistView> GetReviewerChecklistAsync(int appId, CancellationToken ct)
+    {
+        var template = await _checklists.GetActiveForStageAsync(ChecklistStage.Reviewer, ct);
+        var activeItems = template?.Items.Where(i => i.IsActive).OrderBy(i => i.DisplayOrder).ToList()
+                          ?? new List<ChecklistTemplateItem>();
+
+        var recorded = await _db.ApplicationChecklistResponses
+            .AsNoTracking()
+            .Where(r => r.ApplicationId == appId && r.Stage == ChecklistStage.Reviewer)
+            .ToListAsync(ct);
+        var checkedIds = recorded.Select(r => r.ChecklistTemplateItemId).ToHashSet();
+
+        var items = activeItems
+            .Select(i => new ReviewerChecklistItemView(i.Id, i.Text, i.IsRequired, checkedIds.Contains(i.Id)))
+            .ToList();
+
+        // Auditor non-compliance findings (surfaced to the reviewer when returned from audit).
+        var findings = await _db.ApplicationChecklistResponses
+            .AsNoTracking()
+            .Where(r => r.ApplicationId == appId
+                && r.Stage == ChecklistStage.Auditor
+                && r.Status == ChecklistResponseStatus.NotCompliant)
+            .Select(r => new AuditFindingView(r.ItemTextSnapshot, r.NonComplianceReason))
+            .ToListAsync(ct);
+
+        return new ReviewerChecklistView(items, findings);
+    }
+
     // ----- auditor side -----
 
     public async Task<AuditChecklistView?> GetAuditChecklistAsync(int appId, CancellationToken ct)

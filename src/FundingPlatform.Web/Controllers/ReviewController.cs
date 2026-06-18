@@ -33,6 +33,8 @@ public class ReviewController : Controller
     private readonly IStageExpiryClock _stageExpiryClock;
     private readonly IComparisonOrchestrator _comparisonOrchestrator;
     private readonly IDecisionSummaryProjection _decisionSummary;
+    // Spec 040 — reviewer send-to-audit / re-send + reviewer-checklist projection.
+    private readonly Application.Audit.IAuditWorkflowService _auditWorkflow;
     // Spec 027 / US5 — reviewer/admin write surface for the applicant's CodigoPersonal.
     private readonly Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> _userManager;
     private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
@@ -49,10 +51,12 @@ public class ReviewController : Controller
         IStageExpiryClock stageExpiryClock,
         IComparisonOrchestrator comparisonOrchestrator,
         IDecisionSummaryProjection decisionSummary,
+        Application.Audit.IAuditWorkflowService auditWorkflow,
         Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager,
         Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _reviewService = reviewService;
+        _auditWorkflow = auditWorkflow;
         _signedUploadService = signedUploadService;
         _queueProjection = queueProjection;
         _errorTranslator = errorTranslator;
@@ -291,7 +295,80 @@ public class ReviewController : Controller
             };
         }
 
+        // Spec 040 / US2 + US3 — at ResponseFinalized (no agreement yet) the reviewer
+        // completes the reviewer checklist and sends to audit (the former "Generate
+        // agreement" path); at ReturnedFromAudit they see the auditor's findings and
+        // re-send. The agreement-existence check disambiguates the two ResponseFinalized
+        // phases (pre-audit vs post-release signing).
+        var hasAgreement = aggregate?.FundingAgreement is not null;
+        if (dto.State == Domain.Enums.ApplicationState.ResponseFinalized && !hasAgreement)
+        {
+            viewModel.ShowReviewerChecklist = true;
+        }
+        else if (dto.State == Domain.Enums.ApplicationState.ReturnedFromAudit)
+        {
+            viewModel.ShowReturnedFromAudit = true;
+        }
+
+        if (viewModel.ShowReviewerChecklist || viewModel.ShowReturnedFromAudit)
+        {
+            var reviewerChecklist = await _auditWorkflow.GetReviewerChecklistAsync(id, ct);
+            viewModel.ReviewerChecklistItems = reviewerChecklist.Items
+                .Select(i => new ReviewerChecklistItemViewModel
+                {
+                    TemplateItemId = i.TemplateItemId,
+                    Text = i.Text,
+                    IsRequired = i.IsRequired,
+                    Checked = i.Checked,
+                }).ToList();
+            viewModel.AuditFindings = reviewerChecklist.Findings
+                .Select(f => new AuditFindingViewModel { ItemText = f.ItemText, Reason = f.Reason })
+                .ToList();
+        }
+
         return View(viewModel);
+    }
+
+    /// <summary>
+    /// Spec 040 / US2 + US3 — the reviewer completes the reviewer checklist and sends the
+    /// application to audit (from ResponseFinalized) or re-sends it after rework (from
+    /// ReturnedFromAudit). Group-overlap gated like the rest of the reviewer surface.
+    /// </summary>
+    [HttpPost]
+    [Route("Review/{id:int}/SendToAudit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendToAudit(int id, List<int> checkedItemIds, CancellationToken ct = default)
+    {
+        var scope = await GetScopeAsync(ct);
+        if (!scope.IsAdmin)
+        {
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(id, scope.GroupIds, ct);
+            if (!allowed) return Forbid();
+        }
+
+        var application = await _applicationRepository.GetByIdAsync(id);
+        if (application is null) return NotFound();
+
+        var userId = GetUserId();
+        var checks = (checkedItemIds ?? new List<int>())
+            .Select(itemId => new Application.Audit.ReviewerCheck(itemId, true))
+            .ToList();
+
+        var result = application.State == Domain.Enums.ApplicationState.ReturnedFromAudit
+            ? await _auditWorkflow.ResendToAuditAsync(id, checks, userId, ct)
+            : await _auditWorkflow.SubmitReviewerChecklistAndSendToAuditAsync(id, checks, userId, ct);
+
+        if (result.Success)
+        {
+            TempData["ReviewSuccess"] = "Solicitud enviada a auditoría.";
+            return RedirectToAction(nameof(GenerateAgreement));
+        }
+
+        if (result.Error is not null)
+        {
+            TempData["ReviewError"] = _errorTranslator.Translate(result.Error);
+        }
+        return RedirectToRoute(new { controller = "Review", action = "Review", id });
     }
 
     /// <summary>Spec 020 / FR-A1 — sync per-item generation endpoint.</summary>

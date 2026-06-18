@@ -95,11 +95,11 @@ Clean-Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Independent Test**: As `reviewer@`, open a `ResponseFinalized` app; confirm no "Generate agreement"; "Send to audit" disabled until all required items checked; send → app in `PendingAudit` and in-group auditors receive the `SentToAuditAuditor` email.
 
-- [ ] T034 [US2] Render the **reviewer checklist** on `Review.cshtml` when `State==ResponseFinalized && no agreement` (extend `ReviewController` detail + `ReviewService` projection to supply the active Reviewer-stage template items).
-- [ ] T035 [US2] Add `POST /Review/{id}/SendToAudit` (gate: all required reviewer items checked → `Application.SendToAudit`, snapshot responses) and **remove** the reviewer/admin "Generate agreement" action from the reviewer surface.
-- [ ] T036 [US2] Add `SentToAuditAuditor = 21` (FR-018): enum + `ToStorageString`/`FromStorageString`; new **Auditor** `RecipientBucket`; resolver query (role `AUDITOR` ∩ applicant stage groups, exclude actor/applicant); `NotificationTemplateBindings` (CTA `/Audit/{id}`); es-CR `Views/Emails/SentToAuditAuditor(.text).cshtml`; enqueue at `SendToAudit`/`ResendToAudit`.
-- [ ] T037 [P] [US2] Integration test (real DB): send-to-audit transitions to `PendingAudit`, snapshots reviewer responses, and resolves `SentToAuditAuditor` recipients to in-group auditors only.
-- [ ] T038 [US2] E2E `ReviewerSendToAuditTests`: checklist gating (disabled until all checked), transition to `PendingAudit`, "Generate agreement" absent, auditor email captured.
+- [X] T034 [US2] Render the **reviewer checklist** on `Review.cshtml` when `State==ResponseFinalized && no agreement` (extend `ReviewController` detail + `ReviewService` projection to supply the active Reviewer-stage template items).
+- [X] T035 [US2] Add `POST /Review/{id}/SendToAudit` (gate: all required reviewer items checked → `Application.SendToAudit`, snapshot responses) and **remove** the reviewer/admin "Generate agreement" action from the reviewer surface.
+- [X] T036 [US2] Add `SentToAuditAuditor = 21` (FR-018): enum + `ToStorageString`/`FromStorageString`; new **Auditor** `RecipientBucket`; resolver query (role `AUDITOR` ∩ applicant stage groups, exclude actor/applicant); `NotificationTemplateBindings` (CTA `/Audit/{id}`); es-CR `Views/Emails/SentToAuditAuditor(.text).cshtml`; enqueue at `SendToAudit`/`ResendToAudit`.
+- [X] T037 [P] [US2] Integration test (real DB): send-to-audit transitions to `PendingAudit`, snapshots reviewer responses, and resolves `SentToAuditAuditor` recipients to in-group auditors only.
+- [X] T038 [US2] E2E `ReviewerSendToAuditTests`: checklist gating (disabled until all checked), transition to `PendingAudit`, "Generate agreement" absent, auditor email captured.
 
 **Checkpoint**: US1 + US2 work — reviewer hands off, auditor audits.
 

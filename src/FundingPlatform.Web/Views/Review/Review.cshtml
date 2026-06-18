@@ -14,6 +14,20 @@
         Title: $"Revisar solicitud N.º {Model.ApplicationId}",
         Subtitle: Model.ApplicantName))
 
+@if (TempData["ReviewSuccess"] is string reviewOk)
+{
+    <div class="alert alert-success" data-testid="review-toast-success">@reviewOk</div>
+}
+@if (TempData["ReviewError"] is string reviewErr)
+{
+    <div class="alert alert-danger" data-testid="review-toast-error">@reviewErr</div>
+}
+
+@if (Model.ShowReviewerChecklist || Model.ShowReturnedFromAudit)
+{
+    @await Html.PartialAsync("_ReviewerChecklist", Model)
+}
+
 @if (Model.RejectedSupplierCount > 0)
 {
     <div class="alert alert-danger" role="alert" data-testid="rejected-suppliers-banner">

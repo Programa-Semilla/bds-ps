@@ -46,6 +46,21 @@ public sealed record AuditChecklistView(
     bool AgreementExists,
     bool AgreementConfirmed);
 
+/// <summary>Spec 040 — a reviewer-stage checklist line for the Review surface (+ recorded tick).</summary>
+public sealed record ReviewerChecklistItemView(int TemplateItemId, string Text, bool IsRequired, bool Checked);
+
+/// <summary>Spec 040 / US3 — an auditor non-compliance finding surfaced to the reviewer.</summary>
+public sealed record AuditFindingView(string ItemText, string? Reason);
+
+/// <summary>
+/// Spec 040 — the reviewer's checklist render for an application: the active reviewer-stage
+/// items (with any recorded ticks), plus the auditor's non-compliance findings when the
+/// application was returned from audit.
+/// </summary>
+public sealed record ReviewerChecklistView(
+    IReadOnlyList<ReviewerChecklistItemView> Items,
+    IReadOnlyList<AuditFindingView> Findings);
+
 /// <summary>
 /// Spec 040 — the result of an audit-workflow mutation. On failure carries a
 /// <see cref="UserFacingError"/> already localized to es-CR at the Web boundary.

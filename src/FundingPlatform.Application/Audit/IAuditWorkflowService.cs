@@ -17,6 +17,10 @@ public interface IAuditWorkflowService
     Task<AuditActionResult> ResendToAuditAsync(
         int appId, IReadOnlyList<ReviewerCheck> checks, string reviewerUserId, CancellationToken ct);
 
+    /// <summary>Spec 040 — the reviewer-stage checklist (+ recorded ticks) for an application,
+    /// plus any auditor non-compliance findings (when returned from audit).</summary>
+    Task<ReviewerChecklistView> GetReviewerChecklistAsync(int appId, CancellationToken ct);
+
     // auditor side
     Task<AuditChecklistView?> GetAuditChecklistAsync(int appId, CancellationToken ct);
 

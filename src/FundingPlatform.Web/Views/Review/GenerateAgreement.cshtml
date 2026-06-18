@@ -48,8 +48,12 @@ else
                             <td>@row.ApplicantDisplayName</td>
                             <td>@row.ResponseFinalizedAtUtc.ToString("dd/MM/yyyy HH:mm") UTC</td>
                             <td>
+                                @* Spec 040 / US2 — the reviewer now opens the Review surface to
+                                   complete the reviewer checklist and SEND TO AUDIT (PDF generation
+                                   moved to the auditor); the former link to FundingAgreement/Details
+                                   (with its reviewer "Generate" button) is gone. *@
                                 <a class="btn btn-sm btn-outline-primary"
-                                   href="@Url.RouteUrl(new { controller = "FundingAgreement", action = "Details", applicationId = row.ApplicationId })">
+                                   href="@Url.RouteUrl(new { controller = "Review", action = "Review", id = row.ApplicationId })">
                                     <i class="ti ti-arrow-right me-1"></i>Abrir
                                 </a>
                             </td>
