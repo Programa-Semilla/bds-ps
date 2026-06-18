@@ -29,7 +29,8 @@ The crux discovered during exploration: the master doc's mental model (§11.1 "r
 - Chose **lean**: return → new `ReturnedFromAudit` state → reviewer reworks + re-sends to audit. Applicant re-engagement uses existing reopen/appeal machinery (no new audit→applicant route).
 
 ### Scoping
-- Chose **global** for both the auditor inbox and checklist templates (no per-process/group scoping) — matches §18.1 wording and avoids wiring group membership into the new role; nothing requires scoping yet.
+- Checklist templates: **global** (one active per stage, no per-process scoping).
+- Auditor inbox/access: **group-scoped, symmetric with reviewers** (stakeholder decision 2026-06-18, superseding the initial global-inbox draft). Auditors are assigned to groups (admin user form, FR-017), see/audit only applications whose applicant shares one of their groups (spec-016 reviewer-scope seam reused: group overlap → 403; admin sees all), and are notified on send-to-audit via a new group-scoped Auditor recipient bucket (FR-018) — "the same way reviewers do."
 
 ## Decision
 
@@ -39,7 +40,7 @@ Decisions locked with the user:
 1. Insertion point wraps generate-agreement; signing ceremony stays as-is. ✓
 2. §28.9 → per-stage templates (b). ✓
 3. Return path lean; new dedicated `ReturnedFromAudit` state. ✓
-4. Global auditor inbox + global single-active-per-stage checklists. ✓
+4. Auditor inbox/access group-scoped like reviewers (revised 2026-06-18 from global) + global single-active-per-stage checklists. ✓
 5. Include return-to-reviewer email; re-point existing applicant "ready to sign"; auditor actions available to Auditor OR Admin (reviewer loses direct generate). ✓
 
 ## Open Threads

@@ -12,7 +12,7 @@ The AppHost auto-deploys the dacpac (including `07_SeedChecklistTemplates.sql`, 
 ## Manual walkthrough (golden path)
 
 1. **Reviewer** (`reviewer@`): open an application that has reached `ResponseFinalized` (applicant has done the per-item response). The review page now shows the **Reviewer checklist** and a **"Send to audit"** button (the old "Generate agreement" is gone). Check all required items → **Send to audit**. App → `PendingAudit`.
-2. **Auditor** (`auditor@`): open `/Audit` (global inbox) → the application appears. Open it: full reviewer-equivalent read access incl. provider compliance/freshness/warnings. Mark every audit item **compliant** → **Approve** → **Generate PDF** → review it → check **"PDF is correct"** → **Release for signature**. App → `ResponseFinalized` (with agreement); applicant gets the "ready to sign" email.
+2. **Auditor** (`auditor@`): open `/Audit` (inbox scoped to the auditor's groups — `auditor@` and `reviewer@` share the seeded groups, so the app appears) → the application appears. Open it: full reviewer-equivalent read access incl. provider compliance/freshness/warnings. Mark every audit item **compliant** → **Approve** → **Generate PDF** → review it → check **"PDF is correct"** → **Release for signature**. App → `ResponseFinalized` (with agreement); applicant gets the "ready to sign" email.
 3. **Applicant** (`applicant@`): the existing signing surface appears unchanged; sign → reviewer verifies → `AgreementExecuted`.
 
 ## Return path

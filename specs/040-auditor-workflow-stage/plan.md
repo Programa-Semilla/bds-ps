@@ -18,7 +18,7 @@ Insert a mandatory **auditor gate** between reviewer completion and the funding 
 **Target Platform**: Linux server (Aspire-orchestrated), browser UI (es-CR).
 **Project Type**: Web application — Clean Architecture (Domain / Application / Infrastructure / Web).
 **Performance Goals**: Standard interactive web latencies; no special throughput target. Auditor inbox is a paged list query.
-**Constraints**: es-CR user-facing copy; optimistic concurrency on the `Application` aggregate (existing `RowVersion`); group-overlap reviewer scope (spec 016) preserved on the reviewer side; auditor inbox is **global** (not group-scoped).
+**Constraints**: es-CR user-facing copy; optimistic concurrency on the `Application` aggregate (existing `RowVersion`); group-overlap scope (spec 016) applies to **both reviewers and auditors** — the auditor inbox + detail page are group-scoped exactly like the reviewer queue + detail page, and auditors are notified group-scoped the same way reviewers are (updated 2026-06-18 per stakeholder; supersedes the earlier global-inbox draft).
 **Scale/Scope**: Small auditor population; volume comparable to the existing reviewer queue / generate-agreement queue.
 
 ## Constitution Check
@@ -70,7 +70,7 @@ src/
   FundingPlatform.Application/
     Checklists/IChecklistTemplateService.cs    # NEW admin CRUD (mirrors IFundService)
     Audit/IAuditWorkflowService.cs             # NEW send-to-audit/return/approve/generate/confirm/release
-    Audit/IAuditorQueueProjection.cs           # NEW global PendingAudit inbox
+    Audit/IAuditorQueueProjection.cs           # NEW group-scoped PendingAudit inbox (reviewer-scope seam)
     Audit/AuditChecklistDtos.cs                # NEW DTOs (inbox rows, checklist render, responses)
   FundingPlatform.Infrastructure/
     Persistence/Configurations/Checklist*Configuration.cs            # NEW (3 configs)
@@ -78,16 +78,18 @@ src/
     Services/ChecklistTemplateService.cs                             # NEW (mirrors FundService)
     Services/AuditWorkflowService.cs                                 # NEW
     Audit/AdminAuditEventWriter.cs                                   # + checklist.* prefix routing
-    Notifications/Resolvers/NotificationRecipientResolver.cs         # + ReturnedToReviewerFromAudit bucket rules
+    Notifications/Resolvers/NotificationRecipientResolver.cs         # + ReturnedToReviewerFromAudit + new Auditor bucket (group-scoped, role=AUDITOR) for SentToAuditAuditor
   FundingPlatform.Web/
-    Controllers/AuditController.cs             # NEW auditor inbox + audit actions (Auditor/Admin)
+    Controllers/AuditController.cs             # NEW auditor inbox + audit actions (Auditor/Admin), group-scoped (reviewer pattern)
     Controllers/ReviewController.cs            # reviewer "Send to audit" + returned-app rework
+    Controllers/Admin/AdminUsersController.cs  # group selector now also shown for Auditor role (FR-017)
     Controllers/FundingAgreementController.cs  # generation gated to audit stage; release enqueues "ready to sign"
     Controllers/AdminController.cs             # + Checklists CRUD actions
     ViewModels/Admin/ChecklistAdminViewModels.cs   # NEW
     Views/Audit/*.cshtml                       # NEW inbox + audit review + checklist
     Views/Admin/Checklists.cshtml + Create/Edit + _ChecklistItems*.cshtml   # NEW
     Views/Emails/ReturnedToReviewerFromAudit*.cshtml                # NEW es-CR templates
+    Views/Emails/SentToAuditAuditor*.cshtml                         # NEW es-CR templates (group-scoped auditor notice, FR-018)
     Views/Shared/_Layout.cshtml                # + sidebar entries (Checklists admin; Auditoría inbox)
   FundingPlatform.Database/
     Tables/dbo.ChecklistTemplates.sql / dbo.ChecklistTemplateItems.sql / dbo.ApplicationChecklistResponses.sql   # NEW

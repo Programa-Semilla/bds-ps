@@ -116,6 +116,7 @@ An administrator configures the checklist templates that drive both gates: a sim
 - **Re-send loop**: an application may cycle `PendingAudit ⇄ ReturnedFromAudit` any number of times.
 - **Regenerate after confirm**: if the auditor regenerates the PDF after confirming it, the prior "PDF is correct" confirmation is invalidated and must be re-confirmed before release.
 - **Appeal interplay**: appeals resolve before audit (audit is strictly post-`ResponseFinalized` with no open appeal); this slice introduces no new audit↔appeal interaction.
+- **Out-of-group / unassigned auditor**: an auditor whose groups do not overlap the applicant's does not see the application in their inbox and is refused (403) on direct access — identical to the reviewer group-overlap behavior. An auditor with no group memberships sees an empty inbox. Administrators see all.
 
 ## Requirements *(mandatory)*
 
@@ -131,7 +132,9 @@ An administrator configures the checklist templates that drive both gates: a sim
 - **FR-005**: The "Send to audit" action MUST be enabled only when all required reviewer items are checked, and it MUST transition the application to `PendingAudit`. The reviewer's former direct agreement-generation action MUST be removed.
 
 #### Auditor inbox & review access
-- **FR-006**: Auditors MUST have a global inbox listing every application in `PendingAudit` (applications in `ReturnedFromAudit` MUST NOT appear in the auditor inbox — they sit with the reviewer). The inbox MUST show enough to triage: applicant, identifiers, time the application entered audit, and provider(s) with regulatory/warning indicators.
+- **FR-006**: Auditors MUST have an inbox listing applications in `PendingAudit` **scoped to the auditor's assigned groups exactly as the reviewer queue is scoped** (spec 016 group overlap): an auditor sees only `PendingAudit` applications whose applicant shares at least one of the auditor's groups; administrators see all (applications in `ReturnedFromAudit` MUST NOT appear in the auditor inbox — they sit with the reviewer). The inbox MUST show enough to triage: applicant, identifiers, time the application entered audit, and provider(s) with regulatory/warning indicators.
+- **FR-017**: Auditors MUST be assignable to groups through the same admin user-management mechanism that assigns reviewers to groups (spec 016). Opening an application in the auditor stage MUST be refused for an auditor whose groups do not overlap the applicant's, mirroring the reviewer detail-page group-overlap authorization.
+- **FR-018**: When an application enters `PendingAudit` (initial send-to-audit and every re-send), the auditors whose groups overlap the applicant's MUST be notified, resolved by group membership the same way reviewers are notified — i.e., auditors receive notifications through the same group-scoped pipeline reviewers use.
 - **FR-007**: An auditor MUST be able to open an application in audit with read access equivalent to a reviewer's: application details, applicant information, requested items, provider information including regulatory statuses + review freshness + warnings, impact/category data, supporting documents, existing or generated PDFs, and the application's review history; and MUST be able to download documents and PDFs.
 
 #### Audit decision
@@ -177,7 +180,7 @@ An administrator configures the checklist templates that drive both gates: a sim
 - The existing application state machine, funding-agreement PDF generation, signing ceremony, notification outbox (specs 021/028), and administrative audit-event logging are reused rather than replaced.
 - The "ready to sign" applicant notification already exists; this slice re-points its trigger to the auditor's release action rather than introducing a new template.
 - The agreement PDF content and template are unchanged; only the actor and the gating around generation change.
-- Reviewer group-scoping (spec 016) continues to apply to reviewers; auditors are intentionally not group-scoped in this slice (global inbox).
+- Reviewer group-scoping (spec 016) applies to **both** reviewers and auditors: an auditor is assigned to groups and sees/audits only applications whose applicant shares one of those groups (administrators see all). Auditor group membership reuses the existing `UserGroupMembership` model and reviewer-scope seam.
 - No new managed (NuGet) dependency is expected; existing outbox, PDF, audit-event, and storage seams are sufficient.
 
 ## Dependencies
@@ -187,7 +190,7 @@ An administrator configures the checklist templates that drive both gates: a sim
 
 ## Out of Scope
 
-- Per-process or per-fund checklist templates; group-scoped auditor inbox.
+- Per-process or per-fund checklist templates.
 - A new "audit → applicant" route. Re-engaging the applicant after an audit finding uses the existing reopen/appeal machinery.
 - Any change to the agreement PDF content/template, the signing ceremony, or `AgreementExecuted` behavior.
 - Provider-compliance review-freshness **blocking** of application progress (slice D, §17). This slice only **displays** the slice-A freshness information to the auditor.

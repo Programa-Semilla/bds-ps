@@ -97,7 +97,10 @@ Add `checklist.*` constants + `TargetTypeChecklist` (mirror spec-037 `company.*`
 `checklist.create`, `checklist.edit`, `checklist.activate`, `checklist.deactivate`. Routed by a `checklist.` branch in `AdminAuditEventWriter.DeriveTarget`.
 
 ### NotificationEvent (`NotificationEvent.cs`)
-Add `ReturnedToReviewerFromAudit = 20` (+ storage string `RETURNED_TO_REVIEWER_FROM_AUDIT` in `ToStorageString`/`FromStorageString`). `AgreementGeneratedApplicant = 14` is **re-pointed** (enqueue site moves) — no enum change.
+Add `ReturnedToReviewerFromAudit = 20` and `SentToAuditAuditor = 21` (+ storage strings `RETURNED_TO_REVIEWER_FROM_AUDIT` / `SENT_TO_AUDIT_AUDITOR` in `ToStorageString`/`FromStorageString`). `AgreementGeneratedApplicant = 14` is **re-pointed** (enqueue site moves) — no enum change.
+
+### RecipientBucket (`RecipientBucket.cs`) + resolver (group-scoping, FR-018)
+Add an **Auditor** bucket. `NotificationRecipientResolver` gains a query mirroring the reviewer group-overlap join (`UserGroupMemberships.GroupId IN payload.StageGroupIds` + role `AUDITOR`, excluding applicant + actor). `SentToAuditAuditor` includes the Auditor bucket (+ Admin); `ReturnedToReviewerFromAudit` includes the Reviewer bucket (+ Admin) as before.
 
 ---
 
@@ -106,7 +109,7 @@ Add `ReturnedToReviewerFromAudit = 20` (+ storage string `RETURNED_TO_REVIEWER_F
 ```
 ResponseFinalized (no agreement yet)
    │  reviewer completes Reviewer checklist
-   │  Application.SendToAudit(reviewer)                         ── + ReturnedToReviewer? no; just VersionHistory
+   │  Application.SendToAudit(reviewer)  ──► VersionHistory + enqueue SentToAuditAuditor (group-scoped auditors)
    ▼
 PendingAudit
    ├─ auditor completes Auditor checklist (all required Checked/compliant)
@@ -123,7 +126,7 @@ PendingAudit
 
 ReturnedFromAudit
    │  reviewer sees reasons, reworks, re-completes Reviewer checklist
-   │  Application.ResendToAudit(reviewer) ────────────────────► PendingAudit   (loop any number of times)
+   │  Application.ResendToAudit(reviewer) ──► PendingAudit (loop) + enqueue SentToAuditAuditor
 ```
 
 Unchanged downstream: `SubmitSignedUpload` (gate `ResponseFinalized`), `ApproveSignedUpload` → `ExecuteAgreement` → `AgreementExecuted`.

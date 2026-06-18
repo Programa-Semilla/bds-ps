@@ -13,8 +13,8 @@ Inserts a mandatory **Auditor** stage between reviewer completion and the fundin
 
 ## Scope Boundaries
 
-- **In scope:** Two new states (`PendingAudit`, `ReturnedFromAudit`); reviewer "Send to audit" gate; auditor global inbox + reviewer-equivalent read access; per-stage checklist templates (admin-managed); auditor approve → generate PDF → confirm → release; return-to-reviewer with reasons + email; audit trail of all transitions.
-- **Out of scope:** Per-process/group-scoped checklists or inbox; a new audit→applicant route; any change to PDF content, signing ceremony, or `AgreementExecuted`; regulatory-freshness **blocking** (that's slice D — this slice only displays freshness).
+- **In scope:** Two new states (`PendingAudit`, `ReturnedFromAudit`); reviewer "Send to audit" gate; **group-scoped** auditor inbox + reviewer-equivalent read access (auditors assigned to groups exactly like reviewers); per-stage checklist templates (admin-managed); auditor approve → generate PDF → confirm → release; return-to-reviewer with reasons + email; group-scoped auditor notification on send-to-audit; audit trail of all transitions.
+- **Out of scope:** Per-process/per-fund checklists; a new audit→applicant route; any change to PDF content, signing ceremony, or `AgreementExecuted`; regulatory-freshness **blocking** (that's slice D — this slice only displays freshness).
 - **Why these boundaries:** Keeps the slice independently shippable on top of slice A; defers blocking/automation to slice D; reuses existing PDF/outbox/signing seams.
 
 ## Critical Decisions
@@ -34,11 +34,11 @@ Inserts a mandatory **Auditor** stage between reviewer completion and the fundin
 
 ## Areas of Potential Disagreement
 
-### Global auditor inbox (not group-scoped)
-- **Decision:** Auditors see every application in `PendingAudit` regardless of reviewer group.
-- **Why this might be controversial:** Reviewers *are* group-scoped (spec 016); an asymmetry.
-- **Alternative view:** Large deployments with many auditors partitioned by program might want scoping.
-- **Seeking input on:** Is a global auditor inbox acceptable for the foreseeable client scale?
+### Group-scoped auditors (symmetric with reviewers)
+- **Decision:** Auditors are assigned to groups and see/audit only `PendingAudit` applications whose applicant shares one of their groups; admins see all. Auditors are notified (on send-to-audit) the same group-scoped way reviewers are. *(Updated 2026-06-18 per stakeholder: auditor scope mirrors reviewer scope — was previously a global inbox.)*
+- **Why this might be controversial:** Requires auditors to be assigned to groups in admin user management (added to FR-017); an auditor with no groups sees an empty inbox.
+- **Alternative view:** A global oversight inbox (simpler) — explicitly rejected by the stakeholder.
+- **Seeking input on:** Confirm every auditor will be assigned to the appropriate group(s) so their inbox isn't empty.
 
 ### Admin can perform auditor actions
 - **Decision:** Auditor-stage actions are available to Auditor OR Admin; reviewers lose direct agreement generation.

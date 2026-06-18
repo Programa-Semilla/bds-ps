@@ -54,11 +54,13 @@ public interface IChecklistTemplateService
     Task<ActiveChecklist?> GetActiveForStageAsync(ChecklistStage stage, CancellationToken ct); // stage-specific beats Both
 }
 
-// Audit/IAuditorQueueProjection.cs — global PendingAudit inbox
+// Audit/IAuditorQueueProjection.cs — group-scoped PendingAudit inbox (mirrors reviewer queue)
 public interface IAuditorQueueProjection
 {
-    Task<IReadOnlyList<AuditInboxRowDto>> GetInboxAsync(string? searchTerm, int page, int pageSize, CancellationToken ct);
+    Task<IReadOnlyList<AuditInboxRowDto>> GetInboxAsync(IReviewerScope scope, string? searchTerm, int page, int pageSize, CancellationToken ct);
 }
+// scope resolved via IReviewerScopeProvider.GetForUserAsync(auditorUserId, isAdmin) — group ids by UserGroupMembership;
+// admin short-circuits to all. Empty groups => empty inbox.
 // AuditInboxRowDto: ApplicationId, ApplicantDisplayName, PublicCode?, EnteredAuditAtUtc,
 //                   HasProviderWarning, WorstComplianceFlag (indicator), ItemCount
 
@@ -88,10 +90,11 @@ PDF generation itself stays in the existing `GenerateFundingAgreementCommand` pa
 ## 3. Web routes
 
 ### Auditor (`AuditController`, `[Authorize(Roles="Auditor,Admin")]`)
+Group-scoped exactly like the reviewer surfaces: inbox filtered to the auditor's groups; detail page applies `ApplicantSharesAnyGroupAsync` → `Forbid()` (403) on no overlap (admins exempt).
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/Audit` | Global inbox of `PendingAudit` apps |
-| GET | `/Audit/{id}` | Auditor review surface (reviewer-equivalent read) + audit checklist |
+| GET | `/Audit` | Inbox of `PendingAudit` apps **scoped to the auditor's groups** |
+| GET | `/Audit/{id}` | Auditor review surface (reviewer-equivalent read) + audit checklist; group-overlap gated |
 | POST | `/Audit/{id}/Checklist` | Save audit marks (compliant / non-compliant + reason) |
 | POST | `/Audit/{id}/Approve` | Approve for agreement (gate: all required compliant) |
 | POST | `/Audit/{id}/Generate` | Generate agreement PDF (delegates to existing generation; gate: PendingAudit + approved) |
@@ -100,7 +103,7 @@ PDF generation itself stays in the existing `GenerateFundingAgreementCommand` pa
 | POST | `/Audit/{id}/Return` | Return to reviewer (≥1 non-compliant) → `ReturnedFromAudit` + email |
 | GET | `/Audit/{id}/Download/...` | Download documents/PDFs (reuse existing storage signed-URL path) |
 
-Wrong role → 403; app missing / not `PendingAudit` (for reads) → 404 no-disclosure; mutation on wrong state → es-CR domain refusal (D12).
+Wrong role → 403; auditor groups don't overlap applicant's → `Forbid()` 403 (reviewer pattern); app missing → 404; mutation on wrong state → es-CR domain refusal (D12).
 
 ### Reviewer (`ReviewController`, existing)
 | Method | Route | Purpose |
@@ -127,8 +130,12 @@ Sidebar entry added to `procesoEntries` in `_Layout.cshtml`; optional dashboard 
 |---|---|---|---|---|
 | `AgreementGeneratedApplicant` (14, **re-pointed**) | `ReleaseForSignatureAsync` (was: PDF generation) | Applicant | existing `AgreementGeneratedApplicant` | `/Applications/{id}/FundingAgreement` |
 | `ReturnedToReviewerFromAudit` (20, **new**) | `ReturnToReviewerAsync` | Reviewer bucket (applicant stage groups) + Admin; exclude actor/applicant | new es-CR `ReturnedToReviewerFromAudit(.text)` | `/Review/{id}` |
+| `SentToAuditAuditor` (21, **new**) | `SendToAudit` / `ResendToAudit` (entry to `PendingAudit`) | **Auditor bucket** (Auditor role ∩ applicant stage groups) + Admin; exclude actor/applicant | new es-CR `SentToAuditAuditor(.text)` | `/Audit/{id}` |
 
-Idempotency anchor = the `VersionHistory` row created by the release/return transition. Email-send failure does not roll back the transition.
+Requires a new **Auditor** `RecipientBucket` + a resolver query mirroring the reviewer group-overlap join with role filter `AUDITOR`. Idempotency anchor = the `VersionHistory` row created by the send/release/return transition. Email-send failure does not roll back the transition.
+
+### Admin — auditor group assignment (FR-017)
+The spec-016 multi-select group selector on the admin user-edit form (shown for Reviewer) MUST also render for the **Auditor** role, so auditors can be assigned to groups. Reuses `UserGroupMembership` + the existing user-administration save path; no new entity.
 
 ---
 
