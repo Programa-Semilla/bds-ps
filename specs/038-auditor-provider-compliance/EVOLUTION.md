@@ -72,6 +72,16 @@ The codebase already mixes both styles; relocation was deferred as low-value
 churn. The verbatim status **labels** do live in one place
 (`RegulatoryStatusLabels`).
 
+## D-G — FR-016 "by whom" partial on the review surface
+
+`Supplier.cs` provider screen shows the full freshness phrase ("revisado hace N
+días por {auditor}"). The **reviewer review surface** (`_SupplierComplianceBadge`)
+shows *when* + *source* but **omits "por {name}"** — `ReviewService` has no
+user-name resolver and threading one into the core review projection was judged
+too invasive for a foundation slice. FR-016 is fully met on the provider screen
+and partially on the review surface. Candidate for a follow-up / slice-B
+projection if reviewers need the auditor name inline.
+
 ## Kept-as-is (documented in research D1)
 
 Filter class names (`SupplierAdminOnly*`), supplier-list DTO names
