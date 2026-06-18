@@ -143,6 +143,34 @@ public class AuditWorkflowServiceTests
     }
 
     [Test]
+    public async Task ReturnThenResend_LoopsBackToPendingAudit()
+    {
+        var db = $"audit-loop-{Guid.NewGuid():N}";
+        using var ctx = CreateContext(db);
+        var (_, appId) = await SeedGroupAndFinalizedAsync(ctx, "Centro");
+        var itemId = await SeedActiveChecklistAsync(ctx, ChecklistStage.Both);
+        var svc = NewService(ctx);
+
+        await svc.SubmitReviewerChecklistAndSendToAuditAsync(
+            appId, new[] { new ReviewerCheck(itemId, true) }, "reviewer-1", CancellationToken.None);
+        await svc.SaveAuditChecklistAsync(
+            appId, new[] { new AuditMark(itemId, false, "Falta documentación") }, "auditor-1", CancellationToken.None);
+        await svc.ReturnToReviewerAsync(appId, "auditor-1", CancellationToken.None);
+
+        Assert.That((await ctx.Applications.FirstAsync(a => a.Id == appId)).State,
+            Is.EqualTo(ApplicationState.ReturnedFromAudit));
+
+        // Reviewer reworks and re-sends.
+        var resend = await svc.ResendToAuditAsync(
+            appId, new[] { new ReviewerCheck(itemId, true) }, "reviewer-1", CancellationToken.None);
+        Assert.That(resend.Success, Is.True);
+        Assert.That((await ctx.Applications.FirstAsync(a => a.Id == appId)).State,
+            Is.EqualTo(ApplicationState.PendingAudit));
+        // Two SentToAuditAuditor enqueues (initial send + re-send).
+        Assert.That(await ctx.NotificationOutbox.CountAsync(o => o.EventType == "SENT_TO_AUDIT_AUDITOR"), Is.EqualTo(2));
+    }
+
+    [Test]
     public async Task Inbox_IsGroupScoped_InGroupSees_OutOfGroupDoesNot()
     {
         var db = $"audit-inbox-{Guid.NewGuid():N}";

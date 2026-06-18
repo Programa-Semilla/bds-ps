@@ -111,12 +111,12 @@ Clean-Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 
 **Independent Test**: As `auditor@`, mark ≥1 item non-compliant with a reason → "Return"; assert `ReturnedFromAudit`, reviewer email with reasons, applicant nothing; as `reviewer@`, see reasons → re-complete → re-send → `PendingAudit`.
 
-- [ ] T039 [US3] Add `ReturnToReviewerAsync` to `AuditWorkflowService` (requires ≥1 `NotCompliant` with reason → `Application.ReturnFromAudit`); ensure "Approve" is unavailable when any item is non-compliant.
-- [ ] T040 [US3] Add `ReturnedToReviewerFromAudit = 20`: enum + storage strings; `NotificationTemplateBindings` (CTA `/Review/{id}`); recipient rules (Reviewer bucket via applicant groups + Admin; exclude actor/applicant); es-CR `Views/Emails/ReturnedToReviewerFromAudit(.text).cshtml`; enqueue at the return transition.
-- [ ] T041 [US3] On `Review.cshtml` for `State==ReturnedFromAudit`, show the auditor's non-compliance reasons + a reviewer re-complete checklist + `POST /Review/{id}` re-send (→ `Application.ResendToAudit`), re-enqueuing `SentToAuditAuditor`.
-- [ ] T042 [US3] Wire `POST /Audit/{id}/Return` in `AuditController` + ensure `_AuditChecklist` captures per-item non-compliance reasons.
-- [ ] T043 [P] [US3] Integration test (real DB): return → `ReturnedFromAudit` + `ReturnedToReviewerFromAudit` reviewer recipients (applicant excluded); re-send → `PendingAudit`.
-- [ ] T044 [US3] E2E `AuditReturnTests`: return with reasons (reviewer email captured, applicant none), reviewer rework + re-send, `PendingAudit ⇄ ReturnedFromAudit` loop.
+- [X] T039 [US3] Add `ReturnToReviewerAsync` to `AuditWorkflowService` (requires ≥1 `NotCompliant` with reason → `Application.ReturnFromAudit`); ensure "Approve" is unavailable when any item is non-compliant.
+- [X] T040 [US3] Add `ReturnedToReviewerFromAudit = 20`: enum + storage strings; `NotificationTemplateBindings` (CTA `/Review/{id}`); recipient rules (Reviewer bucket via applicant groups + Admin; exclude actor/applicant); es-CR `Views/Emails/ReturnedToReviewerFromAudit(.text).cshtml`; enqueue at the return transition.
+- [X] T041 [US3] On `Review.cshtml` for `State==ReturnedFromAudit`, show the auditor's non-compliance reasons + a reviewer re-complete checklist + `POST /Review/{id}` re-send (→ `Application.ResendToAudit`), re-enqueuing `SentToAuditAuditor`.
+- [X] T042 [US3] Wire `POST /Audit/{id}/Return` in `AuditController` + ensure `_AuditChecklist` captures per-item non-compliance reasons.
+- [X] T043 [P] [US3] Integration test (real DB): return → `ReturnedFromAudit` + `ReturnedToReviewerFromAudit` reviewer recipients (applicant excluded); re-send → `PendingAudit`.
+- [X] T044 [US3] E2E `AuditReturnTests`: return with reasons (reviewer email captured, applicant none), reviewer rework + re-send, `PendingAudit ⇄ ReturnedFromAudit` loop.
 
 **Checkpoint**: full audit loop (approve and return) works.
 
