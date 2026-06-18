@@ -92,3 +92,59 @@ All deviations are logged in [tasks.md](tasks.md#implementation-deviations) (D-A
 - Risk: `AgreementGeneratedApplicant` was **re-pointed** off generation onto release. If any other
   path still expected the old enqueue site, the applicant "ready to sign" email would not fire.
   Verified by E2E (golden path asserts the applicant ready-to-sign surface after release).
+
+---
+
+## Deep Review Report
+
+> Automated multi-perspective code review results.
+
+**Date:** 2026-06-18 | **Rounds:** 1/3 | **Gate:** PASS
+
+### Review Agents
+
+| Agent | Findings | Status |
+|-------|----------|--------|
+| Correctness | 3 | completed |
+| Architecture & Idioms | 5 | completed |
+| Security | 1 | completed |
+| Production Readiness | 4 | completed |
+| Test Quality | 7 | completed |
+| CodeRabbit (external) | — | skipped (--no-external) |
+| Copilot (external) | — | skipped (--no-external) |
+
+### Findings Summary
+
+| Severity | Found | Fixed | Remaining |
+|----------|-------|-------|-----------|
+| Critical | 0 | 0 | 0 |
+| Important | 6 | 6 | 0 |
+| Minor | 15 | 8 | 7 |
+
+### What was fixed automatically
+
+The fix loop closed all six Important findings: (1) a stale auditor PDF-confirmation that leaked
+across the return/resend loop (FR-010/SC-001) — `ReturnFromAudit` now clears it; (2) a concurrent
+duplicate-row race on checklist responses — added a unique index + clean stale-state refusal;
+(3) an authorization breadth letting Auditors administer checklists — checklist admin actions are
+now per-action Admin-only (FR-001 privilege boundary); (4) an unhandled/unlogged phase-2 outbox
+failure (FR-011 scenario 5) — `EnqueueAfterCommitAsync` makes notification failure non-fatal +
+logged, and the previously-dead `ILogger` is now wired across all transitions; plus (5,6) two test
+gaps — the approve-gate negative (SC-002) and the FR-011 return-payload/persistence assertions.
+Eight Minor items were also cleaned up (stale-response clearing on re-send, inbox query
+`AsNoTracking().AsSplitQuery()`, an inaccurate projection comment, and removal of dead
+service/repository methods that duplicated the active-template resolution rule).
+
+### What still needs human attention
+
+All Critical and Important findings were resolved. Seven Minor findings remain (see
+[review-findings.md](review-findings.md)) — notably the dead `FundingAgreementService._outboxWriter`
+(left to avoid churn across ~10 test constructions), an optional `Application.ApproveForAudit` domain
+method, and a few defense-in-depth test additions (out-of-group POST guards, auditor generate
+click-path). None are blocking.
+
+### Recommendation
+
+All findings addressed. The seven remaining Minor items are non-blocking and recorded for a future
+cleanup pass. Code is ready for human review with no known blockers. Verification: Unit 684/0,
+Integration 421/0, filtered E2E 20/0 (delivery gate) green; spec compliance 100%.

@@ -250,8 +250,12 @@ public class ApplicationRepository : IApplicationRepository
     {
         // Spec 040 / FR-006 — group-scoped PendingAudit inbox with the includes the row needs:
         // selected-supplier compliance (provider warning) + VersionHistory (entered-audit time).
+        // Read-only triage list: AsNoTracking + AsSplitQuery avoids change-tracking overhead and
+        // the cartesian row explosion from the nested Items→Quotations + VersionHistory collections.
         IQueryable<AppEntity> query = _queryFilter.ExcludeArchivedFund(
                 _queryFilter.ExcludeDeleted(_context.Applications))
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.Applicant)
             .Include(a => a.Items)
                 .ThenInclude(i => i.Quotations)

@@ -139,7 +139,45 @@ public class AuditWorkflowServiceTests
 
         var app = await ctx.Applications.FirstAsync(a => a.Id == appId);
         Assert.That(app.State, Is.EqualTo(ApplicationState.ReturnedFromAudit));
-        Assert.That(await ctx.NotificationOutbox.CountAsync(o => o.EventType == "RETURNED_TO_REVIEWER_FROM_AUDIT"), Is.EqualTo(1));
+
+        // FR-011 — the per-item non-compliance reason is PERSISTED.
+        var recorded = await ctx.ApplicationChecklistResponses
+            .SingleAsync(r => r.ApplicationId == appId && r.Stage == ChecklistStage.Auditor);
+        Assert.That(recorded.Status, Is.EqualTo(ChecklistResponseStatus.NotCompliant));
+        Assert.That(recorded.NonComplianceReason, Is.EqualTo("Falta documentación"));
+
+        // FR-011 — the return notification carries the itemized findings (not just a bare row).
+        var outbox = await ctx.NotificationOutbox.SingleAsync(o => o.EventType == "RETURNED_TO_REVIEWER_FROM_AUDIT");
+        Assert.That(outbox.PayloadJson, Does.Contain("Falta documentación"));
+    }
+
+    [Test]
+    public async Task Approve_RefusedWhenRequiredItemNotCompliant_StateUnchanged()
+    {
+        // SC-002 (auditor side) — "Approve for agreement" is impossible until every required
+        // audit item is marked compliant.
+        var db = $"audit-approve-block-{Guid.NewGuid():N}";
+        using var ctx = CreateContext(db);
+        var (_, appId) = await SeedGroupAndFinalizedAsync(ctx, "Norte");
+        var itemId = await SeedActiveChecklistAsync(ctx, ChecklistStage.Both);
+        var svc = NewService(ctx);
+
+        await svc.SubmitReviewerChecklistAndSendToAuditAsync(
+            appId, new[] { new ReviewerCheck(itemId, true) }, "reviewer-1", CancellationToken.None);
+
+        // Required item marked NON-compliant → approve must be refused.
+        await svc.SaveAuditChecklistAsync(
+            appId, new[] { new AuditMark(itemId, false, "No conforme") }, "auditor-1", CancellationToken.None);
+        var blocked = await svc.ApproveForAgreementAsync(appId, "auditor-1", CancellationToken.None);
+        Assert.That(blocked.Success, Is.False, "Approve must be refused while a required item is non-compliant.");
+        Assert.That(await svc.IsAuditChecklistCompleteAsync(appId, CancellationToken.None), Is.False);
+        Assert.That((await ctx.Applications.FirstAsync(a => a.Id == appId)).State,
+            Is.EqualTo(ApplicationState.PendingAudit), "State must be unchanged on a refused approve.");
+
+        // After marking compliant, approve succeeds.
+        await svc.SaveAuditChecklistAsync(
+            appId, new[] { new AuditMark(itemId, true, null) }, "auditor-1", CancellationToken.None);
+        Assert.That((await svc.ApproveForAgreementAsync(appId, "auditor-1", CancellationToken.None)).Success, Is.True);
     }
 
     [Test]

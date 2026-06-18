@@ -18,7 +18,4 @@ public interface IChecklistTemplateRepository
     /// <c>Both</c> one. Returns <c>null</c> when no active template applies.
     /// </summary>
     Task<ChecklistTemplate?> GetActiveForStageAsync(ChecklistStage stage, CancellationToken ct);
-
-    /// <summary>The template with the given id, items loaded, or <c>null</c>.</summary>
-    Task<ChecklistTemplate?> GetByIdWithItemsAsync(int id, CancellationToken ct);
 }

@@ -33,6 +33,11 @@ public class ApplicationChecklistResponseConfiguration
         builder.HasIndex(r => new { r.ApplicationId, r.Stage })
             .HasDatabaseName("IX_ApplicationChecklistResponses_ApplicationId_Stage");
 
+        // Spec 040 — one current row per (application, stage, item); serializes concurrent saves.
+        builder.HasIndex(r => new { r.ApplicationId, r.Stage, r.ChecklistTemplateItemId })
+            .IsUnique()
+            .HasDatabaseName("UX_ApplicationChecklistResponses_App_Stage_Item");
+
         builder.HasOne<AppEntity>()
             .WithMany()
             .HasForeignKey(r => r.ApplicationId)

@@ -8,11 +8,11 @@ namespace FundingPlatform.Application.Services;
 
 /// <summary>
 /// Spec 040 / D7 / T023 — the group-scoped auditor inbox of <c>PendingAudit</c>
-/// applications. Reuses the reviewer-queue repository path
-/// (<see cref="IApplicationRepository.GetByStateForReviewerAsync"/>) with the auditor's
-/// own scope hint, so group-overlap (and the admin short-circuit) are enforced at the EF
-/// query level exactly like the reviewer queue. <c>ReturnedFromAudit</c> apps are a
-/// different state and are therefore naturally excluded.
+/// applications via <see cref="IApplicationRepository.GetPendingAuditInboxAsync"/>, which
+/// applies the same group-overlap predicate (and admin short-circuit) as the reviewer queue
+/// (<c>GetByStateForReviewerAsync</c>) plus the includes the inbox row needs (selected-supplier
+/// compliance + VersionHistory). <c>ReturnedFromAudit</c> apps are a different state and are
+/// therefore naturally excluded.
 /// </summary>
 public sealed class AuditorQueueProjection : IAuditorQueueProjection
 {

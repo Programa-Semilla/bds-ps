@@ -25,9 +25,6 @@ public interface IChecklistTemplateService
     Task ActivateAsync(int id, string actorUserId, CancellationToken ct);
 
     Task DeactivateAsync(int id, string actorUserId, CancellationToken ct);
-
-    /// <summary>The effective active template for a stage (stage-specific beats Both), or null.</summary>
-    Task<ActiveChecklist?> GetActiveForStageAsync(ChecklistStage stage, CancellationToken ct);
 }
 
 /// <summary>One posted/edited checklist item (ordering is the list position).</summary>
@@ -49,6 +46,3 @@ public sealed record ChecklistTemplateItemRow(int Id, string Text, int DisplayOr
 public sealed record ChecklistTemplateDetail(
     int Id, string Name, string? Description, ChecklistStage AppliesToStage, bool IsActive,
     IReadOnlyList<ChecklistTemplateItemRow> Items);
-
-public sealed record ActiveChecklist(
-    int Id, ChecklistStage AppliesToStage, IReadOnlyList<ChecklistTemplateItemRow> Items);

@@ -188,6 +188,26 @@ public class AuditorWorkflowTransitionTests
         Assert.Throws<InvalidOperationException>(() => app.ConfirmAgreementPdf(AuditorId));
     }
 
+    [Test]
+    public void ReturnFromAudit_ClearsPriorConfirmation_SoReleaseNeedsFreshConfirm()
+    {
+        // FR-010 — the stale-confirmation forward-leak: confirm, then return; a later release
+        // (after re-send) must require a fresh confirmation.
+        var app = BuildPendingAuditApplication();
+        var agreement = app.GenerateFundingAgreement("a.pdf", "application/pdf", 1, "/a", AuditorId);
+        app.ConfirmAgreementPdf(AuditorId);
+        Assert.That(agreement.AuditorConfirmedAtUtc, Is.Not.Null);
+
+        app.ReturnFromAudit(AuditorId);
+        Assert.That(agreement.AuditorConfirmedAtUtc, Is.Null, "Return must clear the prior confirmation.");
+
+        // After the reviewer re-sends, release must fail until the auditor re-confirms.
+        app.ResendToAudit(ReviewerId, reviewerChecklistComplete: true);
+        Assert.Throws<InvalidOperationException>(() => app.ReleaseForSignature(AuditorId));
+        app.ConfirmAgreementPdf(AuditorId);
+        Assert.DoesNotThrow(() => app.ReleaseForSignature(AuditorId));
+    }
+
     // --- helpers ---
 
     private static AppEntity BuildPendingAuditApplication()

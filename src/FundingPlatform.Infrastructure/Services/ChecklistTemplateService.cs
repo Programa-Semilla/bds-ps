@@ -128,25 +128,6 @@ public sealed class ChecklistTemplateService : IChecklistTemplateService
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task<ActiveChecklist?> GetActiveForStageAsync(ChecklistStage stage, CancellationToken ct)
-    {
-        var candidates = await _db.ChecklistTemplates.AsNoTracking()
-            .Include(t => t.Items.OrderBy(i => i.DisplayOrder))
-            .Where(t => t.IsActive && (t.AppliesToStage == stage || t.AppliesToStage == ChecklistStage.Both))
-            .ToListAsync(ct);
-
-        var template = candidates.FirstOrDefault(t => t.AppliesToStage == stage)
-            ?? candidates.FirstOrDefault(t => t.AppliesToStage == ChecklistStage.Both);
-        if (template is null) return null;
-
-        return new ActiveChecklist(
-            template.Id, template.AppliesToStage,
-            template.Items.Where(i => i.IsActive)
-                .OrderBy(i => i.DisplayOrder)
-                .Select(i => new ChecklistTemplateItemRow(i.Id, i.Text, i.DisplayOrder, i.IsRequired))
-                .ToList());
-    }
-
     private static void ApplyItems(ChecklistTemplate template, IReadOnlyList<ChecklistItemInput> items)
     {
         var order = 1;

@@ -31,6 +31,13 @@ CREATE TABLE [dbo].[ApplicationChecklistResponses]
 );
 GO
 
+-- Spec 040 — one current response row per (application, stage, item). Enforced so a
+-- concurrent duplicate-insert race (two auditors saving the same application) fails as a
+-- unique violation (→ stale-state refusal) instead of accumulating duplicate rows.
+CREATE UNIQUE NONCLUSTERED INDEX [UX_ApplicationChecklistResponses_App_Stage_Item]
+    ON [dbo].[ApplicationChecklistResponses] ([ApplicationId], [Stage], [ChecklistTemplateItemId]);
+GO
+
 CREATE NONCLUSTERED INDEX [IX_ApplicationChecklistResponses_ApplicationId_Stage]
     ON [dbo].[ApplicationChecklistResponses] ([ApplicationId], [Stage]);
 GO

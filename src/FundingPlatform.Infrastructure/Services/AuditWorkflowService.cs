@@ -65,11 +65,24 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
                 : application.SendToAudit(reviewerUserId, complete);
 
             await ReplaceStageResponsesAsync(appId, ChecklistStage.Reviewer, rows, ct);
+            // Spec 040 — each audit cycle starts from a clean auditor checklist: re-sending
+            // clears the prior cycle's auditor responses (stale findings/non-compliance) so
+            // the gate evaluates only the current cycle.
+            if (isResend)
+            {
+                await ReplaceStageResponsesAsync(appId, ChecklistStage.Auditor,
+                    Array.Empty<ApplicationChecklistResponse>(), ct);
+            }
             await _applications.UpdateAsync(application);
             await _applications.SaveChangesAsync();
 
-            await EnqueueSentToAuditAsync(application, vh.Id, reviewerUserId, ct);
-            await _applications.SaveChangesAsync();
+            _logger.LogInformation(
+                "Application {AppId} {Transition} to audit by {Actor}.",
+                appId, isResend ? "re-sent" : "sent", reviewerUserId);
+
+            await EnqueueAfterCommitAsync(
+                () => EnqueueSentToAuditAsync(application, vh.Id, reviewerUserId, ct),
+                appId, "SentToAuditAuditor");
             return AuditActionResult.Ok();
         }
         catch (InvalidOperationException ex)
@@ -174,6 +187,15 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
             return AuditActionResult.Fail(
                 UserFacingError.From(UserFacingErrorCode.ConcurrentApplicationModification), conflict: true);
         }
+        catch (DbUpdateException ex)
+        {
+            // Spec 040 — the UX_ApplicationChecklistResponses unique index turns a concurrent
+            // duplicate-insert race (two auditors saving the same application) into a clean
+            // stale-state refusal instead of duplicate rows that would later break reads.
+            _logger.LogWarning(ex, "Checklist save conflict for application {AppId}.", appId);
+            return AuditActionResult.Fail(
+                UserFacingError.From(UserFacingErrorCode.ConcurrentApplicationModification), conflict: true);
+        }
     }
 
     public async Task<AuditActionResult> ApproveForAgreementAsync(int appId, string auditorUserId, CancellationToken ct)
@@ -225,10 +247,12 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
             var vh = application.ReleaseForSignature(auditorUserId);
             await _applications.UpdateAsync(application);
             await _applications.SaveChangesAsync();
+            _logger.LogInformation("Application {AppId} released for signature by {Actor}.", appId, auditorUserId);
 
             // Spec 040 / D10 — re-pointed "ready to sign" notification fires on release.
-            await EnqueueAgreementReadyAsync(application, vh.Id, auditorUserId, ct);
-            await _applications.SaveChangesAsync();
+            await EnqueueAfterCommitAsync(
+                () => EnqueueAgreementReadyAsync(application, vh.Id, auditorUserId, ct),
+                appId, "AgreementGeneratedApplicant");
             return AuditActionResult.Ok();
         }
         catch (InvalidOperationException ex)
@@ -258,9 +282,11 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
             var vh = application.ReturnFromAudit(auditorUserId);
             await _applications.UpdateAsync(application);
             await _applications.SaveChangesAsync();
+            _logger.LogInformation("Application {AppId} returned to reviewer by {Actor}.", appId, auditorUserId);
 
-            await EnqueueReturnedToReviewerAsync(application, vh.Id, auditorUserId, ct);
-            await _applications.SaveChangesAsync();
+            await EnqueueAfterCommitAsync(
+                () => EnqueueReturnedToReviewerAsync(application, vh.Id, auditorUserId, ct),
+                appId, "ReturnedToReviewerFromAudit");
             return AuditActionResult.Ok();
         }
         catch (InvalidOperationException ex)
@@ -364,6 +390,28 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
             .ToListAsync(ct);
         _db.ApplicationChecklistResponses.RemoveRange(existing);
         await _db.ApplicationChecklistResponses.AddRangeAsync(rows, ct);
+    }
+
+    /// <summary>
+    /// Spec 040 / FR-011 (scenario 5) — runs the phase-2 outbox enqueue + commit AFTER the
+    /// workflow transition has already committed. A notification failure here MUST NOT roll back
+    /// (or fail) the transition: it is logged and swallowed so the state change stands and an
+    /// operator can re-drive the email. Mirrors the existing outbox-resilience posture.
+    /// </summary>
+    private async Task EnqueueAfterCommitAsync(Func<Task> enqueue, int appId, string eventName)
+    {
+        try
+        {
+            await enqueue();
+            await _applications.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Notification enqueue failed for {Event} on application {AppId}; the workflow "
+                + "transition already committed. The email was not sent and must be re-driven.",
+                eventName, appId);
+        }
     }
 
     private async Task EnqueueSentToAuditAsync(AppEntity application, int versionHistoryId, string actorUserId, CancellationToken ct)

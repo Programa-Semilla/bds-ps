@@ -1157,6 +1157,11 @@ public class Application
             throw new InvalidOperationException(
                 $"No se puede devolver de auditoría: la solicitud está en estado '{State}'.");
 
+        // Spec 040 / FR-010 — leaving the approved state invalidates any prior PDF-correctness
+        // confirmation, so the next audit cycle requires a fresh confirm before release
+        // (closes the stale-confirmation forward-leak across the PendingAudit⇄ReturnedFromAudit loop).
+        _fundingAgreement?.ClearAuditorConfirmation();
+
         State = ApplicationState.ReturnedFromAudit;
         UpdatedAt = DateTime.UtcNow;
         var vh = new VersionHistory(auditorUserId, "ReturnedFromAudit", "Devuelto al revisor desde auditoría");

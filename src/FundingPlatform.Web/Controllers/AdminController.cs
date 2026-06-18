@@ -299,9 +299,14 @@ public class AdminController : Controller
         return RedirectToAction(nameof(Configuration));
     }
 
-    // ---------- Spec 040 / US4 — checklist template admin ----------
+    // ---------- Spec 040 / US4 — checklist template admin (Admin-only) ----------
+    // The class attribute is [Authorize(Roles="Admin,Auditor")]; these per-action
+    // [Authorize(Roles="Admin")] attributes AND with it so checklist administration —
+    // which configures the very gates auditors are subject to (FR-001/FR-002) — is
+    // restricted to administrators only (an Auditor-role principal gets 403).
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Checklists(ChecklistStage? stage, bool? active, CancellationToken ct)
     {
         var rows = await _checklists.ListAsync(stage, active, ct);
@@ -321,6 +326,7 @@ public class AdminController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public IActionResult CreateChecklist()
     {
         return View(new CreateChecklistViewModel
@@ -330,6 +336,7 @@ public class AdminController : Controller
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateChecklist(CreateChecklistViewModel model, CancellationToken ct)
     {
@@ -345,6 +352,7 @@ public class AdminController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> EditChecklist(int id, CancellationToken ct)
     {
         var detail = await _checklists.GetDetailAsync(id, ct);
@@ -366,6 +374,7 @@ public class AdminController : Controller
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> EditChecklist(EditChecklistViewModel model, CancellationToken ct)
     {
@@ -381,6 +390,7 @@ public class AdminController : Controller
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ActivateChecklist(int id, CancellationToken ct)
     {
@@ -390,6 +400,7 @@ public class AdminController : Controller
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeactivateChecklist(int id, CancellationToken ct)
     {

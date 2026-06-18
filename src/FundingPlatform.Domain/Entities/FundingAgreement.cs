@@ -101,6 +101,17 @@ public class FundingAgreement
         AuditorConfirmedByUserId = auditorUserId;
     }
 
+    /// <summary>
+    /// Spec 040 / FR-010 — invalidates a prior auditor PDF-correctness confirmation. Called
+    /// when the application leaves the approved state (returned from audit) so a fresh
+    /// confirmation is required in the next audit cycle before release. Idempotent.
+    /// </summary>
+    internal void ClearAuditorConfirmation()
+    {
+        AuditorConfirmedAtUtc = null;
+        AuditorConfirmedByUserId = null;
+    }
+
     internal SignedUpload AcceptSignedUpload(
         string uploaderUserId,
         int generatedVersionAtUpload,

@@ -33,11 +33,4 @@ public class ChecklistTemplateRepository : IChecklistTemplateRepository
         return candidates.FirstOrDefault(t => t.AppliesToStage == stage)
             ?? candidates.FirstOrDefault(t => t.AppliesToStage == ChecklistStage.Both);
     }
-
-    public async Task<ChecklistTemplate?> GetByIdWithItemsAsync(int id, CancellationToken ct)
-    {
-        return await _context.ChecklistTemplates
-            .Include(t => t.Items.OrderBy(i => i.DisplayOrder))
-            .FirstOrDefaultAsync(t => t.Id == id, ct);
-    }
 }

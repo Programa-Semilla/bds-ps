@@ -3,6 +3,7 @@ using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Infrastructure.Audit;
 using FundingPlatform.Infrastructure.Persistence;
+using FundingPlatform.Infrastructure.Persistence.Repositories;
 using FundingPlatform.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -77,12 +78,15 @@ public class ChecklistTemplateServiceTests
         var reviewerId = await svc.CreateAsync(new CreateChecklistTemplateCommand(
             "Rev", null, ChecklistStage.Reviewer, true, new[] { new ChecklistItemInput("rev-item", true) }), Actor, CancellationToken.None);
 
-        var active = await svc.GetActiveForStageAsync(ChecklistStage.Reviewer, CancellationToken.None);
+        // The gate resolution lives on the repository (the single production resolution authority).
+        var repo = new ChecklistTemplateRepository(ctx);
+        var active = await repo.GetActiveForStageAsync(ChecklistStage.Reviewer, CancellationToken.None);
         Assert.That(active, Is.Not.Null);
         Assert.That(active!.Id, Is.EqualTo(reviewerId), "Stage-specific Reviewer template wins over the Both template.");
 
-        var auditorActive = await svc.GetActiveForStageAsync(ChecklistStage.Auditor, CancellationToken.None);
-        Assert.That(auditorActive!.Items.Single().Text, Is.EqualTo("both-item"), "Auditor falls back to the Both template.");
+        var auditorActive = await repo.GetActiveForStageAsync(ChecklistStage.Auditor, CancellationToken.None);
+        Assert.That(auditorActive!.Items.Single(i => i.IsActive).Text, Is.EqualTo("both-item"),
+            "Auditor falls back to the Both template.");
     }
 
     [Test]
@@ -116,7 +120,7 @@ public class ChecklistTemplateServiceTests
         var oldItem = await ctx.ChecklistTemplateItems.FirstAsync(i => i.Id == originalItem.Id);
         Assert.That(oldItem.IsActive, Is.False, "Old item is deactivated, not hard-deleted (FR-003 / NO ACTION FK).");
 
-        var active = await svc.GetActiveForStageAsync(ChecklistStage.Auditor, CancellationToken.None);
-        Assert.That(active!.Items.Single().Text, Is.EqualTo("Texto NUEVO"));
+        var active = await new ChecklistTemplateRepository(ctx).GetActiveForStageAsync(ChecklistStage.Auditor, CancellationToken.None);
+        Assert.That(active!.Items.Single(i => i.IsActive).Text, Is.EqualTo("Texto NUEVO"));
     }
 }
