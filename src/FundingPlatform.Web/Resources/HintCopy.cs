@@ -36,6 +36,9 @@ public static class HintCopy
             ["Supplier.Price"] = "Monto cotizado, <strong>sin separadores de miles</strong> (por ejemplo: 125000.50).",
             ["Supplier.Currency"] = "Moneda de la cotización. Si no es en colones, se mostrará la conversión a ₡ con el tipo de cambio vigente.",
             ["Supplier.ValidUntil"] = "Fecha hasta la cual la empresa proveedora <strong>mantiene el precio</strong> cotizado.",
+            // Spec 039 — delivery lead time + warranty (value + días/meses).
+            ["Supplier.DeliveryLeadTime"] = "Tiempo que tarda la empresa proveedora en <strong>entregar</strong> el bien o servicio, contado desde la compra. Elegí la unidad (días o meses).",
+            ["Supplier.Warranty"] = "Período de <strong>garantía</strong> que ofrece la empresa proveedora. Una garantía más larga suma puntos en la recomendación. Elegí la unidad (días o meses).",
         };
 
     /// <summary>Returns the curated es-CR HTML hint for <paramref name="key"/>, or null when none.</summary>
