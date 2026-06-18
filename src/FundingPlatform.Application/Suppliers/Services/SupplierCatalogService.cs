@@ -17,15 +17,20 @@ public class SupplierCatalogService
     private readonly ISupplierRepository _supplierRepository;
     private readonly IApplicationRepository _applicationRepository;
     private readonly ILogger<SupplierCatalogService> _logger;
+    // Spec 038 — nullable so existing test constructors (which predate US4) keep
+    // compiling; DI always injects the real notifier.
+    private readonly Notifications.IProviderCreatedNotifier? _providerCreatedNotifier;
 
     public SupplierCatalogService(
         ISupplierRepository supplierRepository,
         IApplicationRepository applicationRepository,
-        ILogger<SupplierCatalogService> logger)
+        ILogger<SupplierCatalogService> logger,
+        Notifications.IProviderCreatedNotifier? providerCreatedNotifier = null)
     {
         _supplierRepository = supplierRepository;
         _applicationRepository = applicationRepository;
         _logger = logger;
+        _providerCreatedNotifier = providerCreatedNotifier;
     }
 
     /// <summary>
@@ -161,6 +166,11 @@ public class SupplierCatalogService
         {
             await _supplierRepository.AddAsync(supplier);
             await _supplierRepository.SaveChangesAsync();
+            // Spec 038 (US4 / FR-024) — best-effort auditor notification after the new
+            // provider commits; the notifier swallows its own failures so creation is
+            // never blocked.
+            if (_providerCreatedNotifier is not null)
+                await _providerCreatedNotifier.NotifyAuditorsAsync(supplier.Id, CancellationToken.None);
             return CreateDraftResult.Success(supplier.Id);
         }
         catch (Exception ex) when (IsUniqueConstraintViolation(ex))

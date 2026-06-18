@@ -786,6 +786,7 @@ public class ReviewController : Controller
                     SnapshotRateValue = q.SnapshotRateValue,
                     SnapshotRateType = q.SnapshotRateType,
                     SnapshotEffectiveAtUtc = q.SnapshotEffectiveAtUtc,
+                    Compliance = q.Compliance,
                     LegacyNeedsReview = q.LegacyNeedsReview,
                 }).ToList(),
                 // Spec 035 / D1 — per-item category field values.

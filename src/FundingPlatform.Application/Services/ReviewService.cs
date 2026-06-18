@@ -377,7 +377,20 @@ public class ReviewService
                     SnapshotRateValue: q.Snapshot?.RateValue,
                     SnapshotRateType: q.Snapshot?.RateType.ToString(),
                     SnapshotEffectiveAtUtc: q.Snapshot?.EffectiveAtUtc,
-                    LegacyNeedsReview: q.LegacyNeedsReview);
+                    LegacyNeedsReview: q.LegacyNeedsReview,
+                    // Spec 038 (US3) — provider warning + compliance/freshness for reviewers.
+                    Compliance: q.Supplier is null ? null : new SupplierComplianceSnapshot(
+                        HasWarning: q.Supplier.HasWarning,
+                        WarningNote: q.Supplier.WarningNote,
+                        Hacienda: q.Supplier.HaciendaStatus,
+                        HaciendaReviewedAt: q.Supplier.HaciendaLastReviewedAt,
+                        HaciendaSource: q.Supplier.HaciendaLastReviewedSource,
+                        Ccss: q.Supplier.CcssStatus,
+                        CcssReviewedAt: q.Supplier.CcssLastReviewedAt,
+                        CcssSource: q.Supplier.CcssLastReviewedSource,
+                        Sicop: q.Supplier.SicopStatus,
+                        SicopReviewedAt: q.Supplier.SicopLastReviewedAt,
+                        SicopSource: q.Supplier.SicopLastReviewedSource));
             })
             .OrderByDescending(q => q.Score)
             .ToList();

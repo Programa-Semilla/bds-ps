@@ -244,9 +244,15 @@
                                 ? null : CurrencyCode.From(q.Currency);
                             <tr class="quotation-row @(q.IsRecommended ? "table-success" : "")"
                                 data-testid="review-quotation-row" data-quotation-id="@q.QuotationId">
-                                <td>@q.SupplierName</td>
+                                <td>
+                                    @q.SupplierName
+                                    @if (q.Compliance is not null)
+                                    {
+                                        <partial name="_SupplierComplianceBadge" model="q.Compliance" />
+                                    }
+                                </td>
                                 <td>@q.SupplierLegalId</td>
-                                <td><span class="supplier-score">@q.Score/5</span></td>
+                                <td><span class="supplier-score">@q.Score/4</span></td>
                                 <td>
                                     <span class="score-breakdown">
                                         @if (q.ScoreCCSS) { <span class="status status-blue" title="CCSS">CCSS</span> }

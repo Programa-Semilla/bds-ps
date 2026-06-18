@@ -83,6 +83,9 @@ public class ReviewQuotationViewModel
     public string? SnapshotRateType { get; set; }
     public DateTime? SnapshotEffectiveAtUtc { get; set; }
     public bool LegacyNeedsReview { get; set; }
+
+    /// <summary>Spec 038 (US3) — provider warning + compliance/freshness shown read-only to reviewers.</summary>
+    public Application.DTOs.SupplierComplianceSnapshot? Compliance { get; set; }
 }
 
 public class ImpactParameterDisplayViewModel
