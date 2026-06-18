@@ -34,6 +34,8 @@
         // reach it by first landing on another Review surface. Icon mirrors the tab.
         new("generate-agreement", "Generar convenio", Url.Action("GenerateAgreement", "Review") ?? "/Review/GenerateAgreement", "ti ti-file-text", new[] { "Reviewer", "Admin" }),
         new("signing-inbox", "Bandeja de firmas", Url.Action("SigningInbox", "Review") ?? "/Review/SigningInbox", "ti ti-signature", new[] { "Reviewer", "Admin" }),
+        // Spec 040 / US1 — group-scoped auditor inbox.
+        new("audit-inbox", "Auditoría", Url.Action("Index", "Audit") ?? "/Audit", "ti ti-shield-check", new[] { "Auditor", "Admin" }),
     };
 
     // "Operativo" is a grouping-only header (no landing page of its own); like

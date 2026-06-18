@@ -1,0 +1,67 @@
+@model FundingPlatform.Web.ViewModels.Audit.AuditInboxViewModel
+@{
+    ViewData["Title"] = "Auditoría";
+}
+
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <h2 class="page-title">Auditoría</h2>
+        <div class="text-secondary">Solicitudes en espera de auditoría asignadas a sus grupos.</div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        @if (TempData["AuditSuccess"] is string ok)
+        {
+            <div class="alert alert-success" data-testid="audit-toast-success">@ok</div>
+        }
+        @if (TempData["AuditError"] is string err)
+        {
+            <div class="alert alert-danger" data-testid="audit-toast-error">@err</div>
+        }
+
+        <div class="card">
+            <div class="card-body border-bottom py-3">
+                <form method="get" class="d-flex">
+                    <input type="text" name="q" value="@Model.SearchTerm" class="form-control"
+                           placeholder="Buscar por solicitante, identificación o código…"
+                           data-testid="audit-search" />
+                    <button type="submit" class="btn btn-primary ms-2">Buscar</button>
+                </form>
+            </div>
+            <div class="table-responsive">
+                <table class="table card-table table-vcenter" data-testid="audit-inbox-table">
+                    <thead>
+                        <tr>
+                            <th>Solicitante</th>
+                            <th>Código</th>
+                            <th>Ítems</th>
+                            <th>En auditoría desde</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Rows.Count == 0)
+                        {
+                            <tr><td colspan="5" class="text-secondary" data-testid="audit-inbox-empty">No hay solicitudes en auditoría.</td></tr>
+                        }
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr data-testid="audit-inbox-row" data-application-id="@row.ApplicationId">
+                                <td>@row.ApplicantDisplayName</td>
+                                <td>@(row.PublicCode ?? "—")</td>
+                                <td>@row.ItemCount</td>
+                                <td>@row.EnteredAuditAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-primary" asp-action="Detail" asp-route-id="@row.ApplicationId"
+                                       data-testid="audit-open">Auditar</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

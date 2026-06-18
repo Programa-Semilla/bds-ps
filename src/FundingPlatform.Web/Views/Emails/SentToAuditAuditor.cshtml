@@ -1,0 +1,16 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Nueva solicitud en auditoría</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    La solicitud de <strong>@Model.Payload.ApplicantDisplayName</strong>
+    (<strong>#@Model.Payload.ApplicationId</strong>) fue enviada a auditoría.
+    Revisá la documentación, completá la lista de verificación de auditoría y
+    aprobá o devolvé la solicitud al revisor.
+</p>
+<p>
+    <a class="cta" href="@Model.CtaUrl">Abrir en auditoría</a>
+</p>
+<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

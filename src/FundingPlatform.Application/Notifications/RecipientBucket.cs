@@ -11,4 +11,8 @@ public enum RecipientBucket
     Applicant = 1,
     Reviewer  = 2,
     Admin     = 3,
+    // Spec 040 / FR-018 — group-scoped auditor bucket (Auditor role ∩ applicant stage
+    // groups). Appended (ordinal 4) so the existing Applicant>Reviewer>Admin dedup
+    // priority is unchanged; all auditor-event recipients share the same template variant.
+    Auditor   = 4,
 }

@@ -182,6 +182,9 @@ public static class DependencyInjection
         // Spec 029 / US1 — Fund (Fondo) admin CRUD + lifecycle + regulation storage.
         services.AddScoped<Application.Funds.IFundService, Services.FundService>();
 
+        // Spec 040 — auditor workflow orchestration (send-to-audit, audit, release, return).
+        services.AddScoped<Application.Audit.IAuditWorkflowService, Services.AuditWorkflowService>();
+
         // Spec 037 / US2 — applicant company admin management (add/rename/archive/unarchive).
         services.AddScoped<Application.Admin.Companies.ICompanyAdministrationService,
             Services.CompanyAdministrationService>();

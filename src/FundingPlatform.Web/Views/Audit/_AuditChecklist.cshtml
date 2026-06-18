@@ -1,0 +1,50 @@
+@model FundingPlatform.Application.Audit.AuditChecklistView
+@{
+    var hasItems = Model.Items.Count > 0;
+}
+
+<form method="post" asp-controller="Audit" asp-action="SaveChecklist" asp-route-id="@Model.ApplicationId"
+      data-testid="audit-checklist-form">
+    @Html.AntiForgeryToken()
+    <div class="card">
+        <div class="card-header"><h3 class="card-title">Lista de verificación de auditoría</h3></div>
+        <div class="card-body">
+            @if (!hasItems)
+            {
+                <p class="text-secondary" data-testid="audit-checklist-empty">
+                    No hay una lista de verificación de auditoría activa. La auditoría puede aprobarse directamente.
+                </p>
+            }
+            @for (var i = 0; i < Model.Items.Count; i++)
+            {
+                var item = Model.Items[i];
+                var notCompliant = item.RecordedStatus == FundingPlatform.Domain.Enums.ChecklistResponseStatus.NotCompliant;
+                var compliant = item.RecordedStatus == FundingPlatform.Domain.Enums.ChecklistResponseStatus.Checked;
+                <div class="mb-3 border-bottom pb-3" data-testid="audit-checklist-item">
+                    <input type="hidden" name="marks[@i].TemplateItemId" value="@item.TemplateItemId" />
+                    <div class="fw-bold">
+                        @item.Text
+                        @if (item.IsRequired) { <span class="text-danger">*</span> }
+                    </div>
+                    <div class="mt-2">
+                        <label class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="marks[@i].Compliant" value="true"
+                                   @(compliant || item.RecordedStatus is null ? "checked" : "") data-testid="audit-mark-compliant" />
+                            <span class="form-check-label">Conforme</span>
+                        </label>
+                        <label class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="marks[@i].Compliant" value="false"
+                                   @(notCompliant ? "checked" : "") data-testid="audit-mark-noncompliant" />
+                            <span class="form-check-label">No conforme</span>
+                        </label>
+                    </div>
+                    <input type="text" name="marks[@i].Reason" value="@item.RecordedReason" class="form-control mt-2"
+                           placeholder="Motivo (requerido si es no conforme)" data-testid="audit-mark-reason" />
+                </div>
+            }
+            <button type="submit" class="btn btn-outline-primary" data-testid="audit-checklist-save">
+                Guardar lista de verificación
+            </button>
+        </div>
+    </div>
+</form>

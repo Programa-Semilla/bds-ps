@@ -1,0 +1,128 @@
+@model FundingPlatform.Web.ViewModels.Audit.AuditDetailViewModel
+@{
+    ViewData["Title"] = $"Auditoría — {Model.Application.ApplicantName}";
+    var app = Model.Application;
+}
+
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <h2 class="page-title">Auditoría: @app.ApplicantName</h2>
+        <div class="text-secondary">Solicitud #@app.ApplicationId</div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        @if (TempData["AuditSuccess"] is string ok)
+        {
+            <div class="alert alert-success" data-testid="audit-toast-success">@ok</div>
+        }
+        @if (TempData["AuditError"] is string err)
+        {
+            <div class="alert alert-danger" data-testid="audit-toast-error">@err</div>
+        }
+        @if (TempData["FundingAgreementError"] is string faErr)
+        {
+            <div class="alert alert-danger" data-testid="audit-fa-error">@faErr</div>
+        }
+
+        <div class="row">
+            <div class="col-lg-7">
+                <div class="card mb-3">
+                    <div class="card-header"><h3 class="card-title">Ítems y proveedores</h3></div>
+                    <div class="table-responsive">
+                        <table class="table card-table table-vcenter" data-testid="audit-items">
+                            <thead>
+                                <tr><th>Línea</th><th>Ítem</th><th>Proveedor seleccionado</th><th>Estado</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in app.Items)
+                                {
+                                    var selected = item.SelectedSupplierId is int sid
+                                        ? item.Quotations.FirstOrDefault(q => q.SupplierId == sid)
+                                        : item.Quotations.OrderBy(q => q.Price).FirstOrDefault();
+                                    <tr>
+                                        <td>@(item.LineCode ?? "—")</td>
+                                        <td>@item.ProductName</td>
+                                        <td>
+                                            @(selected?.SupplierName ?? "—")
+                                            @if (selected?.Compliance is { HasWarning: true })
+                                            {
+                                                <span class="badge bg-warning ms-1" data-testid="audit-provider-warning">Advertencia de proveedor</span>
+                                            }
+                                        </td>
+                                        <td><span class="badge bg-blue-lt">@item.ReviewStatus</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                @await Html.PartialAsync("_AuditChecklist", Model.Checklist)
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card mb-3">
+                    <div class="card-header"><h3 class="card-title">Acciones de auditoría</h3></div>
+                    <div class="card-body">
+                        <form method="post" asp-controller="Audit" asp-action="Approve" asp-route-id="@app.ApplicationId" class="mb-2">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-primary w-100"
+                                    data-testid="audit-approve"
+                                    @(Model.Checklist.HasAnyNonCompliant ? "disabled" : "")>
+                                Aprobar auditoría
+                            </button>
+                        </form>
+
+                        @* Generation reuses the re-gated FundingAgreement endpoint. *@
+                        <form method="post" action="/Applications/@app.ApplicationId/FundingAgreement/Generate" class="mb-2">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-primary w-100"
+                                    data-testid="audit-generate"
+                                    @(Model.CanGenerate ? "" : "disabled")>
+                                @(Model.Checklist.AgreementExists ? "Regenerar convenio" : "Generar convenio")
+                            </button>
+                        </form>
+
+                        @if (Model.Checklist.AgreementExists)
+                        {
+                            <a class="btn btn-outline-secondary w-100 mb-2"
+                               href="/Applications/@app.ApplicationId/FundingAgreement/Download"
+                               data-testid="audit-download">Descargar convenio</a>
+
+                            <form method="post" asp-controller="Audit" asp-action="Confirm" asp-route-id="@app.ApplicationId" class="mb-2">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-success w-100"
+                                        data-testid="audit-confirm"
+                                        @(Model.CanConfirm ? "" : "disabled")>
+                                    @(Model.Checklist.AgreementConfirmed ? "PDF confirmado ✓" : "Confirmar que el PDF es correcto")
+                                </button>
+                            </form>
+
+                            <form method="post" asp-controller="Audit" asp-action="Release" asp-route-id="@app.ApplicationId" class="mb-2">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-success w-100"
+                                        data-testid="audit-release"
+                                        @(Model.CanRelease ? "" : "disabled")>
+                                    Liberar para firma
+                                </button>
+                            </form>
+                        }
+
+                        <hr />
+                        <form method="post" asp-controller="Audit" asp-action="Return" asp-route-id="@app.ApplicationId">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-outline-danger w-100"
+                                    data-testid="audit-return"
+                                    @(Model.CanReturn ? "" : "disabled")>
+                                Devolver al revisor
+                            </button>
+                            <div class="form-hint">Marque al menos un ítem como no conforme con su motivo para habilitar esta acción.</div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

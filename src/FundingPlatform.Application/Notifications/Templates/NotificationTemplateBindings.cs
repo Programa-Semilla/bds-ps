@@ -225,6 +225,23 @@ public static class NotificationTemplateBindings
                 TextViewName:    "SignedUploadRejectedApplicant.text",
                 TemplateVariantKey: "applicant-signed-upload-rejected",
                 CtaRouteTemplate: "/Applications/{id}/FundingAgreement"),
+
+            // Spec 040 — auditor workflow stage.
+            [NotificationEvent.ReturnedToReviewerFromAudit] = new(
+                NotificationEvent.ReturnedToReviewerFromAudit,
+                SubjectTemplate: "Solicitud devuelta por auditoría — Solicitud #{ApplicationId}",
+                HtmlViewName:    "ReturnedToReviewerFromAudit",
+                TextViewName:    "ReturnedToReviewerFromAudit.text",
+                TemplateVariantKey: "reviewer-returned-from-audit",
+                CtaRouteTemplate: "/Review/{id}"),
+
+            [NotificationEvent.SentToAuditAuditor] = new(
+                NotificationEvent.SentToAuditAuditor,
+                SubjectTemplate: "Nueva solicitud en auditoría: {ApplicantName}",
+                HtmlViewName:    "SentToAuditAuditor",
+                TextViewName:    "SentToAuditAuditor.text",
+                TemplateVariantKey: "auditor-sent-to-audit",
+                CtaRouteTemplate: "/Audit/{id}"),
         };
 
     /// <summary>Lookup helper. Throws on unknown event (closed map invariant).</summary>
