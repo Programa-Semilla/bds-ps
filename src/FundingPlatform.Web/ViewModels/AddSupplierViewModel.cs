@@ -16,6 +16,10 @@ public class AddSupplierViewModel : IQuoteFieldsModel
     public int ApplicationId { get; set; }
     public int ItemId { get; set; }
 
+    /// <summary>Spec 039 — product name of the item this quotation is being added to,
+    /// shown on the form header so the applicant knows which item they are quoting.</summary>
+    public string ItemProductName { get; set; } = string.Empty;
+
     // Spec 026 — supplier identification kind (Cédula jurídica or NITE). The
     // sibling-property name is passed explicitly to [IdentificationFormat] since it
     // differs from the attribute's default "IdentificationType".

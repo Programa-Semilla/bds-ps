@@ -179,6 +179,7 @@ public class SupplierController : Controller
             ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(3)),
             EnabledCurrencies = enabledCurrencies,
             ReusableQuotations = await LoadReusableQuotationsAsync(appId, itemId),
+            ItemProductName = await LoadItemProductNameAsync(itemId),
         };
 
         // R4: redirect-to-existing recovery — pre-load the supplier and show the
@@ -510,10 +511,21 @@ public class SupplierController : Controller
         model.EnabledCurrencies = await LoadEnabledCurrenciesAsync();
         // Spec 035 / US3 — repopulate the reuse candidates on re-render.
         model.ReusableQuotations = await LoadReusableQuotationsAsync(model.ApplicationId, model.ItemId);
+        // Spec 039 — keep the item product name on validation re-renders.
+        model.ItemProductName = await LoadItemProductNameAsync(model.ItemId);
         // Spec 025 — rebuild the cascade view-models so the user's province/cantón/
         // distrito selections survive a validation re-render (incl. the dependent options).
         await PopulateLocationViewDataAsync(model);
         return View(model);
+    }
+
+    /// <summary>Spec 039 — product name of the item being quoted, for the form header.</summary>
+    private async Task<string> LoadItemProductNameAsync(int itemId)
+    {
+        return await _dbContext.Items
+            .Where(i => i.Id == itemId)
+            .Select(i => i.ProductName)
+            .FirstOrDefaultAsync() ?? string.Empty;
     }
 
     /// <summary>Spec 035 / US3 — reuse candidates for the picker (excludes this item).</summary>
