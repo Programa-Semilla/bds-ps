@@ -64,17 +64,15 @@ link. Edits therefore accumulate inactive item rows over time.
 
 ### Areas where I'm less certain (5 min)
 
-- [`AuditorQueueProjection.cs`](../../src/FundingPlatform.Application/Services/AuditorQueueProjection.cs)
-  ([FR-006](spec.md)): the inbox row's `EnteredAuditAtUtc` is proxied by `UpdatedAt` (the
-  reviewer-queue load doesn't hydrate `VersionHistory`), and **`HasProviderWarning` is hardcoded
-  `false`** — the provider warning indicator the spec asks for on the inbox is currently only on
-  the detail page. Is the proxy acceptable, and is the missing inbox indicator a blocker?
-- [`Views/Audit/Detail.cshtml`](../../src/FundingPlatform.Web/Views/Audit/Detail.cshtml)
-  ([FR-007](spec.md)): the auditor detail reuses the `ReviewService` projection (full data is
-  available) but renders a focused subset — items + provider compliance badge + declared impacts
-  + checklist + download. It does **not** render the application's review history. Is "read access
-  equivalent to a reviewer's" satisfied by equivalent *data access* + a focused triage view, or
-  must the audit page mirror the full reviewer Review page?
+- ~~`AuditorQueueProjection.cs` ([FR-006](spec.md)): inbox `EnteredAuditAtUtc` proxied by
+  `UpdatedAt` and `HasProviderWarning` hardcoded `false`.~~ **Resolved (review-code gate):** a
+  dedicated `IApplicationRepository.GetPendingAuditInboxAsync` loads selected-supplier compliance
+  + VersionHistory; the row now shows a real provider warning badge and the entered-audit time
+  from the latest send/re-send history (covered by `AuditorInboxIndicatorTests`).
+- ~~`Views/Audit/Detail.cshtml` ([FR-007](spec.md)): focused subset, no review history.~~
+  **Resolved (review-code gate):** the audit detail now also renders declared impacts and the
+  application's review history (es-CR action labels), so read access mirrors the reviewer surface
+  (E2E asserts the `audit-history` card).
 - `ChecklistStage`/`ChecklistResponseStatus` are `TINYINT` columns needing `HasConversion<byte>()`
   in EF — InMemory tests don't exercise this, so a missed conversion only surfaces against real SQL.
 

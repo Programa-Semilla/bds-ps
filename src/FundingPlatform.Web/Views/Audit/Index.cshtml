@@ -49,7 +49,16 @@
                         @foreach (var row in Model.Rows)
                         {
                             <tr data-testid="audit-inbox-row" data-application-id="@row.ApplicationId">
-                                <td>@row.ApplicantDisplayName</td>
+                                <td>
+                                    @row.ApplicantDisplayName
+                                    @if (row.HasProviderWarning)
+                                    {
+                                        <span class="badge bg-warning ms-1" data-testid="audit-inbox-provider-warning"
+                                              title="Proveedor con advertencia regulatoria">
+                                            <i class="ti ti-alert-triangle"></i> Proveedor
+                                        </span>
+                                    }
+                                </td>
                                 <td>@(row.PublicCode ?? "—")</td>
                                 <td>@row.ItemCount</td>
                                 <td>@row.EnteredAuditAtUtc.ToString("yyyy-MM-dd HH:mm")</td>

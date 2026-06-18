@@ -27,11 +27,11 @@ public sealed class AuditorQueueProjection : IAuditorQueueProjection
         IReviewerScope scope, string? searchTerm, int page, int pageSize, CancellationToken ct)
     {
         var hint = new ReviewerScopeHint(scope.IsAdmin, scope.GroupIds);
-        var (items, _) = await _applications.GetByStateForReviewerAsync(
-            ApplicationState.PendingAudit, hint, page, pageSize, searchTerm);
-
+        var (items, _) = await _applications.GetPendingAuditInboxAsync(hint, page, pageSize, searchTerm);
         return items.Select(Project).ToList();
     }
+
+    private static readonly string[] SentToAuditActions = { "SentToAudit", "ResentToAudit" };
 
     private static AuditInboxRowDto Project(AppEntity a)
     {
@@ -40,15 +40,26 @@ public sealed class AuditorQueueProjection : IAuditorQueueProjection
             : $"{a.Applicant.FirstName} {a.Applicant.LastName}".Trim();
         if (string.IsNullOrEmpty(name)) name = "Solicitante";
 
+        // Spec 040 / FR-006 — time the application entered audit = latest send/re-send
+        // VersionHistory entry; falls back to UpdatedAt if none is loaded.
+        var enteredAudit = a.VersionHistory
+            .Where(v => SentToAuditActions.Contains(v.Action))
+            .OrderByDescending(v => v.Timestamp)
+            .Select(v => (DateTime?)v.Timestamp)
+            .FirstOrDefault() ?? a.UpdatedAt;
+
+        // Spec 040 / FR-006 — provider warning indicator: any item's selected (or any)
+        // quotation supplier carries an admin-set regulatory warning (spec 038).
+        var hasProviderWarning = a.Items
+            .SelectMany(i => i.Quotations)
+            .Any(q => q.Supplier is { HasWarning: true });
+
         return new AuditInboxRowDto(
             ApplicationId: a.Id,
             ApplicantDisplayName: name,
             PublicCode: a.PublicCode?.Value,
-            // Spec 040 — entered-audit time proxied by UpdatedAt (stamped on the
-            // SendToAudit transition); the reviewer-queue load does not hydrate
-            // VersionHistory. The detail page surfaces full provider compliance.
-            EnteredAuditAtUtc: a.UpdatedAt,
+            EnteredAuditAtUtc: enteredAudit,
             ItemCount: a.Items.Count,
-            HasProviderWarning: false);
+            HasProviderWarning: hasProviderWarning);
     }
 }

@@ -50,8 +50,10 @@ public class AuditorWorkflowTests : AuthenticatedTestBase
         await Page.GotoAsync($"{BaseUrl}/Audit");
         await Expect(Page.Locator($"[data-testid=audit-inbox-row][data-application-id='{appId}']")).ToBeVisibleAsync();
 
-        // Open the detail surface and save the audit checklist (all items default to "Conforme").
+        // Open the detail surface: the reviewer-equivalent read shows the review history
+        // (FR-007), then save the audit checklist (all items default to "Conforme").
         await Page.GotoAsync($"{BaseUrl}/Audit/{appId}");
+        await Expect(Page.Locator("[data-testid=audit-history]")).ToBeVisibleAsync();
         await Page.Locator("[data-testid=audit-checklist-save]").ClickAsync();
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 

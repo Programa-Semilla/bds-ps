@@ -3,10 +3,12 @@ using FundingPlatform.Application.Audit;
 using FundingPlatform.Application.Reviewer;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Interfaces;
+using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Web.Localization;
 using FundingPlatform.Web.ViewModels.Audit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Web.Controllers;
 
@@ -25,6 +27,8 @@ public sealed class AuditController : Controller
     private readonly IReviewerScopeProvider _scopeProvider;
     private readonly IApplicationRepository _applications;
     private readonly IUserFacingErrorTranslator _errorTranslator;
+    // Spec 040 / FR-007 — read the application's review history for the audit detail.
+    private readonly AppDbContext _dbContext;
 
     public AuditController(
         IAuditorQueueProjection inbox,
@@ -32,7 +36,8 @@ public sealed class AuditController : Controller
         ReviewService reviewService,
         IReviewerScopeProvider scopeProvider,
         IApplicationRepository applications,
-        IUserFacingErrorTranslator errorTranslator)
+        IUserFacingErrorTranslator errorTranslator,
+        AppDbContext dbContext)
     {
         _inbox = inbox;
         _workflow = workflow;
@@ -40,6 +45,7 @@ public sealed class AuditController : Controller
         _scopeProvider = scopeProvider;
         _applications = applications;
         _errorTranslator = errorTranslator;
+        _dbContext = dbContext;
     }
 
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -72,11 +78,19 @@ public sealed class AuditController : Controller
         var checklist = await _workflow.GetAuditChecklistAsync(id, ct);
         if (checklist is null) return NotFound();
 
+        // Spec 040 / FR-007 — the application's review history (reviewer-equivalent read).
+        var history = await _dbContext.VersionHistories.AsNoTracking()
+            .Where(v => v.ApplicationId == id)
+            .OrderByDescending(v => v.Timestamp)
+            .Select(v => new AuditHistoryEntryViewModel { Action = v.Action, Details = v.Details, Timestamp = v.Timestamp })
+            .ToListAsync(ct);
+
         return View(new AuditDetailViewModel
         {
             Application = dto,
             Checklist = checklist,
             IsAdmin = User.IsInRole("Admin"),
+            History = history,
         });
     }
 

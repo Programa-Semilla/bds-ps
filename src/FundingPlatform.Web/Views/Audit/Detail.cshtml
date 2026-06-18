@@ -146,6 +146,28 @@
                         </form>
                     </div>
                 </div>
+
+                @if (Model.History.Count > 0)
+                {
+                    <div class="card mb-3" data-testid="audit-history">
+                        <div class="card-header"><h3 class="card-title">Historial de la solicitud</h3></div>
+                        <div class="list-group list-group-flush">
+                            @foreach (var entry in Model.History)
+                            {
+                                <div class="list-group-item" data-testid="audit-history-entry">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>@entry.ActionLabel</strong>
+                                        <span class="text-secondary">@entry.Timestamp.ToString("yyyy-MM-dd HH:mm")</span>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(entry.Details))
+                                    {
+                                        <div class="text-secondary small">@entry.Details</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
             </div>
         </div>
     </div>
