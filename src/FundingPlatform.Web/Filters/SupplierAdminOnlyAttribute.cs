@@ -40,7 +40,7 @@ public sealed class SupplierAdminOnlyAttribute : Attribute, IAuthorizationFilter
     public const string AdminRole = "Admin";
 
     /// <summary>Spec 021 / FR-007 — supplier-admin role discriminator.</summary>
-    public const string SupplierAdminRole = "SupplierAdmin";
+    public const string SupplierAdminRole = "Auditor";
 
     public void OnAuthorization(AuthorizationFilterContext context)
     {

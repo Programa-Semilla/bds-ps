@@ -54,7 +54,7 @@ public class UserAdministrationUserCodeTests
     private static async Task SeedRolesAsync(IServiceProvider sp)
     {
         var roleMgr = sp.GetRequiredService<RoleManager<IdentityRole>>();
-        foreach (var r in new[] { "Applicant", "Reviewer", "SupplierAdmin", "Admin" })
+        foreach (var r in new[] { "Applicant", "Reviewer", "Auditor", "Admin" })
         {
             if (!await roleMgr.RoleExistsAsync(r))
             {

@@ -1,5 +1,6 @@
 using FundingPlatform.Application.Abstractions.Location;
 using FundingPlatform.Application.Processes.Queries;
+using FundingPlatform.Application.Suppliers.Compliance;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
@@ -39,6 +40,7 @@ public class AdminSuppliersController : Controller
     private readonly AppDbContext _dbContext;
     private readonly ILocationCatalogReader _locationCatalog;
     private readonly Application.Admin.Filters.IFundHierarchyProvider _fundHierarchy;
+    private readonly ISupplierComplianceService _compliance;
 
     public AdminSuppliersController(
         ISupplierRepository supplierRepository,
@@ -46,7 +48,8 @@ public class AdminSuppliersController : Controller
         UserManager<ApplicationUser> userManager,
         AppDbContext dbContext,
         ILocationCatalogReader locationCatalog,
-        Application.Admin.Filters.IFundHierarchyProvider fundHierarchy)
+        Application.Admin.Filters.IFundHierarchyProvider fundHierarchy,
+        ISupplierComplianceService compliance)
     {
         _supplierRepository = supplierRepository;
         _processQuery = processQuery;
@@ -54,6 +57,7 @@ public class AdminSuppliersController : Controller
         _dbContext = dbContext;
         _locationCatalog = locationCatalog;
         _fundHierarchy = fundHierarchy;
+        _compliance = compliance;
     }
 
     // ---- Spec 025 — admin branch-edit location cascade ----
@@ -141,7 +145,7 @@ public class AdminSuppliersController : Controller
         // either the search box, Process filter, or pageSize > default are
         // present — both behaviours coexist via the explicit `status` query
         // parameter test.
-        var supplierAdminPath = User.IsInRole("SupplierAdmin") && !User.IsInRole("Admin");
+        var supplierAdminPath = User.IsInRole("Auditor") && !User.IsInRole("Admin");
         var effectiveStatus = status ?? (Request.Query.ContainsKey(nameof(status))
             ? (SupplierVerificationStatus?)null
             : supplierAdminPath
@@ -212,16 +216,52 @@ public class AdminSuppliersController : Controller
                 b.AddressLine, b.Province, b.ShippingDetails, b.WarrantyInfo, b.IsDefault, location));
         }
 
+        // Spec 038 — resolve the per-field last-reviewer ids to display names for
+        // the freshness line.
+        var reviewerIds = new[]
+            {
+                supplier.HaciendaLastReviewedBy,
+                supplier.CcssLastReviewedBy,
+                supplier.SicopLastReviewedBy,
+            }
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Select(id => id!)
+            .Distinct()
+            .ToList();
+        var reviewerNames = reviewerIds.Count == 0
+            ? new Dictionary<string, string>()
+            : await _dbContext.Users
+                .Where(u => reviewerIds.Contains(u.Id))
+                .ToDictionaryAsync(
+                    u => u.Id,
+                    u => string.IsNullOrWhiteSpace($"{u.FirstName} {u.LastName}".Trim())
+                        ? (u.Email ?? u.Id)
+                        : $"{u.FirstName} {u.LastName}".Trim());
+        string? NameOf(string? id) =>
+            !string.IsNullOrEmpty(id) && reviewerNames.TryGetValue(id, out var n) ? n : null;
+
         var vm = new AdminSupplierDetailViewModel
         {
             Id = supplier.Id,
             LegalId = supplier.LegalId,
             Name = supplier.Name,
             Status = supplier.VerificationStatus,
-            HasElectronicInvoice = supplier.HasElectronicInvoice,
-            IsCompliantCCSS = supplier.IsCompliantCCSS,
-            IsCompliantHacienda = supplier.IsCompliantHacienda,
-            IsCompliantSICOP = supplier.IsCompliantSICOP,
+            HaciendaStatus = supplier.HaciendaStatus,
+            HaciendaReviewedAt = supplier.HaciendaLastReviewedAt,
+            HaciendaReviewedByName = NameOf(supplier.HaciendaLastReviewedBy),
+            HaciendaReviewedSource = supplier.HaciendaLastReviewedSource,
+            CcssStatus = supplier.CcssStatus,
+            CcssReviewedAt = supplier.CcssLastReviewedAt,
+            CcssReviewedByName = NameOf(supplier.CcssLastReviewedBy),
+            CcssReviewedSource = supplier.CcssLastReviewedSource,
+            SicopStatus = supplier.SicopStatus,
+            SicopReviewedAt = supplier.SicopLastReviewedAt,
+            SicopReviewedByName = NameOf(supplier.SicopLastReviewedBy),
+            SicopReviewedSource = supplier.SicopLastReviewedSource,
+            IsPmeOrPyme = supplier.IsPmeOrPyme,
+            HasWarning = supplier.HasWarning,
+            WarningNote = supplier.WarningNote,
+            RowVersion = supplier.RowVersion,
             VerifiedByUserId = supplier.VerifiedByUserId,
             VerifiedAt = supplier.VerifiedAt,
             RejectionReason = supplier.RejectionReason,
@@ -235,7 +275,7 @@ public class AdminSuppliersController : Controller
 
     [HttpPost("{supplierId:int}/Edit")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int supplierId, AdminEditSupplierViewModel model)
+    public async Task<IActionResult> Edit(int supplierId, AdminEditSupplierViewModel model, CancellationToken ct)
     {
         if (!ModelState.IsValid)
         {
@@ -243,20 +283,50 @@ public class AdminSuppliersController : Controller
             return RedirectToAction(nameof(Detail), new { supplierId });
         }
 
-        var supplier = await _supplierRepository.GetByIdWithBranchesAsync(supplierId);
-        if (supplier is null) return NotFound();
+        var actorId = _userManager.GetUserId(User)
+            ?? throw new InvalidOperationException("Auditor user not found.");
 
-        supplier.EditByAdmin(
+        // Spec 038 — compliance/PME/warning flow through the audited service; name
+        // rides along on the same form.
+        var cmd = new EditSupplierComplianceCommand(
+            supplierId,
             model.Name,
-            model.HasElectronicInvoice,
-            model.IsCompliantCCSS,
-            model.IsCompliantHacienda,
-            model.IsCompliantSICOP);
+            model.Hacienda,
+            model.Ccss,
+            model.Sicop,
+            model.IsPmeOrPyme,
+            model.HasWarning,
+            model.WarningNote,
+            actorId,
+            model.RowVersion);
 
-        await _supplierRepository.UpdateAsync(supplier);
-        await _supplierRepository.SaveChangesAsync();
+        var result = await _compliance.EditComplianceAsync(cmd, ct);
+        if (!result.Ok)
+            TempData["ErrorMessage"] = result.ErrorEsCr;
+        else
+            TempData["SuccessMessage"] = "Proveedor actualizado.";
 
-        TempData["SuccessMessage"] = "Proveedor actualizado.";
+        return RedirectToAction(nameof(Detail), new { supplierId });
+    }
+
+    /// <summary>
+    /// Spec 038 (US2) — "reviewed — no change" re-authorization for one regulatory
+    /// field. Refreshes the field's freshness timestamp without changing the value.
+    /// </summary>
+    [HttpPost("{supplierId:int}/ConfirmReviewed")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ConfirmReviewed(
+        int supplierId, RegulatoryField field, byte[] rowVersion, CancellationToken ct)
+    {
+        var actorId = _userManager.GetUserId(User)
+            ?? throw new InvalidOperationException("Auditor user not found.");
+
+        var result = await _compliance.ConfirmReviewedAsync(supplierId, field, actorId, rowVersion, ct);
+        if (!result.Ok)
+            TempData["ErrorMessage"] = result.ErrorEsCr;
+        else
+            TempData["SuccessMessage"] = "Revisión confirmada.";
+
         return RedirectToAction(nameof(Detail), new { supplierId });
     }
 

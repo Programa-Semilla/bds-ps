@@ -18,6 +18,11 @@ public sealed class AdminAuditEventCopyProvider : IAdminAuditEventCopyProvider
             AdminAuditEvent.ActionGroupRename => "renombró el grupo",
             AdminAuditEvent.ActionGroupDelete => "eliminó el grupo",
             AdminAuditEvent.ActionUserMembershipsUpdate => "actualizó las membresías de",
+            // Spec 038 — provider regulatory compliance (auditor) events.
+            AdminAuditEvent.SupplierRegulatoryChanged => "actualizó el cumplimiento regulatorio del proveedor",
+            AdminAuditEvent.SupplierRegulatoryReviewed => "confirmó la revisión regulatoria del proveedor",
+            AdminAuditEvent.SupplierPmeChanged => "actualizó la condición PYME del proveedor",
+            AdminAuditEvent.SupplierWarningChanged => "actualizó la advertencia del proveedor",
             _ => "registró un cambio en",
         };
     }

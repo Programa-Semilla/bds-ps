@@ -21,11 +21,35 @@ public partial class Supplier
 
     public string Name { get; private set; } = string.Empty;
 
-    // Admin-only flags (FR-040). Applicants never see these on a form.
-    public bool HasElectronicInvoice { get; private set; }
-    public bool IsCompliantCCSS { get; private set; }
-    public bool IsCompliantHacienda { get; private set; }
-    public bool IsCompliantSICOP { get; private set; }
+    // ----- Spec 038 — provider regulatory compliance (auditor-maintained) -----
+    // Three enumerated statuses replace the old IsCompliant*/HasElectronicInvoice
+    // booleans. null = "sin revisar". Each status carries per-field last-reviewed
+    // metadata that drives the freshness display (read directly, not from the audit
+    // trail).
+    public HaciendaStatus? HaciendaStatus { get; private set; }
+    public DateTime? HaciendaLastReviewedAt { get; private set; }
+    public string? HaciendaLastReviewedBy { get; private set; }
+    public RegulatoryReviewSource? HaciendaLastReviewedSource { get; private set; }
+
+    public CcssStatus? CcssStatus { get; private set; }
+    public DateTime? CcssLastReviewedAt { get; private set; }
+    public string? CcssLastReviewedBy { get; private set; }
+    public RegulatoryReviewSource? CcssLastReviewedSource { get; private set; }
+
+    public SicopStatus? SicopStatus { get; private set; }
+    public DateTime? SicopLastReviewedAt { get; private set; }
+    public string? SicopLastReviewedBy { get; private set; }
+    public RegulatoryReviewSource? SicopLastReviewedSource { get; private set; }
+
+    /// <summary>Spec 038 — provider is a PME/PYME (small/medium enterprise).</summary>
+    public bool IsPmeOrPyme { get; private set; }
+
+    /// <summary>Spec 038 — non-blocking warning surfaced to reviewers during review.</summary>
+    public bool HasWarning { get; private set; }
+    public string? WarningNote { get; private set; }
+
+    /// <summary>Spec 038 / D15 — optimistic-concurrency token (multi-auditor + slice-D API contention).</summary>
+    public byte[] RowVersion { get; private set; } = [];
 
     // Lifecycle (FR-021, FR-024, FR-035).
     public SupplierVerificationStatus VerificationStatus { get; private set; }
@@ -82,10 +106,6 @@ public partial class Supplier
             Name = name.Trim(),
             CreatedByApplicantId = createdByApplicantId,
             VerificationStatus = SupplierVerificationStatus.Draft,
-            HasElectronicInvoice = false,
-            IsCompliantCCSS = false,
-            IsCompliantHacienda = false,
-            IsCompliantSICOP = false,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -199,23 +219,172 @@ public partial class Supplier
     }
 
     /// <summary>
-    /// Admin edits identity fields including the four admin-only flags
-    /// (FR-032, FR-033). Permitted at any status; takes effect immediately.
+    /// Admin/auditor edits the provider name (FR-032). Permitted at any status.
+    /// Spec 038 narrowed this to name-only; regulatory compliance, PME/PYME, and
+    /// the warning now flow through <see cref="ApplyRegulatoryEdit"/>.
     /// </summary>
-    public void EditByAdmin(
-        string newName,
-        bool hasElectronicInvoice,
-        bool isCompliantCCSS,
-        bool isCompliantHacienda,
-        bool isCompliantSICOP)
+    public void EditByAdmin(string newName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(newName);
         Name = newName.Trim();
-        HasElectronicInvoice = hasElectronicInvoice;
-        IsCompliantCCSS = isCompliantCCSS;
-        IsCompliantHacienda = isCompliantHacienda;
-        IsCompliantSICOP = isCompliantSICOP;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Spec 038 — verbatim domain guard for the warning note length (mirrors RejectionReason).</summary>
+    public const int WarningNoteMaxLength = 1000;
+
+    /// <summary>
+    /// Spec 038 (US1/US2/US3) — auditor edit of the provider's regulatory
+    /// compliance, PME/PYME flag, and warning. For each of the three status fields
+    /// whose value changes, stamps that field's last-reviewed metadata
+    /// (now / actor / Manual) and emits a <see cref="RegulatoryChangeKind.Changed"/>
+    /// record. PME and warning changes emit their own records (no last-reviewed
+    /// metadata). Warning is normalized — flag off clears the note; the note is
+    /// trimmed and capped at <see cref="WarningNoteMaxLength"/>. Returns one
+    /// <see cref="RegulatoryChange"/> per change; an empty list means nothing
+    /// changed and the caller writes no audit and no row update.
+    /// </summary>
+    public IReadOnlyList<RegulatoryChange> ApplyRegulatoryEdit(
+        HaciendaStatus? hacienda,
+        CcssStatus? ccss,
+        SicopStatus? sicop,
+        bool isPmeOrPyme,
+        bool hasWarning,
+        string? warningNote,
+        string actorUserId,
+        DateTime nowUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
+
+        var changes = new List<RegulatoryChange>();
+
+        if (hacienda != HaciendaStatus)
+        {
+            changes.Add(new RegulatoryChange(
+                RegulatoryChangeField.Hacienda,
+                ((byte?)HaciendaStatus)?.ToString(),
+                ((byte?)hacienda)?.ToString(),
+                RegulatoryChangeKind.Changed,
+                RegulatoryReviewSource.Manual));
+            HaciendaStatus = hacienda;
+            HaciendaLastReviewedAt = nowUtc;
+            HaciendaLastReviewedBy = actorUserId;
+            HaciendaLastReviewedSource = RegulatoryReviewSource.Manual;
+        }
+
+        if (ccss != CcssStatus)
+        {
+            changes.Add(new RegulatoryChange(
+                RegulatoryChangeField.Ccss,
+                ((byte?)CcssStatus)?.ToString(),
+                ((byte?)ccss)?.ToString(),
+                RegulatoryChangeKind.Changed,
+                RegulatoryReviewSource.Manual));
+            CcssStatus = ccss;
+            CcssLastReviewedAt = nowUtc;
+            CcssLastReviewedBy = actorUserId;
+            CcssLastReviewedSource = RegulatoryReviewSource.Manual;
+        }
+
+        if (sicop != SicopStatus)
+        {
+            changes.Add(new RegulatoryChange(
+                RegulatoryChangeField.Sicop,
+                ((byte?)SicopStatus)?.ToString(),
+                ((byte?)sicop)?.ToString(),
+                RegulatoryChangeKind.Changed,
+                RegulatoryReviewSource.Manual));
+            SicopStatus = sicop;
+            SicopLastReviewedAt = nowUtc;
+            SicopLastReviewedBy = actorUserId;
+            SicopLastReviewedSource = RegulatoryReviewSource.Manual;
+        }
+
+        if (isPmeOrPyme != IsPmeOrPyme)
+        {
+            changes.Add(new RegulatoryChange(
+                RegulatoryChangeField.Pme,
+                IsPmeOrPyme.ToString(),
+                isPmeOrPyme.ToString(),
+                RegulatoryChangeKind.Changed,
+                RegulatoryReviewSource.Manual));
+            IsPmeOrPyme = isPmeOrPyme;
+        }
+
+        // Warning normalize: flag off clears the note; whitespace-only → null.
+        var normalizedNote = hasWarning ? warningNote?.Trim() : null;
+        if (string.IsNullOrEmpty(normalizedNote))
+            normalizedNote = null;
+        if (normalizedNote is { Length: > WarningNoteMaxLength })
+            throw new ArgumentException("La nota de advertencia no puede superar los 1000 caracteres.", nameof(warningNote));
+
+        if (hasWarning != HasWarning || normalizedNote != WarningNote)
+        {
+            changes.Add(new RegulatoryChange(
+                RegulatoryChangeField.Warning,
+                HasWarning.ToString(),
+                hasWarning.ToString(),
+                RegulatoryChangeKind.Changed,
+                RegulatoryReviewSource.Manual));
+            HasWarning = hasWarning;
+            WarningNote = normalizedNote;
+        }
+
+        if (changes.Count > 0)
+            UpdatedAt = nowUtc;
+
+        return changes;
+    }
+
+    /// <summary>
+    /// Spec 038 (US2 / D9) — "reviewed — no change" re-authorization for one
+    /// regulatory field: refreshes that field's last-reviewed metadata without
+    /// changing the value. Throws when the field's status is unset (re-authorizing
+    /// "nothing" is meaningless). Returns a
+    /// <see cref="RegulatoryChangeKind.ReviewedNoChange"/> record for auditing.
+    /// </summary>
+    public RegulatoryChange ConfirmRegulatoryReviewed(RegulatoryField field, string actorUserId, DateTime nowUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
+
+        byte? code;
+        switch (field)
+        {
+            case RegulatoryField.Hacienda:
+                if (HaciendaStatus is null)
+                    throw new InvalidOperationException("No se puede confirmar la revisión de un estado de Hacienda sin definir.");
+                HaciendaLastReviewedAt = nowUtc;
+                HaciendaLastReviewedBy = actorUserId;
+                HaciendaLastReviewedSource = RegulatoryReviewSource.Manual;
+                code = (byte?)HaciendaStatus;
+                break;
+            case RegulatoryField.Ccss:
+                if (CcssStatus is null)
+                    throw new InvalidOperationException("No se puede confirmar la revisión de un estado de CCSS sin definir.");
+                CcssLastReviewedAt = nowUtc;
+                CcssLastReviewedBy = actorUserId;
+                CcssLastReviewedSource = RegulatoryReviewSource.Manual;
+                code = (byte?)CcssStatus;
+                break;
+            case RegulatoryField.Sicop:
+                if (SicopStatus is null)
+                    throw new InvalidOperationException("No se puede confirmar la revisión de un estado de SICOP sin definir.");
+                SicopLastReviewedAt = nowUtc;
+                SicopLastReviewedBy = actorUserId;
+                SicopLastReviewedSource = RegulatoryReviewSource.Manual;
+                code = (byte?)SicopStatus;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(field));
+        }
+
+        UpdatedAt = nowUtc;
+        return new RegulatoryChange(
+            (RegulatoryChangeField)field,
+            code?.ToString(),
+            code?.ToString(),
+            RegulatoryChangeKind.ReviewedNoChange,
+            RegulatoryReviewSource.Manual);
     }
 
     // ----------- Branch operations (single source of truth for invariants) -----------

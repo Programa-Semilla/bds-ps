@@ -19,12 +19,12 @@ public static class IdentityConfiguration
     {
         var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-        // Spec 021 / FR-007 — SupplierAdmin included. The dacpac post-deployment
-        // script `03_SeedSupplierAdminRole.sql` is the canonical seed in deployed
-        // envs; this C# branch covers paths that bypass the dacpac (in-memory
-        // tests, fresh demos) so the role row is always present when seed users
-        // try to enrol into it.
-        string[] roles = ["Applicant", "Admin", "Reviewer", "SupplierAdmin"];
+        // Spec 038 — Auditor (renamed from SupplierAdmin) included. The dacpac
+        // post-deployment script `03_SeedSupplierAdminRole.sql` is the canonical
+        // rename-or-create in deployed envs; this C# branch covers paths that bypass
+        // the dacpac (in-memory tests, fresh demos) so the role row is always present
+        // when seed users try to enrol into it.
+        string[] roles = ["Applicant", "Admin", "Reviewer", "Auditor"];
 
         foreach (var role in roles)
         {
@@ -100,10 +100,10 @@ public static class IdentityConfiguration
             new { Email = "applicant@programa-semilla.test", Password = "Demo123!", FirstName = "Ana", LastName = "Pérez", LegalId = "1-0001-0001", IdType = IdentificationType.CedulaFisica, Roles = new[] { "Applicant" } },
             new { Email = "reviewer@programa-semilla.test", Password = "Demo123!", FirstName = "Carlos", LastName = "Rivera", LegalId = "1-0001-0002", IdType = IdentificationType.CedulaFisica, Roles = new[] { "Reviewer" } },
             new { Email = "demo-admin@programa-semilla.test", Password = "Demo123!", FirstName = "María", LastName = "Torres", LegalId = "1-0001-0003", IdType = IdentificationType.CedulaFisica, Roles = new[] { "Admin" } },
-            // Spec 021 / FR-007 — demo SupplierAdmin so the supplier-catalog-only
-            // sidebar variant is reachable from a one-click login in dev/E2E
-            // without having to provision via /Account/AssignRole first.
-            new { Email = "supplieradmin@programa-semilla.test", Password = "Demo123!", FirstName = "Lucía", LastName = "Mora", LegalId = "1-0001-0004", IdType = IdentificationType.CedulaFisica, Roles = new[] { "SupplierAdmin" } },
+            // Spec 038 — demo Auditor so the supplier-catalog-only sidebar variant
+            // is reachable from a one-click login in dev/E2E without having to
+            // provision via /Account/AssignRole first.
+            new { Email = "auditor@programa-semilla.test", Password = "Demo123!", FirstName = "Lucía", LastName = "Mora", LegalId = "1-0001-0004", IdType = IdentificationType.CedulaFisica, Roles = new[] { "Auditor" } },
         };
 
         foreach (var seed in seedUsers)

@@ -42,7 +42,7 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
         // which accepts an explicit target. We default to a "system" target
         // with id "0" for prefix-unknown kinds so the row is still well-formed
         // (the columns are NOT NULL).
-        var (targetType, targetId) = DeriveTarget(eventKind);
+        var (targetType, targetId) = DeriveTarget(eventKind, payloadJson);
         var entity = AdminAuditEvent.Record(actorUserId, eventKind, targetType, targetId, payloadJson);
         _db.AdminAuditEvents.Add(entity);
         return Task.CompletedTask;
@@ -55,8 +55,16 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
     /// placeholder when none is supplied, matching the existing
     /// <c>AdminAuditEvent.Record</c> guard.
     /// </summary>
-    private static (string TargetType, string TargetId) DeriveTarget(string eventKind)
+    private static (string TargetType, string TargetId) DeriveTarget(string eventKind, string? payloadJson)
     {
+        // Spec 038 — provider regulatory mutations (supplier.regulatory_changed/…).
+        // Unlike the other prefixes, the real supplier id is set as TargetId (parsed
+        // from the payload's `supplierId`) so the trail is queryable per provider via
+        // IX_AdminAuditEvents_Target. Falls back to "0" if the payload omits it.
+        if (eventKind.StartsWith("supplier.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeSupplier, ExtractSupplierId(payloadJson));
+        }
         if (eventKind.StartsWith("process.", StringComparison.Ordinal))
         {
             return (AdminAuditEvent.TargetTypeProcess, "0");
@@ -99,5 +107,29 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
             return (AdminAuditEvent.TargetTypeCompany, "0");
         }
         return ("system", "0");
+    }
+
+    /// <summary>Spec 038 — pull the integer <c>supplierId</c> out of the payload JSON
+    /// for the per-provider target id; "0" sentinel when absent/unparseable.</summary>
+    private static string ExtractSupplierId(string? payloadJson)
+    {
+        if (string.IsNullOrWhiteSpace(payloadJson))
+            return "0";
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(payloadJson);
+            if (doc.RootElement.TryGetProperty("supplierId", out var prop))
+            {
+                if (prop.ValueKind == System.Text.Json.JsonValueKind.Number && prop.TryGetInt32(out var id))
+                    return id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (prop.ValueKind == System.Text.Json.JsonValueKind.String && prop.GetString() is { Length: > 0 } s)
+                    return s;
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // Malformed payload — fall through to the sentinel.
+        }
+        return "0";
     }
 }

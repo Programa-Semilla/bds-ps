@@ -16,7 +16,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// <see cref="Application.Abstractions.IApplicationQueryFilter.ExcludeDeleted"/>
 /// (the audit lives in <c>DashboardQueriesHonorSoftDeleteTests</c>).
 /// </summary>
-[Authorize(Roles = "Admin,SupplierAdmin")]
+[Authorize(Roles = "Admin,Auditor")]
 [SupplierAdminDenied]
 [Route("Admin/Applications")]
 public sealed class AdminApplicationsController : Controller

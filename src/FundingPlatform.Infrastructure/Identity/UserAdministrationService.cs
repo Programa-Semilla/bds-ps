@@ -22,7 +22,7 @@ public class UserAdministrationService : IUserAdministrationService
     // Spec 021 / FR-007 — SupplierAdmin is a global-scope role (no Process/Group),
     // assignable from the standard admin Users form (parity with Admin in terms of
     // group handling — see RoleRequiresGroups + NormalizeGroupIdsForRole below).
-    private const string SupplierAdminRole = "SupplierAdmin";
+    private const string SupplierAdminRole = "Auditor";
     private const string AdminRole = "Admin";
 
     private static readonly string[] AllowedRoles = [ApplicantRole, ReviewerRole, SupplierAdminRole, AdminRole];
@@ -947,7 +947,7 @@ public class UserAdministrationService : IUserAdministrationService
         var errors = new List<DomainError>();
         if (string.IsNullOrWhiteSpace(role) || !AllowedRoles.Contains(role))
         {
-            errors.Add(new DomainError("INVALID_INPUT", "Role", "Role must be Applicant, Reviewer, SupplierAdmin, or Admin."));
+            errors.Add(new DomainError("INVALID_INPUT", "Role", "Role must be Applicant, Reviewer, Auditor, or Admin."));
             return errors;
         }
         if (string.Equals(role, ApplicantRole, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(legalId))

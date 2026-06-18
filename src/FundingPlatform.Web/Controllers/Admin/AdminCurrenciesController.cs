@@ -20,7 +20,7 @@ namespace FundingPlatform.Web.Controllers.Admin;
 /// — <c>AdminUsersController</c>, <c>AdminSuppliersController</c>). Using
 /// "Admin" here keeps role-claim handling consistent with the rest of the app.
 /// </summary>
-[Authorize(Roles = "Admin,SupplierAdmin")]
+[Authorize(Roles = "Admin,Auditor")]
 [SupplierAdminDenied]
 [Route("Admin/Currencies")]
 public class AdminCurrenciesController : Controller

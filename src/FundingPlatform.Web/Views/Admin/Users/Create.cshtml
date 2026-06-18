@@ -9,12 +9,12 @@
     // a supplier-catalog-only user from this form (closes the impl gap that
     // forced dev-only `Account/AssignRole` use). The SupplierAdmin label
     // matches the profile-screen copy in AccountController.BuildProfileViewModelAsync.
-    var roles = new[] { "Applicant", "Reviewer", "SupplierAdmin", "Admin" };
+    var roles = new[] { "Applicant", "Reviewer", "Auditor", "Admin" };
     string RoleLabel(string r) => r switch
     {
         "Applicant" => "Solicitante",
         "Reviewer" => "Revisor",
-        "SupplierAdmin" => "Administrador de proveedores",
+        "Auditor" => "Auditor",
         "Admin" => "Administrador",
         _ => r,
     };

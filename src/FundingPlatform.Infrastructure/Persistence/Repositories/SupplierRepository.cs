@@ -72,11 +72,12 @@ public class SupplierRepository : ISupplierRepository
 
         if (filter.HasIncompleteCompliance == true)
         {
+            // Spec 038 — "incomplete" now means any regulatory status is still
+            // unreviewed (null); the four compliance/e-invoice booleans were removed.
             query = query.Where(s =>
-                !s.IsCompliantCCSS ||
-                !s.IsCompliantHacienda ||
-                !s.IsCompliantSICOP ||
-                !s.HasElectronicInvoice);
+                s.HaciendaStatus == null ||
+                s.CcssStatus == null ||
+                s.SicopStatus == null);
         }
 
         var total = await query.CountAsync();
@@ -175,11 +176,12 @@ public class SupplierRepository : ISupplierRepository
 
         if (filter.HasIncompleteCompliance == true)
         {
+            // Spec 038 — "incomplete" now means any regulatory status is still
+            // unreviewed (null); the four compliance/e-invoice booleans were removed.
             query = query.Where(s =>
-                !s.IsCompliantCCSS ||
-                !s.IsCompliantHacienda ||
-                !s.IsCompliantSICOP ||
-                !s.HasElectronicInvoice);
+                s.HaciendaStatus == null ||
+                s.CcssStatus == null ||
+                s.SicopStatus == null);
         }
 
         if (filter.ProcessId is int procId)
@@ -248,10 +250,9 @@ public class SupplierRepository : ISupplierRepository
             x.Supplier.Name,
             x.Supplier.VerificationStatus,
             x.BranchCount,
-            !x.Supplier.IsCompliantCCSS
-                || !x.Supplier.IsCompliantHacienda
-                || !x.Supplier.IsCompliantSICOP
-                || !x.Supplier.HasElectronicInvoice,
+            x.Supplier.HaciendaStatus == null
+                || x.Supplier.CcssStatus == null
+                || x.Supplier.SicopStatus == null,
             x.Supplier.UpdatedAt,
             x.LastUsedAt)).ToList();
 

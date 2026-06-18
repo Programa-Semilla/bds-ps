@@ -16,7 +16,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Web.Controllers.Admin;
 
-[Authorize(Roles = "Admin,SupplierAdmin")]
+[Authorize(Roles = "Admin,Auditor")]
 [SupplierAdminDenied]
 [Route("Admin/Reports")]
 public class AdminReportsController : Controller

@@ -57,7 +57,7 @@ public class UserAdministrationGroupsTests
         // Spec 021 / FR-007 — SupplierAdmin seeded so role-assignment tests can
         // exercise the standard admin Users form path (closes the impl gap that
         // forced dev-only `Account/AssignRole` use).
-        foreach (var r in new[] { "Applicant", "Reviewer", "SupplierAdmin", "Admin" })
+        foreach (var r in new[] { "Applicant", "Reviewer", "Auditor", "Admin" })
         {
             if (!await roleMgr.RoleExistsAsync(r))
             {
@@ -260,7 +260,7 @@ public class UserAdministrationGroupsTests
         await SeedRolesAsync(sp);
 
         var result = await sut.CreateUserAsync(
-            new CreateUserRequest("Sup", "Admin", "supadmin1@test.com", null, "SupplierAdmin", null,
+            new CreateUserRequest("Sup", "Admin", "supadmin1@test.com", null, "Auditor", null,
                 GroupIds: Array.Empty<int>()),
             ActorAdminId, CancellationToken.None);
 
@@ -274,7 +274,7 @@ public class UserAdministrationGroupsTests
     [Test]
     public async Task Create_SupplierAdmin_WithCraftedGroupIds_IgnoresMemberships()
     {
-        // Defensive — a crafted form payload sets role=SupplierAdmin and posts
+        // Defensive — a crafted form payload sets role=Auditor and posts
         // GroupIds anyway. NormalizeGroupIdsForRole strips them so the table
         // can never accumulate orphan rows for the new global role.
         var (sut, ctx, sp) = Build();
@@ -282,7 +282,7 @@ public class UserAdministrationGroupsTests
         var ids = await SeedGroupsAsync(ctx, "Norte");
 
         var result = await sut.CreateUserAsync(
-            new CreateUserRequest("Sup", "Admin", "supadmin2@test.com", null, "SupplierAdmin", null,
+            new CreateUserRequest("Sup", "Admin", "supadmin2@test.com", null, "Auditor", null,
                 GroupIds: ids),
             ActorAdminId, CancellationToken.None);
 
@@ -310,7 +310,7 @@ public class UserAdministrationGroupsTests
 
         var fresh = await sut.GetUserAsync(userId, CancellationToken.None);
         var update = await sut.UpdateUserAsync(
-            new UpdateUserRequest(userId, "F", "L", "rev-to-sup@test.com", null, "SupplierAdmin", null,
+            new UpdateUserRequest(userId, "F", "L", "rev-to-sup@test.com", null, "Auditor", null,
                 GroupIds: ids, // crafted payload tries to retain — must be ignored
                 ConcurrencyStamp: fresh!.ConcurrencyStamp),
             ActorAdminId, CancellationToken.None);
@@ -323,7 +323,7 @@ public class UserAdministrationGroupsTests
             "FR-007: promoting to SupplierAdmin must clear Process/Group memberships.");
 
         var refreshed = await sut.GetUserAsync(userId, CancellationToken.None);
-        Assert.That(refreshed!.Role, Is.EqualTo("SupplierAdmin"));
+        Assert.That(refreshed!.Role, Is.EqualTo("Auditor"));
     }
 
     [Test]
@@ -349,7 +349,7 @@ public class UserAdministrationGroupsTests
         var userMgr = sp.GetRequiredService<UserManager<ApplicationUser>>();
         var target = await userMgr.FindByIdAsync(userId);
         Assert.That(target, Is.Not.Null);
-        var addRes = await userMgr.AddToRoleAsync(target!, "SupplierAdmin");
+        var addRes = await userMgr.AddToRoleAsync(target!, "Auditor");
         Assert.That(addRes.Succeeded, Is.True);
 
         var list = await sut.ListUsersAsync(new ListUsersRequest(null, null, null, 1, 20), CancellationToken.None);
@@ -366,7 +366,7 @@ public class UserAdministrationGroupsTests
         await SeedRolesAsync(sp);
 
         var sup = await sut.CreateUserAsync(
-            new CreateUserRequest("S", "A", "sup-filt@test.com", null, "SupplierAdmin", null,
+            new CreateUserRequest("S", "A", "sup-filt@test.com", null, "Auditor", null,
                 GroupIds: Array.Empty<int>()),
             ActorAdminId, CancellationToken.None);
         Assert.That(sup.Succeeded, Is.True);
@@ -378,7 +378,7 @@ public class UserAdministrationGroupsTests
         Assert.That(other.Succeeded, Is.True);
 
         var filtered = await sut.ListUsersAsync(
-            new ListUsersRequest("SupplierAdmin", null, null, 1, 20),
+            new ListUsersRequest("Auditor", null, null, 1, 20),
             CancellationToken.None);
         Assert.That(filtered.Items.Select(i => i.Id), Contains.Item(sup.Value!.Id));
         Assert.That(filtered.Items.Select(i => i.Id), Does.Not.Contain(other.Value!.Id));

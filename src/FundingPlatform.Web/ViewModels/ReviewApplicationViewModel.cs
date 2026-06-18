@@ -70,7 +70,6 @@ public class ReviewQuotationViewModel
     public bool ScoreCCSS { get; set; }
     public bool ScoreHacienda { get; set; }
     public bool ScoreSICOP { get; set; }
-    public bool ScoreElectronicInvoice { get; set; }
     public bool ScoreLowestPrice { get; set; }
     public bool IsPreSelected { get; set; }
     /// <summary>Spec 013 FR-051: supplier verification flags surfaced to the reviewer.</summary>

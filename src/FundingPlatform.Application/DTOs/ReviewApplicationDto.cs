@@ -49,7 +49,6 @@ public record ReviewQuotationDto(
     bool ScoreCCSS,
     bool ScoreHacienda,
     bool ScoreSICOP,
-    bool ScoreElectronicInvoice,
     bool ScoreLowestPrice,
     bool IsPreSelected,
     bool IsSupplierVerified = false,

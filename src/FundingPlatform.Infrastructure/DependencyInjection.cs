@@ -152,6 +152,8 @@ public static class DependencyInjection
         services.AddScoped<Application.Applications.Queries.IGetApplicationReviewProjection, Services.GetApplicationReviewProjection>();
         services.AddScoped<Application.Suppliers.ISearchSuppliersHandler, Services.SearchSuppliersHandler>();
         services.AddScoped<Application.Suppliers.ICreateSupplierBranchHandler, Services.CreateSupplierBranchHandler>();
+        // Spec 038 — auditor provider-compliance mutations + new-provider notification.
+        services.AddScoped<Application.Suppliers.Compliance.ISupplierComplianceService, Services.SupplierComplianceService>();
 
         // Spec 025 — location-chain resolver (distrito → cantón → provincia) used by
         // both supplier-branch write paths for server-side hierarchy validation +

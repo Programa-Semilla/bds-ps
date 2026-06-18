@@ -368,7 +368,6 @@ public class ReviewService
                     score?.IsCompliantCCSS ?? false,
                     score?.IsCompliantHacienda ?? false,
                     score?.IsCompliantSICOP ?? false,
-                    score?.HasElectronicInvoice ?? false,
                     score?.HasLowestPrice ?? false,
                     score?.IsPreSelected ?? false,
                     score?.IsSupplierVerified ?? false,

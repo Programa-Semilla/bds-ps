@@ -223,10 +223,10 @@ public class SupplierCatalogService
         Id: s.Id,
         LegalId: s.LegalId,
         Name: s.Name,
-        HasElectronicInvoice: s.HasElectronicInvoice,
-        IsCompliantCCSS: s.IsCompliantCCSS,
-        IsCompliantHacienda: s.IsCompliantHacienda,
-        IsCompliantSICOP: s.IsCompliantSICOP,
+        // Spec 038 — favorable-status compliance signal (e-invoice removed).
+        IsCompliantCCSS: s.CcssStatus.IsFavorable(),
+        IsCompliantHacienda: s.HaciendaStatus.IsFavorable(),
+        IsCompliantSICOP: s.SicopStatus.IsFavorable(),
         VerificationStatus: s.VerificationStatus,
         CreatedByApplicantId: s.CreatedByApplicantId,
         Branches: s.Branches

@@ -4,10 +4,26 @@ CREATE TABLE [dbo].[Suppliers]
     [LegalId]                  NVARCHAR(50)    NOT NULL,
     [IdentificationType]       TINYINT         NULL,            -- spec 026; NULL = unassigned (legacy row)
     [Name]                     NVARCHAR(300)   NOT NULL,
-    [HasElectronicInvoice]     BIT             NOT NULL CONSTRAINT [DF_Suppliers_HasElectronicInvoice] DEFAULT (0),
-    [IsCompliantCCSS]          BIT             NOT NULL CONSTRAINT [DF_Suppliers_IsCompliantCCSS] DEFAULT (0),
-    [IsCompliantHacienda]      BIT             NOT NULL CONSTRAINT [DF_Suppliers_IsCompliantHacienda] DEFAULT (0),
-    [IsCompliantSICOP]         BIT             NOT NULL CONSTRAINT [DF_Suppliers_IsCompliantSICOP] DEFAULT (0),
+
+    -- Spec 038: provider regulatory compliance (auditor-maintained). Replaces the
+    -- four BIT compliance/e-invoice columns. NULL status = "sin revisar". Each
+    -- status carries per-field last-reviewed metadata for the freshness display.
+    [HaciendaStatus]           TINYINT         NULL,
+    [HaciendaLastReviewedAt]   DATETIME2       NULL,
+    [HaciendaLastReviewedBy]   NVARCHAR(450)   NULL,
+    [HaciendaLastReviewedSource] TINYINT       NULL,
+    [CcssStatus]               TINYINT         NULL,
+    [CcssLastReviewedAt]       DATETIME2       NULL,
+    [CcssLastReviewedBy]       NVARCHAR(450)   NULL,
+    [CcssLastReviewedSource]   TINYINT         NULL,
+    [SicopStatus]              TINYINT         NULL,
+    [SicopLastReviewedAt]      DATETIME2       NULL,
+    [SicopLastReviewedBy]      NVARCHAR(450)   NULL,
+    [SicopLastReviewedSource]  TINYINT         NULL,
+    [IsPmeOrPyme]              BIT             NOT NULL CONSTRAINT [DF_Suppliers_IsPmeOrPyme] DEFAULT (0),
+    [HasWarning]               BIT             NOT NULL CONSTRAINT [DF_Suppliers_HasWarning] DEFAULT (0),
+    [WarningNote]              NVARCHAR(1000)  NULL,
+    [RowVersion]               ROWVERSION      NOT NULL,
 
     -- Spec 013: lifecycle (FR-021, FR-024, FR-035). Default 2 = Verified so existing
     -- migrated rows land in Verified status without an explicit UPDATE.
@@ -33,7 +49,11 @@ CREATE TABLE [dbo].[Suppliers]
     CONSTRAINT [PK_Suppliers] PRIMARY KEY CLUSTERED ([Id]),
     CONSTRAINT [UX_Suppliers_LegalId] UNIQUE ([LegalId]),
     CONSTRAINT [FK_Suppliers_Applicants] FOREIGN KEY ([CreatedByApplicantId]) REFERENCES [dbo].[Applicants] ([Id]) ON DELETE NO ACTION,
-    CONSTRAINT [FK_Suppliers_AspNetUsers] FOREIGN KEY ([VerifiedByUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION
+    CONSTRAINT [FK_Suppliers_AspNetUsers] FOREIGN KEY ([VerifiedByUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
+    -- Spec 038: per-field last-reviewer FKs (NO ACTION, consistent with VerifiedByUserId).
+    CONSTRAINT [FK_Suppliers_HaciendaReviewedBy_AspNetUsers] FOREIGN KEY ([HaciendaLastReviewedBy]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_Suppliers_CcssReviewedBy_AspNetUsers] FOREIGN KEY ([CcssLastReviewedBy]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_Suppliers_SicopReviewedBy_AspNetUsers] FOREIGN KEY ([SicopLastReviewedBy]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION
 );
 GO
 

@@ -7,7 +7,7 @@
     // when the caller holds the SupplierAdmin role; otherwise to / so an
     // authenticated non-admin lands on the public landing.
     ViewData["Title"] = "Acceso denegado";
-    var goBackUrl = User?.IsInRole("SupplierAdmin") == true
+    var goBackUrl = User?.IsInRole("Auditor") == true
         ? Url.Action("Index", "AdminSuppliers") ?? "/Admin/Suppliers"
         : Url.Action("Index", "Home") ?? "/";
 }

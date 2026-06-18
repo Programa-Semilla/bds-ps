@@ -8,10 +8,28 @@ public class AdminSupplierDetailViewModel
     public string LegalId { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
     public SupplierVerificationStatus Status { get; init; }
-    public bool HasElectronicInvoice { get; init; }
-    public bool IsCompliantCCSS { get; init; }
-    public bool IsCompliantHacienda { get; init; }
-    public bool IsCompliantSICOP { get; init; }
+
+    // Spec 038 — enumerated regulatory statuses + per-field freshness metadata.
+    public HaciendaStatus? HaciendaStatus { get; init; }
+    public DateTime? HaciendaReviewedAt { get; init; }
+    public string? HaciendaReviewedByName { get; init; }
+    public RegulatoryReviewSource? HaciendaReviewedSource { get; init; }
+
+    public CcssStatus? CcssStatus { get; init; }
+    public DateTime? CcssReviewedAt { get; init; }
+    public string? CcssReviewedByName { get; init; }
+    public RegulatoryReviewSource? CcssReviewedSource { get; init; }
+
+    public SicopStatus? SicopStatus { get; init; }
+    public DateTime? SicopReviewedAt { get; init; }
+    public string? SicopReviewedByName { get; init; }
+    public RegulatoryReviewSource? SicopReviewedSource { get; init; }
+
+    public bool IsPmeOrPyme { get; init; }
+    public bool HasWarning { get; init; }
+    public string? WarningNote { get; init; }
+    public byte[] RowVersion { get; init; } = [];
+
     public string? VerifiedByUserId { get; init; }
     public DateTime? VerifiedAt { get; init; }
     public string? RejectionReason { get; init; }
@@ -45,10 +63,18 @@ public class AdminEditSupplierViewModel
     [System.ComponentModel.DataAnnotations.MaxLength(300)]
     public string Name { get; set; } = string.Empty;
 
-    public bool HasElectronicInvoice { get; set; }
-    public bool IsCompliantCCSS { get; set; }
-    public bool IsCompliantHacienda { get; set; }
-    public bool IsCompliantSICOP { get; set; }
+    // Spec 038 — nullable enumerated statuses (blank = "sin revisar"), PME/PYME,
+    // warning + note, and the optimistic-concurrency token.
+    public HaciendaStatus? Hacienda { get; set; }
+    public CcssStatus? Ccss { get; set; }
+    public SicopStatus? Sicop { get; set; }
+    public bool IsPmeOrPyme { get; set; }
+    public bool HasWarning { get; set; }
+
+    [System.ComponentModel.DataAnnotations.MaxLength(1000)]
+    public string? WarningNote { get; set; }
+
+    public byte[] RowVersion { get; set; } = [];
 }
 
 public class AdminEditBranchViewModel

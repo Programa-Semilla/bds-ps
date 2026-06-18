@@ -27,7 +27,7 @@ public class US3_SupplierAdmin : AuthenticatedTestBase
     private async Task ProvisionSupplierAdminAsync(string suffix, string email)
     {
         await RegisterUserAsync(Page, email, Password, "Supplier", "Admin", $"SPADM-{suffix}");
-        await AssignRoleAsync(email, "SupplierAdmin");
+        await AssignRoleAsync(email, "Auditor");
         await LoginAsync(Page, email, Password);
     }
 

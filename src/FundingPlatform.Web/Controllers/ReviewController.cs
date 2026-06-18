@@ -777,7 +777,6 @@ public class ReviewController : Controller
                     ScoreCCSS = q.ScoreCCSS,
                     ScoreHacienda = q.ScoreHacienda,
                     ScoreSICOP = q.ScoreSICOP,
-                    ScoreElectronicInvoice = q.ScoreElectronicInvoice,
                     ScoreLowestPrice = q.ScoreLowestPrice,
                     IsPreSelected = q.IsPreSelected,
                     IsSupplierVerified = q.IsSupplierVerified,

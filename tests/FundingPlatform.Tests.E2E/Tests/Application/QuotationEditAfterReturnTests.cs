@@ -135,10 +135,9 @@ public class QuotationEditAfterReturnTests : AuthenticatedTestBase
         cmd.CommandText = @"
             DECLARE @SupplierId INT;
             INSERT INTO dbo.Suppliers
-                (LegalId, Name, HasElectronicInvoice, IsCompliantCCSS, IsCompliantHacienda,
-                 IsCompliantSICOP, VerificationStatus, CreatedAt, UpdatedAt)
+                (LegalId, Name, VerificationStatus, CreatedAt, UpdatedAt)
             VALUES
-                (@LegalId, @Name, 0, 0, 0, 0, 0, SYSUTCDATETIME(), SYSUTCDATETIME());
+                (@LegalId, @Name, 0, SYSUTCDATETIME(), SYSUTCDATETIME());
             SET @SupplierId = SCOPE_IDENTITY();
 
             DECLARE @BranchId INT;

@@ -60,7 +60,6 @@ public class SupplierMigrationParityTests
         Assert.That(preScores[0].Score.IsCompliantCCSS, Is.EqualTo(postScores[0].Score.IsCompliantCCSS));
         Assert.That(preScores[0].Score.IsCompliantHacienda, Is.EqualTo(postScores[0].Score.IsCompliantHacienda));
         Assert.That(preScores[0].Score.IsCompliantSICOP, Is.EqualTo(postScores[0].Score.IsCompliantSICOP));
-        Assert.That(preScores[0].Score.HasElectronicInvoice, Is.EqualTo(postScores[0].Score.HasElectronicInvoice));
     }
 
     [Test]
@@ -130,7 +129,10 @@ public class SupplierMigrationParityTests
     {
         var s = Supplier.CreateDraft(legalId, "Pre", 1, "Sede principal",
             null, null, null, null, null, null, null);
-        s.EditByAdmin("Pre", eInvoice, ccss, hacienda, sicop);
+        _ = eInvoice; // Spec 038 — e-invoice removed from scoring.
+        s.ApplyRegulatoryEdit(
+            hacienda ? HaciendaStatus.AlDia : null, ccss ? CcssStatus.AlDia : null,
+            sicop ? SicopStatus.SinSanciones : null, false, false, null, "test-actor", DateTime.UtcNow);
         typeof(Supplier).GetProperty("Id")!.SetValue(s, 1);
         typeof(Supplier).GetProperty("VerificationStatus")!.SetValue(s, SupplierVerificationStatus.Verified);
 
@@ -145,7 +147,10 @@ public class SupplierMigrationParityTests
     {
         var s = Supplier.CreateDraft(legalId, "Post", 1, "Sede principal",
             "Contact", "c@x.com", null, null, null, null, null);
-        s.EditByAdmin("Post", eInvoice, ccss, hacienda, sicop);
+        _ = eInvoice; // Spec 038 — e-invoice removed from scoring.
+        s.ApplyRegulatoryEdit(
+            hacienda ? HaciendaStatus.AlDia : null, ccss ? CcssStatus.AlDia : null,
+            sicop ? SicopStatus.SinSanciones : null, false, false, null, "test-actor", DateTime.UtcNow);
         typeof(Supplier).GetProperty("Id")!.SetValue(s, 1);
         typeof(Supplier).GetProperty("VerificationStatus")!.SetValue(s, SupplierVerificationStatus.Verified);
 
