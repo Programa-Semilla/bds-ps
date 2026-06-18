@@ -220,6 +220,85 @@ public class SupplierLocationCascadeE2E : AuthenticatedTestBase
             "An incomplete-location submit must not create a supplier.");
     }
 
+    [Test]
+    public async Task US1_NewSupplier_MissingDistrict_ShowsVisibleError_NoSilentBlock()
+    {
+        // Regression for the reported bug: the location selects were `required` AND
+        // data-searchable (spec 031), which clips the native <select> to 1px — so the
+        // browser's native required-validation bubble fired on an invisible element and the
+        // submit was silently blocked with NO visible error. The `required` attribute was
+        // removed so the form reaches the server, whose es-CR validation surfaces a VISIBLE
+        // message in the validation summary.
+        var legalId = IdentificationData.CedulaJuridica($"US1C-{Guid.NewGuid().ToString("N")[..8]}");
+        await StartApplicantWithItemAsync("loc_us1c");
+        await ClickAddSupplierAsync();
+
+        var supplier = new SupplierPage(Page);
+        Assert.That(await supplier.SearchByLegalIdAsync(legalId), Is.EqualTo("Empty"));
+        await supplier.NewSupplierNameInput.FillAsync($"Proveedor {legalId}");
+        await supplier.NewSupplierBranchNameInput.FillAsync("Sede principal");
+        await supplier.FillQuotationFieldsAsync(999m, "2027-12-31", _quotationFile);
+
+        // Select Provincia + Cantón but leave Distrito empty (the reported scenario).
+        var province = supplier.NewSupplierLocation.Locator("select").Nth(0);
+        var canton = supplier.NewSupplierLocation.Locator("select").Nth(1);
+        var cantonsResp = Page.WaitForResponseAsync(r => r.Url.Contains("/api/cantons"));
+        await province.SelectOptionAsync(new SelectOptionValue { Index = 1 });
+        await cantonsResp;
+        await canton.Locator("option").Nth(1).WaitForAsync(new() { State = WaitForSelectorState.Attached });
+        var districtsResp = Page.WaitForResponseAsync(r => r.Url.Contains("/api/districts"));
+        await canton.SelectOptionAsync(new SelectOptionValue { Index = 1 });
+        await districtsResp;
+        await supplier.SubmitButton.ClickAsync();
+
+        // The submit is no longer silently blocked: it reaches the server, which re-renders
+        // /Supplier/Add with a VISIBLE es-CR district error in the validation summary.
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Supplier/Add"));
+        await Expect(supplier.ValidationSummary).ToContainTextAsync("distrito");
+    }
+
+    [Test]
+    public async Task SeededSampleSuppliers_ExistWithExpectedRegulatoryProfiles()
+    {
+        await using var conn = new SqlConnection(ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT s.[LegalId], s.[HaciendaStatus], s.[CcssStatus], s.[SicopStatus], s.[IsPmeOrPyme], s.[VerificationStatus],
+                   (SELECT COUNT(*) FROM dbo.SupplierBranches b WHERE b.SupplierId = s.[Id] AND b.[IsDefault] = 1) AS DefaultBranches
+              FROM dbo.Suppliers s
+             WHERE s.[LegalId] IN (N'1-111-111111', N'2-222-222222', N'3-333-333333', N'5-555-555555', N'6-666-666666');";
+        var rows = new Dictionary<string, (int H, int C, int S, bool P, int V, int B)>();
+        await using (var r = await cmd.ExecuteReaderAsync())
+        {
+            while (await r.ReadAsync())
+            {
+                rows[(string)r["LegalId"]] = (
+                    Convert.ToInt32(r["HaciendaStatus"]), Convert.ToInt32(r["CcssStatus"]), Convert.ToInt32(r["SicopStatus"]),
+                    Convert.ToBoolean(r["IsPmeOrPyme"]), Convert.ToInt32(r["VerificationStatus"]), Convert.ToInt32(r["DefaultBranches"]));
+            }
+        }
+
+        Assert.That(rows, Has.Count.EqualTo(5), "All 5 sample suppliers must be seeded.");
+        // 1/2/3 — all regulatories al día (Hacienda 2, CCSS 2, SICOP 2), not pyme.
+        foreach (var legal in new[] { "1-111-111111", "2-222-222222", "3-333-333333" })
+        {
+            Assert.That(rows[legal].H, Is.EqualTo(2), $"{legal} Hacienda al día");
+            Assert.That(rows[legal].C, Is.EqualTo(2), $"{legal} CCSS al día");
+            Assert.That(rows[legal].S, Is.EqualTo(2), $"{legal} SICOP sin sanciones");
+            Assert.That(rows[legal].P, Is.False, $"{legal} not pyme");
+        }
+        Assert.That(rows["5-555-555555"].P, Is.True, "5-555 is pyme");
+        Assert.That(rows["5-555-555555"].C, Is.EqualTo(2), "5-555 CCSS al día");
+        Assert.That(rows["6-666-666666"].C, Is.EqualTo(1), "6-666 CCSS sin inscripción (1)");
+        Assert.That(rows["6-666-666666"].H, Is.EqualTo(2), "6-666 Hacienda al día");
+        foreach (var v in rows.Values)
+        {
+            Assert.That(v.V, Is.EqualTo(2), "Seeded supplier is Verified");
+            Assert.That(v.B, Is.EqualTo(1), "Seeded supplier has exactly one default branch");
+        }
+    }
+
     // ---- US2 (P2) — applicant new branch on existing supplier ----
 
     [Test]

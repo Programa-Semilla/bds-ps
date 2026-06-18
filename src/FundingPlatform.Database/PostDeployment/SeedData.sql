@@ -379,6 +379,10 @@ GO
 -- so the reviewer/auditor checklist gates resolve out of the box. Idempotent by name.
 :r .\07_SeedChecklistTemplates.sql
 
+-- Sample suppliers with specific regulatory profiles (recommendation + CCSS-block testing).
+-- Idempotent by LegalId; requires the province/cantón/distrito catalog (seeded above).
+:r .\08_SeedSuppliers.sql
+
 -- =============================================================================
 -- Spec 021 / data-model.md — SystemConfiguration rows for stage windows and the
 -- public-landing slot StorageKeys (admins upload via the AdminPublicLandingFiles
