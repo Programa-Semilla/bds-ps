@@ -152,7 +152,7 @@ Clean-Architecture web app: `src/FundingPlatform.{Domain,Application,Infrastruct
 - [X] T057 [P] es-CR copy pass across all new surfaces + the two new emails (no English literals; mirror existing resource conventions).
 - [X] T058 [P] Run `quickstart.md` walkthrough end-to-end on a local AppHost run.
 - [X] T059 Run the **filtered E2E delivery gate** green: `AuditorWorkflow|ReviewerSendToAudit|AuditReturn|ChecklistTemplateAdmin` + rewired `FundingAgreement|Signing|GenerateAgreementQueue`; plus Unit + Integration suites.
-- [ ] T060 On merge-ready, update `CLAUDE.md` Recent Changes + the decomposition index (slice C → shipped) + brainstorm overview.
+- [X] T060 On merge-ready, update `CLAUDE.md` Recent Changes + the decomposition index (slice C → shipped) + brainstorm overview.
 
 ---
 
