@@ -36,6 +36,14 @@ public class US3_SupplierAdmin : AuthenticatedTestBase
     {
         var unique = Guid.NewGuid().ToString("N")[..6];
         var email = $"supplier_admin_{unique}@example.com";
+        // Spec 038 — seed a provider so the Suppliers Index renders the table (the
+        // LastUsedAt column header lives in the non-empty branch). Run in isolation
+        // the shared E2E DB would otherwise have no suppliers (pre-existing data
+        // dependency surfaced when this affected class runs without the spec-038
+        // supplier-seeding classes).
+        await Fixtures.SupplierSeed.SeedVerifiedSupplierAsync(
+            ConnectionString, $"3-101-S{unique}", $"Sidebar Seed {unique}");
+
         await ProvisionSupplierAdminAsync(unique, email);
 
         var supplierAdminPage = new SupplierAdminPage(Page);
