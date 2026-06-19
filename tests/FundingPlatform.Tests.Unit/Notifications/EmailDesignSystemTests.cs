@@ -89,4 +89,59 @@ public class EmailDesignSystemTests
         Assert.That(header, Does.Contain("alt=\"Programa Semilla\""),
             "_BrandHeader logo must carry Spanish alt text (NFR-004).");
     }
+
+    private static IEnumerable<string> AllEmailViews()
+    {
+        var root = FindViewsRoot();
+        return Directory.EnumerateFiles(root, "*.cshtml", SearchOption.AllDirectories);
+    }
+
+    private static string Strip(string s) => System.Text.RegularExpressions.Regex.Replace(
+        s, @"@\*.*?\*@", string.Empty, System.Text.RegularExpressions.RegexOptions.Singleline);
+
+    [Test]
+    public void T037_no_external_or_embedded_css_in_any_email_view()
+    {
+        // NFR-001 — inline CSS only: no <link rel=stylesheet> and no <style> blocks.
+        foreach (var path in AllEmailViews())
+        {
+            var contents = Strip(File.ReadAllText(path));
+            Assert.That(contents, Does.Not.Contain("<link"),
+                $"NFR-001: '{Path.GetFileName(path)}' references an external stylesheet.");
+            Assert.That(contents, Does.Not.Contain("<style"),
+                $"NFR-001: '{Path.GetFileName(path)}' embeds a <style> block (must be inline CSS).");
+        }
+    }
+
+    [Test]
+    public void T038_every_img_has_nonempty_alt_and_no_flexbox_or_grid()
+    {
+        // NFR-002/NFR-004 — no flexbox/grid (email-client compat); every <img> has alt.
+        foreach (var path in AllEmailViews())
+        {
+            var contents = Strip(File.ReadAllText(path)).ToLowerInvariant();
+            Assert.That(contents, Does.Not.Contain("display:flex"),
+                $"NFR-002: '{Path.GetFileName(path)}' uses flexbox.");
+            Assert.That(contents, Does.Not.Contain("display:grid"),
+                $"NFR-002: '{Path.GetFileName(path)}' uses CSS grid.");
+
+            // Each <img ...> tag must carry a non-empty alt="...".
+            foreach (System.Text.RegularExpressions.Match img in
+                     System.Text.RegularExpressions.Regex.Matches(contents, "<img\\b[^>]*>"))
+            {
+                var alt = System.Text.RegularExpressions.Regex.Match(img.Value, "alt=\"([^\"]*)\"");
+                Assert.That(alt.Success && alt.Groups[1].Value.Trim().Length > 0, Is.True,
+                    $"NFR-004: an <img> in '{Path.GetFileName(path)}' is missing a non-empty alt.");
+            }
+        }
+    }
+
+    [Test]
+    public void T038_layout_caps_content_width_at_600px()
+    {
+        var root = FindViewsRoot();
+        var layout = File.ReadAllText(Path.Combine(root, "_EmailLayout.cshtml"));
+        Assert.That(layout, Does.Contain("max-width:600px"),
+            "NFR-001: the content table must be capped at 600px.");
+    }
 }

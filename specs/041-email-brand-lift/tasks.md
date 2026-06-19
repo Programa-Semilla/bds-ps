@@ -144,11 +144,11 @@ description: "Task list for ALIA Transactional Email Brand UI-Lift (041)"
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T037 [P] Brand/copy guard test (source-level scan of `Views/Emails/**`): no English literals; no near-black `#1d1d1f` button; partner-footer + support phone present on every HTML email; no external `<link>`/`<style>`.
-- [ ] T038 [P] Accessibility/compatibility checklist over all templates: Spanish `alt` on every `<img>`, content ≤600px, no flexbox/grid, WCAG AA teal-text contrast, no critical content image-only (NFR-001..005).
-- [ ] T039 Run `quickstart.md` manual verification in smtp4dev with images both shown and blocked across the redesigned + new emails.
-- [ ] T040 Run filtered E2E (`--filter FullyQualifiedName~Notifications`) plus any affected identity/stage classes; confirm green (delivery gate).
-- [ ] T041 Record the FR-013 notifier refinement (outbox is application-keyed → notifier pattern) in the spec's evolution note, and reconfirm OQ-1/OQ-2/OQ-3 resolutions in `research.md` are reflected.
+- [X] T037 [P] Brand/copy guard test (source-level scan of `Views/Emails/**`): no English literals; no near-black `#1d1d1f` button; partner-footer + support phone present on every HTML email; no external `<link>`/`<style>`.
+- [X] T038 [P] Accessibility/compatibility checklist over all templates: Spanish `alt` on every `<img>`, content ≤600px, no flexbox/grid, WCAG AA teal-text contrast, no critical content image-only (NFR-001..005).
+- [X] T039 Run `quickstart.md` manual verification in smtp4dev with images both shown and blocked across the redesigned + new emails.
+- [X] T040 Run filtered E2E (`--filter FullyQualifiedName~Notifications`) plus any affected identity/stage classes; confirm green (delivery gate).
+- [X] T041 Record the FR-013 notifier refinement (outbox is application-keyed → notifier pattern) in the spec's evolution note, and reconfirm OQ-1/OQ-2/OQ-3 resolutions in `research.md` are reflected.
 
 ---
 

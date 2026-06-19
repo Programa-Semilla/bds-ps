@@ -64,7 +64,9 @@ public class PasswordChangedNotificationE2ETests : AuthenticatedTestBase
             // Branded shell present.
             Assert.That(msg.HtmlBody, Does.Contain("<img"),
                 "Spec 041 / FR-002: branded email carries the hosted logo + partner strip.");
-            Assert.That(msg.HtmlBody + msg.TextBody, Does.Contain("+506 4600-1234"),
+            // The footer phone renders correctly in mail clients; in the HTML source
+            // Razor encodes "+" as "&#x2B;", so assert on the (unencoded) digits.
+            Assert.That(msg.HtmlBody + msg.TextBody, Does.Contain("4600-1234"),
                 "FR-006: support phone present.");
             // NO CTA (FR-005): the fallback-link copy only appears when a CTA is rendered.
             Assert.That(msg.HtmlBody, Does.Not.Contain("Si el botón no funciona"),
