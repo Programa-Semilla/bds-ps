@@ -21,7 +21,7 @@ public class ReviewerQueueReturnedFromAuditTests
     [Test]
     public async Task GetForReviewerAsync_SurfacesReturnedFromAudit_InRowsAndAwaitingKpi()
     {
-        var (projection, app) = BuildProjectionWithSingleReturnedFromAuditApplication(applicationId: 55);
+        var (projection, app, repo) = BuildProjectionWithSingleReturnedFromAuditApplication(applicationId: 55);
 
         var dto = await projection.GetForReviewerAsync(
             reviewerId: "reviewer-1",
@@ -35,12 +35,18 @@ public class ReviewerQueueReturnedFromAuditTests
         Assert.That(dto.Rows[0].ApplicationNumber, Is.EqualTo($"APP-{app.Id:D5}"));
         // A returned application awaits the reviewer's rework — it belongs in the KPI.
         Assert.That(dto.Kpis.AwaitingYourReview, Is.EqualTo(1));
+
+        // Make the contract explicit (not merely implied by the mocked return): the
+        // projection MUST fetch the ReturnedFromAudit state. This is exactly the call the
+        // shipped bug omitted — assert it independently of the default-return stub.
+        await repo.Received(1).GetByStateForReviewerAsync(
+            ApplicationState.ReturnedFromAudit, Arg.Any<ReviewerScopeHint>(), 1, 200, Arg.Any<string?>());
     }
 
     [Test]
     public async Task GetForReviewerAsync_ReturnedFromAudit_ShowsUnderAwaitingMeFilter()
     {
-        var (projection, _) = BuildProjectionWithSingleReturnedFromAuditApplication(applicationId: 55);
+        var (projection, _, _) = BuildProjectionWithSingleReturnedFromAuditApplication(applicationId: 55);
 
         var dto = await projection.GetForReviewerAsync(
             reviewerId: "reviewer-1",
@@ -53,7 +59,7 @@ public class ReviewerQueueReturnedFromAuditTests
         Assert.That(dto.Rows, Has.Count.EqualTo(1));
     }
 
-    private static (ReviewerQueueProjection Projection, AppEntity App) BuildProjectionWithSingleReturnedFromAuditApplication(
+    private static (ReviewerQueueProjection Projection, AppEntity App, IApplicationRepository Repo) BuildProjectionWithSingleReturnedFromAuditApplication(
         int applicationId)
     {
         var applicant = new Applicant(
@@ -96,6 +102,6 @@ public class ReviewerQueueReturnedFromAuditTests
         var copy = Substitute.For<IReviewerCopyProvider>();
 
         var projection = new ReviewerQueueProjection(repo, config, journey, copy);
-        return (projection, app);
+        return (projection, app, repo);
     }
 }

@@ -88,6 +88,9 @@ public class EvidenceInboxQueryTests
         Assert.That(rows[0].ApplicationId, Is.EqualTo(appId));
         Assert.That(rows[0].ApplicationNumber, Is.EqualTo($"APP-{appId:D5}"));
         Assert.That(rows[0].ApplicantName, Is.EqualTo("Ana Pérez"));
+        // FR-003 — fund/process identification must be populated, not just present.
+        Assert.That(rows[0].FundName, Is.EqualTo("Fondo 041"));
+        Assert.That(rows[0].ProcessName, Does.StartWith("Proceso "));
     }
 
     [Test]

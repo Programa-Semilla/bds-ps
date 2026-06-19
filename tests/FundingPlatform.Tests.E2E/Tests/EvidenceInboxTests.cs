@@ -140,22 +140,27 @@ public class EvidenceInboxTests : AuthenticatedTestBase
         await evidence.UploadAsync(_pdfPath);
         await Expect(evidence.Rows).ToHaveCountAsync(1);
 
-        // Capture an antiforgery token + the evidence id for crafted POSTs (FR-007).
+        // Capture an antiforgery token + the evidence id from the CURRENT reviewer
+        // session for the crafted POSTs below (FR-007). The token is only valid for the
+        // session that fires the POST, so we keep the reviewer logged in and close the
+        // process from a SEPARATE admin browser context — otherwise a re-login would
+        // rotate the antiforgery cookie and the crafted POST would fail at the filter
+        // (400) instead of reaching the closed-gate, proving nothing.
         var token = await Page.Locator(
             "[data-testid=evidence-upload-form] input[name=__RequestVerificationToken]")
             .First.GetAttributeAsync("value");
         var evidenceId = await evidence.Rows.First.GetAttributeAsync("data-evidence-id");
-        await Logout();
 
-        // Admin closes the governing Process.
-        await LoginAsync(Page, adminEmail, Pwd);
-        var procPage = new ProcessAdminPage(Page);
-        await procPage.GoToDetailsAsync(BaseUrl, processId);
-        await procPage.CloseAsync();
-        await Logout();
+        await using (var adminCtx = await Browser.NewContextAsync(new() { IgnoreHTTPSErrors = true }))
+        {
+            var adminPage = await adminCtx.NewPageAsync();
+            await LoginAsync(adminPage, adminEmail, Pwd);
+            var procPage = new ProcessAdminPage(adminPage);
+            await procPage.GoToDetailsAsync(BaseUrl, processId);
+            await procPage.CloseAsync();
+        }
 
-        // Reviewer again: the app has dropped off the inbox (FR-004) ...
-        await LoginAsync(Page, reviewerEmail, ReviewerPwd);
+        // Reviewer (same live session): the app has dropped off the inbox (FR-004) ...
         await inbox.GotoAsync(BaseUrl);
         await Expect(inbox.RowFor(AppNumber(appId))).ToHaveCountAsync(0);
 
@@ -168,12 +173,28 @@ public class EvidenceInboxTests : AuthenticatedTestBase
         await Expect(Page.Locator("[data-testid=evidence-delete]")).ToHaveCountAsync(0);
         await Expect(Page.Locator("[data-testid=evidence-download]").First).ToBeVisibleAsync();
 
-        // FR-007 / SC-003 — crafted Upload + Delete POSTs are rejected with no change.
-        await CraftedPostAsync($"{BaseUrl}/Applications/{appId}/Evidence/Upload", token!);
-        await CraftedPostAsync($"{BaseUrl}/Applications/{appId}/Evidence/{evidenceId}/Delete", token!);
+        // FR-007 / SC-003 — crafted Upload (with a real PDF, so absent the gate it WOULD
+        // add a row), EditNote (with a real note), and Delete POSTs each pass antiforgery
+        // (valid token) and reach the closed-gate → redirect to Index (200), rejected
+        // with no change. Asserting 200 proves the request was processed, not dropped.
+        var pdfBytes = await File.ReadAllBytesAsync(_pdfPath);
+        var crafted = new[]
+        {
+            await CraftedPostAsync($"{BaseUrl}/Applications/{appId}/Evidence/Upload", token!, fileBytes: pdfBytes, fileName: "intruso.pdf"),
+            await CraftedPostAsync($"{BaseUrl}/Applications/{appId}/Evidence/{evidenceId}/Note", token!, note: "nota intrusa"),
+            await CraftedPostAsync($"{BaseUrl}/Applications/{appId}/Evidence/{evidenceId}/Delete", token!),
+        };
+        foreach (var (status, finalUrl) in crafted)
+        {
+            Assert.That(status, Is.EqualTo(200), "crafted write must pass antiforgery and be processed, not dropped/400");
+            Assert.That(finalUrl, Does.Contain($"/Applications/{appId}/Evidence"),
+                "crafted write must land back on the evidence Index (closed-gate redirect), not a login/error page");
+        }
 
+        // No change: upload + delete rejected (row count unchanged), note edit rejected.
         await evidence.GotoAsync(BaseUrl, appId);
-        await Expect(evidence.Rows).ToHaveCountAsync(1); // unchanged: nothing added, nothing deleted
+        await Expect(evidence.Rows).ToHaveCountAsync(1);
+        await Expect(Page.Locator("[data-testid=evidence-note-readonly]")).Not.ToContainTextAsync("nota intrusa");
     }
 
     // ---------------- US3 ----------------
@@ -289,15 +310,44 @@ public class EvidenceInboxTests : AuthenticatedTestBase
         return int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
     }
 
-    /// <summary>Issues a same-origin authenticated POST (carries the browser session
-    /// cookies) with a captured antiforgery token — exercises the server-side
-    /// read-only rejection for crafted requests that bypass the hidden UI (FR-007).</summary>
-    private async Task CraftedPostAsync(string url, string token)
-        => await Page.EvaluateAsync(
-            @"async ([url, token]) => {
-                const fd = new FormData();
-                fd.append('__RequestVerificationToken', token);
-                try { await fetch(url, { method: 'POST', body: fd }); } catch (e) { /* rejection is the point */ }
-            }",
-            new object[] { url, token });
+    /// <summary>Issues an authenticated crafted POST that bypasses the hidden UI, carrying
+    /// the live browser session's cookies (auth + antiforgery) and the captured antiforgery
+    /// token — so the request passes the <c>[ValidateAntiForgeryToken]</c> filter and
+    /// actually reaches the server-side read-only gate (FR-007). Uses HttpClient (not the
+    /// in-page fetch, which trips on the dev self-signed cert + http→https redirect).
+    /// Returns the final status and URL after following redirects: a closed-process
+    /// rejection redirects back to the evidence Index → 200, proving the request was
+    /// processed while authenticated (not dropped, not bounced to login) and no mutation
+    /// occurred. Optionally attaches a real file/note so that, absent the gate, the
+    /// mutation WOULD succeed — making the no-change assertion a genuine proof of the gate
+    /// rather than of an unrelated guard (empty-file / missing-field).</summary>
+    private async Task<(int Status, string FinalUrl)> CraftedPostAsync(
+        string url, string token, string? note = null, byte[]? fileBytes = null, string? fileName = null)
+    {
+        var baseUri = new Uri(BaseUrl);
+        var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
+            AllowAutoRedirect = true,
+            CookieContainer = new System.Net.CookieContainer(),
+        };
+        foreach (var c in await Context.CookiesAsync())
+        {
+            try { handler.CookieContainer.Add(new System.Net.Cookie(c.Name, c.Value, string.IsNullOrEmpty(c.Path) ? "/" : c.Path, baseUri.Host)); }
+            catch { /* skip a cookie the container rejects */ }
+        }
+
+        using var client = new HttpClient(handler);
+        using var content = new MultipartFormDataContent { { new StringContent(token), "__RequestVerificationToken" } };
+        if (note is not null) content.Add(new StringContent(note), "note");
+        if (fileBytes is not null)
+        {
+            var file = new ByteArrayContent(fileBytes);
+            file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+            content.Add(file, "file", fileName ?? "file.pdf");
+        }
+
+        var resp = await client.PostAsync(url, content);
+        return ((int)resp.StatusCode, resp.RequestMessage?.RequestUri?.ToString() ?? string.Empty);
+    }
 }

@@ -56,7 +56,10 @@ public sealed class EvidenceInboxProjection : IEvidenceInboxProjection
                 && (isAdmin
                     || _db.UserGroupMemberships.Any(m =>
                         m.UserId == app.Applicant.UserId && groupIds.Contains(m.GroupId)))
-            orderby app.UpdatedAt descending                          // D8 — most-recently-executed first
+            // D8 — order by last update desc. For an AgreementExecuted application this
+            // is effectively the execution time: nothing mutates Application.UpdatedAt
+            // afterwards (evidence add/edit/delete touch FundsUsageEvidence, not the app).
+            orderby app.UpdatedAt descending
             select new
             {
                 app.Id,
