@@ -165,14 +165,16 @@ public class RazorEmailRendererTests
     }
 
     [Test]
-    public void Partner_footer_contains_static_soporte_mailto()
+    public void Partner_footer_links_support_email_via_brand_constant()
     {
+        // FR-006 — the footer support mailto + link text both come from the
+        // EmailBrand.SupportEmail constant (single source of truth), which resolves
+        // to soporte@programa-semilla.cr.
         var root = FindViewsRoot();
-        // Razor escapes @ as @@ in source files; the rendered output is the literal
-        // soporte@programa-semilla.cr. Source-grep accepts either form.
-        var footer = File.ReadAllText(Path.Combine(root, "Shared", "_PartnerFooter.cshtml"))
-            .Replace("@@", "@");
-        Assert.That(footer, Does.Contain("soporte@programa-semilla.cr"),
-            "FR-006: partner footer must include soporte@programa-semilla.cr.");
+        var footer = File.ReadAllText(Path.Combine(root, "Shared", "_PartnerFooter.cshtml"));
+        Assert.That(footer, Does.Contain("mailto:@EmailBrand.SupportEmail"),
+            "Footer mailto must reference the EmailBrand.SupportEmail constant.");
+        Assert.That(FundingPlatform.Web.Services.Emails.EmailBrand.SupportEmail,
+            Is.EqualTo("soporte@programa-semilla.cr"));
     }
 }

@@ -106,28 +106,32 @@ public class AdminUsersController : Controller
         }
 
         var expiresAt = DateTimeOffset.UtcNow.Add(PasswordResetToken.InvitationLifetime);
-        var envelope = await _invitationEmailFactory.BuildAsync(
-            toAddress: result.Email!,
-            firstName: result.FirstName,
-            inviteLink: inviteLink,
-            expiresAt: expiresAt,
-            ct: ct);
 
-        // Bounded best-effort send: cancel after InviteSendTimeout so a stalled
+        // Bounded best-effort build+send: cancel after InviteSendTimeout so a stalled
         // relay cannot pin the request thread; a timeout is treated like any other
         // transport failure (the admin-visible link is the onboarding fallback, D5).
         using var sendCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         sendCts.CancelAfter(InviteSendTimeout);
         try
         {
+            // Spec 041 — BuildAsync now renders Razor and CAN throw; it must be
+            // inside the try so a render failure does not 500 AFTER the account was
+            // already created (the admin would lose the copyable link) and does not
+            // abort the batch-create loop that calls this helper per row.
+            var envelope = await _invitationEmailFactory.BuildAsync(
+                toAddress: result.Email!,
+                firstName: result.FirstName,
+                inviteLink: inviteLink,
+                expiresAt: expiresAt,
+                ct: sendCts.Token);
             await _emailSender.SendAsync(envelope, sendCts.Token);
         }
         catch (Exception ex)
         {
             // D5 — best-effort delivery; the admin-visible copyable link (FR-008)
-            // is the fallback, so a transport failure must not block onboarding.
+            // is the fallback, so a build/transport failure must not block onboarding.
             _logger.LogWarning(ex,
-                "Failed to send set-password invitation email to user {UserId} ({Email}); the admin-visible link remains the onboarding fallback.",
+                "Failed to build/send set-password invitation email to user {UserId} ({Email}); the admin-visible link remains the onboarding fallback.",
                 result.UserId,
                 email);
         }

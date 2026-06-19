@@ -51,10 +51,6 @@ public sealed class RazorEmailRenderer : IEmailTemplateRenderer
         var baseUrl = _config["Notifications:BaseUrl"] ?? string.Empty;
         var ctaUrl = ComposeCtaUrl(eventType, baseUrl, payload.ApplicationId);
 
-        var senderName = _config["Notifications:Sender:Name"]
-            ?? "Programa Semilla / Sistema de Banca para el Desarrollo";
-        var senderEmail = _config["Notifications:Sender:Email"] ?? string.Empty;
-
         // Spec 041 / Decision 2 / FR-002 — absolute brand-image URLs composed from
         // Notifications:BaseUrl against the official assets already in wwwroot/lib/brand.
         var logoUrl = Combine(baseUrl, BrandAssets.LogoPath);
@@ -66,8 +62,6 @@ public sealed class RazorEmailRenderer : IEmailTemplateRenderer
             Payload: payload,
             Subject: subject,
             CtaUrl: ctaUrl,
-            SenderName: senderName,
-            SenderEmail: senderEmail,
             LogoUrl: logoUrl,
             PartnerStripUrl: partnerStripUrl);
 
@@ -127,9 +121,8 @@ public sealed record EmailRenderModel(
     NotificationPayload Payload,
     string Subject,
     string CtaUrl,
-    string SenderName,
-    string SenderEmail,
     // Spec 041 / Decision 2 / T004 — absolute brand-image URLs so views/partials
     // never hard-code a host. Composed from Notifications:BaseUrl in RenderAsync.
+    // (The From: sender display lives in config + the sender impls, not here.)
     string LogoUrl,
     string PartnerStripUrl) : IBrandedEmailModel;

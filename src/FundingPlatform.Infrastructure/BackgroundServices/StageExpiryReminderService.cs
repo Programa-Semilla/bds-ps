@@ -141,9 +141,24 @@ public sealed class StageExpiryReminderService : BackgroundService
             }
 
             var firstName = app.Applicant?.FirstName ?? string.Empty;
-            var envelope = await emailFactory
-                .BuildAsync(bucket, to, firstName, publicCode, stage, closesAt, ct)
-                .ConfigureAwait(false);
+
+            // Spec 041 — BuildAsync now renders Razor and CAN throw. Contain a
+            // per-app render failure so one bad template/data row cannot abort the
+            // cycle and starve every remaining candidate's reminder this tick.
+            EmailMessage envelope;
+            try
+            {
+                envelope = await emailFactory
+                    .BuildAsync(bucket, to, firstName, publicCode, stage, closesAt, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Failed to build {Bucket} reminder for Application {Code}; skipping (bit unset, retried next cycle).",
+                    bucket, publicCode);
+                continue;
+            }
 
             var sentOk = await SendWithBackoffAsync(sender, envelope, ct).ConfigureAwait(false);
             if (!sentOk)

@@ -1,14 +1,20 @@
 namespace FundingPlatform.Web.Services.Emails;
 
 /// <summary>
-/// Spec 041 / FR-006 / FR-007 — single es-CR source of truth for the brand copy
-/// and palette tokens shared by every transactional email's layout + partials.
+/// Spec 041 / FR-006 / FR-007 — es-CR source of truth for the brand <b>copy</b>
+/// (platform name, sign-off, support email/phone, automatic-message note) consumed
+/// by the email layout + partials.
 ///
 /// <para>The platform is referred to as <b>ALIA</b> in body copy, but the brand,
 /// logo, and sign-off stay "Programa Semilla" / "Equipo Programa Semilla"
-/// (spec 041 Overview + reference copy <c>seeds/emails/Respuestas correo ALIA.txt</c>).
-/// Centralizing these here keeps the chrome canonical so a brand change is a
-/// one-file edit (the drift this feature exists to prevent).</para>
+/// (spec 041 Overview + reference copy <c>seeds/emails/Respuestas correo ALIA.txt</c>).</para>
+///
+/// <para><b>Palette note:</b> the colour constants below document the brand palette
+/// and are asserted by the design-system tests, but for email-client reliability the
+/// hex values are inlined directly in the Razor chrome (Razor `@`-interpolation inside
+/// dense inline-CSS attributes is error-prone). They are NOT a single-edit knob —
+/// changing a brand colour means updating the inlined hex in the layout + partials
+/// (guarded by the no-`#1d1d1f` test).</para>
 /// </summary>
 public static class EmailBrand
 {

@@ -63,3 +63,46 @@ No deviations from [plan.md](plan.md)'s architecture were identified; the implem
 
 - Shared-fixture E2E flakiness: one reviewer-bucket signing test timed out in the full gate but passes in isolation (worker backlog under load). Question: acceptable as known shared-fixture timing, or should the mail-capture timeout be raised?
 - Incidental fix: unblocked a pre-existing spec-037 E2E compile break (`ManualScreenshotsCaptureTests.CompanyNameInput`). Question: fine to carry in this PR?
+
+---
+
+## Deep Review Report
+
+> Automated multi-perspective code review results.
+
+**Date:** 2026-06-19 | **Rounds:** 1 fix + 1 re-review | **Gate:** PASS
+
+### Review Agents
+
+| Agent | Findings | Status |
+|-------|----------|--------|
+| Correctness | 1 | completed |
+| Architecture & Idioms | 7 | completed |
+| Security | 0 | completed (clean) |
+| Production Readiness | 4 | completed |
+| Test Quality | 7 | completed |
+| CodeRabbit (external) | – | skipped (not installed) |
+| Copilot (external) | – | skipped (not installed) |
+
+### Findings Summary
+
+| Severity | Found | Fixed | Remaining |
+|----------|-------|-------|-----------|
+| Critical | 1 | 1 | 0 |
+| Important | 3 | 3 | 0 |
+| Minor | 13 | 6 | 7 (accepted) |
+
+### What was fixed automatically
+
+One theme drove the Critical + Important fixes: spec 041 made the three direct-send `BuildAsync` methods render Razor (which can throw), but their call sites still only guarded `SendAsync`. Moved the build inside the best-effort try at all three sites — `AccountController.ForgotPassword` (Critical: an uncaught render failure 500'd valid accounts only, reopening the FR-028 enumeration channel), `AdminUsersController` invitation (broke the already-committed create + aborted the batch loop), and `StageExpiryReminderService` (one bad render starved the whole reminder cycle). Separately, added the missing `DbUpdateConcurrencyException` catch to `ReviewService.GetApplicationForReviewAsync` so a concurrent reviewer-open no longer 500s. Plus cleanups: deleted dead `EmailTemplateText`, removed dead `EmailRenderModel.SenderName/SenderEmail`, de-duplicated the `_PartnerFooter` support address onto `EmailBrand.SupportEmail`, dropped unused `@using`s, corrected the "single-edit palette" doc, and added a unit test for direct-send `.text` twin existence.
+
+### What still needs human attention
+
+All Critical and Important findings were resolved and a round-2 re-review of the fix sites was clean. Seven Minor findings remain, all accepted with rationale in [review-findings.md](review-findings.md) — none blocking. Reviewers may want to weigh in on two judgment calls:
+
+- Should the ~22 outbox templates eventually share an `_OutboxBody` partial the way the direct-send path shares `_DirectBody`, or is the per-email inline chrome acceptable? (architecture, Low)
+- Is the render-only `CompanyForReviewNotifier` stub the right shape for the FR-013/OQ-1 deferral, or should the render-only proof live solely in a test? (architecture, Low)
+
+### Recommendation
+
+All findings addressed. Re-verification after fixes: build green, Unit 48/48, Integration 45/45, affected E2E 15/15. Code is ready for human review with no known blockers.

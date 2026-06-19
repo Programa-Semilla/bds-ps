@@ -144,4 +144,33 @@ public class EmailDesignSystemTests
         Assert.That(layout, Does.Contain("max-width:600px"),
             "NFR-001: the content table must be capped at 600px.");
     }
+
+    // The direct-send + notifier emails are NOT in the NotificationEvent enum, so the
+    // outbox twin-parity test (RazorEmailRendererTests) doesn't cover them. Assert
+    // their .text.cshtml twins exist on disk (FR-009 / SC-007) — a deleted twin would
+    // otherwise only surface at E2E runtime (which is skipped without the sidecar).
+    private static readonly string[] DirectSendViews =
+    {
+        "Identity/InvitationEmail",
+        "Identity/ForgotPasswordEmail",
+        "Identity/PasswordChangedEmail",
+        "Stages/T24ReminderEmail",
+        "Stages/T72ReminderEmail",
+        "Stages/ExpiredEmail",
+        "Suppliers/ProviderCreatedAuditor",
+        "Suppliers/CompanyForReviewAuditor",
+    };
+
+    [Test]
+    public void Direct_send_emails_have_html_and_text_twins()
+    {
+        var root = FindViewsRoot();
+        foreach (var name in DirectSendViews)
+        {
+            var html = Path.Combine(root, $"{name}.cshtml");
+            var text = Path.Combine(root, $"{name}.text.cshtml");
+            Assert.That(File.Exists(html), Is.True, $"FR-009: missing HTML view {name}.cshtml");
+            Assert.That(File.Exists(text), Is.True, $"FR-009: missing text twin {name}.text.cshtml");
+        }
+    }
 }

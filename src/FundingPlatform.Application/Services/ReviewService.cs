@@ -86,34 +86,46 @@ public class ReviewService
         // page does NOT re-transition or re-enqueue (the dedup index is the backstop).
         if (application.State == ApplicationState.Submitted)
         {
-            application.StartReview();
+            try
+            {
+                application.StartReview();
 
-            // Spec 041 / US2 / FR-011 — record the transition (so the outbox dedup
-            // key has a VersionHistoryId) and notify the applicant exactly once that
-            // review began. Two-phase save (workflow first, outbox second) + the
-            // ActorUserId=reviewer exclusion mirror SendBack/Finalize.
-            var vhRow = new VersionHistory(reviewerUserId, "StartReview",
-                "Application moved to Under Review");
-            application.AddVersionHistory(vhRow);
+                // Spec 041 / US2 / FR-011 — record the transition (so the outbox dedup
+                // key has a VersionHistoryId) and notify the applicant exactly once that
+                // review began. Two-phase save (workflow first, outbox second) + the
+                // ActorUserId=reviewer exclusion mirror SendBack/Finalize.
+                var vhRow = new VersionHistory(reviewerUserId, "StartReview",
+                    "Application moved to Under Review");
+                application.AddVersionHistory(vhRow);
 
-            await _applicationRepository.UpdateAsync(application);
-            await _applicationRepository.SaveChangesAsync();
+                await _applicationRepository.UpdateAsync(application);
+                await _applicationRepository.SaveChangesAsync();
 
-            var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
-                application.Id, CancellationToken.None);
-            var applicantDisplayName = application.Applicant is not null
-                ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
-                : "Solicitante";
-            var applicantUserId = application.Applicant?.UserId ?? string.Empty;
-            var payload = new NotificationPayload(
-                application.Id, applicantUserId, applicantDisplayName,
-                stageGroupIds, OutcomeCode: null, ActorUserId: reviewerUserId);
+                var stageGroupIds = await _outboxWriter.GetApplicantStageGroupIdsAsync(
+                    application.Id, CancellationToken.None);
+                var applicantDisplayName = application.Applicant is not null
+                    ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
+                    : "Solicitante";
+                var applicantUserId = application.Applicant?.UserId ?? string.Empty;
+                var payload = new NotificationPayload(
+                    application.Id, applicantUserId, applicantDisplayName,
+                    stageGroupIds, OutcomeCode: null, ActorUserId: reviewerUserId);
 
-            await _outboxWriter.EnqueueAsync(
-                NotificationEvent.ApplicationUnderReviewApplicant,
-                application.Id, vhRow.Id, payload, CancellationToken.None);
+                await _outboxWriter.EnqueueAsync(
+                    NotificationEvent.ApplicationUnderReviewApplicant,
+                    application.Id, vhRow.Id, payload, CancellationToken.None);
 
-            await _applicationRepository.SaveChangesAsync();
+                await _applicationRepository.SaveChangesAsync();
+            }
+            catch (Exception ex) when (ex.GetType().Name == "DbUpdateConcurrencyException")
+            {
+                // Two reviewers opened the same Submitted application at once: the
+                // loser's optimistic-concurrency save fails. The winner already
+                // transitioned + enqueued exactly one email, so this is harmless —
+                // re-read and render the now-UnderReview application instead of 500ing.
+                application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId)
+                    ?? application;
+            }
         }
 
         return MapToReviewDto(application);

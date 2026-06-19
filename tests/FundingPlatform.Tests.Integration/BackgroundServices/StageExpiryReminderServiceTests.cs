@@ -13,6 +13,8 @@
 // (no real SMTP transport, no real clock).
 
 using FundingPlatform.Application.Abstractions;
+using FundingPlatform.Application.Notifications.Email;
+using Microsoft.Extensions.Configuration;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
@@ -68,6 +70,17 @@ public class StageExpiryReminderServiceTests
         // throws when resolving the scoped dependency.
         services.AddSingleton<IApplicationQueryFilter, ApplicationQueryFilter>();
         services.AddSingleton<IEmailSender>(_capture);
+        // Spec 041 — the factory now renders Razor via IEmailViewRenderer (+ reads
+        // Notifications:BaseUrl). These tests assert on subject + recipient + count
+        // (the subject is computed in BuildAsync, not the body), so a stub renderer
+        // suffices.
+        services.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Notifications:BaseUrl"] = "https://test.example",
+                }).Build());
+        services.AddSingleton<IEmailViewRenderer, StubEmailViewRenderer>();
         services.AddSingleton<StageReminderEmailFactory>();
 
         _services = services.BuildServiceProvider();
@@ -280,5 +293,12 @@ public class StageExpiryReminderServiceTests
         public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
         public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } =
             new Microsoft.Extensions.FileProviders.NullFileProvider();
+    }
+
+    /// <summary>Spec 041 — no-op renderer; these tests assert subject/recipient/count, not body.</summary>
+    private sealed class StubEmailViewRenderer : IEmailViewRenderer
+    {
+        public Task<string> RenderViewAsync(string viewPath, object model, bool disableLayout, CancellationToken ct)
+            => Task.FromResult(string.Empty);
     }
 }

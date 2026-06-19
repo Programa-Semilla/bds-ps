@@ -206,24 +206,27 @@ public class AccountController : Controller
             if (!string.IsNullOrEmpty(resetLink))
             {
                 var expiresAt = DateTimeOffset.UtcNow.Add(PasswordResetToken.DefaultLifetime);
-                var envelope = await _forgotPasswordEmailFactory.BuildAsync(
-                    toAddress: result.Email!,
-                    applicantFirstName: result.FirstName,
-                    resetLink: resetLink,
-                    expiresAt: expiresAt,
-                    ct: ct);
                 try
                 {
+                    // Spec 041 — BuildAsync now renders Razor and CAN throw, so it
+                    // must be inside the try: a render failure on a valid account
+                    // would otherwise 500 (while unknown emails return the neutral
+                    // 200), reopening the FR-028 enumeration side-channel.
+                    var envelope = await _forgotPasswordEmailFactory.BuildAsync(
+                        toAddress: result.Email!,
+                        applicantFirstName: result.FirstName,
+                        resetLink: resetLink,
+                        expiresAt: expiresAt,
+                        ct: ct);
                     await _emailSender.SendAsync(envelope, ct);
                 }
                 catch (Exception ex)
                 {
-                    // Swallow transport errors here — the neutral response is
-                    // required by FR-028 (no enumeration). The error is logged
-                    // by the sender; we MUST NOT surface it to the client.
+                    // Swallow render/transport errors here — the neutral response is
+                    // required by FR-028 (no enumeration). We MUST NOT surface it.
                     HttpContext.RequestServices
                         .GetRequiredService<ILogger<AccountController>>()
-                        .LogWarning(ex, "Failed to send password-reset email; rendering neutral response anyway.");
+                        .LogWarning(ex, "Failed to build/send password-reset email; rendering neutral response anyway.");
                 }
             }
         }
