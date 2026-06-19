@@ -84,7 +84,7 @@ A designated audience is notified when a new company is registered for review, w
 - **Outlook rendering** — the button and logos render acceptably in the Windows/Word rendering engine (bulletproof button technique; no reliance on modern CSS layout).
 - **Images blocked** — every email remains fully legible; alt text stands in for each image; no content lives only inside an image.
 - **Forced dark mode** — logos and text remain visible (no white logo vanishing on a light container, no invisible text) where a client forces a dark theme.
-- **Allowlist drop (non-production)** — for the new outbox events, a recipient not on the allowlist is dropped and recorded exactly like existing events.
+- **Allowlist drop (non-production)** — for the new under-review outbox event, a recipient not on the allowlist is dropped and recorded exactly like existing events.
 
 ## Requirements *(mandatory)*
 
@@ -111,8 +111,8 @@ A designated audience is notified when a new company is registered for review, w
 
 - **FR-011**: When an application transitions into the review stage (distinct from the submission receipt), the applicant MUST receive a new "Solicitud en revisión" email. It is an outbox-driven event that MUST deduplicate per the existing idempotency rules and respect the non-production allowlist.
 - **FR-012**: After a user successfully changes or resets their password, that user MUST receive a "Tu contraseña fue actualizada" confirmation email advising them to contact support if they did not make the change. This is a direct-send identity email (not an outbox event).
-- **FR-013**: A "Nueva empresa para revisión" branded email MUST be created. Its live trigger and recipient are deferred to OQ-1; until confirmed, the template MUST exist and be render-tested but emit no live notification.
-- **FR-014**: The new outbox events (FR-011, and FR-013 once confirmed) MUST integrate with the existing notification mechanics — a closed-set event identity, the established idempotency key, recipient resolution consistent with sibling events, the per-event call-to-action route, the non-production allowlist — and MUST each ship an HTML email and a plain-text twin.
+- **FR-013**: A "Nueva empresa para revisión" branded email MUST be created. Because the registration of a company is not tied to an application, this email MUST follow the **notifier pattern** (a non-application-keyed notifier seam, mirroring the existing provider-registered notifier) rather than the application-keyed outbox. Its live trigger and recipient are deferred to OQ-1; until confirmed, the template MUST exist and be render-tested but emit no live notification.
+- **FR-014**: The new **outbox** event (FR-011) MUST integrate with the existing outbox mechanics — a closed-set event identity, the established idempotency key, recipient resolution consistent with sibling events, the per-event call-to-action route, the non-production allowlist — and MUST ship an HTML email and a plain-text twin. The FR-013 notifier email MUST likewise ship an HTML email and a plain-text twin and respect the non-production allowlist, but is not subject to the application-keyed outbox idempotency mechanics.
 
 ### Non-Functional Requirements
 
@@ -128,7 +128,8 @@ A designated audience is notified when a new company is registered for review, w
 
 - **Email design system**: the shared branded shell plus reusable blocks (hero/title, status/info card, detail list, CTA button) that every email composes. Attributes: brand palette, logo header, partner footer strip, support footer.
 - **Brand asset**: a hosted image (header logo, partner-strip logo set) referenced by absolute URL with Spanish alt text.
-- **Notification event (new)**: a closed-set email trigger identity for the new outbox emails ("Solicitud en revisión"; "Nueva empresa para revisión" once confirmed), participating in idempotency, recipient resolution, CTA routing, and the allowlist.
+- **Notification event (new)**: a closed-set email trigger identity for the new "Solicitud en revisión" outbox email, participating in idempotency, recipient resolution, CTA routing, and the allowlist.
+- **Notifier email (new)**: the "Nueva empresa para revisión" email, delivered through a non-application-keyed notifier seam (mirroring the provider-registered notifier), not the application outbox; live trigger/recipient deferred (OQ-1).
 - **Direct-send identity email (new)**: the password-changed confirmation, sent outside the outbox to the affected user.
 
 ## Success Criteria *(mandatory)*
@@ -174,3 +175,7 @@ A designated audience is notified when a new company is registered for review, w
 - **OQ-1 (blocks the live FR-013 trigger)**: For "Nueva empresa para revisión", what is the precise business trigger (a newly registered applicant company? something explicitly submitted for review?) and who is the recipient (the reviewer pool? auditors?)? Until answered, the template ships without a live trigger.
 - **OQ-2**: Is entering "review" (FR-011) a distinct lifecycle transition from submission in the current state model, or do submit→review happen atomically (which would make the new email redundant with the submission receipt)? To be confirmed against the state model during planning.
 - **OQ-3**: From which public path are brand images served (a dedicated email-assets path vs. the existing static-library path)? To be resolved during planning.
+
+## Evolution Log
+
+- **2026-06-19 — FR-013/FR-014 refined (planning-time, pre-code).** Original wording modeled "Nueva empresa para revisión" as a new *outbox* event sharing the outbox idempotency key with FR-011. Planning research found the outbox is **application-keyed** (its payload and `(EventType, ApplicationId, VersionHistoryId, RecipientUserId)` dedup key both require an `ApplicationId`), but a company registration has no application. FR-013 is therefore refined to a **notifier-pattern** email (mirroring the spec-038 provider-registered notifier), and FR-014 now scopes the outbox-integration requirements to the under-review event (FR-011) only. The under-review event remains a true outbox event; FR-013's deferral (OQ-1) is unchanged. **Observable behavior is unchanged** — this is an internal delivery-mechanism correction. Recorded in `research.md` (Decision 5) and `contracts/notification-events.md`; `plan.md`/`tasks.md` already reflect the notifier model. OQ-2 and OQ-3 were also resolved during planning (see `research.md`).
