@@ -110,14 +110,14 @@ description: "Task list for ALIA Transactional Email Brand UI-Lift (041)"
 
 ### Tests for User Story 3
 
-- [ ] T029 [P] [US3] E2E mail-capture in `tests/FundingPlatform.Tests.E2E/` — drive the reset flow to success and assert one "Tu contraseña fue actualizada" email (branded shell, no CTA button, support phone present).
+- [X] T029 [P] [US3] E2E mail-capture in `tests/FundingPlatform.Tests.E2E/` — drive the reset flow to success and assert one "Tu contraseña fue actualizada" email (branded shell, no CTA button, support phone present).
 
 ### Implementation for User Story 3
 
-- [ ] T030 [P] [US3] Create `PasswordChangedEmailFactory` in `src/FundingPlatform.Infrastructure/Email/` (mirrors `ForgotPasswordEmailFactory`; subject "Tu contraseña fue actualizada"; renders via `IEmailViewRenderer`).
-- [ ] T031 [P] [US3] Create `Views/Emails/Identity/PasswordChangedEmail.cshtml` + `.text.cshtml` (reference copy #2; voseo; advise contacting support if not them; **no CTA** per FR-005; support phone `+506 4600-1234`).
-- [ ] T032 [US3] Send the confirmation at reset success in `src/FundingPlatform.Infrastructure/Identity/ConsumePasswordResetTokenHandler.cs` (covers forgot-password and spec-033 invite first-set), best-effort (catch+log, never block).
-- [ ] T033 [US3] Send the confirmation at change success in `src/FundingPlatform.Web/Controllers/AccountController.cs` (`ChangePassword` and `ProfileChangePassword`), best-effort.
+- [X] T030 [P] [US3] Create `PasswordChangedEmailFactory` in `src/FundingPlatform.Infrastructure/Email/` (mirrors `ForgotPasswordEmailFactory`; subject "Tu contraseña fue actualizada"; renders via `IEmailViewRenderer`).
+- [X] T031 [P] [US3] Create `Views/Emails/Identity/PasswordChangedEmail.cshtml` + `.text.cshtml` (reference copy #2; voseo; advise contacting support if not them; **no CTA** per FR-005; support phone `+506 4600-1234`).
+- [X] T032 [US3] Send the confirmation at reset success in `src/FundingPlatform.Infrastructure/Identity/ConsumePasswordResetTokenHandler.cs` (covers forgot-password and spec-033 invite first-set), best-effort (catch+log, never block).
+- [X] T033 [US3] Send the confirmation at change success in `src/FundingPlatform.Web/Controllers/AccountController.cs` (`ChangePassword` and `ProfileChangePassword`), best-effort.
 
 **Checkpoint**: Password-changed confirmation fires at all set/change/reset success points.
 
@@ -131,12 +131,12 @@ description: "Task list for ALIA Transactional Email Brand UI-Lift (041)"
 
 ### Tests for User Story 4
 
-- [ ] T034 [P] [US4] Render test in `tests/FundingPlatform.Tests.Integration/Notifications/` (or Unit) — `CompanyForReviewAuditor` renders in the brand shell with a populated "Detalle" card (company name / identificación / fecha); assert no enqueue/notifier call site is wired (grep-style guard or absence-of-trigger assertion).
+- [X] T034 [P] [US4] Render test in `tests/FundingPlatform.Tests.Integration/Notifications/` (or Unit) — `CompanyForReviewAuditor` renders in the brand shell with a populated "Detalle" card (company name / identificación / fecha); assert no enqueue/notifier call site is wired (grep-style guard or absence-of-trigger assertion).
 
 ### Implementation for User Story 4
 
-- [ ] T035 [P] [US4] Add `ICompanyForReviewNotifier` (Application, `src/FundingPlatform.Application/Suppliers/Notifications/`) + a stub impl (Infrastructure) mirroring `IProviderCreatedNotifier`/`ProviderCreatedNotifier`; **no call site** (trigger/recipient deferred to OQ-1). Document the deferral in a code comment referencing OQ-1.
-- [ ] T036 [P] [US4] Create `Views/Emails/Suppliers/CompanyForReviewAuditor.cshtml` + `.text.cshtml` (reference copy #9; branded; "Detalle" card via `_StatusCard`/`_DetailList`).
+- [X] T035 [P] [US4] Add `ICompanyForReviewNotifier` (Application, `src/FundingPlatform.Application/Suppliers/Notifications/`) + a stub impl (Infrastructure) mirroring `IProviderCreatedNotifier`/`ProviderCreatedNotifier`; **no call site** (trigger/recipient deferred to OQ-1). Document the deferral in a code comment referencing OQ-1.
+- [X] T036 [P] [US4] Create `Views/Emails/Suppliers/CompanyForReviewAuditor.cshtml` + `.text.cshtml` (reference copy #9; branded; "Detalle" card via `_StatusCard`/`_DetailList`).
 
 **Checkpoint**: Stub template + seam ready; activating it later is a one-call-site change once OQ-1 lands.
 

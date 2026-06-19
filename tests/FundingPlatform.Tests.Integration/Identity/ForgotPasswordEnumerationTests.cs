@@ -161,7 +161,10 @@ public class ForgotPasswordEnumerationTests
             Substitute.For<IConsumePasswordResetTokenHandler>(),
             Substitute.For<IUpdateProfileHandler>(),
             _capture,
-            factory);
+            factory,
+            new PasswordChangedEmailFactory(
+                new NoopEmailViewRenderer(), emailConfig,
+                NullLogger<PasswordChangedEmailFactory>.Instance));
 
         var httpContext = new DefaultHttpContext { RequestServices = provider };
         httpContext.Request.Scheme = "https";
