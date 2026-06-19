@@ -46,11 +46,13 @@ public class AuditReturnTests : AuthenticatedTestBase
         var firstItem = Page.Locator("[data-testid=audit-checklist-item]").First;
         await firstItem.Locator("[data-testid=audit-mark-noncompliant]").CheckAsync();
         await firstItem.Locator("[data-testid=audit-mark-reason]").FillAsync("Falta el documento X.");
-        await Page.Locator("[data-testid=audit-checklist-save]").ClickAsync();
-        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
-        await Page.GotoAsync($"{BaseUrl}/Audit/{appId}");
+        // Spec 040 — the actions react live to the checklist (no save round-trip needed):
+        // a non-compliant item with a reason disables "Aprobar" and enables "Devolver".
+        await Expect(Page.Locator("[data-testid=audit-approve]")).ToBeDisabledAsync();
         await Expect(Page.Locator("[data-testid=audit-return]")).ToBeEnabledAsync();
+
+        // Returning submits the live marks (one click persists the reason + returns).
         await Page.Locator("[data-testid=audit-return]").ClickAsync();
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
@@ -64,6 +66,14 @@ public class AuditReturnTests : AuthenticatedTestBase
         await RegisterUserAsync(Page, reviewerEmail, Password, "Ar", "Reviewer", $"ARR-{uniqueId}");
         await AssignRoleAsync(reviewerEmail, "Reviewer");
         await LoginAsync(Page, reviewerEmail, Password);
+
+        // Regression — a returned (ReturnedFromAudit) application must reappear on the
+        // reviewer's queue worklist (/Review, "Cola de revisión"), not only via the email
+        // deep link. The shipped bug hid it because the queue projection only fetched
+        // Submitted/UnderReview/Resolved and never ReturnedFromAudit.
+        await Page.GotoAsync($"{BaseUrl}/Review");
+        await Expect(Page.Locator(
+            $"[data-testid=reviewer-queue-row][data-application-number='APP-{appId:D5}']")).ToBeVisibleAsync();
 
         await Page.GotoAsync($"{BaseUrl}/Review/{appId}");
         await Expect(Page.Locator("[data-testid=audit-findings-card]")).ToBeVisibleAsync();

@@ -42,9 +42,33 @@
                            placeholder="Motivo (requerido si es no conforme)" data-testid="audit-mark-reason" />
                 </div>
             }
-            <button type="submit" class="btn btn-outline-primary" data-testid="audit-checklist-save">
-                Guardar lista de verificación
-            </button>
+            @* Spec 040 — Save / Approve / Return all submit THIS form (and its current marks)
+               via formaction, so the auditor's live selection is persisted with the action in a
+               single click. The buttons react live to the checklist (audit-checklist.js). *@
+            <div class="d-flex flex-wrap gap-2 mt-2">
+                <button type="submit" class="btn btn-outline-secondary" data-testid="audit-checklist-save">
+                    Guardar lista de verificación
+                </button>
+                @if (!Model.AgreementExists)
+                {
+                    <button type="submit" class="btn btn-primary"
+                            formaction="/Audit/@Model.ApplicationId/Approve"
+                            data-testid="audit-approve"
+                            @(Model.HasAnyNonCompliant ? "disabled" : "")>
+                        Aprobar auditoría
+                    </button>
+                }
+                <button type="submit" class="btn btn-outline-danger"
+                        formaction="/Audit/@Model.ApplicationId/Return"
+                        data-testid="audit-return"
+                        @(Model.HasAnyNonCompliant ? "" : "disabled")>
+                    Devolver al revisor
+                </button>
+            </div>
+            <div class="form-hint mt-1">
+                Marque al menos un ítem como «No conforme» con su motivo para habilitar «Devolver al revisor».
+                Si todos los ítems están conformes podrá aprobar la auditoría.
+            </div>
         </div>
     </div>
 </form>

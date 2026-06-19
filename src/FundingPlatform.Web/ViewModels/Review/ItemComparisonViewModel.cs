@@ -20,4 +20,11 @@ public class ItemComparisonViewModel
     public bool IsAdmin { get; set; }
     public string? FailureReason { get; set; }
     public string? PendingState { get; set; } // "Pending" | "Running" | null
+
+    /// <summary>
+    /// Spec 040 / FR-007 — when true the region renders read-only (the auditor
+    /// surface): the cached comparison + citations show, but the generate/regenerate
+    /// action controls are suppressed (no comparison.js is loaded on the audit page).
+    /// </summary>
+    public bool ReadOnly { get; set; }
 }

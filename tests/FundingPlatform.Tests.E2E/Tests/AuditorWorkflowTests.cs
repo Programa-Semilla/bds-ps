@@ -54,10 +54,19 @@ public class AuditorWorkflowTests : AuthenticatedTestBase
         await Page.GotoAsync($"{BaseUrl}/Audit");
         await Expect(Page.Locator($"[data-testid=audit-inbox-row][data-application-id='{appId}']")).ToBeVisibleAsync();
 
-        // Open the detail surface: the reviewer-equivalent read shows the review history
-        // (FR-007), then save the audit checklist (all items default to "Conforme").
+        // Open the detail surface: the reviewer-equivalent read (FR-007) shows the
+        // applicant summary, the shared decision summary, the per-item provider/quotation
+        // detail with the seven-criterion score breakdown, and the review history — not
+        // just the thin item table. Then save the audit checklist (all default "Conforme").
         await Page.GotoAsync($"{BaseUrl}/Audit/{appId}");
         await Expect(Page.Locator("[data-testid=audit-history]")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid=audit-summary]")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid=audit-decision-summary]")).ToBeVisibleAsync();
+        await Expect(Page.Locator("[data-testid=audit-items]")).ToBeVisibleAsync();
+        // The full provider/quotation table (FR-007 "provider information") must render.
+        Assert.That(await Page.Locator("[data-testid=review-quotation-row]").CountAsync(),
+            Is.GreaterThan(0), "Auditor must see the provider/quotation rows (FR-007).");
+        await Expect(Page.Locator("[data-testid=score-breakdown]").First).ToBeVisibleAsync();
         await Page.Locator("[data-testid=audit-checklist-save]").ClickAsync();
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 

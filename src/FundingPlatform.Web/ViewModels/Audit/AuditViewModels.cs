@@ -1,5 +1,6 @@
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Application.DTOs;
+using FundingPlatform.Web.ViewModels;
 
 namespace FundingPlatform.Web.ViewModels.Audit;
 
@@ -17,6 +18,14 @@ public sealed class AuditInboxViewModel
 public sealed class AuditDetailViewModel
 {
     public ReviewApplicationDto Application { get; init; } = null!;
+
+    /// <summary>
+    /// Spec 040 / FR-007 — the reviewer-equivalent projection (decision summary, impacts,
+    /// per-item provider/quotation detail + AI comparison) rendered read-only on the audit
+    /// detail page via the shared <c>_ItemReviewDetails</c> partial.
+    /// </summary>
+    public ReviewApplicationViewModel Review { get; init; } = new();
+
     public AuditChecklistView Checklist { get; init; } = null!;
     public bool IsAdmin { get; init; }
     /// <summary>True when generation is permitted now (checklist complete, no agreement yet).</summary>
