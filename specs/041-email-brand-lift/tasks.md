@@ -30,8 +30,8 @@ description: "Task list for ALIA Transactional Email Brand UI-Lift (041)"
 
 **Purpose**: Brand assets + a single copy/brand constants source.
 
-- [ ] T001 Verify brand email assets: confirm `src/FundingPlatform.Web/wwwroot/lib/brand/programa-semilla-horizontal.png` (header) and `partners-footer.png` (5-partner strip) match the intended set in `seeds/emails/` (`Fooder-general.png` = Banca para el Desarrollo / CROCUS / nexo / De la Mano con su PYME / Programa Semilla). If `partners-footer.png` differs, add `src/FundingPlatform.Web/wwwroot/lib/brand/email-partners-footer.png` from the seed and use that path downstream.
-- [ ] T002 [P] Add an es-CR brand/copy constants source (ALIA platform name usage, sign-off "Equipo Programa Semilla", support email + phone `+506 4600-1234`, automatic-message note) — extend the existing email resources/constants rather than scattering literals; document the chosen location in a code comment referencing FR-006/FR-007.
+- [X] T001 Verify brand email assets: confirm `src/FundingPlatform.Web/wwwroot/lib/brand/programa-semilla-horizontal.png` (header) and `partners-footer.png` (5-partner strip) match the intended set in `seeds/emails/` (`Fooder-general.png` = Banca para el Desarrollo / CROCUS / nexo / De la Mano con su PYME / Programa Semilla). If `partners-footer.png` differs, add `src/FundingPlatform.Web/wwwroot/lib/brand/email-partners-footer.png` from the seed and use that path downstream.
+- [X] T002 [P] Add an es-CR brand/copy constants source (ALIA platform name usage, sign-off "Equipo Programa Semilla", support email + phone `+506 4600-1234`, automatic-message note) — extend the existing email resources/constants rather than scattering literals; document the chosen location in a code comment referencing FR-006/FR-007.
 
 ---
 
@@ -39,16 +39,16 @@ description: "Task list for ALIA Transactional Email Brand UI-Lift (041)"
 
 **Purpose**: The shared design system every email (existing + new) renders through. **No user story can start until this is done.**
 
-- [ ] T003 Extract a reusable `IEmailViewRenderer.RenderViewAsync(viewPath, model, disableLayout)` from the private Razor-view-to-string logic in `src/FundingPlatform.Web/Services/RazorEmailRenderer.cs`; register in DI (`NotificationsServiceCollectionExtensions`). `RazorEmailRenderer` consumes it for outbox emails; direct-send factories will consume it in US1/US3.
-- [ ] T004 Add `LogoUrl` and `PartnerStripUrl` to `EmailRenderModel` and compose them from `Notifications:BaseUrl` (reuse `Combine`) in `RazorEmailRenderer.RenderAsync`, in `src/FundingPlatform.Web/Services/RazorEmailRenderer.cs`.
-- [ ] T005 Rebuild `src/FundingPlatform.Web/Views/Emails/_EmailLayout.cshtml` as the 600px centered, table-based, inline-CSS branded shell: `_BrandHeader` → `@RenderBody()` → sign-off block ("Equipo Programa Semilla") → `_PartnerFooter`. Brand palette inline (teal `#008a9e`/`#42afa8`, orange `#f9a61c`, yellow `#ffc729`); preheader from `Model.Subject`. Per `contracts/email-design-system.md`.
-- [ ] T006 [P] Create partial `src/FundingPlatform.Web/Views/Emails/Shared/_BrandHeader.cshtml` (hosted logo `<img>`, Spanish alt).
-- [ ] T007 [P] Create partial `Shared/_PartnerFooter.cshtml` (partner strip image + support email + `+506 4600-1234` + automatic-message note); retire/replace `_SupportFooter.cshtml`.
-- [ ] T008 [P] Create partial `Shared/_CtaButton.cshtml` — bulletproof (VML for Outlook) teal button; renders **only** when a URL is supplied and ALWAYS emits a plain-text fallback link (FR-005).
-- [ ] T009 [P] Create partial `Shared/_StatusCard.cshtml` (the "Detalle" card; wraps long values, no overflow).
-- [ ] T010 [P] Create partial `Shared/_DetailList.cshtml` (key/value rows used inside `_StatusCard`).
-- [ ] T011 [P] Create partial `Shared/_Hero.cshtml` (brand-teal semantic `<h1>` title block).
-- [ ] T012 [P] Unit test design-system invariants in `tests/FundingPlatform.Tests.Unit/Notifications/` — `_CtaButton` emits nothing when URL empty and emits button+fallback when set; assert no near-black `#1d1d1f` and a partner-footer marker are present after a representative render.
+- [X] T003 Extract a reusable `IEmailViewRenderer.RenderViewAsync(viewPath, model, disableLayout)` from the private Razor-view-to-string logic in `src/FundingPlatform.Web/Services/RazorEmailRenderer.cs`; register in DI (`NotificationsServiceCollectionExtensions`). `RazorEmailRenderer` consumes it for outbox emails; direct-send factories will consume it in US1/US3.
+- [X] T004 Add `LogoUrl` and `PartnerStripUrl` to `EmailRenderModel` and compose them from `Notifications:BaseUrl` (reuse `Combine`) in `RazorEmailRenderer.RenderAsync`, in `src/FundingPlatform.Web/Services/RazorEmailRenderer.cs`.
+- [X] T005 Rebuild `src/FundingPlatform.Web/Views/Emails/_EmailLayout.cshtml` as the 600px centered, table-based, inline-CSS branded shell: `_BrandHeader` → `@RenderBody()` → sign-off block ("Equipo Programa Semilla") → `_PartnerFooter`. Brand palette inline (teal `#008a9e`/`#42afa8`, orange `#f9a61c`, yellow `#ffc729`); preheader from `Model.Subject`. Per `contracts/email-design-system.md`.
+- [X] T006 [P] Create partial `src/FundingPlatform.Web/Views/Emails/Shared/_BrandHeader.cshtml` (hosted logo `<img>`, Spanish alt).
+- [X] T007 [P] Create partial `Shared/_PartnerFooter.cshtml` (partner strip image + support email + `+506 4600-1234` + automatic-message note); retire/replace `_SupportFooter.cshtml`.
+- [X] T008 [P] Create partial `Shared/_CtaButton.cshtml` — bulletproof (VML for Outlook) teal button; renders **only** when a URL is supplied and ALWAYS emits a plain-text fallback link (FR-005).
+- [X] T009 [P] Create partial `Shared/_StatusCard.cshtml` (the "Detalle" card; wraps long values, no overflow).
+- [X] T010 [P] Create partial `Shared/_DetailList.cshtml` (key/value rows used inside `_StatusCard`).
+- [X] T011 [P] Create partial `Shared/_Hero.cshtml` (brand-teal semantic `<h1>` title block).
+- [X] T012 [P] Unit test design-system invariants in `tests/FundingPlatform.Tests.Unit/Notifications/` — `_CtaButton` emits nothing when URL empty and emits button+fallback when set; assert no near-black `#1d1d1f` and a partner-footer marker are present after a representative render.
 
 **Checkpoint**: Shared shell + partials render; brand image URLs resolve. User stories can begin.
 

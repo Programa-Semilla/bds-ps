@@ -1,0 +1,14 @@
+@model string
+@* Spec 041 / T006 / FR-002 — hosted logo header. Legible if images are blocked
+   (Spanish alt). Thin teal accent strip above the logo for brand presence. *@
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
+    <tr>
+        <td style="height:6px;line-height:6px;font-size:6px;background:#008a9e;">&nbsp;</td>
+    </tr>
+    <tr>
+        <td align="center" style="padding:26px 36px 16px 36px;background:#ffffff;">
+            <img src="@Model" alt="Programa Semilla" width="190"
+                 style="display:block;border:0;outline:none;text-decoration:none;height:auto;width:190px;max-width:190px;" />
+        </td>
+    </tr>
+</table>

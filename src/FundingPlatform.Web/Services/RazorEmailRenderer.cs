@@ -1,14 +1,7 @@
 using FundingPlatform.Application.Notifications;
+using FundingPlatform.Application.Notifications.Email;
 using FundingPlatform.Application.Notifications.Templates;
 using FundingPlatform.Domain.Notifications;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Abstractions;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.AspNetCore.Mvc.Razor;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 
 namespace FundingPlatform.Web.Services;
@@ -29,20 +22,14 @@ namespace FundingPlatform.Web.Services;
 /// </summary>
 public sealed class RazorEmailRenderer : IEmailTemplateRenderer
 {
-    private readonly IRazorViewEngine _viewEngine;
-    private readonly ITempDataProvider _tempDataProvider;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IEmailViewRenderer _viewRenderer;
     private readonly IConfiguration _config;
 
     public RazorEmailRenderer(
-        IRazorViewEngine viewEngine,
-        ITempDataProvider tempDataProvider,
-        IServiceProvider serviceProvider,
+        IEmailViewRenderer viewRenderer,
         IConfiguration config)
     {
-        _viewEngine = viewEngine;
-        _tempDataProvider = tempDataProvider;
-        _serviceProvider = serviceProvider;
+        _viewRenderer = viewRenderer;
         _config = config;
     }
 
@@ -68,6 +55,11 @@ public sealed class RazorEmailRenderer : IEmailTemplateRenderer
             ?? "Programa Semilla / Sistema de Banca para el Desarrollo";
         var senderEmail = _config["Notifications:Sender:Email"] ?? string.Empty;
 
+        // Spec 041 / Decision 2 / FR-002 — absolute brand-image URLs composed from
+        // Notifications:BaseUrl against the official assets already in wwwroot/lib/brand.
+        var logoUrl = Combine(baseUrl, BrandAssets.LogoPath);
+        var partnerStripUrl = Combine(baseUrl, BrandAssets.PartnerStripPath);
+
         var model = new EmailRenderModel(
             EventType: eventType,
             Recipient: recipient,
@@ -75,15 +67,18 @@ public sealed class RazorEmailRenderer : IEmailTemplateRenderer
             Subject: subject,
             CtaUrl: ctaUrl,
             SenderName: senderName,
-            SenderEmail: senderEmail);
+            SenderEmail: senderEmail,
+            LogoUrl: logoUrl,
+            PartnerStripUrl: partnerStripUrl);
 
         string htmlBody;
         string textBody;
         try
         {
-            htmlBody = await RenderViewAsync($"~/Views/Emails/{binding.HtmlViewName}.cshtml", model);
-            textBody = await RenderViewAsync($"~/Views/Emails/{binding.TextViewName}.cshtml", model,
-                disableLayout: true);
+            htmlBody = await _viewRenderer.RenderViewAsync(
+                $"~/Views/Emails/{binding.HtmlViewName}.cshtml", model, disableLayout: false, ct);
+            textBody = await _viewRenderer.RenderViewAsync(
+                $"~/Views/Emails/{binding.TextViewName}.cshtml", model, disableLayout: true, ct);
         }
         catch (Exception ex) when (ex is not EmailRenderException)
         {
@@ -93,47 +88,6 @@ public sealed class RazorEmailRenderer : IEmailTemplateRenderer
         }
 
         return new RenderedEmail(subject, htmlBody, textBody);
-    }
-
-    private async Task<string> RenderViewAsync(string viewPath, EmailRenderModel model, bool disableLayout = false)
-    {
-        var httpContext = new DefaultHttpContext { RequestServices = _serviceProvider };
-        var routeData = new RouteData();
-        routeData.Values["controller"] = "Emails";
-
-        var actionContext = new ActionContext(httpContext, routeData, new ActionDescriptor());
-
-        var viewResult = _viewEngine.GetView(executingFilePath: null, viewPath, isMainPage: true);
-        if (!viewResult.Success)
-        {
-            var locations = string.Join("\n", viewResult.SearchedLocations ?? Array.Empty<string>());
-            throw new EmailRenderException(
-                $"Razor view '{viewPath}' not found. Searched:\n{locations}");
-        }
-
-        await using var writer = new StringWriter();
-        var viewDictionary = new ViewDataDictionary<EmailRenderModel>(
-            new EmptyModelMetadataProvider(),
-            new ModelStateDictionary())
-        {
-            Model = model,
-        };
-        if (disableLayout)
-        {
-            // Plain-text variants don't use the shared HTML layout.
-            viewDictionary["DisableLayout"] = true;
-        }
-
-        var viewContext = new ViewContext(
-            actionContext,
-            viewResult.View,
-            viewDictionary,
-            new TempDataDictionary(httpContext, _tempDataProvider),
-            writer,
-            new HtmlHelperOptions());
-
-        await viewResult.View.RenderAsync(viewContext);
-        return writer.ToString();
     }
 
     /// <summary>
@@ -174,4 +128,8 @@ public sealed record EmailRenderModel(
     string Subject,
     string CtaUrl,
     string SenderName,
-    string SenderEmail);
+    string SenderEmail,
+    // Spec 041 / Decision 2 / T004 — absolute brand-image URLs so views/partials
+    // never hard-code a host. Composed from Notifications:BaseUrl in RenderAsync.
+    string LogoUrl,
+    string PartnerStripUrl) : IBrandedEmailModel;

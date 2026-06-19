@@ -68,23 +68,18 @@ public class RazorEmailRendererTests
     [Test]
     public void No_inline_img_in_html_bodies()
     {
+        // Spec 041 reverses spec-021's blanket no-image rule: the branded shell
+        // intentionally carries a hosted logo (_BrandHeader) + partner strip
+        // (_PartnerFooter). The remaining invariant is that per-email BODY
+        // templates carry no content-only <img> (NFR-004 image-blocked legibility)
+        // — all imagery lives in the shared chrome partials.
         var root = FindViewsRoot();
         foreach (var name in AllVariantViewNames())
         {
             var path = Path.Combine(root, $"{name}.cshtml");
             var contents = StripRazorComments(File.ReadAllText(path));
             Assert.That(contents, Does.Not.Contain("<img"),
-                $"NFR-001 violation: {name}.cshtml contains an inline <img> tag.");
-        }
-
-        // Layout + footer are part of every render. Strip Razor @* … *@ comments
-        // so a comment mentioning "<img>" in the code-policy documentation does
-        // not trip the assertion.
-        foreach (var partial in new[] { "_EmailLayout", "_SupportFooter" })
-        {
-            var contents = StripRazorComments(File.ReadAllText(Path.Combine(root, $"{partial}.cshtml")));
-            Assert.That(contents, Does.Not.Contain("<img"),
-                $"NFR-001 violation: {partial}.cshtml contains an inline <img> tag.");
+                $"Spec 041 / NFR-004: {name}.cshtml embeds a content <img> — imagery belongs in the shared chrome partials.");
         }
     }
 
@@ -152,27 +147,32 @@ public class RazorEmailRendererTests
     }
 
     [Test]
-    public void Layout_renders_text_only_wordmark_no_logo_image()
+    public void Layout_routes_through_branded_header_and_partner_footer()
     {
+        // Spec 041 — the shell composes the hosted-logo header + partner-strip
+        // footer (replacing the spec-021 text-only wordmark) and carries the
+        // "Equipo Programa Semilla" sign-off via EmailBrand.
         var root = FindViewsRoot();
         var layout = File.ReadAllText(Path.Combine(root, "_EmailLayout.cshtml"));
-        Assert.That(layout, Does.Contain("Programa Semilla"),
-            "Layout must carry the text-only wordmark per spec 019 / NFR-001.");
-        Assert.That(layout, Does.Contain("Sistema de Banca para el Desarrollo"),
-            "Layout must carry the sender display sub-line.");
-        Assert.That(layout, Does.Not.Contain(".png"), "No raster-image references in layout.");
-        Assert.That(layout, Does.Not.Contain(".svg"), "No vector-image references in layout.");
+        Assert.That(layout, Does.Contain("_BrandHeader"),
+            "Layout must compose the branded logo header partial.");
+        Assert.That(layout, Does.Contain("_PartnerFooter"),
+            "Layout must compose the partner-strip footer partial.");
+        Assert.That(layout, Does.Contain("EmailBrand.SignOff"),
+            "Layout must render the centralized sign-off (Equipo Programa Semilla).");
+        Assert.That(layout, Does.Contain("#008a9e"),
+            "Layout must use the brand teal palette (FR-003).");
     }
 
     [Test]
-    public void Support_footer_contains_static_soporte_mailto()
+    public void Partner_footer_contains_static_soporte_mailto()
     {
         var root = FindViewsRoot();
         // Razor escapes @ as @@ in source files; the rendered output is the literal
         // soporte@programa-semilla.cr. Source-grep accepts either form.
-        var footer = File.ReadAllText(Path.Combine(root, "_SupportFooter.cshtml"))
+        var footer = File.ReadAllText(Path.Combine(root, "Shared", "_PartnerFooter.cshtml"))
             .Replace("@@", "@");
         Assert.That(footer, Does.Contain("soporte@programa-semilla.cr"),
-            "OQ-001 / FR-023: support footer must include soporte@programa-semilla.cr.");
+            "FR-006: partner footer must include soporte@programa-semilla.cr.");
     }
 }

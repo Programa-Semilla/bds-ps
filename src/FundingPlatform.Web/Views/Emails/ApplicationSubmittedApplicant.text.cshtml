@@ -2,17 +2,18 @@
     ViewData["DisableLayout"] = true;
 }Recibimos tu solicitud — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-Confirmamos la recepción de tu solicitud #@Model.Payload.ApplicationId en el Sistema de Banca para el Desarrollo. Nuestro equipo la revisará y te notificaremos cuando haya novedades.
+Te confirmamos que recibimos correctamente tu solicitud #@Model.Payload.ApplicationId en @EmailBrand.PlatformName, la plataforma digital para solicitar, gestionar y dar seguimiento a fondos de capital semilla.
 
-Consulta el estado de tu solicitud:
+A partir de este momento, la información registrada seguirá el proceso de revisión correspondiente.
+
+Consultá el estado de tu solicitud:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

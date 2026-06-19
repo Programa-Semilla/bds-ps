@@ -1,16 +1,17 @@
 @{
     ViewData["Title"] = Model.Subject;
 }
-<h1>Recibimos tu solicitud</h1>
-<p>Hola @Model.Recipient.DisplayName,</p>
-<p>
-    Confirmamos la recepción de tu solicitud <strong>#@Model.Payload.ApplicationId</strong> en el
-    Sistema de Banca para el Desarrollo. Nuestro equipo la revisará y te notificaremos cuando
-    haya novedades.
+@await Html.PartialAsync("~/Views/Emails/Shared/_Hero.cshtml", "Recibimos tu solicitud")
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">Hola, @Model.Recipient.DisplayName:</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Te confirmamos que recibimos correctamente tu solicitud <strong>#@Model.Payload.ApplicationId</strong> en
+    @FundingPlatform.Web.Services.Emails.EmailBrand.PlatformName, la plataforma digital para solicitar, gestionar y
+    dar seguimiento a fondos de capital semilla.
 </p>
-<p>Puedes consultar el estado de tu solicitud en cualquier momento desde tu panel:</p>
-<p>
-    <a class="cta" href="@Model.CtaUrl">Ver mi solicitud</a>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    A partir de este momento, la información registrada seguirá el proceso de revisión correspondiente.
 </p>
-<p>Si el botón no funciona, copia y pega este enlace en tu navegador:<br />
-    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Podés ingresar a la plataforma para consultar el estado de tu aplicación y revisar cualquier actualización relacionada con el proceso.
+</p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_CtaButton.cshtml", new CtaButtonModel(Model.CtaUrl, "Ver mi solicitud"))

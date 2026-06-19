@@ -1,0 +1,10 @@
+@model StatusCardModel
+@* Spec 041 / T009 — the "Detalle" card. Tinted, bordered; wraps long values. *@
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:8px 0 20px 0;background:#eef6f7;border:1px solid #dbe3e4;border-radius:10px;border-collapse:separate;">
+    <tr>
+        <td style="padding:18px 22px;">
+            <p style="margin:0 0 10px 0;font-family:'Inter',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#008a9e;">@Model.Heading</p>
+            @await Html.PartialAsync("~/Views/Emails/Shared/_DetailList.cshtml", Model.Rows)
+        </td>
+    </tr>
+</table>

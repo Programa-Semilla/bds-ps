@@ -49,6 +49,11 @@ public static class NotificationsServiceCollectionExtensions
         services.AddScoped<INotificationRecipientResolver, NotificationRecipientResolver>();
         services.AddScoped<ParticipatingAdminPredicate>();
 
+        // Spec 041 / Decision 1 / T003 — the single Razor-view-to-string primitive
+        // shared by the outbox renderer AND the direct-send identity/stage/supplier
+        // factories, so every email routes through the one branded _EmailLayout.
+        services.AddScoped<Application.Notifications.Email.IEmailViewRenderer, EmailViewRenderer>();
+
         // FR-023 — Razor renderer (scoped to align with view-engine lifetime).
         services.AddScoped<IEmailTemplateRenderer, RazorEmailRenderer>();
 
