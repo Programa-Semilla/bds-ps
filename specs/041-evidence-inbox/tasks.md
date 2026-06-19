@@ -54,8 +54,8 @@ ASP.NET MVC, Clean Architecture: `src/FundingPlatform.{Domain,Application,Infras
 
 ### Tests for User Story 1
 
-- [ ] T006 [P] [US1] Integration test `tests/FundingPlatform.Tests.Integration/EvidenceInboxQueryTests.cs` — real-DB matrix over `State × Process.Status × group-overlap`: only `AgreementExecuted ∧ Active ∧ in-scope` returns; archived-fund + soft-deleted excluded; empty-group reviewer → empty; admin sees all
-- [ ] T007 [P] [US1] E2E `tests/FundingPlatform.Tests.E2E/Tests/EvidenceInboxTests.cs` (`[Category("EvidenceInbox")]`): `Inbox_ListsExecutedActiveProcessApp_AndLinksToEvidence` (row `data-application-number`, click → `/Applications/{id}/Evidence`, upload succeeds) and `Inbox_EmptyForReviewerWithNoQualifyingApps` (`evidence-inbox-empty`). Reuse `FundingAgreementSeeder.SeedExecutedAgreementAsync`
+- [X] T006 [P] [US1] Integration test `tests/FundingPlatform.Tests.Integration/EvidenceInboxQueryTests.cs` — real-DB matrix over `State × Process.Status × group-overlap`: only `AgreementExecuted ∧ Active ∧ in-scope` returns; archived-fund + soft-deleted excluded; empty-group reviewer → empty; admin sees all
+- [X] T007 [P] [US1] E2E `tests/FundingPlatform.Tests.E2E/Tests/EvidenceInboxTests.cs` (`[Category("EvidenceInbox")]`): `Inbox_ListsExecutedActiveProcessApp_AndLinksToEvidence` (row `data-application-number`, click → `/Applications/{id}/Evidence`, upload succeeds) and `Inbox_EmptyForReviewerWithNoQualifyingApps` (`evidence-inbox-empty`). Reuse `FundingAgreementSeeder.SeedExecutedAgreementAsync`
 
 ### Implementation for User Story 1
 
@@ -76,7 +76,7 @@ ASP.NET MVC, Clean Architecture: `src/FundingPlatform.{Domain,Application,Infras
 
 ### Tests for User Story 2
 
-- [ ] T012 [P] [US2] E2E in `EvidenceInboxTests.cs`: `ClosedProcess_AppDeListed_AndEvidenceReadOnly` (admin closes via `POST /Admin/Processes/{id}/Close`; app gone from inbox; page loads; `evidence-readonly-notice` shown; no upload/save/delete controls; download still works) and `ClosedProcess_DirectMutationRejected` (crafted POST to Upload/Note/Delete → no change + es-CR toast). Optional: `ReopenedProcess_ReappearsAndEditable`
+- [X] T012 [P] [US2] E2E in `EvidenceInboxTests.cs`: `ClosedProcess_AppDeListed_AndEvidenceReadOnly` (admin closes via `POST /Admin/Processes/{id}/Close`; app gone from inbox; page loads; `evidence-readonly-notice` shown; no upload/save/delete controls; download still works) and `ClosedProcess_DirectMutationRejected` (crafted POST to Upload/Note/Delete → no change + es-CR toast). Optional: `ReopenedProcess_ReappearsAndEditable`
 
 ### Implementation for User Story 2
 
@@ -97,7 +97,7 @@ ASP.NET MVC, Clean Architecture: `src/FundingPlatform.{Domain,Application,Infras
 
 ### Tests for User Story 3
 
-- [ ] T017 [P] [US3] E2E in `EvidenceInboxTests.cs`: `OutOfGroupReviewer_AndApplicant_Refused` — out-of-group reviewer → 404 on page + download + mutation routes (active and closed); applicant → 404/refusal and no `evidence-inbox` sidebar entry; an in-scope reviewer's inbox never lists another group's app
+- [X] T017 [P] [US3] E2E in `EvidenceInboxTests.cs`: `OutOfGroupReviewer_AndApplicant_Refused` — out-of-group reviewer → 404 on page + download + mutation routes (active and closed); applicant → 404/refusal and no `evidence-inbox` sidebar entry; an in-scope reviewer's inbox never lists another group's app
 
 ### Implementation for User Story 3
 
