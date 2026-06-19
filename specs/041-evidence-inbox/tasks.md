@@ -40,7 +40,7 @@ ASP.NET MVC, Clean Architecture: `src/FundingPlatform.{Domain,Application,Infras
 
 - [ ] T003 Define `IEvidenceInboxProjection` + `EvidenceInboxRowDto` (per contracts/interfaces.md) in `src/FundingPlatform.Application/EvidenceInbox/IEvidenceInboxProjection.cs`
 - [ ] T004 Implement `EvidenceInboxProjection` in `src/FundingPlatform.Infrastructure/Persistence/EvidenceInboxProjection.cs` — single EF query: `State == AgreementExecuted` ∧ `Group.Process.Status == Active` ∧ group-overlap (admin short-circuit via `UserGroupMemberships`, empty-group → empty) ∧ `ExcludeDeleted` ∧ `ExcludeArchivedFund`; order by `UpdatedAt` desc; take 200 (mirror `ReviewerDashboardProjection` + `SignedUploadRepository.GetPendingInboxAsync`)
-- [ ] T005 Register `IEvidenceInboxProjection` → `EvidenceInboxProjection` in DI alongside the other reviewer projections (Infrastructure `ServiceCollection` extension)
+- [ ] T005 Register `services.AddScoped<IEvidenceInboxProjection, EvidenceInboxProjection>()` in `src/FundingPlatform.Infrastructure/DependencyInjection.cs` (beside the `IReviewerDashboardProjection` registration, ~line 100)
 
 **Checkpoint**: Inbox query available and scoped.
 
