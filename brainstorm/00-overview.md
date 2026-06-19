@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-18 (session #37)
+Last updated: 2026-06-19 (session #38)
 
 ## Sessions
 
@@ -43,8 +43,12 @@ Last updated: 2026-06-18 (session #37)
 | 35 | 2026-06-17 | feedback-3-provider-compliance | shipped (PR #69) | 038 |
 | 36 | 2026-06-18 | supplier-recommendation | shipped (PR #70) | 039 |
 | 37 | 2026-06-18 | auditor-workflow-stage | spec-created | 040 |
+| 38 | 2026-06-19 | evidence-inbox | spec-created | 041 |
 
 ## Open Threads
+
+- Spec-041 business decision: should admins retain write access to funds-usage evidence after a process closes, or be frozen read-only like reviewers? (Spec assumes frozen.) Plus inbox row ordering (deferred to plan). (from #38)
+- Session bug fixed outside any spec: the reviewer queue (`ReviewerQueueProjection`) did not surface `ReturnedFromAudit` applications, so auditor-returned apps never reappeared in the reviewer worklist; fixed + unit/E2E covered (uncommitted on `041-evidence-inbox` branch at session time). (from #38)
 
 - Feedback-3 slices D–H remain unspecified; B (supplier recommendation) shipped (#36 → spec 039, PR #70) and C (auditor workflow stage) is now spec-created (#37 → spec 040). D (regulatory freshness + Hacienda API) is the next foundation-dependent slice; E/F/G/H are independent. Master doc + slice map: `seeds/feedback-3/` (from #35, #36, #37)
 - Spec-040 plan-time: seeded default checklist template's `appliesToStage` (recommend `both`); whom the agreement records as generating actor now that the auditor generates it; cross-cutting E2E ripple from removing the reviewer's direct generate-agreement path (existing funding-agreement/signing tests route through audit) (from #37)
