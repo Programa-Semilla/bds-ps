@@ -87,16 +87,16 @@ description: "Task list for ALIA Transactional Email Brand UI-Lift (041)"
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Integration test in `tests/FundingPlatform.Tests.Integration/Notifications/` — recipient matrix for `ApplicationUnderReviewApplicant` is **applicant only** (reviewer + admins excluded), and the worker is idempotent on a second pass (reviewer re-open does not duplicate).
-- [ ] T023 [P] [US2] E2E mail-capture in `tests/FundingPlatform.Tests.E2E/Notifications/` — submit → reviewer opens application → one applicant email captured; re-open → still one.
+- [X] T022 [P] [US2] Integration test in `tests/FundingPlatform.Tests.Integration/Notifications/` — recipient matrix for `ApplicationUnderReviewApplicant` is **applicant only** (reviewer + admins excluded), and the worker is idempotent on a second pass (reviewer re-open does not duplicate).
+- [X] T023 [P] [US2] E2E mail-capture in `tests/FundingPlatform.Tests.E2E/Notifications/` — submit → reviewer opens application → one applicant email captured; re-open → still one.
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Add `NotificationEvent.ApplicationUnderReviewApplicant` (+ `ToStorageString`/`FromStorageString` → `APPLICATION_UNDER_REVIEW_APPLICANT`) in `src/FundingPlatform.Domain/Notifications/NotificationEvent.cs`.
-- [ ] T025 [US2] Add the binding (subject `Tu solicitud está en revisión — Solicitud #{ApplicationId}`, views `ApplicationUnderReviewApplicant`(+`.text`), CTA `/Application/Details/{id}`) in `src/FundingPlatform.Application/Notifications/Templates/NotificationTemplateBindings.cs`.
-- [ ] T026 [US2] Add recipient-bucket switch cases in `src/FundingPlatform.Infrastructure/Notifications/Resolvers/NotificationRecipientResolver.cs`: applicant → true, reviewer → false, admin → false (applicant-only; avoids admin noise on routine reviewer page-opens).
-- [ ] T027 [US2] Enqueue at the transition in `src/FundingPlatform.Application/Services/ReviewService.cs` (`GetApplicationForReviewAsync`): when `StartReview()` actually transitions `Submitted→UnderReview`, add a `VersionHistory(reviewerUserId, "StartReview", …)` row, build `NotificationPayload(ActorUserId = reviewerUserId)`, call `EnqueueAsync(ApplicationUnderReviewApplicant, …, vhRow.Id, …)` before `SaveChangesAsync`. Guard so re-opens (already `UnderReview`) do not enqueue.
-- [ ] T028 [P] [US2] Create `Views/Emails/ApplicationUnderReviewApplicant.cshtml` + `.text.cshtml` (ALIA reference copy #4; compose partials; CTA to the application).
+- [X] T024 [US2] Add `NotificationEvent.ApplicationUnderReviewApplicant` (+ `ToStorageString`/`FromStorageString` → `APPLICATION_UNDER_REVIEW_APPLICANT`) in `src/FundingPlatform.Domain/Notifications/NotificationEvent.cs`.
+- [X] T025 [US2] Add the binding (subject `Tu solicitud está en revisión — Solicitud #{ApplicationId}`, views `ApplicationUnderReviewApplicant`(+`.text`), CTA `/Application/Details/{id}`) in `src/FundingPlatform.Application/Notifications/Templates/NotificationTemplateBindings.cs`.
+- [X] T026 [US2] Add recipient-bucket switch cases in `src/FundingPlatform.Infrastructure/Notifications/Resolvers/NotificationRecipientResolver.cs`: applicant → true, reviewer → false, admin → false (applicant-only; avoids admin noise on routine reviewer page-opens).
+- [X] T027 [US2] Enqueue at the transition in `src/FundingPlatform.Application/Services/ReviewService.cs` (`GetApplicationForReviewAsync`): when `StartReview()` actually transitions `Submitted→UnderReview`, add a `VersionHistory(reviewerUserId, "StartReview", …)` row, build `NotificationPayload(ActorUserId = reviewerUserId)`, call `EnqueueAsync(ApplicationUnderReviewApplicant, …, vhRow.Id, …)` before `SaveChangesAsync`. Guard so re-opens (already `UnderReview`) do not enqueue.
+- [X] T028 [P] [US2] Create `Views/Emails/ApplicationUnderReviewApplicant.cshtml` + `.text.cshtml` (ALIA reference copy #4; compose partials; CTA to the application).
 
 **Checkpoint**: New under-review email sends exactly once at the real transition.
 

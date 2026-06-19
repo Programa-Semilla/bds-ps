@@ -229,7 +229,7 @@ public class ReviewController : Controller
     [Route(ReviewRoutes.ReviewTemplate)]
     public async Task<IActionResult> Review(int id, CancellationToken ct = default)
     {
-        var dto = await _reviewService.GetApplicationForReviewAsync(id);
+        var dto = await _reviewService.GetApplicationForReviewAsync(id, GetUserId());
         if (dto is null)
             return NotFound();
 
@@ -720,8 +720,9 @@ public class ReviewController : Controller
 
         if (unresolvedItems is not null)
         {
-            // Show warning with unresolved items — re-render the review page
-            var dto = await _reviewService.GetApplicationForReviewAsync(id);
+            // Show warning with unresolved items — re-render the review page.
+            // Already past Submitted here, so this is a no-op transition (no enqueue).
+            var dto = await _reviewService.GetApplicationForReviewAsync(id, GetUserId());
             if (dto is null)
                 return NotFound();
 

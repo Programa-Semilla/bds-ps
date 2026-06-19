@@ -225,6 +225,16 @@ public static class NotificationTemplateBindings
                 TextViewName:    "SignedUploadRejectedApplicant.text",
                 TemplateVariantKey: "applicant-signed-upload-rejected",
                 CtaRouteTemplate: "/Applications/{id}/FundingAgreement"),
+
+            // Spec 041 / US2 / FR-011 — applicant learns a reviewer began review.
+            // Fired at the Submitted → UnderReview transition; applicant-only.
+            [NotificationEvent.ApplicationUnderReviewApplicant] = new(
+                NotificationEvent.ApplicationUnderReviewApplicant,
+                SubjectTemplate: "Tu solicitud está en revisión — Solicitud #{ApplicationId}",
+                HtmlViewName:    "ApplicationUnderReviewApplicant",
+                TextViewName:    "ApplicationUnderReviewApplicant.text",
+                TemplateVariantKey: "applicant-under-review",
+                CtaRouteTemplate: "/Application/Details/{id}"),
         };
 
     /// <summary>Lookup helper. Throws on unknown event (closed map invariant).</summary>

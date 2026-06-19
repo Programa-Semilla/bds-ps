@@ -74,6 +74,11 @@ public enum NotificationEvent
 
     /// <summary>Spec 028 / US3 / FR-012 — reviewer rejected the signed convenio (changes required); notifies the applicant + admins.</summary>
     SignedUploadRejectedApplicant = 19,
+
+    /// <summary>Spec 041 / US2 / FR-011 — a reviewer began review (Submitted → UnderReview);
+    /// notifies the applicant only. Distinct from the submission receipt (OQ-2). Fired at the
+    /// real <see cref="Domain.Entities.Application.StartReview"/> transition in ReviewService.</summary>
+    ApplicationUnderReviewApplicant = 20,
 }
 
 /// <summary>
@@ -111,6 +116,8 @@ public static class NotificationEventExtensions
         NotificationEvent.SignedUploadWithdrawnReviewer => "SIGNED_UPLOAD_WITHDRAWN_REVIEWER",
         NotificationEvent.AgreementExecutedApplicant    => "AGREEMENT_EXECUTED_APPLICANT",
         NotificationEvent.SignedUploadRejectedApplicant => "SIGNED_UPLOAD_REJECTED_APPLICANT",
+        // Spec 041 — applicant under-review notice.
+        NotificationEvent.ApplicationUnderReviewApplicant => "APPLICATION_UNDER_REVIEW_APPLICANT",
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unknown NotificationEvent")
     };
 
@@ -141,6 +148,7 @@ public static class NotificationEventExtensions
         "SIGNED_UPLOAD_WITHDRAWN_REVIEWER" => NotificationEvent.SignedUploadWithdrawnReviewer,
         "AGREEMENT_EXECUTED_APPLICANT"    => NotificationEvent.AgreementExecutedApplicant,
         "SIGNED_UPLOAD_REJECTED_APPLICANT" => NotificationEvent.SignedUploadRejectedApplicant,
+        "APPLICATION_UNDER_REVIEW_APPLICANT" => NotificationEvent.ApplicationUnderReviewApplicant,
         _ => throw new ArgumentOutOfRangeException(nameof(storage), storage,
             "Unknown NotificationEvent storage code")
     };

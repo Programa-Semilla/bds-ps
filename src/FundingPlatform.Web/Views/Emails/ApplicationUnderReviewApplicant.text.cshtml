@@ -1,0 +1,19 @@
+@{
+    ViewData["DisableLayout"] = true;
+}Tu solicitud está en revisión — Solicitud #@Model.Payload.ApplicationId
+
+Hola, @Model.Recipient.DisplayName:
+
+Te informamos que tu solicitud #@Model.Payload.ApplicationId pasó a la etapa de revisión.
+
+Durante esta fase, el equipo correspondiente revisará la información registrada y verificará el cumplimiento de los requisitos aplicables. Si se requiere información adicional, vas a recibir una notificación por este mismo medio o mediante la plataforma.
+
+Podés ingresar a @EmailBrand.PlatformName para consultar el estado actualizado de tu aplicación:
+@Model.CtaUrl
+
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
+
+—
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote
