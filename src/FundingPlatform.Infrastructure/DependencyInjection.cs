@@ -100,6 +100,11 @@ public static class DependencyInjection
         services.AddScoped<Application.ReviewerDashboard.IReviewerDashboardProjection,
             Persistence.ReviewerDashboardProjection>();
 
+        // Spec 041 — funds-usage evidence inbox projection (executed apps in
+        // active processes, group-scoped exactly like the reviewer queue).
+        services.AddScoped<Application.EvidenceInbox.IEvidenceInboxProjection,
+            Persistence.EvidenceInboxProjection>();
+
         // Spec 021 — public-code generator, password-reset token store, soft-delete
         // query filter, terse audit writer for the new event-kind discriminators.
         services.AddScoped<IPublicCodeGenerator, PublicCodeGenerator>();

@@ -27,8 +27,8 @@ ASP.NET MVC, Clean Architecture: `src/FundingPlatform.{Domain,Application,Infras
 
 **Purpose**: es-CR copy + namespace scaffolding shared across stories.
 
-- [ ] T001 [P] Create `EvidenceInboxResources` (.resx + designer, es-CR) with keys `Nav`="Evidencia de uso de fondos", `Title`, `Empty` in `src/FundingPlatform.Web/Resources/EvidenceInboxResources.*`
-- [ ] T002 [P] Add es-CR keys `ReadOnly_Notice` and `Error_ProcessClosed` to `src/FundingPlatform.Web/Resources/FundsUsageEvidenceResources.*` (values per contracts/interfaces.md)
+- [X] T001 [P] Create `EvidenceInboxResources` (.resx + designer, es-CR) with keys `Nav`="Evidencia de uso de fondos", `Title`, `Empty` in `src/FundingPlatform.Web/Resources/EvidenceInboxResources.*`
+- [X] T002 [P] Add es-CR keys `ReadOnly_Notice` and `Error_ProcessClosed` to `src/FundingPlatform.Web/Resources/FundsUsageEvidenceResources.*` (values per contracts/interfaces.md)
 
 ---
 
@@ -38,9 +38,9 @@ ASP.NET MVC, Clean Architecture: `src/FundingPlatform.{Domain,Application,Infras
 
 **⚠️ CRITICAL**: US1 cannot begin until T003–T005 are complete.
 
-- [ ] T003 Define `IEvidenceInboxProjection` + `EvidenceInboxRowDto` (per contracts/interfaces.md) in `src/FundingPlatform.Application/EvidenceInbox/IEvidenceInboxProjection.cs`
-- [ ] T004 Implement `EvidenceInboxProjection` in `src/FundingPlatform.Infrastructure/Persistence/EvidenceInboxProjection.cs` — single EF query: `State == AgreementExecuted` ∧ `Group.Process.Status == Active` ∧ group-overlap (admin short-circuit via `UserGroupMemberships`, empty-group → empty) ∧ `ExcludeDeleted` ∧ `ExcludeArchivedFund`; order by `UpdatedAt` desc; take 200 (mirror `ReviewerDashboardProjection` + `SignedUploadRepository.GetPendingInboxAsync`)
-- [ ] T005 Register `services.AddScoped<IEvidenceInboxProjection, EvidenceInboxProjection>()` in `src/FundingPlatform.Infrastructure/DependencyInjection.cs` (beside the `IReviewerDashboardProjection` registration, ~line 100)
+- [X] T003 Define `IEvidenceInboxProjection` + `EvidenceInboxRowDto` (per contracts/interfaces.md) in `src/FundingPlatform.Application/EvidenceInbox/IEvidenceInboxProjection.cs`
+- [X] T004 Implement `EvidenceInboxProjection` in `src/FundingPlatform.Infrastructure/Persistence/EvidenceInboxProjection.cs` — single EF query: `State == AgreementExecuted` ∧ `Group.Process.Status == Active` ∧ group-overlap (admin short-circuit via `UserGroupMemberships`, empty-group → empty) ∧ `ExcludeDeleted` ∧ `ExcludeArchivedFund`; order by `UpdatedAt` desc; take 200 (mirror `ReviewerDashboardProjection` + `SignedUploadRepository.GetPendingInboxAsync`)
+- [X] T005 Register `services.AddScoped<IEvidenceInboxProjection, EvidenceInboxProjection>()` in `src/FundingPlatform.Infrastructure/DependencyInjection.cs` (beside the `IReviewerDashboardProjection` registration, ~line 100)
 
 **Checkpoint**: Inbox query available and scoped.
 
