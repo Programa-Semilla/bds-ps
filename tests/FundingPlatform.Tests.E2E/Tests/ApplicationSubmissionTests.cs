@@ -138,7 +138,7 @@ public class ApplicationSubmissionTests : AuthenticatedTestBase
     }
 
     [Test]
-    public async Task SubmitGate_NamesMissingFieldPerItem_AndJustificationIsOptional()
+    public async Task SubmitGate_NamesMissingFieldPerItem_AndJustificationIsOptional_EndToEnd()
     {
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
         var email = $"submit_opt_{uniqueId}@example.com";
@@ -154,26 +154,42 @@ public class ApplicationSubmissionTests : AuthenticatedTestBase
         await itemPage.AddItemAsync(appId, "Harina", 0, "Trigo", BaseUrl);
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
 
-        // Disabled tooltip NAMES the missing field per item (not a vague "Impacto").
+        // (1) Disabled tooltip NAMES the missing field per item (not a vague "Impacto").
         var submit = Page.Locator("[data-testid=application-edit-submit]");
         await Expect(submit).ToBeDisabledAsync();
         Assert.That(await submit.GetAttributeAsync("title"),
             Does.Contain("necesita un impacto asociado"),
             "The disabled tooltip must name the per-item missing impact.");
 
+        // Two suppliers/quotations (MinQuotationsPerItem = 2).
+        var supplierPage = new SupplierPage(Page);
+        foreach (var n in new[] { 1, 2 })
+        {
+            await Page.Locator("a:has-text('Agregar proveedor')").First.ClickAsync();
+            await supplierPage.FillSupplierFormAsync(
+                legalId: $"OPT{n}-{uniqueId}", name: $"Proveedor {n}", price: 1000m * n,
+                validUntil: "2027-12-31", filePath: _testFilePath,
+                contactName: $"Contacto {n}", email: $"opt{n}@test.com", phone: $"555-000{n}", location: "CR");
+            await supplierPage.SubmitAsync();
+            await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
+        }
+
         // Declare an impact, then attribute the item WITHOUT a justification.
         var impactsPage = new ApplicationImpactsPage(Page);
         await impactsPage.EnsureAtLeastOneImpactAsync(appId, BaseUrl);
-
         await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
         var href = await Page.Locator("[data-testid=application-edit-item-row] a:has-text('Editar')")
             .First.GetAttributeAsync("href") ?? string.Empty;
         var itemId = int.Parse(Regex.Match(href, @"/Item/(\d+)/Edit").Groups[1].Value);
         await itemPage.SetImpactAttributionOnlyViaEditAsync(appId, itemId, BaseUrl);
 
-        // Justification is OPTIONAL — with the impact attributed (no justification), submit enables.
+        // (2) Justification is OPTIONAL: the Edit gate enables AND the /review surface allows
+        // submit (the projection CanSubmit no longer requires a justification).
         await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
         await Expect(submit).ToBeEnabledAsync();
+        await SubmitDraftViaReviewAsync(appId);
+        await Expect(Page.Locator($".alert-success:has-text('{UiCopy.ApplicationSubmittedSuccess}')").First)
+            .ToBeVisibleAsync();
     }
 
     [Test]
