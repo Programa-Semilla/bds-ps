@@ -344,7 +344,9 @@ else
             data-testid="application-edit-submit"
             data-submit-gate
             data-item-count="@Model.Items.Count"
-            data-impact-set="@(Model.ReadyForSubmit ? "true" : "false")"
+            @* Pipe-delimited, user-facing blockers so the disabled tooltip names exactly
+               what is missing per item (submit-gate.js seeds them into "Faltan: …"). *@
+            data-submit-blockers="@string.Join("|", Model.SubmitBlockers)"
             data-review-url="@reviewUrl"
             disabled
             title="Complete los campos requeridos para enviar">

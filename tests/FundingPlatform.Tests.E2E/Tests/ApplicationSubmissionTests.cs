@@ -138,6 +138,45 @@ public class ApplicationSubmissionTests : AuthenticatedTestBase
     }
 
     [Test]
+    public async Task SubmitGate_NamesMissingFieldPerItem_AndJustificationIsOptional()
+    {
+        var uniqueId = Guid.NewGuid().ToString("N")[..8];
+        var email = $"submit_opt_{uniqueId}@example.com";
+        await RegisterUserAsync(Page, email, "Test123!", "Opt", "Tester", $"LID-{uniqueId}");
+        await LoginAsync(Page, email, "Test123!");
+
+        var appPage = new ApplicationPage(Page);
+        await appPage.GotoListAsync(BaseUrl);
+        await appPage.CreateApplicationAsync();
+        var appId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
+
+        var itemPage = new ItemPage(Page);
+        await itemPage.AddItemAsync(appId, "Harina", 0, "Trigo", BaseUrl);
+        await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
+
+        // Disabled tooltip NAMES the missing field per item (not a vague "Impacto").
+        var submit = Page.Locator("[data-testid=application-edit-submit]");
+        await Expect(submit).ToBeDisabledAsync();
+        Assert.That(await submit.GetAttributeAsync("title"),
+            Does.Contain("necesita un impacto asociado"),
+            "The disabled tooltip must name the per-item missing impact.");
+
+        // Declare an impact, then attribute the item WITHOUT a justification.
+        var impactsPage = new ApplicationImpactsPage(Page);
+        await impactsPage.EnsureAtLeastOneImpactAsync(appId, BaseUrl);
+
+        await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
+        var href = await Page.Locator("[data-testid=application-edit-item-row] a:has-text('Editar')")
+            .First.GetAttributeAsync("href") ?? string.Empty;
+        var itemId = int.Parse(Regex.Match(href, @"/Item/(\d+)/Edit").Groups[1].Value);
+        await itemPage.SetImpactAttributionOnlyViaEditAsync(appId, itemId, BaseUrl);
+
+        // Justification is OPTIONAL — with the impact attributed (no justification), submit enables.
+        await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
+        await Expect(submit).ToBeEnabledAsync();
+    }
+
+    [Test]
     public async Task SubmitApplication_WithNoItems_ShowsErrors()
     {
         var uniqueId = Guid.NewGuid().ToString("N")[..8];

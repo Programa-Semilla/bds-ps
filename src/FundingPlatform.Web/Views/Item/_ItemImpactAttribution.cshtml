@@ -34,8 +34,8 @@ else
     </div>
 
     <div class="mb-3" data-testid="form-section" data-field="ImpactJustification">
-        <label asp-for="ImpactJustification" class="form-label">Justificación de impacto</label> @await Html.PartialAsync("_RequiredMark")
-        <div class="form-hint">Explique brevemente por qué esta línea aporta al impacto o impactos seleccionados (máx. 300 caracteres).</div>
+        <label asp-for="ImpactJustification" class="form-label">Justificación de impacto <span class="text-secondary">(opcional)</span></label>
+        <div class="form-hint">Opcional: explique brevemente por qué esta línea aporta al impacto o impactos seleccionados (máx. 300 caracteres).</div>
         <textarea asp-for="ImpactJustification" class="form-control" rows="2" maxlength="300"
                   data-testid="item-impact-justification"
                   data-char-counter="item-impact-justification-counter"></textarea>

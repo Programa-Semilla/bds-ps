@@ -129,4 +129,16 @@ public class ItemPage : BasePage
         await SubmitButton.ClickAsync();
         await Page.WaitForURLAsync(new Regex(@"/Application/Edit/\d+"));
     }
+
+    /// <summary>Attributes the item to the first declared impact but leaves the
+    /// (now-optional) justification empty, then saves.</summary>
+    public async Task SetImpactAttributionOnlyViaEditAsync(int appId, int itemId, string baseUrl)
+    {
+        await Page.GotoAsync($"{baseUrl}/Application/{appId}/Item/{itemId}/Edit");
+        await Page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+        await ImpactAttributionOptions.First.CheckAsync();
+        await ImpactJustification.FillAsync(string.Empty);
+        await SubmitButton.ClickAsync();
+        await Page.WaitForURLAsync(new Regex(@"/Application/Edit/\d+"));
+    }
 }

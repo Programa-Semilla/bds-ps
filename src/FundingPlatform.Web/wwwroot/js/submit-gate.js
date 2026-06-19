@@ -8,9 +8,10 @@
 // routes to the PublicCode-bound /review page.
 //
 // Server-rendered facts arrive as data-* attributes on the button:
-//   data-item-count   — current Item count
-//   data-impact-set   — "true" once the Impact step is complete
-//   data-review-url   — target /review URL
+//   data-item-count       — current Item count
+//   data-submit-blockers  — pipe-delimited, user-facing blocker messages (named per
+//                           item, e.g. "El ítem 'Harina' necesita un impacto asociado")
+//   data-review-url       — target /review URL
 // Required free-text fields are discovered via [data-required="true"].
 
 (function () {
@@ -19,13 +20,13 @@
     function evaluate(button) {
         var missing = [];
 
-        if (button.getAttribute('data-impact-set') !== 'true') {
-            missing.push('Impacto');
-        }
-
-        var itemCount = parseInt(button.getAttribute('data-item-count') || '0', 10);
-        if (isNaN(itemCount) || itemCount < 1) {
-            missing.push('Al menos un ítem');
+        // Server-computed, per-item blockers (impact attribution, item/impact counts).
+        var blockers = (button.getAttribute('data-submit-blockers') || '').trim();
+        if (blockers) {
+            blockers.split('|').forEach(function (b) {
+                var t = b.trim();
+                if (t) { missing.push(t); }
+            });
         }
 
         var required = document.querySelectorAll('[data-required="true"]');

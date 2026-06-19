@@ -553,12 +553,10 @@ public class Application
                     $"El ítem '{item.ProductName}' está asociado a un impacto que ya no existe en la solicitud.");
             }
 
-            if (string.IsNullOrWhiteSpace(item.ImpactJustification))
-            {
-                // Spec 035 / FR-008 / SC-006 — es-CR, names the line item.
-                errors.Add(
-                    $"El ítem '{item.ProductName}' debe incluir una justificación de impacto.");
-            }
+            // Spec 035 / FR-008 made the per-item impact justification required; this was
+            // relaxed (2026-06-18, stakeholder request) — the justification is now OPTIONAL
+            // and no longer blocks submission. The field is still captured + displayed when
+            // present.
 
             foreach (var missingLabel in item.MissingRequiredCategoryFields())
             {
