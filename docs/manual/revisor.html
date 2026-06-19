@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es-CR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual del Revisor · Programa Semilla</title>
+<meta name="description" content="Guía paso a paso para personas revisoras del Programa Semilla — desde la cola de revisión hasta la evidencia de uso de fondos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Mulish:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12343B;
+    --ink-soft:#2b4d54;
+    --teal:#008A9E;
+    --teal-2:#42AFA8;
+    --amber:#F9A61C;
+    --amber-2:#FFC729;
+    --cream:#FBF6EC;
+    --paper:#FFFDF8;
+    --line:#E7DECB;
+    --body:#3a423f;
+    --muted:#6c7b73;
+    --shadow:0 1px 2px rgba(18,52,59,.04), 0 8px 30px rgba(18,52,59,.06);
+    --shadow-lg:0 24px 60px -20px rgba(18,52,59,.28);
+    --radius:18px;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    font-family:"Mulish",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    color:var(--body);
+    background:var(--cream);
+    background-image:
+      radial-gradient(800px 500px at 88% -8%, rgba(0,138,158,.16), transparent 60%),
+      radial-gradient(680px 480px at -6% 14%, rgba(249,166,28,.12), transparent 55%);
+    background-attachment:fixed;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  }
+
+  #progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:60;
+    background:linear-gradient(90deg,var(--teal),var(--teal-2));
+    box-shadow:0 0 12px rgba(0,138,158,.55);transition:width .12s ease-out}
+
+  .shell{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(18px,4vw,40px)}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;
+    padding:22px 0 18px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:14px}
+  .seedmark{width:42px;height:42px;flex:none;border-radius:50% 50% 50% 8px;
+    background:conic-gradient(from 200deg,var(--teal),var(--teal-2),var(--amber),var(--teal));
+    transform:rotate(-12deg);position:relative;box-shadow:var(--shadow)}
+  .seedmark::after{content:"";position:absolute;inset:8px;border-radius:inherit;
+    background:var(--paper);transform:rotate(12deg)}
+  .seedmark span{position:absolute;inset:0;display:grid;place-items:center;
+    transform:rotate(12deg);font-family:"Fraunces";font-weight:600;color:var(--ink);font-size:20px;z-index:2}
+  .brand b{font-family:"Fraunces";font-weight:600;color:var(--ink);font-size:1.1rem;letter-spacing:.2px;line-height:1.1}
+  .brand small{display:block;color:var(--muted);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+
+  .roles{display:flex;gap:6px;align-items:center;background:var(--paper);border:1px solid var(--line);
+    padding:5px;border-radius:999px;box-shadow:var(--shadow)}
+  .roles a,.roles span{font-size:.78rem;font-weight:800;letter-spacing:.04em;text-decoration:none;
+    color:var(--ink-soft);padding:7px 14px;border-radius:999px;transition:.16s;white-space:nowrap}
+  .roles a:hover{background:rgba(0,138,158,.1);color:var(--ink)}
+  .roles a.cur{background:var(--ink);color:#fff}
+  .roles span{color:#b9b09a;cursor:default}
+
+  .hero{padding:34px 0 18px;position:relative}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;color:var(--teal);
+    font-weight:800;letter-spacing:.18em;text-transform:uppercase;font-size:.74rem;margin:0 0 18px}
+  .eyebrow::before{content:"";width:26px;height:2px;background:var(--teal);border-radius:2px}
+  .hero h1{font-family:"Fraunces";font-weight:600;color:var(--ink);
+    font-size:clamp(2.5rem,6.4vw,4.4rem);line-height:1.02;margin:0;letter-spacing:-.5px}
+  .hero h1 em{font-style:italic;color:var(--teal);font-weight:500}
+  .hero p.lead{max-width:62ch;margin:22px 0 0;font-size:clamp(1.05rem,1.6vw,1.22rem);color:var(--ink-soft)}
+  .meta{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;padding-top:22px;border-top:1px dashed var(--line)}
+  .meta div{font-size:.86rem}
+  .meta dt{color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-size:.68rem;font-weight:800;margin-bottom:3px}
+  .meta dd{margin:0;font-weight:700;color:var(--ink)}
+
+  .journey{display:grid;grid-template-columns:repeat(8,1fr);gap:10px;margin:42px 0 8px}
+  .jstep{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:14px;
+    padding:14px 12px;text-decoration:none;transition:.22s;box-shadow:var(--shadow)}
+  .jstep:hover{transform:translateY(-4px);border-color:var(--teal-2);box-shadow:var(--shadow-lg)}
+  .jstep b{display:block;font-family:"Fraunces";color:var(--teal);font-size:1.3rem;font-weight:600;line-height:1}
+  .jstep span{display:block;margin-top:7px;font-size:.76rem;font-weight:700;color:var(--ink);line-height:1.25}
+
+  .layout{display:grid;grid-template-columns:240px 1fr;gap:clamp(28px,5vw,64px);margin:54px 0 0;align-items:start}
+
+  nav.toc{position:sticky;top:24px}
+  nav.toc p{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:800;margin:0 0 14px}
+  nav.toc a{display:flex;gap:12px;align-items:baseline;text-decoration:none;color:var(--ink-soft);
+    padding:9px 12px;border-radius:11px;font-weight:600;font-size:.92rem;transition:.16s;line-height:1.3}
+  nav.toc a i{font-style:normal;font-family:"Fraunces";font-weight:600;color:var(--muted);font-size:.8rem;min-width:14px}
+  nav.toc a:hover{background:rgba(0,138,158,.08);color:var(--ink)}
+  nav.toc a.active{background:var(--ink);color:#fff}
+  nav.toc a.active i{color:var(--amber-2)}
+
+  main{min-width:0}
+  section{scroll-margin-top:26px;margin-bottom:64px}
+  .sec-head{display:flex;align-items:center;gap:16px;margin:0 0 8px}
+  .sec-num{font-family:"Fraunces";font-weight:600;font-size:1rem;color:#fff;background:var(--teal);
+    width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:50% 50% 50% 9px;transform:rotate(-8deg);box-shadow:var(--shadow)}
+  .sec-num b{transform:rotate(8deg)}
+  h2{font-family:"Fraunces";font-weight:600;color:var(--ink);font-size:clamp(1.7rem,3.2vw,2.3rem);margin:0;letter-spacing:-.3px;line-height:1.1}
+  .sec-intro{color:var(--ink-soft);font-size:1.04rem;margin:14px 0 26px;max-width:64ch}
+
+  h3{font-family:"Fraunces";font-weight:600;color:var(--ink);font-size:1.18rem;margin:30px 0 12px}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+    padding:clamp(20px,3vw,30px);box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .card + .card{margin-top:18px}
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:linear-gradient(var(--teal),var(--teal-2))}
+
+  ol.steps{counter-reset:s;list-style:none;margin:0;padding:0}
+  ol.steps li{position:relative;padding:0 0 18px 52px;margin:0}
+  ol.steps li:last-child{padding-bottom:0}
+  ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:-2px;
+    width:34px;height:34px;display:grid;place-items:center;font-family:"Fraunces";font-weight:600;
+    color:var(--ink);background:var(--amber-2);border-radius:50% 50% 50% 7px;font-size:.95rem;box-shadow:var(--shadow)}
+  ol.steps li::after{content:"";position:absolute;left:16px;top:34px;bottom:6px;width:2px;background:var(--line)}
+  ol.steps li:last-child::after{display:none}
+  ol.steps li strong{color:var(--ink);font-weight:800}
+
+  ul.plain{list-style:none;margin:14px 0 0;padding:0}
+  ul.plain li{position:relative;padding:6px 0 6px 26px}
+  ul.plain li::before{content:"";position:absolute;left:4px;top:14px;width:8px;height:8px;
+    background:var(--teal-2);border-radius:50% 50% 50% 2px;transform:rotate(-15deg)}
+
+  .field{display:inline-block;font-family:"Mulish";font-weight:700;color:var(--ink);
+    background:rgba(0,138,158,.1);border:1px solid rgba(0,138,158,.22);
+    padding:1px 8px;border-radius:7px;font-size:.92em;white-space:nowrap}
+
+  .note{display:flex;gap:14px;border-radius:14px;padding:16px 18px;margin:20px 0;font-size:.96rem;border:1px solid}
+  .note .ic{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-weight:800;color:#fff;font-size:.95rem}
+  .note.tip{background:rgba(0,138,158,.07);border-color:rgba(0,138,158,.25)}
+  .note.tip .ic{background:var(--teal)}
+  .note.warn{background:rgba(249,166,28,.1);border-color:rgba(249,166,28,.4)}
+  .note.warn .ic{background:var(--amber);color:var(--ink)}
+  .note.rule{background:rgba(18,52,59,.045);border-color:rgba(18,52,59,.16)}
+  .note.rule .ic{background:var(--ink)}
+  .note b{color:var(--ink)}
+
+  /* decision tiles */
+  .decis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+  .dec{border:1px solid var(--line);border-radius:14px;padding:18px 16px;background:var(--paper);box-shadow:var(--shadow)}
+  .dec h4{margin:0 0 6px;font-family:"Fraunces";font-weight:600;font-size:1.05rem;display:flex;align-items:center;gap:9px}
+  .dec h4::before{content:"";width:12px;height:12px;border-radius:50% 50% 50% 2px;transform:rotate(-15deg)}
+  .dec.ok h4::before{background:#2f7d52}.dec.no h4::before{background:#c0492f}.dec.info h4::before{background:var(--amber)}
+  .dec p{margin:0;font-size:.9rem;color:var(--ink-soft)}
+
+  .states{margin-top:8px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--paper);box-shadow:var(--shadow)}
+  .strow{display:grid;grid-template-columns:210px 1fr;gap:18px;padding:16px 20px;border-top:1px solid var(--line)}
+  .strow:first-child{border-top:none}
+  .strow:nth-child(odd){background:rgba(0,138,158,.025)}
+  .badge{display:inline-block;align-self:start;font-weight:800;font-size:.8rem;letter-spacing:.02em;
+    padding:5px 12px;border-radius:999px;background:var(--ink);color:#fff;white-space:nowrap}
+  .badge.g{background:#2f7d52}.badge.a{background:var(--amber);color:var(--ink)}.badge.t{background:var(--teal)}.badge.r{background:#c0492f}
+  .strow div:last-child{color:var(--ink-soft);font-size:.95rem}
+
+  .pillrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .mail{font-size:.85rem;font-weight:700;color:var(--ink);background:var(--paper);
+    border:1px solid var(--line);padding:7px 13px;border-radius:999px;box-shadow:var(--shadow)}
+  .mail::before{content:"✉";margin-right:7px;color:var(--teal)}
+
+  footer{position:relative;z-index:1;border-top:1px solid var(--line);margin-top:40px;
+    padding:40px 0 60px;color:var(--muted);font-size:.86rem}
+  footer .shell{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
+  footer b{color:var(--ink);font-family:"Fraunces";font-weight:600}
+
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  @media(max-width:880px){
+    .layout{grid-template-columns:1fr}
+    nav.toc{position:static;margin-bottom:10px;background:var(--paper);border:1px solid var(--line);
+      border-radius:14px;padding:14px;display:flex;flex-wrap:wrap;gap:4px;box-shadow:var(--shadow)}
+    nav.toc p{width:100%}
+    nav.toc a{padding:7px 11px;font-size:.84rem}
+    .journey{grid-template-columns:repeat(2,1fr)}
+    .strow{grid-template-columns:1fr;gap:8px}
+    .decis{grid-template-columns:1fr}
+  }
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}.reveal{opacity:1;transform:none;transition:none}
+  }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<div class="shell">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="seedmark"><span>S</span></div>
+      <div><b>Programa&nbsp;Semilla</b><small>Banca para el Desarrollo</small></div>
+    </div>
+    <nav class="roles" aria-label="Roles">
+      <a href="solicitante.html">Solicitante</a>
+      <a href="revisor.html" class="cur" aria-current="page">Revisor</a>
+      <span title="Próximamente">Administrador</span>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow">Guía paso a paso</p>
+    <h1>Revisás con criterio,<br><em>resolvés</em> con respaldo.</h1>
+    <p class="lead">Esta guía recorre tu trabajo de principio a fin: desde la cola de revisión y la comparación de cotizaciones con ayuda de IA, hasta la firma del convenio y la evidencia de uso de fondos. Solo lo que necesitás hacer en cada etapa.</p>
+    <dl class="meta">
+      <div><dt>Dirigido a</dt><dd>Personas revisoras</dd></div>
+      <div><dt>Tiempo de lectura</dt><dd>≈ 12 minutos</dd></div>
+      <div><dt>Idioma</dt><dd>Español (Costa Rica)</dd></div>
+    </dl>
+
+    <div class="journey">
+      <a class="jstep" href="#cola"><b>1</b><span>Tu cola</span></a>
+      <a class="jstep" href="#revisar"><b>2</b><span>Revisar</span></a>
+      <a class="jstep" href="#ia"><b>3</b><span>Comparar con IA</span></a>
+      <a class="jstep" href="#decidir"><b>4</b><span>Decidir ítems</span></a>
+      <a class="jstep" href="#resolver"><b>5</b><span>Resolver</span></a>
+      <a class="jstep" href="#apelacion"><b>6</b><span>Apelaciones</span></a>
+      <a class="jstep" href="#convenio"><b>7</b><span>Convenio</span></a>
+      <a class="jstep" href="#evidencia"><b>8</b><span>Evidencia</span></a>
+    </div>
+  </section>
+
+  <div class="layout">
+
+    <nav class="toc" aria-label="Contenido">
+      <p>Contenido</p>
+      <a href="#cola"><i>01</i> Tu cola de revisión</a>
+      <a href="#revisar"><i>02</i> Revisar una solicitud</a>
+      <a href="#ia"><i>03</i> Comparación con IA</a>
+      <a href="#decidir"><i>04</i> Decidir cada ítem</a>
+      <a href="#resolver"><i>05</i> Resolver o devolver</a>
+      <a href="#apelacion"><i>06</i> Respuesta y apelaciones</a>
+      <a href="#convenio"><i>07</i> Convenio y firma</a>
+      <a href="#evidencia"><i>08</i> Evidencia de fondos</a>
+    </nav>
+
+    <main>
+
+      <!-- 1 -->
+      <section id="cola" class="reveal">
+        <div class="sec-head"><div class="sec-num"><b>1</b></div><h2>Tu cola de revisión</h2></div>
+        <p class="sec-intro">Al ingresar, tu punto de partida es la <span class="field">Cola de revisión</span>: las solicitudes que te corresponde atender.</p>
+
+        <div class="card">
+          <h3 style="margin-top:0">Qué ves en la cola</h3>
+          <ul class="plain">
+            <li>Una tabla con cada solicitud: <strong>solicitante, etapa, días en la etapa y última actividad</strong>.</li>
+            <li>Indicadores arriba (por ejemplo, cotizaciones pendientes).</li>
+            <li>Un buscador para filtrar por <strong>nombre, identificación o código del solicitante</strong>, y filtros por estado.</li>
+            <li>Un botón <span class="field">Revisar</span> en cada fila para abrir la solicitud.</li>
+          </ul>
+          <div class="note rule"><div class="ic">i</div><div><b>Solo ves lo que te corresponde.</b> Aparecen únicamente las solicitudes de los <b>grupos a los que pertenecés</b>. Si intentás abrir una solicitud de otro grupo, el sistema no la muestra (como si no existiera). Las personas administradoras ven todas.</div></div>
+        </div>
+      </section>
+
+      <!-- 2 -->
+      <section id="revisar" class="reveal">
+        <div class="sec-head"><div class="sec-num"><b>2</b></div><h2>Revisar una solicitud</h2></div>
+        <p class="sec-intro">Al abrir una solicitud ves todo lo que el solicitante presentó, organizado para que decidas con criterio.</p>
+
+        <div class="card">
+          <h3 style="margin-top:0">La pantalla de revisión incluye</h3>
+          <ul class="plain">
+            <li><strong>Datos del solicitante</strong> y el estado de la solicitud, con una cuenta regresiva si la etapa tiene plazo.</li>
+            <li><strong>Código del solicitante:</strong> podés asignar o editar un código (lo verás en sus próximas solicitudes).</li>
+            <li><strong>Impactos de la solicitud:</strong> los impactos que declaró, con sus parámetros.</li>
+            <li><strong>Ítems:</strong> por cada línea ves el producto, su categoría, los campos propios de esa categoría, los <strong>impactos asociados</strong>, la <strong>justificación</strong> y una tabla de <strong>cotizaciones</strong> (proveedor, precio, moneda con conversión a colones, vigencia y el documento descargable).</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 3 -->
+      <section id="ia" class="reveal">
+        <div class="sec-head"><div class="sec-num"><b>3</b></div><h2>Comparación con IA</h2></div>
+        <p class="sec-intro">Cuando un ítem tiene dos o más cotizaciones, podés generar una comparación asistida por IA que resume marcas, garantías, costos y logística.</p>
+
+        <div class="card">
+          <ol class="steps">
+            <li>En el ítem, pulsá <span class="field">Generar comparación</span>. Mientras trabaja, ves un indicador de progreso.</li>
+            <li>En segundos aparece una <strong>tabla comparativa</strong> entre proveedores más un análisis en texto (incluye el <strong>análisis de costos</strong> en colones).</li>
+            <li>Las afirmaciones tomadas de un documento llevan un <strong>número de cita</strong>: al pulsarlo se abre la cotización original.</li>
+          </ol>
+          <ul class="plain" style="margin-top:18px">
+            <li><span class="field">Generar todo</span> lanza la comparación de todos los ítems elegibles de la solicitud a la vez; el avance se actualiza solo.</li>
+            <li>Si cambian los datos (se editó la línea, se agregó un archivo o un proveedor), la comparación guardada se marca como <strong>desactualizada</strong> y el botón cambia a <span class="field">Regenerar</span>.</li>
+          </ul>
+          <div class="note tip"><div class="ic">i</div><div>Se necesitan <b>al menos 2 cotizaciones</b> para comparar. Hay un límite de generaciones por solicitud para un uso responsable; si lo alcanzás, podés intentarlo más tarde o pedir apoyo a un administrador.</div></div>
+        </div>
+      </section>
+
+      <!-- 4 -->
+      <section id="decidir" class="reveal">
+        <div class="sec-head"><div class="sec-num"><b>4</b></div><h2>Decidir cada ítem</h2></div>
+        <p class="sec-intro">La decisión es por línea. Para cada ítem elegís una de tres opciones.</p>
+
+        <div class="card">
+          <div class="decis">
+            <div class="dec ok"><h4>Aprobar</h4><p>Elegís <strong>cuál proveedor/cotización</strong> se aprueba. Podés agregar un comentario.</p></div>
+            <div class="dec no"><h4>Rechazar</h4><p>El <strong>comentario es obligatorio</strong>: explicás el motivo del rechazo.</p></div>
+            <div class="dec info"><h4>Solicitar información</h4><p>Marcás la línea como <strong>requiere información</strong>, con un comentario opcional.</p></div>
+          </div>
+          <div class="note tip" style="margin-top:22px"><div class="ic">i</div><div>Al aprobar, la cotización elegida queda resaltada en la tabla. Si otra persona revisora edita la misma solicitud al mismo tiempo, el sistema lo detecta y te pide recargar — nunca se sobrescribe en silencio.</div></div>
+        </div>
+      </section>
+
+      <!-- 5 -->
+      <section id="resolver" class="reveal">
+        <div class="sec-head"><div class="sec-num"><b>5</b></div><h2>Resolver o devolver</h2></div>
+        <p class="sec-intro">Cuando terminás con los ítems, cerrás la revisión — o le devolvés la solicitud al solicitante para que la corrija.</p>
+
+        <div class="card">
+          <h3 style="margin-top:0">Finalizar la revisión</h3>
+          <p style="margin-top:0">Al finalizar, la solicitud pasa a <strong>Resuelta</strong> y el solicitante podrá responder a tus decisiones.</p>
+          <div class="note warn"><div class="ic">!</div><div>Si quedan ítems <b>sin resolver</b>, el sistema te avisa antes de continuar: confirmar la finalización <b>rechazará automáticamente</b> esas líneas pendientes.</div></div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0">Devolver para cambios</h3>
+          <p style="margin-top:0">Si la solicitud necesita ajustes, la <strong>devolvés a borrador</strong> con un comentario obligatorio explicando qué corregir. El solicitante recibe un correo, edita y vuelve a enviar.</p>
+        </div>
+      </section>
+
+      <!-- 6 -->
+      <section id="apelacion" class="reveal">
+        <div class="sec-head"><div class="sec-num"><b>6</b></div><h2>Respuesta y apelaciones</h2></div>
+        <p class="sec-intro">Después de resolver, el solicitante acepta o rechaza cada decisión. Si rechaza alguna, puede abrir una apelación: una conversación por turnos con vos.</p>
+
+        <div class="card">
+          <h3 style="margin-top:0">Cuando el solicitante responde</h3>
+          <p style="margin-top:0">Recibís un <strong>correo</strong> avisándote que respondió la resolución, con un enlace directo a la solicitud. Así no tenés que estar revisando manualmente.</p>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0">El hilo de apelación</h3>
+          <ol class="steps">
+            <li>Cuando se abre una apelación, recibís un aviso. La solicitud queda <strong>bloqueada</strong> mientras la apelación esté abierta.</li>
+            <li>En el hilo podés <strong>publicar mensajes</strong>; cada mensaje notifica a la otra parte por correo.</li>
+            <li>Resolvés la apelación con una de tres opciones.</li>
+          </ol>
+          <div class="decis" style="margin-top:20px">
+            <div class="dec ok"><h4>Mantener</h4><p>Confirmás tu decisión original; la apelación se cierra.</p></div>
+            <div class="dec info"><h4>Reabrir como borrador</h4><p>Aceptás la apelación y la solicitud vuelve a <strong>borrador</strong> para que el solicitante la corrija.</p></div>
+            <div class="dec info"><h4>Reabrir para revisión</h4><p>Aceptás la apelación y la solicitud vuelve a <strong>revisión</strong> para que la revisés de nuevo.</p></div>
+          </div>
+          <div class="note tip" style="margin-top:22px"><div class="ic">i</div><div>En las tres opciones, el solicitante recibe un correo con el resultado. Si reabrís <b>para revisión</b>, el equipo revisor también recibe un aviso para retomarla.</div></div>
+        </div>
+      </section>
+
+      <!-- 7 -->
+      <section id="convenio" class="reveal">
+        <div class="sec-head"><div class="sec-num"><b>7</b></div><h2>Convenio y firma</h2></div>
+        <p class="sec-intro">Cuando el solicitante acepta la resolución, generás el convenio. Tras la firma, vos lo aprobás para ejecutarlo.</p>
+
+        <div class="card">
+          <h3 style="margin-top:0">Generar el convenio</h3>
+          <p style="margin-top:0">En el panel del convenio, pulsá <span class="field">Generar convenio</span>. El sistema arma el PDF con los ítems aprobados, proveedores, montos e impactos. El solicitante recibe el aviso de que está listo para firmar. Si hace falta, podés <span class="field">Regenerar</span> (te pide confirmación porque reemplaza el anterior).</p>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0">La bandeja de firmas</h3>
+          <p style="margin-top:0">Cuando el solicitante carga el PDF firmado, llega a tu <span class="field">Bandeja de firmas</span> y recibís un correo. Desde ahí abrís la carga pendiente, descargás el documento y decidís.</p>
+          <div class="decis" style="margin-top:18px">
+            <div class="dec ok"><h4>Aprobar</h4><p>Confirmás («Esto ejecuta el convenio») y la solicitud queda <strong>ejecutada</strong>. El solicitante recibe el aviso.</p></div>
+            <div class="dec no"><h4>Rechazar</h4><p>Con un <strong>comentario obligatorio</strong>, devolvés la carga para que firme de nuevo y la vuelva a subir.</p></div>
+          </div>
+          <div class="note tip" style="margin-top:22px"><div class="ic">i</div><div>El solicitante también puede <b>reemplazar</b> o <b>retirar</b> su carga mientras esté pendiente; en ambos casos recibís un aviso por correo.</div></div>
+        </div>
+      </section>
+
+      <!-- 8 -->
+      <section id="evidencia" class="reveal">
+        <div class="sec-head"><div class="sec-num"><b>8</b></div><h2>Evidencia de uso de fondos</h2></div>
+        <p class="sec-intro">Una vez ejecutado el convenio, se habilita una etapa solo para el equipo revisor: registrar la evidencia de que los fondos se usaron correctamente.</p>
+
+        <div class="card">
+          <ol class="steps">
+            <li>En el panel del convenio ejecutado, abrí <span class="field">Evidencia de uso de fondos</span>.</li>
+            <li><strong>Cargá archivos</strong> (PDF, imagen, Word o Excel; hasta 20&nbsp;MB cada uno). Podés agregar una <strong>nota</strong> de hasta 250 caracteres describiendo cada archivo.</li>
+            <li>Sobre cada archivo podés <strong>editar la nota</strong>, <strong>descargarlo</strong> o <strong>eliminarlo</strong> (con confirmación).</li>
+          </ol>
+          <div class="note rule"><div class="ic">i</div><div>Es una etapa abierta: agregás evidencia a lo largo del tiempo, sin un paso de «cierre». La solicitud se mantiene <b>ejecutada</b>. Solo el equipo revisor/administrador del grupo ve esta sección; el solicitante no.</div></div>
+        </div>
+
+        <h3>Estados que verás en tu cola</h3>
+        <div class="states">
+          <div class="strow"><span class="badge t">En revisión</span><div>La solicitud está contigo; tomás decisiones por ítem.</div></div>
+          <div class="strow"><span class="badge a">Resuelta</span><div>Finalizaste la revisión; el solicitante debe responder.</div></div>
+          <div class="strow"><span class="badge">Respuesta completada</span><div>El solicitante respondió; puede seguir el convenio o una apelación.</div></div>
+          <div class="strow"><span class="badge r">Apelación abierta</span><div>Hay una apelación en curso; la solicitud está bloqueada hasta resolverla.</div></div>
+          <div class="strow"><span class="badge g">Convenio ejecutado</span><div>Convenio firmado y aprobado; se habilita la evidencia de uso de fondos.</div></div>
+        </div>
+
+        <h3>Avisos por correo que recibís</h3>
+        <div class="pillrow">
+          <span class="mail">Nueva solicitud para revisar</span>
+          <span class="mail">El solicitante respondió la resolución</span>
+          <span class="mail">Nueva apelación abierta</span>
+          <span class="mail">Nuevo mensaje en la apelación</span>
+          <span class="mail">Convenio firmado recibido</span>
+          <span class="mail">Convenio firmado reemplazado / retirado</span>
+          <span class="mail">Apelación reabierta para revisión</span>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<footer>
+  <div class="shell">
+    <div><b>Programa Semilla</b> · Sistema de Banca para el Desarrollo</div>
+    <div>Manual del Revisor · Guía para personas usuarias</div>
+  </div>
+</footer>
+
+<script>
+  const bar=document.getElementById('progress');
+  const onScroll=()=>{const h=document.documentElement;
+    const p=(h.scrollTop)/(h.scrollHeight-h.clientHeight);bar.style.width=(p*100)+'%';};
+  document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  const links=[...document.querySelectorAll('nav.toc a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const spy=new IntersectionObserver((es)=>{es.forEach(e=>{
+    if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));
+      const a=map.get(e.target.id);if(a)a.classList.add('active');}})},
+    {rootMargin:'-12% 0px -72% 0px'});
+  document.querySelectorAll('main section[id]').forEach(s=>spy.observe(s));
+</script>
+</body>
+</html>
