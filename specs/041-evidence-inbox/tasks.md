@@ -59,10 +59,10 @@ ASP.NET MVC, Clean Architecture: `src/FundingPlatform.{Domain,Application,Infras
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Create `EvidenceInboxViewModels` (inbox VM + row VM) in `src/FundingPlatform.Web/ViewModels/EvidenceInboxViewModels.cs`
-- [ ] T009 [US1] Create `EvidenceInboxController` (`[Authorize(Roles="Reviewer,Admin")]`, `[Route("Evidence")]`, `GET ""` → `Index`) resolving scope via `IReviewerScopeProvider` and rendering rows from `IEvidenceInboxProjection` in `src/FundingPlatform.Web/Controllers/EvidenceInboxController.cs` (depends on T003–T005, T008)
-- [ ] T010 [US1] Create `src/FundingPlatform.Web/Views/EvidenceInbox/Index.cshtml` — rows (`data-testid="evidence-inbox-row"`, `data-application-number`, `evidence-inbox-open` link) + `evidence-inbox-empty` empty state; es-CR via `EvidenceInboxResources`
-- [ ] T011 [US1] Add sidebar entry to `operativoEntries` in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml` (slug `evidence-inbox`, label from resources, icon `ti ti-folder`, roles `Reviewer,Admin`, href `Url.Action("Index","EvidenceInbox")`)
+- [X] T008 [P] [US1] Create `EvidenceInboxViewModels` (inbox VM + row VM) in `src/FundingPlatform.Web/ViewModels/EvidenceInboxViewModels.cs`
+- [X] T009 [US1] Create `EvidenceInboxController` (`[Authorize(Roles="Reviewer,Admin")]`, `[Route("Evidence")]`, `GET ""` → `Index`) resolving scope via `IReviewerScopeProvider` and rendering rows from `IEvidenceInboxProjection` in `src/FundingPlatform.Web/Controllers/EvidenceInboxController.cs` (depends on T003–T005, T008)
+- [X] T010 [US1] Create `src/FundingPlatform.Web/Views/EvidenceInbox/Index.cshtml` — rows (`data-testid="evidence-inbox-row"`, `data-application-number`, `evidence-inbox-open` link) + `evidence-inbox-empty` empty state; es-CR via `EvidenceInboxResources`
+- [X] T011 [US1] Add sidebar entry to `operativoEntries` in `src/FundingPlatform.Web/Views/Shared/_Layout.cshtml` (slug `evidence-inbox`, label from resources, icon `ti ti-folder`, roles `Reviewer,Admin`, href `Url.Action("Index","EvidenceInbox")`)
 
 **Checkpoint**: US1 fully functional — reviewer reaches evidence via the sidebar (SC-001).
 
@@ -80,10 +80,10 @@ ASP.NET MVC, Clean Architecture: `src/FundingPlatform.{Domain,Application,Infras
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Add `bool IsReadOnly` to `src/FundingPlatform.Web/ViewModels/FundsUsageEvidenceIndexViewModel.cs`
-- [ ] T014 [US2] In `src/FundingPlatform.Web/Controllers/FundsUsageEvidenceController.cs`: add private `IsProcessClosedAsync(applicationId, ct)` (EF `Group.Process.Status`); set `IsReadOnly` in `Index`; in `Upload`/`EditNote`/`Delete`, **after** `IsAccessibleAsync`, if closed → no mutation, set `FundsUsageEvidenceResources.Error_ProcessClosed` toast, redirect to `Index` (FR-006/FR-007)
-- [ ] T015 [P] [US2] Edit `src/FundingPlatform.Web/Views/FundsUsageEvidence/Index.cshtml` — when `IsReadOnly`: hide upload form, render `evidence-readonly-notice` banner (`ReadOnly_Notice`)
-- [ ] T016 [P] [US2] Edit `src/FundingPlatform.Web/Views/FundsUsageEvidence/_EvidenceRow.cshtml` — when `IsReadOnly`: hide save-note + delete controls, keep download (thread `IsReadOnly` into the row model/partial)
+- [X] T013 [US2] Add `bool IsReadOnly` to `src/FundingPlatform.Web/ViewModels/FundsUsageEvidenceIndexViewModel.cs`
+- [X] T014 [US2] In `src/FundingPlatform.Web/Controllers/FundsUsageEvidenceController.cs`: add private `IsProcessClosedAsync(applicationId, ct)` (EF `Group.Process.Status`); set `IsReadOnly` in `Index`; in `Upload`/`EditNote`/`Delete`, **after** `IsAccessibleAsync`, if closed → no mutation, set `FundsUsageEvidenceResources.Error_ProcessClosed` toast, redirect to `Index` (FR-006/FR-007)
+- [X] T015 [P] [US2] Edit `src/FundingPlatform.Web/Views/FundsUsageEvidence/Index.cshtml` — when `IsReadOnly`: hide upload form, render `evidence-readonly-notice` banner (`ReadOnly_Notice`)
+- [X] T016 [P] [US2] Edit `src/FundingPlatform.Web/Views/FundsUsageEvidence/_EvidenceRow.cshtml` — when `IsReadOnly`: hide save-note + delete controls, keep download (thread `IsReadOnly` into the row model/partial)
 
 **Checkpoint**: US1 + US2 both work; closing a process freezes evidence and de-lists the app.
 
@@ -101,7 +101,7 @@ ASP.NET MVC, Clean Architecture: `src/FundingPlatform.{Domain,Application,Infras
 
 ### Implementation for User Story 3
 
-- [ ] T018 [US3] In `FundsUsageEvidenceController` confirm the process-closed check runs strictly **after** `IsAccessibleAsync` (and `EvidenceBelongsAsync`) so an unauthorized caller still gets the flat 404 and never learns "closed vs. nonexistent" (FR-008); add a code comment pinning the order. Confirm `EvidenceInboxProjection` applies scope in-query (no UI-only filtering) — covered by T004/T006, asserted here
+- [X] T018 [US3] In `FundsUsageEvidenceController` confirm the process-closed check runs strictly **after** `IsAccessibleAsync` (and `EvidenceBelongsAsync`) so an unauthorized caller still gets the flat 404 and never learns "closed vs. nonexistent" (FR-008); add a code comment pinning the order. Confirm `EvidenceInboxProjection` applies scope in-query (no UI-only filtering) — covered by T004/T006, asserted here
 
 **Checkpoint**: All three stories independently functional; no disclosure regressions.
 
