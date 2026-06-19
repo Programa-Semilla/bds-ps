@@ -109,9 +109,9 @@ ASP.NET MVC, Clean Architecture: `src/FundingPlatform.{Domain,Application,Infras
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T019 Run the filtered E2E gate: `dotnet test tests/FundingPlatform.Tests.E2E --filter "Category=EvidenceInbox"` green, plus a regression pass of any touched evidence/process classes (`FundsUsageEvidence*`); confirm spec-036 active-process behavior unregressed (SC-005)
+- [X] T019 Run the filtered E2E gate: `dotnet test tests/FundingPlatform.Tests.E2E --filter "Category=EvidenceInbox"` green, plus a regression pass of any touched evidence/process classes (`FundsUsageEvidence*`); confirm spec-036 active-process behavior unregressed (SC-005)
 - [ ] T020 [P] (Optional) Unit test `tests/FundingPlatform.Tests.Unit/Application/EvidenceInboxProjectionTests.cs` — admin short-circuit + empty-group → empty (InMemory; keep DB-filter assertions in T006)
-- [ ] T021 Update `specs/041-evidence-inbox/tasks.md` deviation log (if any) and add a CLAUDE.md **Recent Changes** entry on delivery (counts: Unit/Integration/filtered-E2E)
+- [X] T021 Update `specs/041-evidence-inbox/tasks.md` deviation log (if any) and add a CLAUDE.md **Recent Changes** entry on delivery (counts: Unit/Integration/filtered-E2E)
 
 ---
 
@@ -175,3 +175,14 @@ Task: "EvidenceInboxViewModels"
 - `AgreementExecuted` does not block `ProcessService.CloseAsync`, so US2's closed scenario is reachable (research D6).
 - Delivery gate = filtered `EvidenceInbox` E2E personally executed and green (project convention), not the full ~30-min suite.
 - Commit after each task or logical group (Constitution).
+
+## Deviations
+
+- **T006 placed in the Integration project, InMemory-backed** (not a real-DB fixture). This mirrors the shipping spec-036 `FundsUsageEvidenceServiceTests` precedent (InMemory in the Integration project; real-DB/SQL-translation coverage lives in E2E). The 9-case matrix (state × process-status × group-overlap + soft-deleted/archived-fund + admin) passes; real-SQL translation is exercised by the green `EvidenceInbox` E2E run.
+- **T020 (optional unit test) intentionally skipped** — fully redundant with T006, which already asserts the admin short-circuit (`Admin_SeesExecutedActive_…`) and empty-group → empty (`ReviewerWithNoGroups_SeesEmpty`) on the same InMemory provider. No added coverage.
+- **Reopen-restores E2E (US2 optional edge) skipped** — `ProcessAdminPage` exposes no reopen action, and the restore path is the same live `Process.Status` read already proven by the integration matrix (closed ⇒ excluded) and the controller's live `IsProcessClosedAsync`. Covered by construction, not a new E2E.
+- **US2 read-only assertion is consolidated into one E2E method** (`US2_ClosedProcess_DeListed_ReadOnly_AndMutationRejected`) rather than the two task-named methods, to share the expensive isolated-process setup. It asserts de-list + read-only UI + download-stays + crafted Upload/Delete POST rejected (FR-004/006/007, SC-002/003).
+
+## Delivery
+
+- Unit **685/0**, Integration **429/0** (incl. 9 new `EvidenceInboxQueryTests`), filtered E2E `EvidenceInbox` **4/0**, spec-036 `FundsUsageEvidence` regression **4/0** (SC-005). No schema change, no new deps.
