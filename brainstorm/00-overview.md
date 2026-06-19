@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-18 (session #36)
+Last updated: 2026-06-19 (session #37)
 
 ## Sessions
 
@@ -42,8 +42,15 @@ Last updated: 2026-06-18 (session #36)
 | 34 | 2026-06-17 | applicant-companies | shipped (PR #68) | 037 |
 | 35 | 2026-06-17 | feedback-3-provider-compliance | shipped (PR #69) | 038 |
 | 36 | 2026-06-18 | supplier-recommendation | spec-created | 039 |
+| 37 | 2026-06-19 | email-brand-lift | spec-created | 041 |
 
 ## Open Threads
+
+- Spec-041 OQ-1 (gates the live trigger of the "Nueva empresa para revisión" email): exact business trigger (newly registered applicant Company? something submitted for review?) and recipient (reviewer pool? auditors?) — template ships without a live trigger until confirmed (from #37)
+- Spec-041 OQ-2 (only substantive risk): is "entering review" a distinct lifecycle transition from submission, or is submit→review atomic (making the new "solicitud en revisión" applicant email redundant with the submission receipt)? Verify against the application state model in plan (from #37)
+- Spec-041 OQ-3 (mechanical): public image-serving path for hosted email brand assets — dedicated `/email-assets/` static path vs existing `wwwroot/lib` (from #37)
+- Spec-041 plan-time: name the new event identities (e.g. `APPLICATION_UNDER_REVIEW_APPLICANT`, `COMPANY_SUBMITTED_FOR_REVIEW`); confirm no dacpac change (string-stored event types, spec-028 pattern); and where the password-changed confirmation hooks into the Identity reset/change success path (direct-send, `InvitationEmailFactory` pattern) (from #37)
+- Spec-041 reopens spec 019/#17's "email signature text-only" decision to add hosted brand imagery — mitigated by image-blocked degradation (NFR-004); revisit if deliverability regresses (from #37)
 
 - Feedback-3 slices C–H remain unspecified; B (supplier recommendation) is now spec-created (#36 → spec 039). C (auditor workflow stage) and D (regulatory freshness + Hacienda API) are the next foundation-dependent slices; C inherits slice B's reviewer-advance progression gate. Master doc + slice map: `seeds/feedback-3/` (from #35, #36)
 - Spec-039 plan-time: where the CCSS-`sin inscripción` progression-gate evaluation lives (a single advance-guard/eligibility service) so slice C re-anchors it with minimal churn (from #36)
