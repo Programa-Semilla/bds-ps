@@ -12,6 +12,17 @@ public static class BrandAssets
     public const string LogoPath = "/lib/brand/programa-semilla-horizontal.png";
     /// <summary>Footer strip — the 5-partner logo set (verified to match the seed).</summary>
     public const string PartnerStripPath = "/lib/brand/partners-footer.png";
+
+    /// <summary>Absolute header-logo URL composed from <c>Notifications:BaseUrl</c>.</summary>
+    public static string LogoUrl(string? baseUrl) => Combine(baseUrl, LogoPath);
+    /// <summary>Absolute partner-strip URL composed from <c>Notifications:BaseUrl</c>.</summary>
+    public static string PartnerStripUrl(string? baseUrl) => Combine(baseUrl, PartnerStripPath);
+
+    private static string Combine(string? baseUrl, string path)
+    {
+        if (string.IsNullOrEmpty(baseUrl)) return path;
+        return baseUrl.TrimEnd('/') + "/" + path.TrimStart('/');
+    }
 }
 
 /// <summary>
@@ -59,8 +70,9 @@ public sealed record StatusCardModel(string Heading, IReadOnlyList<DetailRow> Ro
 /// supplies its own hero title and composes the shared partials.
 /// </summary>
 /// <param name="Subject">Subject line (owned by the factory).</param>
-/// <param name="DisplayName">Greeting target ("Hola, {DisplayName}:").</param>
-/// <param name="Paragraphs">Body copy paragraphs, in order (already HTML-safe text).</param>
+/// <param name="HeroTitle">Brand-teal hero title shown above the greeting.</param>
+/// <param name="DisplayName">Greeting target ("Hola, {DisplayName}:"); empty ⇒ "Hola:".</param>
+/// <param name="Paragraphs">Body copy paragraphs, in order (plain text; auto-encoded).</param>
 /// <param name="CtaUrl">Optional CTA link; when null/empty the view omits the button + fallback (FR-005).</param>
 /// <param name="CtaLabel">CTA button label (used only when <paramref name="CtaUrl"/> is present).</param>
 /// <param name="CardHeading">Optional "Detalle" card heading (reviewer/auditor detail).</param>
@@ -70,6 +82,7 @@ public sealed record StatusCardModel(string Heading, IReadOnlyList<DetailRow> Ro
 /// <param name="PartnerStripUrl">Partner-strip absolute URL.</param>
 public sealed record DirectEmailModel(
     string Subject,
+    string HeroTitle,
     string DisplayName,
     IReadOnlyList<string> Paragraphs,
     string? CtaUrl,

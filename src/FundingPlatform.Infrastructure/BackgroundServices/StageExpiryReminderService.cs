@@ -141,7 +141,9 @@ public sealed class StageExpiryReminderService : BackgroundService
             }
 
             var firstName = app.Applicant?.FirstName ?? string.Empty;
-            var envelope = emailFactory.Build(bucket, to, firstName, publicCode, stage, closesAt);
+            var envelope = await emailFactory
+                .BuildAsync(bucket, to, firstName, publicCode, stage, closesAt, ct)
+                .ConfigureAwait(false);
 
             var sentOk = await SendWithBackoffAsync(sender, envelope, ct).ConfigureAwait(false);
             if (!sentOk)

@@ -1,15 +1,14 @@
 @{
     ViewData["Title"] = Model.Subject;
 }
-<h1>Convenio firmado reemplazado</h1>
-<p>Hola @Model.Recipient.DisplayName,</p>
-<p>
-    El solicitante <strong>@Model.Payload.ApplicantDisplayName</strong> reemplazó el convenio
-    firmado pendiente de la solicitud <strong>#@Model.Payload.ApplicationId</strong>. La nueva
-    versión está lista para tu revisión en la bandeja de firmas.
+@await Html.PartialAsync("~/Views/Emails/Shared/_Hero.cshtml", "Convenio firmado reemplazado")
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">Hola, @Model.Recipient.DisplayName:</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Te informamos que el solicitante <strong>@Model.Payload.ApplicantDisplayName</strong> reemplazó el convenio firmado
+    pendiente de la solicitud <strong>#@Model.Payload.ApplicationId</strong> en @EmailBrand.PlatformName.
 </p>
-<p>
-    <a class="cta" href="@Model.CtaUrl">Ir a la bandeja de firmas</a>
+@await Html.PartialAsync("~/Views/Emails/Shared/_StatusCard.cshtml", new StatusCardModel("Detalle de la solicitud", new List<DetailRow> { new("Solicitante", Model.Payload.ApplicantDisplayName), new("Número de solicitud", $"#{Model.Payload.ApplicationId}") }))
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    La nueva versión está lista para tu revisión en la bandeja de firmas.
 </p>
-<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
-    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_CtaButton.cshtml", new CtaButtonModel(Model.CtaUrl, "Revisar convenio firmado"))

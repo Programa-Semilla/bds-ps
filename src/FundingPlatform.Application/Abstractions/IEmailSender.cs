@@ -21,12 +21,14 @@ public interface IEmailSender
 }
 
 /// <summary>
-/// Spec 021 — single email envelope used across all senders. <c>HtmlBody</c>
-/// is required (templates ship as inline-styled HTML per email-client
-/// compatibility — no external stylesheets, no `&lt;img&gt;` per NFR-005
-/// compatibility from spec 019 brand guidance).
+/// Spec 021 — single email envelope used across all direct-send senders.
+/// <c>HtmlBody</c> is the branded inline-styled HTML body (spec 041 routes these
+/// through the shared <c>_EmailLayout</c>). <c>TextBody</c> is the optional
+/// plain-text twin (spec 041 / FR-009) — when present the SMTP sender ships a
+/// multipart/alternative message.
 /// </summary>
 public sealed record EmailMessage(
     string ToAddress,
     string Subject,
-    string HtmlBody);
+    string HtmlBody,
+    string? TextBody = null);

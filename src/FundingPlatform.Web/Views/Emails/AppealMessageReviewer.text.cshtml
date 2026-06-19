@@ -2,17 +2,22 @@
     ViewData["DisableLayout"] = true;
 }Nuevo mensaje en la apelación — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-El solicitante (@Model.Payload.ApplicantDisplayName) escribió un nuevo mensaje en la apelación de la solicitud #@Model.Payload.ApplicationId. Ingresá a la apelación para leerlo y responder.
+Te informamos que el solicitante @Model.Payload.ApplicantDisplayName escribió un nuevo mensaje en la apelación de su solicitud en @EmailBrand.PlatformName.
+
+Podés ingresar a la plataforma para leerlo y responder según corresponda a tu perfil.
+
+Detalle de la solicitud:
+- Solicitante: @Model.Payload.ApplicantDisplayName
+- Número de solicitud: #@Model.Payload.ApplicationId
 
 Ver la apelación:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

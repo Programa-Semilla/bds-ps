@@ -106,11 +106,12 @@ public class AdminUsersController : Controller
         }
 
         var expiresAt = DateTimeOffset.UtcNow.Add(PasswordResetToken.InvitationLifetime);
-        var envelope = _invitationEmailFactory.Build(
+        var envelope = await _invitationEmailFactory.BuildAsync(
             toAddress: result.Email!,
             firstName: result.FirstName,
             inviteLink: inviteLink,
-            expiresAt: expiresAt);
+            expiresAt: expiresAt,
+            ct: ct);
 
         // Bounded best-effort send: cancel after InviteSendTimeout so a stalled
         // relay cannot pin the request thread; a timeout is treated like any other

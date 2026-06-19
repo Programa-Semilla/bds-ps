@@ -1,52 +1,50 @@
-// Spec 021 — see specs/021-feedback-session-may13/tasks.md T118
-// and contracts/public-routes.md (email subjects).
+// Spec 021 / FR-025 + Spec 041 / T018 — stage-expiry reminder emails.
+// Spec 041 routes the three reminder variants through the shared branded
+// _EmailLayout via IEmailViewRenderer (Decision 1) instead of token substitution.
 
 using System.Globalization;
 using FundingPlatform.Application.Abstractions;
+using FundingPlatform.Application.Notifications.Email;
 using FundingPlatform.Domain.Enums;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace FundingPlatform.Infrastructure.Email;
 
 /// <summary>
-/// Spec 021 / T118 / FR-025 — composes the three reminder-email envelopes
-/// (T-72h, T-24h, expiry) from the .cshtml templates under
-/// <c>src/FundingPlatform.Web/Views/Emails/Stages/</c>.
-///
-/// <para>The templates are treated as plain-text token files (NOT Razor views)
-/// because the reminder hosted service runs outside the HTTP request scope.
-/// Razor rendering would require an HttpContext shim that violates NFR-005
-/// (no new managed deps) for a three-template subset.</para>
-///
-/// <para>File contents are read once on first use and cached in-memory — the
-/// templates ship in the Web project and do not change at runtime.</para>
+/// Spec 021 / FR-025 + Spec 041 / T018 — composes the three reminder envelopes
+/// (T-72h, T-24h, expiry) as branded emails rendered through the shared
+/// <c>_EmailLayout</c> (<c>Views/Emails/Stages/*</c> + <c>.text.cshtml</c> twins)
+/// via <see cref="IEmailViewRenderer"/>. The hosted reminder service runs outside
+/// the HTTP request scope; the renderer is BackgroundService-safe.
 /// </summary>
 public sealed class StageReminderEmailFactory
 {
-    private readonly IHostEnvironment _env;
+    private readonly IEmailViewRenderer _viewRenderer;
+    private readonly IConfiguration _config;
     private readonly ILogger<StageReminderEmailFactory> _logger;
-    private readonly Dictionary<ReminderBucket, string> _cache = [];
-    private readonly Lock _cacheLock = new();
 
-    public StageReminderEmailFactory(IHostEnvironment env, ILogger<StageReminderEmailFactory> logger)
+    public StageReminderEmailFactory(
+        IEmailViewRenderer viewRenderer,
+        IConfiguration config,
+        ILogger<StageReminderEmailFactory> logger)
     {
-        _env = env;
+        _viewRenderer = viewRenderer;
+        _config = config;
         _logger = logger;
     }
 
     /// <summary>
-    /// Builds the envelope for <paramref name="bucket"/>. Throws
-    /// <see cref="InvalidOperationException"/> if the template file cannot be
-    /// located (deployment regression).
+    /// Builds the branded reminder envelope for <paramref name="bucket"/>.
     /// </summary>
-    public EmailMessage Build(
+    public async Task<EmailMessage> BuildAsync(
         ReminderBucket bucket,
         string toAddress,
         string applicantFirstName,
         string publicCode,
         StageKind stage,
-        DateTimeOffset closesAt)
+        DateTimeOffset closesAt,
+        CancellationToken ct = default)
     {
         if (bucket is ReminderBucket.None)
         {
@@ -59,24 +57,63 @@ public sealed class StageReminderEmailFactory
             .ToOffset(TimeSpan.FromHours(-6)) // CR is UTC-6 (no DST)
             .ToString("dd/MM/yyyy HH:mm", new CultureInfo("es-CR"));
 
-        // Templates are read as plain text — strip Razor @* … *@ comments so a
-        // header comment (and any {{token}} inside it) does not leak into the body.
-        var template = EmailTemplateText.StripRazorComments(ReadTemplate(bucket));
-        var body = template
-            .Replace("{{PublicCode}}", publicCode, StringComparison.Ordinal)
-            .Replace("{{StageName}}", stageLabel, StringComparison.Ordinal)
-            .Replace("{{ClosesAtLocal}}", closesAtLocal, StringComparison.Ordinal)
-            .Replace("{{ApplicantName}}", applicantFirstName ?? string.Empty, StringComparison.Ordinal);
-
-        var subject = bucket switch
+        var (viewName, subject, heroTitle, paragraphs) = bucket switch
         {
-            ReminderBucket.T72h => $"Su solicitud {publicCode} cierra en 72 horas",
-            ReminderBucket.T24h => $"Su solicitud {publicCode} cierra en 24 horas",
-            ReminderBucket.Expired => $"La etapa de {publicCode} cerró el {closesAtLocal}",
+            ReminderBucket.T72h => (
+                "T72ReminderEmail",
+                $"Su solicitud {publicCode} cierra en 72 horas",
+                "Tu solicitud cierra en 72 horas",
+                new[]
+                {
+                    $"Te recordamos que la etapa {stageLabel} de tu solicitud {publicCode} está por cerrar.",
+                    "Si la ventana se cumple sin acción, la solicitud quedará bloqueada y cualquier intento de envío será rechazado por el sistema.",
+                }),
+            ReminderBucket.T24h => (
+                "T24ReminderEmail",
+                $"Su solicitud {publicCode} cierra en 24 horas",
+                "Tu solicitud cierra en 24 horas",
+                new[]
+                {
+                    $"Quedan menos de 24 horas para que la etapa {stageLabel} de tu solicitud {publicCode} cierre.",
+                    "Si la ventana se cumple sin acción, la solicitud quedará bloqueada y cualquier intento de envío será rechazado por el sistema.",
+                }),
+            ReminderBucket.Expired => (
+                "ExpiredEmail",
+                $"La etapa de {publicCode} cerró el {closesAtLocal}",
+                "La etapa de tu solicitud cerró",
+                new[]
+                {
+                    $"Te informamos que la etapa {stageLabel} de tu solicitud {publicCode} cerró.",
+                    "La ventana se cumplió; cualquier intento de envío será rechazado por el sistema. Si necesitás ayuda, escribí al equipo de soporte.",
+                }),
             _ => throw new ArgumentOutOfRangeException(nameof(bucket), bucket, null),
         };
 
-        return new EmailMessage(toAddress, subject, body);
+        var baseUrl = _config["Notifications:BaseUrl"];
+        var model = new DirectEmailModel(
+            Subject: subject,
+            HeroTitle: heroTitle,
+            DisplayName: applicantFirstName ?? string.Empty,
+            Paragraphs: paragraphs,
+            CtaUrl: null,   // FR-005 — the reminder carries no link variable; no CTA invented.
+            CtaLabel: null,
+            CardHeading: "Detalle de la solicitud",
+            CardRows: new[]
+            {
+                new DetailRow("Código", publicCode),
+                new DetailRow("Etapa", stageLabel),
+                new DetailRow("Cierre programado", closesAtLocal),
+            },
+            FooterNote: null,
+            LogoUrl: BrandAssets.LogoUrl(baseUrl),
+            PartnerStripUrl: BrandAssets.PartnerStripUrl(baseUrl));
+
+        var html = await _viewRenderer.RenderViewAsync(
+            $"~/Views/Emails/Stages/{viewName}.cshtml", model, disableLayout: false, ct);
+        var text = await _viewRenderer.RenderViewAsync(
+            $"~/Views/Emails/Stages/{viewName}.text.cshtml", model, disableLayout: true, ct);
+        _logger.LogDebug("Built branded stage-reminder email ({Bucket}) for {To}.", bucket, toAddress);
+        return new EmailMessage(toAddress, subject, html, text);
     }
 
     private static string StageLabel(StageKind stage) => stage switch
@@ -86,56 +123,4 @@ public sealed class StageReminderEmailFactory
         StageKind.Facturacion => "Facturación",
         _ => stage.ToString(),
     };
-
-    private string ReadTemplate(ReminderBucket bucket)
-    {
-        lock (_cacheLock)
-        {
-            if (_cache.TryGetValue(bucket, out var cached))
-            {
-                return cached;
-            }
-        }
-
-        var fileName = bucket switch
-        {
-            ReminderBucket.T72h => "T72ReminderEmail.cshtml",
-            ReminderBucket.T24h => "T24ReminderEmail.cshtml",
-            ReminderBucket.Expired => "ExpiredEmail.cshtml",
-            _ => throw new ArgumentOutOfRangeException(nameof(bucket), bucket, null),
-        };
-
-        var candidates = new[]
-        {
-            Path.Combine(_env.ContentRootPath, "Views", "Emails", "Stages", fileName),
-            // Repo-root layout (used by integration tests that don't run from the Web ContentRoot).
-            Path.Combine(_env.ContentRootPath, "..", "FundingPlatform.Web", "Views", "Emails", "Stages", fileName),
-            Path.Combine(_env.ContentRootPath, "..", "..", "src", "FundingPlatform.Web", "Views", "Emails", "Stages", fileName),
-            Path.Combine(_env.ContentRootPath, "..", "..", "..", "src", "FundingPlatform.Web", "Views", "Emails", "Stages", fileName),
-        };
-
-        foreach (var path in candidates)
-        {
-            var full = Path.GetFullPath(path);
-            if (File.Exists(full))
-            {
-                var text = File.ReadAllText(full);
-                lock (_cacheLock)
-                {
-                    _cache[bucket] = text;
-                }
-                _logger.LogDebug("Loaded stage reminder email template '{File}' from {Path}.", fileName, full);
-                return text;
-            }
-        }
-
-        // Fallback — inline body so dev never crashes the hosted service over a
-        // missing file. The integration test asserts the real template path is
-        // used in production layout (content root = Web project).
-        var fallback = $"<p>Solicitud {{{{PublicCode}}}} — recordatorio (template '{fileName}' no encontrado).</p>";
-        _logger.LogWarning(
-            "Stage reminder email template '{File}' not found under any of the candidate paths; falling back to minimal HTML body.",
-            fileName);
-        return fallback;
-    }
 }

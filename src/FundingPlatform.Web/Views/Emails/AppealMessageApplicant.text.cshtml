@@ -1,18 +1,19 @@
 @{
     ViewData["DisableLayout"] = true;
-}Nuevo mensaje del revisor en tu apelación — Solicitud #@Model.Payload.ApplicationId
+}Nuevo mensaje del revisor — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-Un revisor respondió en la apelación de tu solicitud #@Model.Payload.ApplicationId. Ingresá para leer el mensaje y continuar la conversación.
+Te informamos que un revisor respondió en la apelación de tu solicitud #@Model.Payload.ApplicationId en @EmailBrand.PlatformName.
 
-Ver tu apelación:
+Podés ingresar a la plataforma para leer el mensaje y continuar la conversación.
+
+Ver mi apelación:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

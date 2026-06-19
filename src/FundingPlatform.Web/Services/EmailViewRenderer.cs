@@ -79,6 +79,14 @@ public sealed class EmailViewRenderer : IEmailViewRenderer
             new HtmlHelperOptions());
 
         await viewResult.View.RenderAsync(viewContext);
-        return writer.ToString();
+        var rendered = writer.ToString();
+
+        // Spec 041 — plain-text twins (.text.cshtml) are authored with @-expressions
+        // (e.g. @EmailBrand.SupportPhone, accented es-CR copy). Razor HTML-encodes
+        // every @-expression, so a text body would otherwise carry "&#x2B;506" /
+        // "autom&#xE1;tico". The text part is NOT HTML, so decode entities back to
+        // literal characters. Scoped to the layout-less (text) render path only;
+        // HTML bodies keep their entities (they render correctly in mail clients).
+        return disableLayout ? System.Net.WebUtility.HtmlDecode(rendered) : rendered;
     }
 }

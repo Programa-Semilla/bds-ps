@@ -2,17 +2,16 @@
     ViewData["DisableLayout"] = true;
 }Tu convenio está listo para firmar — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-El convenio de tu solicitud #@Model.Payload.ApplicationId ya está disponible. Descargalo, firmalo y subí la versión firmada para continuar con la formalización.
+Te informamos que el convenio de tu solicitud #@Model.Payload.ApplicationId ya está disponible en @EmailBrand.PlatformName. Descargá el documento, firmalo y subí la versión firmada para continuar con la formalización del proceso.
 
-Ver el convenio:
+Ver mi convenio:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

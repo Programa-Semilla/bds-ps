@@ -1,48 +1,7 @@
-@*
-    Spec 033 / FR-001 / C4 — set-password invitation email body.
-
-    This is a TEMPLATE FILE, not a Razor view. InvitationEmailFactory reads the
-    file as plain text and replaces `{{TOKEN}}` placeholders. Razor rendering of
-    an email body would require an HttpContext shim (same rationale as
-    ForgotPasswordEmail.cshtml).
-
-    Tokens substituted by InvitationEmailFactory:
-      {{InviteLink}}  — absolute URL of /Account/ResetPassword?userId=...&token=...
-      {{FirstName}}   — new user's first name; "" if unknown
-      {{ExpiresAt}}   — expiry instant formatted dd/MM/yyyy HH:mm (es-CR)
-*@
-<!DOCTYPE html>
-<html lang="es-CR">
-<head>
-    <meta charset="utf-8" />
-    <title>Establezca su contraseña</title>
-</head>
-<body style="font-family: 'Inter', Arial, sans-serif; color: #232323; background: #F7F5F0; margin: 0; padding: 24px;">
-    <div style="max-width: 600px; margin: 0 auto; background: #FFFFFF; border-radius: 8px; padding: 32px; border: 1px solid #E5E1D8;">
-        <h2 style="color: #7B3F00; margin-top: 0;">Le damos la bienvenida</h2>
-        <p>Hola {{FirstName}},</p>
-        <p>
-            La administración del Programa Semilla le ha creado una cuenta en la
-            plataforma. Para empezar a usarla, establezca su contraseña con el
-            siguiente enlace:
-        </p>
-        <p style="margin: 24px 0;">
-            <a href="{{InviteLink}}"
-               style="background: #7B3F00; color: #FFFFFF; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">
-                Establecer contraseña
-            </a>
-        </p>
-        <p style="font-size: 0.9rem; color: #666;">
-            Si el botón no funciona, copie y pegue este enlace en su navegador:<br />
-            <a href="{{InviteLink}}">{{InviteLink}}</a>
-        </p>
-        <p style="font-size: 0.9rem; color: #666;">
-            El enlace es de un solo uso y expira el <strong>{{ExpiresAt}}</strong>.
-            Si el enlace vence, solicite uno nuevo a su administrador.
-        </p>
-        <p style="color: #666; font-size: 0.85rem; margin-top: 32px;">
-            Programa Semilla — Sistema de Banca para el Desarrollo
-        </p>
-    </div>
-</body>
-</html>
+@model DirectEmailModel
+@* Spec 041 / T017 — branded set-password invitation (reference copy #1). Rendered
+   through the shared _EmailLayout; copy + variables supplied by InvitationEmailFactory. *@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+@await Html.PartialAsync("~/Views/Emails/Shared/_DirectBody.cshtml", Model)

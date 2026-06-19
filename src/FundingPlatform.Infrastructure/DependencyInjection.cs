@@ -133,14 +133,15 @@ public static class DependencyInjection
             services.AddScoped<IEmailSender, SmtpEmailSender>();
         }
 
-        // Spec 021 / T118 — template loader for the three stage-reminder emails.
-        services.AddSingleton<StageReminderEmailFactory>();
+        // Spec 021 / T118 + Spec 041 / T018 — branded stage-reminder email factory.
+        // Scoped: now renders Razor through the (scoped) IEmailViewRenderer.
+        services.AddScoped<StageReminderEmailFactory>();
 
-        // Spec 021 / T129 — template loader for the password-reset email.
-        services.AddSingleton<ForgotPasswordEmailFactory>();
+        // Spec 021 / T129 + Spec 041 / T017 — branded password-reset email factory.
+        services.AddScoped<ForgotPasswordEmailFactory>();
 
-        // Spec 033 / T006 — template loader for the set-password invitation email.
-        services.AddSingleton<InvitationEmailFactory>();
+        // Spec 033 / T006 + Spec 041 / T017 — branded set-password invitation factory.
+        services.AddScoped<InvitationEmailFactory>();
 
         // Spec 021 / T117 — hourly stage-expiry reminder hosted service.
         services.AddHostedService<StageExpiryReminderService>();

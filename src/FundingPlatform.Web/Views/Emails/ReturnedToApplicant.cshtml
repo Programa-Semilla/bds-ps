@@ -1,15 +1,12 @@
 @{
     ViewData["Title"] = Model.Subject;
 }
-<h1>Acción requerida en tu solicitud</h1>
-<p>Hola @Model.Recipient.DisplayName,</p>
-<p>
-    Tu solicitud <strong>#@Model.Payload.ApplicationId</strong> fue devuelta por el equipo
-    revisor porque requiere actualizaciones de tu parte antes de continuar con el proceso.
-    Revisa los detalles desde tu panel y realiza los cambios solicitados.
+@await Html.PartialAsync("~/Views/Emails/Shared/_Hero.cshtml", "Necesitamos información adicional")
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">Hola, @Model.Recipient.DisplayName:</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Te informamos que tu solicitud <strong>#@Model.Payload.ApplicationId</strong> requiere información adicional antes de continuar con el proceso de revisión.
 </p>
-<p>
-    <a class="cta" href="@Model.CtaUrl">Actualizar mi solicitud</a>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Podés ingresar a @EmailBrand.PlatformName para revisar los detalles, realizar los ajustes solicitados y reenviar tu solicitud.
 </p>
-<p>Si el botón no funciona, copia y pega este enlace en tu navegador:<br />
-    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_CtaButton.cshtml", new CtaButtonModel(Model.CtaUrl, "Actualizar mi solicitud"))

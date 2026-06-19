@@ -1,18 +1,23 @@
 @{
     ViewData["DisableLayout"] = true;
-}Solicitud reenviada para revisión: @Model.Payload.ApplicantDisplayName
+}Solicitud reenviada para revisión — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-@Model.Payload.ApplicantDisplayName actualizó y reenvió su solicitud (#@Model.Payload.ApplicationId) después de los cambios solicitados. Está lista para una nueva revisión.
+Te informamos que @Model.Payload.ApplicantDisplayName actualizó y reenvió su solicitud después de los cambios solicitados. Ya está lista para una nueva revisión en @EmailBrand.PlatformName.
 
-Continuar revisión:
+Detalle de la solicitud:
+- Solicitante: @Model.Payload.ApplicantDisplayName
+- Número de solicitud: #@Model.Payload.ApplicationId
+
+Podés ingresar a la plataforma para revisar la información actualizada y realizar las acciones correspondientes según tu perfil.
+
+Revisar solicitud:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

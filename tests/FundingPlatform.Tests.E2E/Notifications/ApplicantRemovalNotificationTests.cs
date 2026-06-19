@@ -120,7 +120,8 @@ public class ApplicantRemovalNotificationTests : AuthenticatedTestBase
         Assert.That(msg.Subject, Does.StartWith("Solicitud retirada"));
         Assert.That(msg.HtmlBody + msg.TextBody, Does.Not.Contain($"/Review/{appId}"),
             "FR-040: withdrawn application is soft-deleted; CTA must target the queue, not the dead detail route.");
-        Assert.That(msg.HtmlBody, Does.Not.Contain("<img"), "NFR-001: no inline <img>.");
+        Assert.That(msg.HtmlBody, Does.Contain("<img"),
+            "Spec 041 / FR-002: branded email carries the hosted logo + partner strip.");
         Assert.That(msg.HtmlBody + msg.TextBody, Does.Not.Contain("financiamiento"),
             "FR-029: 'financiamiento' must not appear on applicant-facing surfaces.");
     }

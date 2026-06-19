@@ -1,15 +1,13 @@
 @{
     ViewData["Title"] = Model.Subject;
 }
-<h1>Tu convenio fue ejecutado</h1>
-<p>Hola @Model.Recipient.DisplayName,</p>
-<p>
-    ¡Felicitaciones! El convenio firmado de tu solicitud
-    <strong>#@Model.Payload.ApplicationId</strong> fue aprobado y quedó <strong>ejecutado</strong>.
-    Podés consultar el documento final desde tu panel.
+@await Html.PartialAsync("~/Views/Emails/Shared/_Hero.cshtml", "Tu convenio fue ejecutado")
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">Hola, @Model.Recipient.DisplayName:</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    ¡Felicitaciones! El convenio firmado de tu solicitud <strong>#@Model.Payload.ApplicationId</strong> fue aprobado y
+    quedó <strong>ejecutado</strong> en @EmailBrand.PlatformName.
 </p>
-<p>
-    <a class="cta" href="@Model.CtaUrl">Ver el convenio</a>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Podés ingresar a la plataforma para consultar el documento final y los pasos correspondientes.
 </p>
-<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
-    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_CtaButton.cshtml", new CtaButtonModel(Model.CtaUrl, "Ver mi convenio"))

@@ -182,11 +182,12 @@ public class AccountController : Controller
             if (!string.IsNullOrEmpty(resetLink))
             {
                 var expiresAt = DateTimeOffset.UtcNow.Add(PasswordResetToken.DefaultLifetime);
-                var envelope = _forgotPasswordEmailFactory.Build(
+                var envelope = await _forgotPasswordEmailFactory.BuildAsync(
                     toAddress: result.Email!,
                     applicantFirstName: result.FirstName,
                     resetLink: resetLink,
-                    expiresAt: expiresAt);
+                    expiresAt: expiresAt,
+                    ct: ct);
                 try
                 {
                     await _emailSender.SendAsync(envelope, ct);

@@ -62,18 +62,18 @@ description: "Task list for ALIA Transactional Email Brand UI-Lift (041)"
 
 ### Tests for User Story 1
 
-- [ ] T013 [P] [US1] E2E mail-capture sweep in `tests/FundingPlatform.Tests.E2E/Notifications/` asserting the brand shell (logo header marker, partner-footer marker, teal CTA, ALIA naming) on representative redesigned emails: submitted-applicant, approved, an appeal message, a stage reminder, the invitation.
+- [X] T013 [P] [US1] E2E mail-capture sweep in `tests/FundingPlatform.Tests.E2E/Notifications/` asserting the brand shell (logo header marker, partner-footer marker, teal CTA, ALIA naming) on representative redesigned emails: submitted-applicant, approved, an appeal message, a stage reminder, the invitation.
 
 ### Implementation for User Story 1
 
-- [ ] T014 [P] [US1] Refactor application-lifecycle outbox bodies + `.text` twins to compose `_Hero`/`_StatusCard`/`_DetailList`/`_CtaButton` and apply ALIA reference copy (#3/#5/#6/#10): `ApplicationSubmittedApplicant`, `ApplicationSubmittedReviewer`, `ApplicationApproved`, `ApplicationRejected`, `ReturnedToApplicant`, `ResubmittedByApplicant`, `ApplicationWithdrawnByApplicant` in `src/FundingPlatform.Web/Views/Emails/`.
-- [ ] T015 [P] [US1] Refactor appeal bodies + `.text` twins (`AppealOpenedReviewer`, `AppealMessageReviewer`, `AppealMessageApplicant`, `AppealResolvedApplicant`, `AppealReopenedReviewer`) — light-polish into ALIA voseo, preserve `OutcomeCode` branching + variables.
-- [ ] T016 [P] [US1] Refactor agreement / signed-upload / response bodies + `.text` twins (`AgreementGeneratedApplicant`, `AgreementExecutedApplicant`, `SignedUploadSubmittedReviewer`, `SignedUploadReplacedReviewer`, `SignedUploadWithdrawnReviewer`, `SignedUploadRejectedApplicant`, `ResponseSubmittedReviewer`).
-- [ ] T017 [P] [US1] Rebrand identity emails through the shared shell: convert `ForgotPasswordEmailFactory` and `InvitationEmailFactory` (`src/FundingPlatform.Infrastructure/Email/`) from plain-text token substitution to `IEmailViewRenderer` + an `IdentityEmailModel`; rewrite `Views/Emails/Identity/InvitationEmail.cshtml` (ALIA "Bienvenida" copy #1) and `ForgotPasswordEmail.cshtml` to compose partials; add `.text.cshtml` twins.
-- [ ] T018 [P] [US1] Rebrand stage emails: update `StageReminderEmailFactory` to render `Views/Emails/Stages/{T24,T72}ReminderEmail.cshtml` + `ExpiredEmail.cshtml` through the shared shell (preserve `{{PublicCode}}`/`{{StageName}}`/`{{ClosesAtLocal}}`/`{{ApplicantName}}`); add `.text.cshtml` twins.
-- [ ] T019 [P] [US1] Rebrand `Views/Emails/Suppliers/ProviderCreatedAuditor.cshtml` (+ `.text`) using `_StatusCard`/`_DetailList` ("Detalle" of the provider).
-- [ ] T020 [US1] Sweep every refactored email for ALIA naming in body copy + "Equipo Programa Semilla" sign-off consistency; ensure no English literals remain (NFR-007).
-- [ ] T021 [US1] Verify `.text.cshtml` twin parity (FR-009): each refactored HTML email has a present, in-sync plain-text twin conveying the same meaning + variables.
+- [X] T014 [P] [US1] Refactor application-lifecycle outbox bodies + `.text` twins to compose `_Hero`/`_StatusCard`/`_DetailList`/`_CtaButton` and apply ALIA reference copy (#3/#5/#6/#10): `ApplicationSubmittedApplicant`, `ApplicationSubmittedReviewer`, `ApplicationApproved`, `ApplicationRejected`, `ReturnedToApplicant`, `ResubmittedByApplicant`, `ApplicationWithdrawnByApplicant` in `src/FundingPlatform.Web/Views/Emails/`.
+- [X] T015 [P] [US1] Refactor appeal bodies + `.text` twins (`AppealOpenedReviewer`, `AppealMessageReviewer`, `AppealMessageApplicant`, `AppealResolvedApplicant`, `AppealReopenedReviewer`) — light-polish into ALIA voseo, preserve `OutcomeCode` branching + variables.
+- [X] T016 [P] [US1] Refactor agreement / signed-upload / response bodies + `.text` twins (`AgreementGeneratedApplicant`, `AgreementExecutedApplicant`, `SignedUploadSubmittedReviewer`, `SignedUploadReplacedReviewer`, `SignedUploadWithdrawnReviewer`, `SignedUploadRejectedApplicant`, `ResponseSubmittedReviewer`).
+- [X] T017 [P] [US1] Rebrand identity emails through the shared shell: convert `ForgotPasswordEmailFactory` and `InvitationEmailFactory` (`src/FundingPlatform.Infrastructure/Email/`) from plain-text token substitution to `IEmailViewRenderer` + an `IdentityEmailModel`; rewrite `Views/Emails/Identity/InvitationEmail.cshtml` (ALIA "Bienvenida" copy #1) and `ForgotPasswordEmail.cshtml` to compose partials; add `.text.cshtml` twins.
+- [X] T018 [P] [US1] Rebrand stage emails: update `StageReminderEmailFactory` to render `Views/Emails/Stages/{T24,T72}ReminderEmail.cshtml` + `ExpiredEmail.cshtml` through the shared shell (preserve `{{PublicCode}}`/`{{StageName}}`/`{{ClosesAtLocal}}`/`{{ApplicantName}}`); add `.text.cshtml` twins.
+- [X] T019 [P] [US1] Rebrand `Views/Emails/Suppliers/ProviderCreatedAuditor.cshtml` (+ `.text`) using `_StatusCard`/`_DetailList` ("Detalle" of the provider).
+- [X] T020 [US1] Sweep every refactored email for ALIA naming in body copy + "Equipo Programa Semilla" sign-off consistency; ensure no English literals remain (NFR-007).
+- [X] T021 [US1] Verify `.text.cshtml` twin parity (FR-009): each refactored HTML email has a present, in-sync plain-text twin conveying the same meaning + variables.
 
 **Checkpoint**: All existing emails are branded and shippable as the MVP, independent of US2–US4.
 

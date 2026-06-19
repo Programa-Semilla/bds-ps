@@ -1,22 +1,8 @@
-@* Spec 038 (US4) — es-CR new-provider notification to auditors. Read as a plain-text
-   token file (not Razor-rendered); {{TOKEN}} placeholders are substituted by
-   ProviderCreatedNotifier. Text-only wordmark per spec-019/021 email rules. *@
-<div style="font-family: Arial, sans-serif; color: #1a1a1a;">
-    <p style="font-weight: bold; font-size: 16px;">Programa Semilla · Sistema de Banca para el Desarrollo</p>
-
-    <p>Se registró un nuevo proveedor que requiere revisión regulatoria.</p>
-
-    <table style="border-collapse: collapse;">
-        <tr><td style="padding: 2px 12px 2px 0;"><strong>Proveedor:</strong></td><td>{{ProviderName}}</td></tr>
-        <tr><td style="padding: 2px 12px 2px 0;"><strong>Cédula jurídica:</strong></td><td>{{ProviderLegalId}}</td></tr>
-        <tr><td style="padding: 2px 12px 2px 0;"><strong>Creado:</strong></td><td>{{CreatedAt}}</td></tr>
-        <tr><td style="padding: 2px 12px 2px 0;"><strong>Creado por:</strong></td><td>{{CreatedByName}}</td></tr>
-    </table>
-
-    <p>Revise el cumplimiento regulatorio (Hacienda, CCSS, SICOP) del proveedor:</p>
-    <p><a href="{{ReviewLink}}">{{ReviewLink}}</a></p>
-
-    <p style="color: #6b6b6b; font-size: 12px;">
-        Este es un mensaje automático del Programa Semilla. No responda a este correo.
-    </p>
-</div>
+@model DirectEmailModel
+@* Spec 041 / T019 — branded auditor "nuevo proveedor registrado" email (reference
+   copy #8). Rendered through the shared _EmailLayout; copy + provider "Detalle"
+   card supplied by ProviderCreatedNotifier. *@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+@await Html.PartialAsync("~/Views/Emails/Shared/_DirectBody.cshtml", Model)

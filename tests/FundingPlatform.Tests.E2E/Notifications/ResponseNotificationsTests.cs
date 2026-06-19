@@ -46,7 +46,8 @@ public class ResponseNotificationsTests : PostResolutionNotificationsE2EBase
             Assert.That(reviewerMsg.HtmlBody + reviewerMsg.TextBody, Does.Contain($"/Review/{appId}"),
                 "CTA must deep-link to the reviewer detail page.");
             Assert.That(reviewerMsg.FromDisplayName + reviewerMsg.FromAddress, Does.Contain("Programa Semilla"));
-            Assert.That(reviewerMsg.HtmlBody, Does.Not.Contain("<img"), "NFR-001: no inline image.");
+            Assert.That(reviewerMsg.HtmlBody, Does.Contain("<img"),
+                "Spec 041 / FR-002: branded email carries the hosted logo + partner strip.");
             Assert.That(reviewerMsg.HtmlBody + reviewerMsg.TextBody, Does.Not.Contain("Capital Semilla"));
             Assert.That(reviewerMsg.HtmlBody + reviewerMsg.TextBody, Does.Not.Contain("Forge"));
         });

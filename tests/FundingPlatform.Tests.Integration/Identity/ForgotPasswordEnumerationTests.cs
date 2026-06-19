@@ -7,6 +7,8 @@
 
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Identity;
+using FundingPlatform.Application.Notifications.Email;
+using Microsoft.Extensions.Configuration;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Infrastructure.Email;
 using FundingPlatform.Web.Controllers;
@@ -132,8 +134,14 @@ public class ForgotPasswordEnumerationTests
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment());
         var provider = services.BuildServiceProvider();
 
+        // Spec 041 — the factory now renders through IEmailViewRenderer; this suite
+        // asserts enumeration-neutral banners, not the email body, so a no-op renderer
+        // double suffices (the send is best-effort and its result is ignored here).
+        var emailConfig = new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?> { ["Notifications:BaseUrl"] = "https://localhost" }).Build();
         var factory = new ForgotPasswordEmailFactory(
-            provider.GetRequiredService<IHostEnvironment>(),
+            new NoopEmailViewRenderer(),
+            emailConfig,
             NullLogger<ForgotPasswordEmailFactory>.Instance);
 
         // We construct the controller with the stub Identity-flow handlers
@@ -206,5 +214,12 @@ public class ForgotPasswordEnumerationTests
         public string WebRootPath { get; set; } = AppContext.BaseDirectory;
         public Microsoft.Extensions.FileProviders.IFileProvider WebRootFileProvider { get; set; } =
             new Microsoft.Extensions.FileProviders.NullFileProvider();
+    }
+
+    /// <summary>Spec 041 — no-op email view renderer (this suite never inspects the body).</summary>
+    private sealed class NoopEmailViewRenderer : IEmailViewRenderer
+    {
+        public Task<string> RenderViewAsync(string viewPath, object model, bool disableLayout, CancellationToken ct)
+            => Task.FromResult(string.Empty);
     }
 }

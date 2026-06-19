@@ -2,17 +2,20 @@
     ViewData["DisableLayout"] = true;
 }Tu solicitud fue aprobada — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-Nos complace informarte que tu solicitud #@Model.Payload.ApplicationId fue APROBADA. Próximamente recibirás indicaciones sobre los siguientes pasos del proceso.
+Te informamos que tu solicitud #@Model.Payload.ApplicationId fue aprobada en @EmailBrand.PlatformName.
+
+A partir de este momento, podés continuar con las siguientes etapas del proceso según las indicaciones disponibles en la plataforma.
+
+Te recomendamos ingresar a @EmailBrand.PlatformName para revisar el detalle de la aprobación y los pasos correspondientes.
 
 Ver siguientes pasos:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

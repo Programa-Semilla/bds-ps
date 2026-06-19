@@ -1,31 +1,21 @@
 using FundingPlatform.Application.Notifications.Templates;
 using FundingPlatform.Domain.Notifications;
-using FundingPlatform.Tests.E2E.Fixtures;
 
 namespace FundingPlatform.Tests.E2E.Brand;
 
 /// <summary>
-/// Spec 021 / T081 / FR-032 / SC-005 — replaces the spec-019 placeholder
-/// <c>Assert.Ignore</c> with real per-event-variant assertions. One
-/// <c>[Test]</c> per <see cref="NotificationEvent"/> value:
+/// Spec 041 / T037 — per-<see cref="NotificationEvent"/> source-level brand
+/// invariants for the redesigned outbox emails. Reads the <c>.cshtml</c> files +
+/// the shared shell/partials (no Razor engine / no Aspire boot needed). The live
+/// rendered-output sweep (logo, partner strip, teal CTA, ALIA naming) is asserted
+/// by the mail-capture E2E in ApplicationSubmittedNotificationsTests (T013).
 ///
-/// <list type="bullet">
-///   <item>Sender display reads <c>Programa Semilla / Sistema de Banca para el Desarrollo</c>.</item>
-///   <item>Signature block present.</item>
-///   <item>No inline <c>&lt;img&gt;</c> tag.</item>
-///   <item>No <c>Capital Semilla</c> / <c>Forge</c> leakage.</item>
-///   <item>Subject template renders correctly under the 78-char cap.</item>
-/// </list>
-///
-/// <para>
-/// Assertions run against the source <c>.cshtml</c> files plus the binding
-/// catalog — the live render-against-MailCapture path is exercised by the
-/// US1–US7 E2E suite when T086 runs. This test preserves the namespace and
-/// class name of the original spec-019 placeholder so its test-explorer
-/// reference does not break.
-/// </para>
+/// <para>Supersedes the spec-021 placeholder of the same name: spec 041 reverses
+/// the old text-only / no-image rule, so the assertions now require the branded
+/// header + partner footer and forbid the retired near-black palette.</para>
 /// </summary>
-public class EmailTemplateSenderTests : AuthenticatedTestBase
+[TestFixture]
+public class EmailTemplateSenderTests
 {
     private static readonly string ViewsRoot = FindViewsRoot();
 
@@ -39,6 +29,9 @@ public class EmailTemplateSenderTests : AuthenticatedTestBase
         if (dir is null) throw new InvalidOperationException("Could not find solution root.");
         return Path.Combine(dir.FullName, "src/FundingPlatform.Web/Views/Emails");
     }
+
+    private static string Strip(string s) => System.Text.RegularExpressions.Regex.Replace(
+        s, @"@\*.*?\*@", string.Empty, System.Text.RegularExpressions.RegexOptions.Singleline);
 
     private static IEnumerable<TestCaseData> Variants()
     {
@@ -55,37 +48,31 @@ public class EmailTemplateSenderTests : AuthenticatedTestBase
         var html = File.ReadAllText(Path.Combine(ViewsRoot, $"{binding.HtmlViewName}.cshtml"));
         var text = File.ReadAllText(Path.Combine(ViewsRoot, $"{binding.TextViewName}.cshtml"));
         var layout = File.ReadAllText(Path.Combine(ViewsRoot, "_EmailLayout.cshtml"));
-        var footer = File.ReadAllText(Path.Combine(ViewsRoot, "_SupportFooter.cshtml"));
 
-        // Strip Razor comments so policy notes don't trip the brand-grep gate.
-        string Strip(string s) => System.Text.RegularExpressions.Regex.Replace(
-            s, @"@\*.*?\*@", string.Empty,
-            System.Text.RegularExpressions.RegexOptions.Singleline);
+        var bodySources = string.Join("\n", Strip(html), Strip(text));
 
-        var allSources = string.Join("\n",
-            Strip(html), Strip(text), Strip(layout), Strip(footer));
+        // Spec 041 — the shared shell composes the branded header + partner footer
+        // and carries the centralized "Equipo Programa Semilla" sign-off + teal.
+        Assert.That(layout, Does.Contain("_BrandHeader"),
+            $"Layout must compose the branded logo header (affects {ev}).");
+        Assert.That(layout, Does.Contain("_PartnerFooter"),
+            $"Layout must compose the partner-strip footer (affects {ev}).");
+        Assert.That(layout, Does.Contain("EmailBrand.SignOff"),
+            $"Layout must render the centralized sign-off (affects {ev}).");
 
-        // FR-014 / spec 019 sender display.
-        Assert.That(layout, Does.Contain("Programa Semilla"),
-            $"FR-014: Sender display 'Programa Semilla' missing in layout for {ev}.");
-        Assert.That(layout, Does.Contain("Sistema de Banca para el Desarrollo"),
-            $"FR-014: Sender sub-line 'Sistema de Banca para el Desarrollo' missing in layout for {ev}.");
+        // FR-003 — retired near-black palette must not reappear in any body/text.
+        Assert.That(bodySources.ToLowerInvariant(), Does.Not.Contain("#1d1d1f"),
+            $"FR-003: retired near-black #1d1d1f present for {ev}.");
 
-        // Signature block is in the layout.
-        Assert.That(layout, Does.Contain("Saludos cordiales"),
-            $"Signature block missing in layout for {ev}.");
-
-        // NFR-001 — no inline <img>.
+        // NFR-004 — imagery lives in the shared chrome; bodies carry no content <img>.
         Assert.That(Strip(html), Does.Not.Contain("<img"),
-            $"NFR-001: inline <img> in HTML body for {ev}.");
-        Assert.That(Strip(layout), Does.Not.Contain("<img"),
-            $"NFR-001: inline <img> in layout (affects {ev}).");
+            $"NFR-004: content <img> in HTML body for {ev} (imagery belongs in shared partials).");
 
-        // FR-027 / SC-006 — no Capital Semilla / Forge.
-        Assert.That(allSources, Does.Not.Contain("Capital Semilla"),
-            $"FR-027: 'Capital Semilla' leakage affecting {ev}.");
-        Assert.That(allSources, Does.Not.Contain("Forge"),
-            $"FR-027: 'Forge' leakage affecting {ev}.");
+        // SC-006 — no legacy brand leakage.
+        Assert.That(bodySources, Does.Not.Contain("Capital Semilla"),
+            $"SC-006: 'Capital Semilla' leakage affecting {ev}.");
+        Assert.That(bodySources, Does.Not.Contain("Forge"),
+            $"SC-006: 'Forge' leakage affecting {ev}.");
 
         // Subject template renders within the 78-char cap.
         var rendered = NotificationTemplateBindings.RenderSubject(

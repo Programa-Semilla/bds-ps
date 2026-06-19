@@ -1,18 +1,23 @@
 @{
     ViewData["DisableLayout"] = true;
-}Convenio firmado recibido para revisión — Solicitud #@Model.Payload.ApplicationId
+}Convenio firmado recibido — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-El solicitante (@Model.Payload.ApplicantDisplayName) subió el convenio firmado de la solicitud #@Model.Payload.ApplicationId. Ingresá a la bandeja de firmas para revisarlo y aprobarlo o rechazarlo.
+Te informamos que el solicitante @Model.Payload.ApplicantDisplayName subió el convenio firmado de la solicitud #@Model.Payload.ApplicationId en @EmailBrand.PlatformName.
 
-Ir a la bandeja de firmas:
+Detalle de la solicitud:
+- Solicitante: @Model.Payload.ApplicantDisplayName
+- Número de solicitud: #@Model.Payload.ApplicationId
+
+Ingresá a la bandeja de firmas para revisar el documento y aprobarlo o rechazarlo según corresponda.
+
+Revisar convenio firmado:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

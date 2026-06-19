@@ -2,17 +2,22 @@
     ViewData["DisableLayout"] = true;
 }Convenio firmado retirado — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-El solicitante (@Model.Payload.ApplicantDisplayName) retiró el convenio firmado pendiente de la solicitud #@Model.Payload.ApplicationId. Por el momento no hay nada que revisar; te avisaremos si vuelve a subir una versión.
+Te informamos que el solicitante @Model.Payload.ApplicantDisplayName retiró el convenio firmado pendiente de la solicitud #@Model.Payload.ApplicationId en @EmailBrand.PlatformName.
 
-Ir a la bandeja de firmas:
+Detalle de la solicitud:
+- Solicitante: @Model.Payload.ApplicantDisplayName
+- Número de solicitud: #@Model.Payload.ApplicationId
+
+Por el momento no hay nada que revisar; te avisaremos si el solicitante vuelve a subir una versión.
+
+Ir a la bandeja de firma:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote
