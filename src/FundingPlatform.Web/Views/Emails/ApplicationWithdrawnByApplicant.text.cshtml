@@ -1,18 +1,24 @@
+@model EmailRenderModel
 @{
     ViewData["DisableLayout"] = true;
-}Solicitud retirada por el solicitante: @Model.Payload.ApplicantDisplayName
+}Solicitud retirada por el solicitante — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-@Model.Payload.ApplicantDisplayName retiró su solicitud (#@Model.Payload.ApplicationId) mientras estaba en revisión. Ya no aparece en tu cola de revisión y no requiere ninguna acción de tu parte.
+Te informamos que @Model.Payload.ApplicantDisplayName retiró su solicitud mientras estaba en revisión. Ya no aparece en tu cola de revisión y no requiere ninguna acción de tu parte.
 
-Ver la cola de revisión:
+Detalle de la solicitud:
+- Solicitante: @Model.Payload.ApplicantDisplayName
+- Número de solicitud: #@Model.Payload.ApplicationId
+
+Podés ingresar a @EmailBrand.PlatformName para continuar con las demás solicitudes asignadas según tu perfil.
+
+Ir a la cola de revisión:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

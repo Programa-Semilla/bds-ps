@@ -1,16 +1,16 @@
+@model EmailRenderModel
 @{
     ViewData["Title"] = Model.Subject;
 }
-<h1>Tu solicitud fue aprobada</h1>
-<p>Hola @Model.Recipient.DisplayName,</p>
-<p>
-    Nos complace informarte que tu solicitud <strong>#@Model.Payload.ApplicationId</strong>
-    fue <strong>aprobada</strong>. Próximamente recibirás indicaciones sobre los siguientes
-    pasos del proceso.
+@await Html.PartialAsync("~/Views/Emails/Shared/_Hero.cshtml", "Tu solicitud fue aprobada")
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">Hola, @Model.Recipient.DisplayName:</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Te informamos que tu solicitud <strong>#@Model.Payload.ApplicationId</strong> fue aprobada en @EmailBrand.PlatformName.
 </p>
-<p>Puedes consultar los detalles desde tu panel:</p>
-<p>
-    <a class="cta" href="@Model.CtaUrl">Ver siguientes pasos</a>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    A partir de este momento, podés continuar con las siguientes etapas del proceso según las indicaciones disponibles en la plataforma.
 </p>
-<p>Si el botón no funciona, copia y pega este enlace en tu navegador:<br />
-    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Te recomendamos ingresar a @EmailBrand.PlatformName para revisar el detalle de la aprobación y los pasos correspondientes.
+</p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_CtaButton.cshtml", new CtaButtonModel(Model.CtaUrl, "Ver siguientes pasos"))

@@ -3,6 +3,7 @@
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Identity;
 using FundingPlatform.Domain.Entities;
+using FundingPlatform.Infrastructure.Email;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 
@@ -26,15 +27,21 @@ public sealed class ConsumePasswordResetTokenHandler : IConsumePasswordResetToke
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IPasswordResetTokenStore _tokenStore;
+    private readonly PasswordChangedEmailFactory _passwordChangedEmailFactory;
+    private readonly IEmailSender _emailSender;
     private readonly ILogger<ConsumePasswordResetTokenHandler> _logger;
 
     public ConsumePasswordResetTokenHandler(
         UserManager<ApplicationUser> userManager,
         IPasswordResetTokenStore tokenStore,
+        PasswordChangedEmailFactory passwordChangedEmailFactory,
+        IEmailSender emailSender,
         ILogger<ConsumePasswordResetTokenHandler> logger)
     {
         _userManager = userManager;
         _tokenStore = tokenStore;
+        _passwordChangedEmailFactory = passwordChangedEmailFactory;
+        _emailSender = emailSender;
         _logger = logger;
     }
 
@@ -81,6 +88,28 @@ public sealed class ConsumePasswordResetTokenHandler : IConsumePasswordResetToke
         await _userManager.UpdateAsync(user).ConfigureAwait(false);
         await _userManager.UpdateSecurityStampAsync(user).ConfigureAwait(false);
 
+        // Spec 041 / US3 / FR-012 — best-effort password-changed confirmation
+        // (covers forgot-password AND spec-033 invite first-set; research D4). A
+        // render/transport failure must never fail the password reset itself.
+        await TrySendPasswordChangedConfirmationAsync(user, ct).ConfigureAwait(false);
+
         return ConsumePasswordResetTokenResult.Ok();
+    }
+
+    private async Task TrySendPasswordChangedConfirmationAsync(ApplicationUser user, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(user.Email))
+            return;
+        try
+        {
+            var envelope = await _passwordChangedEmailFactory
+                .BuildAsync(user.Email, user.FirstName, ct).ConfigureAwait(false);
+            await _emailSender.SendAsync(envelope, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Failed to send password-changed confirmation after a password reset; the reset itself succeeded.");
+        }
     }
 }

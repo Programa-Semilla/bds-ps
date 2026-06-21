@@ -49,6 +49,18 @@ public static class NotificationsServiceCollectionExtensions
         services.AddScoped<INotificationRecipientResolver, NotificationRecipientResolver>();
         services.AddScoped<ParticipatingAdminPredicate>();
 
+        // Spec 041 / Decision 1 / T003 — the single Razor-view-to-string primitive
+        // shared by the outbox renderer AND the direct-send identity/stage/supplier
+        // factories, so every email routes through the one branded _EmailLayout.
+        services.AddScoped<Application.Notifications.Email.IEmailViewRenderer, EmailViewRenderer>();
+
+        // Spec 041 bugfix — request-aware base-URL resolution shared by every email
+        // image/CTA composer, so images resolve to the same host as the working links
+        // (no more stale http://localhost:5000/... images). Needs IHttpContextAccessor;
+        // null HttpContext in the dispatch worker falls back to Notifications:BaseUrl.
+        services.AddHttpContextAccessor();
+        services.AddSingleton<Application.Notifications.Email.IEmailBaseUrlProvider, EmailBaseUrlProvider>();
+
         // FR-023 — Razor renderer (scoped to align with view-engine lifetime).
         services.AddScoped<IEmailTemplateRenderer, RazorEmailRenderer>();
 

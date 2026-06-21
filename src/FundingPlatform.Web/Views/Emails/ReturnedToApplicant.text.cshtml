@@ -1,18 +1,20 @@
+@model EmailRenderModel
 @{
     ViewData["DisableLayout"] = true;
-}Acción requerida: actualiza tu solicitud — Solicitud #@Model.Payload.ApplicationId
+}Necesitamos información adicional — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-Tu solicitud #@Model.Payload.ApplicationId fue devuelta por el equipo revisor porque requiere actualizaciones de tu parte antes de continuar con el proceso. Revisa los detalles desde tu panel y realiza los cambios solicitados.
+Te informamos que tu solicitud #@Model.Payload.ApplicationId requiere información adicional antes de continuar con el proceso de revisión.
+
+Podés ingresar a @EmailBrand.PlatformName para revisar los detalles, realizar los ajustes solicitados y reenviar tu solicitud.
 
 Actualizar mi solicitud:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

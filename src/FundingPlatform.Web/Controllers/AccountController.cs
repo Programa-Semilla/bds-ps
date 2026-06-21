@@ -21,6 +21,7 @@ public class AccountController : Controller
     private readonly IUpdateProfileHandler _updateProfileHandler;
     private readonly IEmailSender _emailSender;
     private readonly Infrastructure.Email.ForgotPasswordEmailFactory _forgotPasswordEmailFactory;
+    private readonly Infrastructure.Email.PasswordChangedEmailFactory _passwordChangedEmailFactory;
 
     public AccountController(
         UserManager<ApplicationUser> userManager,
@@ -31,7 +32,8 @@ public class AccountController : Controller
         IConsumePasswordResetTokenHandler consumePasswordResetTokenHandler,
         IUpdateProfileHandler updateProfileHandler,
         IEmailSender emailSender,
-        Infrastructure.Email.ForgotPasswordEmailFactory forgotPasswordEmailFactory)
+        Infrastructure.Email.ForgotPasswordEmailFactory forgotPasswordEmailFactory,
+        Infrastructure.Email.PasswordChangedEmailFactory passwordChangedEmailFactory)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -42,6 +44,26 @@ public class AccountController : Controller
         _updateProfileHandler = updateProfileHandler;
         _emailSender = emailSender;
         _forgotPasswordEmailFactory = forgotPasswordEmailFactory;
+        _passwordChangedEmailFactory = passwordChangedEmailFactory;
+    }
+
+    // Spec 041 / US3 / FR-012 — best-effort password-changed confirmation. A
+    // render/transport failure must never break the password-change flow.
+    private async Task TrySendPasswordChangedConfirmationAsync(ApplicationUser user, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(user.Email))
+            return;
+        try
+        {
+            var envelope = await _passwordChangedEmailFactory.BuildAsync(user.Email, user.FirstName, ct);
+            await _emailSender.SendAsync(envelope, ct);
+        }
+        catch (Exception ex)
+        {
+            HttpContext.RequestServices
+                .GetRequiredService<ILogger<AccountController>>()
+                .LogWarning(ex, "Failed to send password-changed confirmation; the change itself succeeded.");
+        }
     }
 
     // Spec 032 — public self-registration removed. Accounts are created only by an
@@ -127,6 +149,8 @@ public class AccountController : Controller
         await _userManager.UpdateSecurityStampAsync(user);
         await _signInManager.RefreshSignInAsync(user);
 
+        await TrySendPasswordChangedConfirmationAsync(user, HttpContext.RequestAborted);
+
         return RedirectToAction("Index", "Home");
     }
 
@@ -182,23 +206,27 @@ public class AccountController : Controller
             if (!string.IsNullOrEmpty(resetLink))
             {
                 var expiresAt = DateTimeOffset.UtcNow.Add(PasswordResetToken.DefaultLifetime);
-                var envelope = _forgotPasswordEmailFactory.Build(
-                    toAddress: result.Email!,
-                    applicantFirstName: result.FirstName,
-                    resetLink: resetLink,
-                    expiresAt: expiresAt);
                 try
                 {
+                    // Spec 041 — BuildAsync now renders Razor and CAN throw, so it
+                    // must be inside the try: a render failure on a valid account
+                    // would otherwise 500 (while unknown emails return the neutral
+                    // 200), reopening the FR-028 enumeration side-channel.
+                    var envelope = await _forgotPasswordEmailFactory.BuildAsync(
+                        toAddress: result.Email!,
+                        applicantFirstName: result.FirstName,
+                        resetLink: resetLink,
+                        expiresAt: expiresAt,
+                        ct: ct);
                     await _emailSender.SendAsync(envelope, ct);
                 }
                 catch (Exception ex)
                 {
-                    // Swallow transport errors here — the neutral response is
-                    // required by FR-028 (no enumeration). The error is logged
-                    // by the sender; we MUST NOT surface it to the client.
+                    // Swallow render/transport errors here — the neutral response is
+                    // required by FR-028 (no enumeration). We MUST NOT surface it.
                     HttpContext.RequestServices
                         .GetRequiredService<ILogger<AccountController>>()
-                        .LogWarning(ex, "Failed to send password-reset email; rendering neutral response anyway.");
+                        .LogWarning(ex, "Failed to build/send password-reset email; rendering neutral response anyway.");
                 }
             }
         }
@@ -381,6 +409,8 @@ public class AccountController : Controller
         user.MustChangePassword = false;
         await _userManager.UpdateAsync(user);
         await _userManager.UpdateSecurityStampAsync(user);
+
+        await TrySendPasswordChangedConfirmationAsync(user, ct);
 
         // Force re-login per spec (security-stamp refresh invalidates the
         // cookie anyway; doing the sign-out makes the redirect target obvious).

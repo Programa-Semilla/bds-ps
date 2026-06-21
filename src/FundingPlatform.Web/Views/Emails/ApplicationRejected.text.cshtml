@@ -1,20 +1,22 @@
+@model EmailRenderModel
 @{
     ViewData["DisableLayout"] = true;
-}Decisión sobre tu solicitud — Solicitud #@Model.Payload.ApplicationId
+}Actualización sobre tu solicitud — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-Te informamos que el equipo evaluador completó la revisión de tu solicitud #@Model.Payload.ApplicationId y la decisión es no continuar con su aprobación en esta ocasión.
+Te informamos que, luego del proceso de revisión correspondiente, tu solicitud #@Model.Payload.ApplicationId no fue aprobada en esta ocasión.
 
-Puedes consultar el detalle de la decisión y los siguientes pasos disponibles desde tu panel.
+Podés ingresar a @EmailBrand.PlatformName para consultar el estado actualizado de tu aplicación y revisar la información disponible sobre el resultado del proceso.
 
-Ver detalle de la decisión:
+En caso de que corresponda, vas a poder revisar las indicaciones disponibles y continuar según los lineamientos establecidos.
+
+Ver mi solicitud:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

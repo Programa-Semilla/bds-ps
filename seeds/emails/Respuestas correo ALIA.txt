@@ -1,0 +1,147 @@
+﻿1. Bienvenida a la plataforma
+Asunto: Bienvenida a ALIA
+Correo:
+Hola, {nombre}:
+Te damos la bienvenida a ALIA, la plataforma digital para solicitar, gestionar y dar seguimiento a fondos de capital semilla.
+Tu cuenta fue creada correctamente. A partir de ahora, podés ingresar para completar información, presentar solicitudes, revisar actualizaciones o dar seguimiento a los procesos disponibles según tu perfil de acceso.
+Para ingresar, usá el siguiente enlace:
+{enlace_plataforma}
+Te recomendamos revisar tus datos de acceso y actualizar tu contraseña en el primer ingreso, en caso de que corresponda.
+Atentamente,
+Equipo Programa Semilla
+Nota: Este es un mensaje automático. Por favor, no respondás a este correo. Para consultas podés escribir al +506 4600-1234
+________________
+
+
+2. Cambio de contraseña
+Asunto: Tu contraseña fue actualizada
+Correo:
+Hola, {nombre}:
+Te confirmamos que la contraseña de tu cuenta en ALIA fue actualizada correctamente.
+Si vos realizaste este cambio, no tenés que hacer ninguna acción adicional.
+Si no reconocés esta modificación, te recomendamos comunicarte de inmediato con el equipo de soporte para revisar la seguridad de tu cuenta.
+Atentamente,
+Equipo Programa Semilla
+Nota: Este es un mensaje automático. Por favor, no respondás a este correo. Para consultas podés escribir al +506 4600-1234
+________________
+
+
+Correos para persona solicitante
+3. Confirmación de recepción de solicitud
+Asunto: Recibimos tu solicitud de fondos
+Correo:
+Hola, {nombre}:
+Te confirmamos que recibimos correctamente tu solicitud en ALIA, la plataforma digital para solicitar, gestionar y dar seguimiento a fondos de capital semilla.
+A partir de este momento, la información registrada seguirá el proceso de revisión correspondiente.
+Podés ingresar a la plataforma para consultar el estado de tu aplicación y revisar cualquier actualización relacionada con el proceso.
+Atentamente,
+Equipo Programa Semilla
+Nota: Este es un mensaje automático. Por favor, no respondás a este correo. Para consultas podés escribir al +506 4600-1234
+________________
+
+
+4. Solicitud en revisión
+Asunto: Tu solicitud está en revisión
+Correo:
+Hola, {nombre}:
+Te informamos que tu solicitud pasó a la etapa de revisión.
+Durante esta fase, el equipo correspondiente revisará la información registrada y verificará el cumplimiento de los requisitos aplicables.
+Si se requiere información adicional, vas a recibir una notificación por este mismo medio o mediante la plataforma.
+Podés ingresar a ALIA para consultar el estado actualizado de tu aplicación.
+Atentamente,
+ Equipo Programa Semilla
+Nota: Este es un mensaje automático. Por favor, no respondás a este correo. Para consultas podés escribir al +506 4600-1234.
+________________
+
+
+5. Solicitud aprobada
+Asunto: Tu solicitud fue aprobada
+Correo:
+Hola, {nombre}:
+Te informamos que tu solicitud fue aprobada en ALIA.
+A partir de este momento, podés continuar con las siguientes etapas del proceso según las indicaciones disponibles en la plataforma.
+Te recomendamos ingresar a ALIA para revisar el detalle de la aprobación y los pasos correspondientes.
+Atentamente,
+Equipo Programa Semilla
+Nota: Este es un mensaje automático. Por favor, no respondás a este correo. Para consultas podés escribir al +506 4600-1234
+________________
+
+
+6. Solicitud rechazada
+Asunto: Actualización sobre tu solicitud
+Correo:
+Hola, {nombre}:
+Te informamos que, luego del proceso de revisión correspondiente, tu solicitud no fue aprobada en esta ocasión.
+Podés ingresar a ALIA para consultar el estado actualizado de tu aplicación y revisar la información disponible sobre el resultado del proceso.
+En caso de que corresponda, vas a poder revisar las indicaciones disponibles y continuar según los lineamientos establecidos.
+Atentamente,
+ Equipo Programa Semilla
+Nota: Este es un mensaje automático. Por favor, no respondás a este correo. Para consultas podés escribir al +506 4600-1234
+________________
+
+
+Correos para persona revisora
+7. Actualización del estatus de una aplicación
+Asunto: Se actualizó el estatus de una aplicación
+Correo:
+Hola, {nombre}:
+Te informamos que el estatus de una aplicación asignada fue actualizado.
+Detalle de la aplicación:
+* Empresa o persona solicitante: {nombre_empresa}
+* Número de aplicación: {numero_aplicacion}
+* Nuevo estatus: {estatus_actualizado}
+Podés ingresar a ALIA para revisar la información actualizada y continuar con las acciones que correspondan según tu perfil.
+Atentamente,
+Equipo Programa Semilla
+Nota: Este es un mensaje automático. Por favor, no respondás a este correo. Para consultas podés escribir al +506 4600-1234
+________________
+
+
+Correos para auditoría
+8. Nuevo proveedor registrado
+Asunto: Nuevo proveedor registrado en ALIA
+Correo:
+Hola, {nombre}:
+Te informamos que se registró una nueva empresa proveedora en ALIA.
+Detalle de la empresa proveedora:
+* Nombre de la empresa proveedora: {nombre_empresa proveedora}
+* Identificación: {identificacion_empresa proveedora}
+* Fecha de registro: {fecha_registro}
+Podés ingresar a la plataforma para revisar la información correspondiente y dar seguimiento según tu perfil.
+Atentamente,
+Equipo Programa Semilla
+Nota: Este es un mensaje automático. Por favor, no respondás a este correo. Para consutlás podés escribir al +506 4600-1234
+________________
+
+
+9. Nueva empresa ingresada para revisión
+Asunto: Nueva empresa ingresada para revisión
+Correo:
+Hola, {nombre}:
+Te informamos que una nueva empresa fue ingresada en ALIA.
+La información se encuentra disponible para revisión según el proceso correspondiente.
+Detalle de la empresa:
+* Nombre de la empresa: {nombre_empresa}
+* Identificación: {identificacion_empresa}
+* Fecha de ingreso: {fecha_ingreso}
+Podés ingresar a ALIA para consultar la información registrada y dar seguimiento según tu perfil.
+Atentamente,
+ Equipo Programa Semilla
+Nota: Este es un mensaje automático. Por favor, no respondás a este correo. Para consutlás podés escribir al +506 4600-1234
+________________
+
+
+10. Nueva aplicación pendiente de revisión
+Asunto: Nueva aplicación pendiente de revisión
+Correo:
+Hola, {nombre}:
+Te informamos que hay una nueva aplicación pendiente de revisión en ALIA.
+Detalle de la aplicación:
+* Empresa o persona solicitante: {nombre_empresa}
+* Número de aplicación: {numero_aplicacion}
+* Fecha de ingreso: {fecha_ingreso}
+Podés ingresar a la plataforma para revisar la información presentada y realizar las acciones correspondientes según tu perfil.
+Atentamente,
+Equipo Programa Semilla
+Nota: Este es un mensaje automático. Por favor, no respondás a este correo. Para consutlás podés escribir al +506 4600-1234
+________________

@@ -75,7 +75,7 @@ public sealed class AuditController : Controller
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Detail(int id, CancellationToken ct)
     {
-        var dto = await _reviewService.GetApplicationForReviewAsync(id);
+        var dto = await _reviewService.GetApplicationForReviewAsync(id, UserId);
         if (dto is null) return NotFound();
 
         // Spec 040 / D8 / D12 — same group-overlap guard as the reviewer detail page.

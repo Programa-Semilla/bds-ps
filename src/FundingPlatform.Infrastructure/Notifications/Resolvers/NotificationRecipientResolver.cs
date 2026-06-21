@@ -218,6 +218,8 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
         NotificationEvent.AgreementGeneratedApplicant   => true,
         NotificationEvent.AgreementExecutedApplicant    => true,
         NotificationEvent.SignedUploadRejectedApplicant => true,
+        // Spec 041 / US2 — applicant under-review notice.
+        NotificationEvent.ApplicationUnderReviewApplicant => true,
         _ => false,
     };
 
@@ -252,6 +254,9 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
     private static bool IncludesAdminBucket(NotificationEvent ev) => ev switch
     {
         NotificationEvent.ApplicationSubmittedApplicant => false,  // applicant-only
+        // Spec 041 / US2 — under-review notice is applicant-only (avoid admin noise
+        // on routine reviewer page-opens).
+        NotificationEvent.ApplicationUnderReviewApplicant => false,
         _ => true,
     };
 

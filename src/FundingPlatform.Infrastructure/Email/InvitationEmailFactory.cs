@@ -1,49 +1,52 @@
-// Spec 033 / FR-001 / C4 — set-password invitation email envelope.
-// Mirrors ForgotPasswordEmailFactory: the .cshtml is read as a plain-text
-// token file (not a Razor view) so composition happens outside the HTTP
-// request scope, and {{TOKEN}} placeholders are substituted here.
+// Spec 033 / FR-001 + Spec 041 / T017 — set-password invitation email.
+// Spec 041 routes this through the shared branded _EmailLayout via IEmailViewRenderer
+// (Decision 1, reference copy #1 "Bienvenida a ALIA") instead of token substitution.
 
 using System.Globalization;
 using FundingPlatform.Application.Abstractions;
-using Microsoft.Extensions.Hosting;
+using FundingPlatform.Application.Notifications.Email;
 using Microsoft.Extensions.Logging;
 
 namespace FundingPlatform.Infrastructure.Email;
 
 /// <summary>
-/// Spec 033 / FR-001 — composes the es-CR set-password invitation email from
-/// <c>src/FundingPlatform.Web/Views/Emails/Identity/InvitationEmail.cshtml</c>.
-/// The admin creates the account with no password; this email carries the 72h
-/// single-use set-password link to the new user. Direct-send (D5), not the
-/// spec-021 outbox — structurally identical to the forgot-password path.
+/// Spec 033 / FR-001 + Spec 041 / T017 — composes the es-CR set-password invitation
+/// email, rendered through the shared branded <c>_EmailLayout</c>
+/// (<c>Views/Emails/Identity/InvitationEmail.cshtml</c> + <c>.text.cshtml</c>) via
+/// <see cref="IEmailViewRenderer"/>. Direct-send (D5), not the spec-021 outbox.
 /// </summary>
 public sealed class InvitationEmailFactory
 {
+    private const string HtmlView = "~/Views/Emails/Identity/InvitationEmail.cshtml";
+    private const string TextView = "~/Views/Emails/Identity/InvitationEmail.text.cshtml";
     // Spec 033 / C4 — fixed es-CR subject.
     private const string Subject = "Le han creado una cuenta — establezca su contraseña";
 
-    private readonly IHostEnvironment _env;
+    private readonly IEmailViewRenderer _viewRenderer;
+    private readonly IEmailBaseUrlProvider _baseUrlProvider;
     private readonly ILogger<InvitationEmailFactory> _logger;
-    private string? _cached;
-    private readonly Lock _cacheLock = new();
 
-    public InvitationEmailFactory(IHostEnvironment env, ILogger<InvitationEmailFactory> logger)
+    public InvitationEmailFactory(
+        IEmailViewRenderer viewRenderer,
+        IEmailBaseUrlProvider baseUrlProvider,
+        ILogger<InvitationEmailFactory> logger)
     {
-        _env = env;
+        _viewRenderer = viewRenderer;
+        _baseUrlProvider = baseUrlProvider;
         _logger = logger;
     }
 
     /// <summary>
-    /// Builds the invitation envelope. <paramref name="inviteLink"/> is the
-    /// absolute <c>/Account/ResetPassword</c> URL embedded as
-    /// <c>{{InviteLink}}</c>; <paramref name="expiresAt"/> is formatted in CR
-    /// local time for <c>{{ExpiresAt}}</c>.
+    /// Builds the invitation envelope. <paramref name="inviteLink"/> is the absolute
+    /// <c>/Account/ResetPassword</c> URL (CTA); <paramref name="expiresAt"/> is es-CR
+    /// local time. Razor auto-encodes the recipient name in both bodies (XSS-safe).
     /// </summary>
-    public EmailMessage Build(
+    public async Task<EmailMessage> BuildAsync(
         string toAddress,
         string? firstName,
         string inviteLink,
-        DateTimeOffset expiresAt)
+        DateTimeOffset expiresAt,
+        CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(toAddress);
         ArgumentException.ThrowIfNullOrWhiteSpace(inviteLink);
@@ -52,69 +55,28 @@ public sealed class InvitationEmailFactory
             .ToOffset(TimeSpan.FromHours(-6)) // CR is UTC-6 (no DST)
             .ToString("dd/MM/yyyy HH:mm", new CultureInfo("es-CR"));
 
-        // HTML-encode the only free-text token so an admin-entered name containing
-        // markup cannot inject HTML into the email body. InviteLink/ExpiresAt are
-        // system-generated and safe.
-        var safeFirstName = System.Net.WebUtility.HtmlEncode(firstName ?? string.Empty);
-
-        // The .cshtml is read as plain text (not Razor-rendered), so a Razor
-        // @* … *@ comment would render verbatim — and any {{token}} inside it
-        // would be substituted, leaking the real link. Strip comments first.
-        var template = EmailTemplateText.StripRazorComments(ReadTemplate());
-        var body = template
-            .Replace("{{InviteLink}}", inviteLink, StringComparison.Ordinal)
-            .Replace("{{FirstName}}", safeFirstName, StringComparison.Ordinal)
-            .Replace("{{ExpiresAt}}", expiresAtLocal, StringComparison.Ordinal);
-
-        return new EmailMessage(toAddress, Subject, body);
-    }
-
-    private string ReadTemplate()
-    {
-        lock (_cacheLock)
-        {
-            if (_cached is not null) return _cached;
-        }
-
-        const string fileName = "InvitationEmail.cshtml";
-        var candidates = new[]
-        {
-            Path.Combine(_env.ContentRootPath, "Views", "Emails", "Identity", fileName),
-            // Repo-root layout used by integration tests that don't run from the Web ContentRoot.
-            Path.Combine(_env.ContentRootPath, "..", "FundingPlatform.Web", "Views", "Emails", "Identity", fileName),
-            Path.Combine(_env.ContentRootPath, "..", "..", "src", "FundingPlatform.Web", "Views", "Emails", "Identity", fileName),
-            Path.Combine(_env.ContentRootPath, "..", "..", "..", "src", "FundingPlatform.Web", "Views", "Emails", "Identity", fileName),
-        };
-
-        foreach (var path in candidates)
-        {
-            var full = Path.GetFullPath(path);
-            if (File.Exists(full))
+        var baseUrl = _baseUrlProvider.GetBaseUrl();
+        var model = new DirectEmailModel(
+            Subject: Subject,
+            HeroTitle: "Bienvenida a ALIA",
+            DisplayName: firstName ?? string.Empty,
+            Paragraphs: new[]
             {
-                var text = File.ReadAllText(full);
-                lock (_cacheLock)
-                {
-                    _cached = text;
-                }
-                _logger.LogDebug("Loaded invitation email template from {Path}.", full);
-                return text;
-            }
-        }
+                "Te damos la bienvenida a ALIA, la plataforma digital para solicitar, gestionar y dar seguimiento a fondos de capital semilla.",
+                "Tu cuenta fue creada correctamente. Para comenzar, establecé tu contraseña con el siguiente botón.",
+                "Te recomendamos revisar tus datos de acceso en el primer ingreso, en caso de que corresponda.",
+            },
+            CtaUrl: inviteLink,
+            CtaLabel: "Establecer mi contraseña",
+            CardHeading: null,
+            CardRows: null,
+            FooterNote: $"El enlace es de un solo uso y expira el {expiresAtLocal}.",
+            LogoUrl: BrandAssets.LogoUrl(baseUrl),
+            PartnerStripUrl: BrandAssets.PartnerStripUrl(baseUrl));
 
-        var fallback =
-            "<p>Le han creado una cuenta en la plataforma. Abra el siguiente enlace para establecer su contraseña:</p>" +
-            "<p><a href=\"{{InviteLink}}\">{{InviteLink}}</a></p>" +
-            "<p>El enlace expira el {{ExpiresAt}}.</p>";
-        // Cache the fallback too: the factory is a singleton, so without this a
-        // genuinely missing template would re-probe the filesystem and re-log a
-        // WARN on every send.
-        lock (_cacheLock)
-        {
-            _cached ??= fallback;
-        }
-        _logger.LogWarning(
-            "Invitation email template '{File}' not found under any of the candidate paths; falling back to minimal HTML body.",
-            fileName);
-        return fallback;
+        var html = await _viewRenderer.RenderViewAsync(HtmlView, model, disableLayout: false, ct);
+        var text = await _viewRenderer.RenderViewAsync(TextView, model, disableLayout: true, ct);
+        _logger.LogDebug("Built branded invitation email for {To}.", toAddress);
+        return new EmailMessage(toAddress, Subject, html, text);
     }
 }

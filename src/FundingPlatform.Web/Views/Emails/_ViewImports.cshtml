@@ -1,5 +1,8 @@
 @using FundingPlatform.Application.Notifications
-@using FundingPlatform.Application.Notifications.Templates
-@using FundingPlatform.Domain.Notifications
+@using FundingPlatform.Application.Notifications.Email
 @using FundingPlatform.Web.Services
-@model FundingPlatform.Web.Services.EmailRenderModel
+@using FundingPlatform.Web.Services.Emails
+@* Spec 041 — NO shared @model default here: _ViewStart (which runs for every page)
+   would otherwise inherit it and reject direct-send DirectEmailModel pages. Each
+   email view declares its own @model (outbox → EmailRenderModel, direct-send →
+   DirectEmailModel, layout → IBrandedEmailModel). *@

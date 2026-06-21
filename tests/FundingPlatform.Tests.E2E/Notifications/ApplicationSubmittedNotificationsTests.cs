@@ -121,17 +121,35 @@ public class ApplicationSubmittedNotificationsTests : AuthenticatedTestBase
         Assert.That(reviewerMsg!.Subject, Does.StartWith("Nueva solicitud para revisar"));
         Assert.That(reviewerMsg.HtmlBody + reviewerMsg.TextBody, Does.Contain($"/Review/{appId}"));
 
-        // Sender display + brand-grep gate + no inline <img>.
+        // Spec 041 / T013 brand-shell sweep: hosted logo + partner strip + teal CTA
+        // + ALIA naming + support phone, on both representative redesigned emails.
         foreach (var msg in new[] { applicantMsg, reviewerMsg })
         {
             Assert.That(msg.FromDisplayName, Does.Contain("Programa Semilla"),
-                "FR-014 / spec 019 sender display must read 'Programa Semilla / Sistema de Banca para el Desarrollo'.");
-            Assert.That(msg.HtmlBody, Does.Not.Contain("<img"),
-                "NFR-001: no inline <img> in any email body.");
+                "Sender display must read 'Programa Semilla / Sistema de Banca para el Desarrollo'.");
+            Assert.That(msg.HtmlBody, Does.Contain("<img"),
+                "Spec 041 / FR-002: branded email must carry the hosted logo + partner strip.");
+            Assert.That(msg.HtmlBody, Does.Contain("/lib/brand/partners-footer.png"),
+                "FR-006: partner-strip footer must be present on every email.");
+            // Spec 041 image-host bugfix — the brand images must be served from an
+            // ABSOLUTE URL on the real running host, never the stale appsettings
+            // localhost:5000 default (which produced broken images in every env). This
+            // outbox path has no HTTP request, so it exercises the AppHost endpoint pin
+            // + IEmailBaseUrlProvider config fallback.
+            Assert.That(msg.HtmlBody, Does.Not.Contain("localhost:5000"),
+                "Bugfix: email images must use the real host, not the stale localhost:5000 default.");
+            Assert.That(msg.HtmlBody, Does.Match("https?://[^\"']+/lib/brand/partners-footer\\.png"),
+                "Bugfix: partner-strip image must be an absolute URL so email clients can load it.");
+            Assert.That(msg.HtmlBody, Does.Contain("#008a9e"),
+                "FR-003: branded teal palette/CTA must be present.");
+            Assert.That(msg.HtmlBody + msg.TextBody, Does.Contain("+506 4600-1234"),
+                "FR-006: support phone must be present on every email.");
+            Assert.That(msg.HtmlBody + msg.TextBody, Does.Contain("ALIA"),
+                "FR-007: ALIA platform naming must appear in body copy.");
             Assert.That(msg.HtmlBody + msg.TextBody, Does.Not.Contain("Capital Semilla"),
-                "FR-027 / SC-006: 'Capital Semilla' must not appear in any email.");
+                "SC-006: 'Capital Semilla' must not appear in any email.");
             Assert.That(msg.HtmlBody + msg.TextBody, Does.Not.Contain("Forge"),
-                "FR-027 / SC-006: 'Forge' must not appear in any email.");
+                "SC-006: 'Forge' must not appear in any email.");
         }
     }
 }

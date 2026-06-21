@@ -1,0 +1,42 @@
+@model DirectEmailModel
+@* Spec 041 / FR-009 — shared plain-text twin for direct-send / notifier emails.
+   Built as a single string so Razor whitespace handling can't distort the layout;
+   the email view renderer HTML-decodes the text-only output back to literal chars. *@
+@{
+    var sb = new System.Text.StringBuilder();
+    sb.AppendLine(Model.HeroTitle);
+    sb.AppendLine();
+    sb.AppendLine(string.IsNullOrWhiteSpace(Model.DisplayName) ? "Hola:" : $"Hola, {Model.DisplayName}:");
+    sb.AppendLine();
+    foreach (var para in Model.Paragraphs)
+    {
+        sb.AppendLine(para);
+        sb.AppendLine();
+    }
+    if (Model.CardHeading is { } cardHeading && Model.CardRows is { } cardRows)
+    {
+        sb.AppendLine(cardHeading);
+        foreach (var row in cardRows)
+        {
+            sb.AppendLine($"- {row.Label}: {row.Value}");
+        }
+        sb.AppendLine();
+    }
+    if (!string.IsNullOrWhiteSpace(Model.CtaUrl))
+    {
+        sb.AppendLine($"{Model.CtaLabel}:");
+        sb.AppendLine(Model.CtaUrl);
+        sb.AppendLine();
+    }
+    if (!string.IsNullOrWhiteSpace(Model.FooterNote))
+    {
+        sb.AppendLine(Model.FooterNote);
+        sb.AppendLine();
+    }
+    sb.AppendLine(EmailBrand.SignOffClosing);
+    sb.AppendLine(EmailBrand.SignOff);
+    sb.AppendLine();
+    sb.AppendLine("—");
+    sb.AppendLine($"Para consultas: {EmailBrand.SupportEmail} · {EmailBrand.SupportPhone}");
+    sb.Append(EmailBrand.AutomaticMessageNote);
+}@sb.ToString()

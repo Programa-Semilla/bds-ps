@@ -1,0 +1,26 @@
+@model CtaButtonModel
+@* Spec 041 / T008 / FR-005 — bulletproof CTA. Renders ONLY when a URL is supplied;
+   never invents a URL. ALWAYS followed by a plain-text fallback link. VML path for
+   Outlook; HTML anchor for everything else. *@
+@if (!string.IsNullOrWhiteSpace(Model.Url))
+{
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0 10px 0;">
+        <tr>
+            <td align="center" bgcolor="#008a9e" style="border-radius:8px;">
+                <!--[if mso]>
+                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="@Model.Url" style="height:46px;v-text-anchor:middle;width:268px;" arcsize="16%" strokecolor="#008a9e" fillcolor="#008a9e">
+                    <w:anchorlock/>
+                    <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">@Model.Label</center>
+                </v:roundrect>
+                <![endif]-->
+                <!--[if !mso]><!-- -->
+                <a href="@Model.Url" style="background:#008a9e;color:#ffffff;display:inline-block;font-family:'Inter',Arial,sans-serif;font-size:15px;font-weight:600;line-height:46px;text-align:center;text-decoration:none;width:268px;border-radius:8px;">@Model.Label</a>
+                <!--<![endif]-->
+            </td>
+        </tr>
+    </table>
+    <p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:13px;line-height:1.6;color:#5b6b6e;">
+        Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
+        <a href="@Model.Url" style="color:#008a9e;word-break:break-all;">@Model.Url</a>
+    </p>
+}

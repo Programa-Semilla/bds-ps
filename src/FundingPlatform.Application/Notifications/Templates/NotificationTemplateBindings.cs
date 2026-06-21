@@ -226,6 +226,16 @@ public static class NotificationTemplateBindings
                 TemplateVariantKey: "applicant-signed-upload-rejected",
                 CtaRouteTemplate: "/Applications/{id}/FundingAgreement"),
 
+            // Spec 041 (email-brand-lift) / US2 / FR-011 — applicant learns a reviewer began
+            // review. Fired at the Submitted → UnderReview transition; applicant-only.
+            [NotificationEvent.ApplicationUnderReviewApplicant] = new(
+                NotificationEvent.ApplicationUnderReviewApplicant,
+                SubjectTemplate: "Tu solicitud está en revisión — Solicitud #{ApplicationId}",
+                HtmlViewName:    "ApplicationUnderReviewApplicant",
+                TextViewName:    "ApplicationUnderReviewApplicant.text",
+                TemplateVariantKey: "applicant-under-review",
+                CtaRouteTemplate: "/Application/Details/{id}"),
+
             // Spec 040 — auditor workflow stage.
             [NotificationEvent.ReturnedToReviewerFromAudit] = new(
                 NotificationEvent.ReturnedToReviewerFromAudit,

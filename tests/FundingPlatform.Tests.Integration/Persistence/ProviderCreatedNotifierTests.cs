@@ -1,12 +1,10 @@
 using FundingPlatform.Application.Notifications;
+using FundingPlatform.Application.Notifications.Email;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Infrastructure.Suppliers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.FileProviders;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FundingPlatform.Tests.Integration.Persistence;
@@ -45,10 +43,12 @@ public class ProviderCreatedNotifierTests
         return supplier.Id;
     }
 
-    private static IConfiguration Config() =>
-        new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Notifications:BaseUrl"] = "https://test.example" })
-            .Build();
+    private static IEmailBaseUrlProvider BaseUrl() => new StubBaseUrlProvider("https://test.example");
+
+    private sealed class StubBaseUrlProvider(string baseUrl) : IEmailBaseUrlProvider
+    {
+        public string GetBaseUrl() => baseUrl;
+    }
 
     [Test]
     public async Task NotifyAuditorsAsync_SendsOnePerAuditor_WithRequiredBody()
@@ -58,7 +58,7 @@ public class ProviderCreatedNotifierTests
         var sender = new CapturingSender();
 
         using var ctx = CreateContext(dbName);
-        var notifier = new ProviderCreatedNotifier(ctx, sender, Config(), new StubEnv(),
+        var notifier = new ProviderCreatedNotifier(ctx, sender, new DumpRenderer(), BaseUrl(),
             NullLogger<ProviderCreatedNotifier>.Instance);
 
         await notifier.NotifyAuditorsAsync(supplierId, CancellationToken.None);
@@ -79,7 +79,7 @@ public class ProviderCreatedNotifierTests
         var supplierId = await SeedSupplierAndAuditorsAsync(dbName, auditorCount: 1);
 
         using var ctx = CreateContext(dbName);
-        var notifier = new ProviderCreatedNotifier(ctx, new ThrowingSender(), Config(), new StubEnv(),
+        var notifier = new ProviderCreatedNotifier(ctx, new ThrowingSender(), new DumpRenderer(), BaseUrl(),
             NullLogger<ProviderCreatedNotifier>.Instance);
 
         // FR-024 — best-effort: must not throw to the caller.
@@ -94,7 +94,7 @@ public class ProviderCreatedNotifierTests
         var sender = new CapturingSender();
 
         using var ctx = CreateContext(dbName);
-        var notifier = new ProviderCreatedNotifier(ctx, sender, Config(), new StubEnv(),
+        var notifier = new ProviderCreatedNotifier(ctx, sender, new DumpRenderer(), BaseUrl(),
             NullLogger<ProviderCreatedNotifier>.Instance);
 
         await notifier.NotifyAuditorsAsync(supplierId, CancellationToken.None);
@@ -119,11 +119,27 @@ public class ProviderCreatedNotifierTests
             => throw new InvalidOperationException("simulated provider failure");
     }
 
-    private sealed class StubEnv : IHostEnvironment
+    /// <summary>
+    /// Spec 041 — the real Razor render needs the Web view engine (not available in
+    /// an integration test), so this double serializes the <see cref="DirectEmailModel"/>
+    /// the notifier builds into the body. It lets the test assert that the notifier
+    /// passes the provider name / cédula / review link into the model (its real
+    /// responsibility); the branded HTML is asserted by the E2E mail-capture suite.
+    /// </summary>
+    private sealed class DumpRenderer : IEmailViewRenderer
     {
-        public string EnvironmentName { get; set; } = "Development";
-        public string ApplicationName { get; set; } = "Tests";
-        public string ContentRootPath { get; set; } = Path.GetTempPath();
-        public IFileProvider ContentRootFileProvider { get; set; } = null!;
+        public Task<string> RenderViewAsync(string viewPath, object model, bool disableLayout, CancellationToken ct)
+        {
+            var m = (DirectEmailModel)model;
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine(m.Subject);
+            sb.AppendLine(m.HeroTitle);
+            sb.AppendLine(m.DisplayName);
+            foreach (var p in m.Paragraphs) sb.AppendLine(p);
+            if (m.CardRows is not null)
+                foreach (var row in m.CardRows) sb.AppendLine($"{row.Label}: {row.Value}");
+            if (m.CtaUrl is not null) sb.AppendLine(m.CtaUrl);
+            return Task.FromResult(sb.ToString());
+        }
     }
 }

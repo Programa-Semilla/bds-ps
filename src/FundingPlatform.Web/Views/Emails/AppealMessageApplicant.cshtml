@@ -1,15 +1,14 @@
+@model EmailRenderModel
 @{
     ViewData["Title"] = Model.Subject;
 }
-<h1>Nuevo mensaje del revisor en tu apelación</h1>
-<p>Hola @Model.Recipient.DisplayName,</p>
-<p>
-    Un revisor respondió en la apelación de tu solicitud
-    <strong>#@Model.Payload.ApplicationId</strong>. Ingresá para leer el mensaje y continuar
-    la conversación.
+@await Html.PartialAsync("~/Views/Emails/Shared/_Hero.cshtml", "Nuevo mensaje del revisor")
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">Hola, @Model.Recipient.DisplayName:</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Te informamos que un revisor respondió en la apelación de tu solicitud
+    <strong>#@Model.Payload.ApplicationId</strong> en @EmailBrand.PlatformName.
 </p>
-<p>
-    <a class="cta" href="@Model.CtaUrl">Ver tu apelación</a>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Podés ingresar a la plataforma para leer el mensaje y continuar la conversación.
 </p>
-<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
-    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_CtaButton.cshtml", new CtaButtonModel(Model.CtaUrl, "Ver mi apelación"))

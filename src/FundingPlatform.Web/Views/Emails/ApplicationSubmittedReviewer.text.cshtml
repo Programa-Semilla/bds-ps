@@ -1,18 +1,24 @@
+@model EmailRenderModel
 @{
     ViewData["DisableLayout"] = true;
-}Nueva solicitud para revisar: @Model.Payload.ApplicantDisplayName
+}Nueva solicitud para revisar — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-@Model.Payload.ApplicantDisplayName envió una nueva solicitud (#@Model.Payload.ApplicationId) para revisión. Por favor, accede a la cola para evaluarla.
+Te informamos que hay una nueva aplicación pendiente de revisión en @EmailBrand.PlatformName.
+
+Detalle de la solicitud:
+- Solicitante: @Model.Payload.ApplicantDisplayName
+- Número de solicitud: #@Model.Payload.ApplicationId
+
+Podés ingresar a la plataforma para revisar la información presentada y realizar las acciones correspondientes según tu perfil.
 
 Revisar solicitud:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

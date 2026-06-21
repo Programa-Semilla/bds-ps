@@ -64,6 +64,16 @@ public sealed class SmtpEmailSender : IEmailSender
         };
         mail.To.Add(new MailAddress(message.ToAddress));
 
+        // Spec 041 / FR-009 — ship the plain-text twin as a multipart/alternative
+        // part when present, so the recipient's client can pick text or HTML.
+        if (!string.IsNullOrEmpty(message.TextBody))
+        {
+            mail.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+                message.TextBody, System.Text.Encoding.UTF8, "text/plain"));
+            mail.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+                message.HtmlBody, System.Text.Encoding.UTF8, "text/html"));
+        }
+
         _logger.LogInformation(
             "Sending SMTP email to {To} (subject={Subject}) via {Host}:{Port}.",
             message.ToAddress, message.Subject, _options.Host, _options.Port);

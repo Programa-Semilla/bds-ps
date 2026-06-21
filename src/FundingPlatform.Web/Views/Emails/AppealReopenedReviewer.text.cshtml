@@ -1,18 +1,24 @@
+@model EmailRenderModel
 @{
     ViewData["DisableLayout"] = true;
-}Apelación concedida: solicitud reabierta para revisión — Solicitud #@Model.Payload.ApplicationId
+}Apelación concedida: solicitud reabierta — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-Se concedió la apelación de @Model.Payload.ApplicantDisplayName y la solicitud #@Model.Payload.ApplicationId volvió a revisión. Ingresá para retomar el análisis del caso.
+Te informamos que se concedió la apelación de @Model.Payload.ApplicantDisplayName y la solicitud volvió a revisión en @EmailBrand.PlatformName.
 
-Ver la solicitud:
+Podés ingresar a la plataforma para retomar el análisis del caso según corresponda a tu perfil.
+
+Detalle de la solicitud:
+- Solicitante: @Model.Payload.ApplicantDisplayName
+- Número de solicitud: #@Model.Payload.ApplicationId
+
+Revisar solicitud:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

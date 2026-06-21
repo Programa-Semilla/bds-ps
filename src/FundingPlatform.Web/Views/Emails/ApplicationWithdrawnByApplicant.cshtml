@@ -1,15 +1,14 @@
+@model EmailRenderModel
 @{
     ViewData["Title"] = Model.Subject;
 }
-<h1>Solicitud retirada</h1>
-<p>Hola @Model.Recipient.DisplayName,</p>
-<p>
-    <strong>@Model.Payload.ApplicantDisplayName</strong> retiró su solicitud
-    <strong>(#@Model.Payload.ApplicationId)</strong> mientras estaba en revisión.
-    Ya no aparece en tu cola de revisión y no requiere ninguna acción de tu parte.
+@await Html.PartialAsync("~/Views/Emails/Shared/_Hero.cshtml", "Solicitud retirada por el solicitante")
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">Hola, @Model.Recipient.DisplayName:</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Te informamos que <strong>@Model.Payload.ApplicantDisplayName</strong> retiró su solicitud mientras estaba en revisión. Ya no aparece en tu cola de revisión y no requiere ninguna acción de tu parte.
 </p>
-<p>
-    <a class="cta" href="@Model.CtaUrl">Ver la cola de revisión</a>
+@await Html.PartialAsync("~/Views/Emails/Shared/_StatusCard.cshtml", new StatusCardModel("Detalle de la solicitud", new List<DetailRow> { new("Solicitante", Model.Payload.ApplicantDisplayName), new("Número de solicitud", $"#{Model.Payload.ApplicationId}") }))
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Podés ingresar a @EmailBrand.PlatformName para continuar con las demás solicitudes asignadas según tu perfil.
 </p>
-<p>Si el botón no funciona, copia y pega este enlace en tu navegador:<br />
-    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_CtaButton.cshtml", new CtaButtonModel(Model.CtaUrl, "Ir a la cola de revisión"))

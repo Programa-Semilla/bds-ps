@@ -1,18 +1,18 @@
+@model EmailRenderModel
 @{
     ViewData["DisableLayout"] = true;
 }Tu convenio firmado requiere cambios — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-Revisamos el convenio firmado que subiste para la solicitud #@Model.Payload.ApplicationId y requiere cambios antes de poder aprobarlo. Ingresá para ver el detalle de lo solicitado y subir una versión corregida.
+Revisamos el convenio firmado que subiste para la solicitud #@Model.Payload.ApplicationId en @EmailBrand.PlatformName y requiere cambios antes de poder aprobarlo. Ingresá a la plataforma para ver el detalle de lo solicitado y subir una versión corregida.
 
-Ver el detalle:
+Ver mi convenio:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote

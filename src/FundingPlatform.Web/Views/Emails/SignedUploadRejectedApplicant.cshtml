@@ -1,15 +1,14 @@
+@model EmailRenderModel
 @{
     ViewData["Title"] = Model.Subject;
 }
-<h1>Tu convenio firmado requiere cambios</h1>
-<p>Hola @Model.Recipient.DisplayName,</p>
-<p>
-    Revisamos el convenio firmado que subiste para la solicitud
-    <strong>#@Model.Payload.ApplicationId</strong> y <strong>requiere cambios</strong> antes de
-    poder aprobarlo. Ingresá para ver el detalle de lo solicitado y subir una versión corregida.
+@await Html.PartialAsync("~/Views/Emails/Shared/_Hero.cshtml", "Tu convenio firmado requiere cambios")
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">Hola, @Model.Recipient.DisplayName:</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Revisamos el convenio firmado que subiste para la solicitud <strong>#@Model.Payload.ApplicationId</strong> en
+    @EmailBrand.PlatformName y <strong>requiere cambios</strong> antes de poder aprobarlo.
 </p>
-<p>
-    <a class="cta" href="@Model.CtaUrl">Ver el detalle</a>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Ingresá a la plataforma para ver el detalle de lo solicitado y subir una versión corregida.
 </p>
-<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
-    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_CtaButton.cshtml", new CtaButtonModel(Model.CtaUrl, "Ver mi convenio"))

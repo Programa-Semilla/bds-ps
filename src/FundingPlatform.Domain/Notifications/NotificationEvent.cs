@@ -75,17 +75,23 @@ public enum NotificationEvent
     /// <summary>Spec 028 / US3 / FR-012 — reviewer rejected the signed convenio (changes required); notifies the applicant + admins.</summary>
     SignedUploadRejectedApplicant = 19,
 
+    /// <summary>Spec 041 (email-brand-lift) / US2 / FR-011 — a reviewer began review
+    /// (Submitted → UnderReview); notifies the applicant only. Distinct from the submission
+    /// receipt (OQ-2). Fired at the real <see cref="Domain.Entities.Application.StartReview"/>
+    /// transition in ReviewService.</summary>
+    ApplicationUnderReviewApplicant = 20,
+
     // ---------------------------------------------------------------------
     // Spec 040 — auditor workflow stage.
     // ---------------------------------------------------------------------
 
     /// <summary>Spec 040 / FR-011 — auditor returned a non-compliant application to the
     /// reviewer; notifies the stage-group reviewers + admins (applicant excluded).</summary>
-    ReturnedToReviewerFromAudit   = 20,
+    ReturnedToReviewerFromAudit   = 21,
 
     /// <summary>Spec 040 / FR-018 — reviewer sent (or re-sent) an application to audit;
     /// notifies the stage-group auditors + admins (applicant + actor excluded).</summary>
-    SentToAuditAuditor            = 21,
+    SentToAuditAuditor            = 22,
 }
 
 /// <summary>
@@ -123,6 +129,8 @@ public static class NotificationEventExtensions
         NotificationEvent.SignedUploadWithdrawnReviewer => "SIGNED_UPLOAD_WITHDRAWN_REVIEWER",
         NotificationEvent.AgreementExecutedApplicant    => "AGREEMENT_EXECUTED_APPLICANT",
         NotificationEvent.SignedUploadRejectedApplicant => "SIGNED_UPLOAD_REJECTED_APPLICANT",
+        // Spec 041 (email-brand-lift) — applicant under-review notice.
+        NotificationEvent.ApplicationUnderReviewApplicant => "APPLICATION_UNDER_REVIEW_APPLICANT",
         // Spec 040 — auditor workflow stage.
         NotificationEvent.ReturnedToReviewerFromAudit   => "RETURNED_TO_REVIEWER_FROM_AUDIT",
         NotificationEvent.SentToAuditAuditor            => "SENT_TO_AUDIT_AUDITOR",
@@ -156,6 +164,8 @@ public static class NotificationEventExtensions
         "SIGNED_UPLOAD_WITHDRAWN_REVIEWER" => NotificationEvent.SignedUploadWithdrawnReviewer,
         "AGREEMENT_EXECUTED_APPLICANT"    => NotificationEvent.AgreementExecutedApplicant,
         "SIGNED_UPLOAD_REJECTED_APPLICANT" => NotificationEvent.SignedUploadRejectedApplicant,
+        // Spec 041 (email-brand-lift) — applicant under-review notice.
+        "APPLICATION_UNDER_REVIEW_APPLICANT" => NotificationEvent.ApplicationUnderReviewApplicant,
         // Spec 040 — auditor workflow stage.
         "RETURNED_TO_REVIEWER_FROM_AUDIT"  => NotificationEvent.ReturnedToReviewerFromAudit,
         "SENT_TO_AUDIT_AUDITOR"            => NotificationEvent.SentToAuditAuditor,

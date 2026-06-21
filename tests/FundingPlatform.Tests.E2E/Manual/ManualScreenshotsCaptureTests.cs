@@ -66,7 +66,8 @@ public class ManualScreenshotsCaptureTests : AuthenticatedTestBase
         // --- 04 Create application form --------------------------------------
         await appPage.CreateButton.ClickAsync();
         await Page.WaitForURLAsync(new Regex(@"/Application/Create"));
-        await appPage.CompanyNameInput.FillAsync("Cooperativa Verde R.L.");
+        // Spec 037 — free-text company name replaced by an admin-assigned dropdown.
+        await appPage.SelectCompanyIfPresentAsync();
         await appPage.SelectEligibleGroupIfPresentAsync();
         await ShotAsync("04-crear-solicitud.png");
         await appPage.SubmitDraftButton.ClickAsync();

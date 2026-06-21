@@ -1,0 +1,17 @@
+@model EmailRenderModel
+@{
+    ViewData["Title"] = Model.Subject;
+}
+@await Html.PartialAsync("~/Views/Emails/Shared/_Hero.cshtml", "Tu solicitud está en revisión")
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">Hola, @Model.Recipient.DisplayName:</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Te informamos que tu solicitud <strong>#@Model.Payload.ApplicationId</strong> pasó a la etapa de revisión.
+</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Durante esta fase, el equipo correspondiente revisará la información registrada y verificará el cumplimiento de los requisitos aplicables.
+    Si se requiere información adicional, vas a recibir una notificación por este mismo medio o mediante la plataforma.
+</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
+    Podés ingresar a @FundingPlatform.Web.Services.Emails.EmailBrand.PlatformName para consultar el estado actualizado de tu aplicación.
+</p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_CtaButton.cshtml", new CtaButtonModel(Model.CtaUrl, "Ver mi solicitud"))
