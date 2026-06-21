@@ -44,6 +44,10 @@ public sealed class UserFacingErrorTranslator : IUserFacingErrorTranslator
         // from Detail into the es-CR block message naming the offending provider.
         UserFacingErrorCode.SupplierCcssSinInscripcion when !string.IsNullOrWhiteSpace(error.Detail) =>
             $"No se puede aprobar el ítem: el proveedor «{error.Detail}» no está inscrito en la CCSS.",
+        // Spec 043 / FR-007 — the Detail is the data-driven es-CR block message
+        // (provider + field + last-reviewed) built by RegulatoryFreshnessCopy.
+        UserFacingErrorCode.RegulatoryDataStale when !string.IsNullOrWhiteSpace(error.Detail) =>
+            error.Detail!,
         _ => Translate(error.Code),
     };
 
@@ -177,6 +181,10 @@ public sealed class UserFacingErrorTranslator : IUserFacingErrorTranslator
         // Spec 039 / FR-019 — code-only fallback (provider name unavailable).
         UserFacingErrorCode.SupplierCcssSinInscripcion =>
             "No se puede aprobar el ítem: el proveedor no está inscrito en la CCSS.",
+
+        // Spec 043 / FR-007 — code-only fallback (enumerated detail unavailable).
+        UserFacingErrorCode.RegulatoryDataStale =>
+            FundingPlatform.Application.Regulatory.RegulatoryFreshnessCopy.BlockHeading,
 
         _ => "La operación no se pudo completar. Inténtelo nuevamente o contacte al soporte.",
     };

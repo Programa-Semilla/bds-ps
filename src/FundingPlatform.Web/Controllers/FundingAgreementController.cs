@@ -32,6 +32,8 @@ public class FundingAgreementController : Controller
     private readonly SignedUploadService _signedUploadService;
     // Spec 040 — auditor generation re-gate (checklist completeness) + group scope.
     private readonly Application.Audit.IAuditWorkflowService _auditWorkflow;
+    // Spec 043 / FR-007 — regulatory-freshness gate at the auditor generate action.
+    private readonly Application.Regulatory.IRegulatoryFreshnessService _freshness;
     private readonly Application.Reviewer.IReviewerScopeProvider _scopeProvider;
     private readonly IApplicationRepository _applicationRepository;
     private readonly IFundingAgreementHtmlRenderer _htmlRenderer;
@@ -59,6 +61,7 @@ public class FundingAgreementController : Controller
         FundingAgreementService service,
         SignedUploadService signedUploadService,
         Application.Audit.IAuditWorkflowService auditWorkflow,
+        Application.Regulatory.IRegulatoryFreshnessService freshness,
         Application.Reviewer.IReviewerScopeProvider scopeProvider,
         IApplicationRepository applicationRepository,
         IFundingAgreementHtmlRenderer htmlRenderer,
@@ -75,6 +78,7 @@ public class FundingAgreementController : Controller
         _service = service;
         _signedUploadService = signedUploadService;
         _auditWorkflow = auditWorkflow;
+        _freshness = freshness;
         _scopeProvider = scopeProvider;
         _applicationRepository = applicationRepository;
         _htmlRenderer = htmlRenderer;
@@ -154,6 +158,22 @@ public class FundingAgreementController : Controller
             {
                 TempData["FundingAgreementError"] =
                     "No se puede generar el convenio: la lista de verificación de auditoría está incompleta.";
+                return RedirectToRoute(new { controller = "Audit", action = "Detail", id = applicationId });
+            }
+
+            // Spec 043 / FR-007 — block when a relied-on provider has stale/never-reviewed
+            // regulatory data. Names provider + field + last-reviewed (re-authorize clears it).
+            var stale = await _freshness.GetStaleFindingsForApplicationAsync(
+                applicationId, HttpContext.RequestAborted);
+            if (stale.Count > 0)
+            {
+                // Business-rule refusal (not an authorization rejection): keep it out of the
+                // LogUnauthorized taxonomy so authz triage isn't polluted (deep-review A-1).
+                _logger.LogInformation(
+                    "Funding agreement generation blocked for application {ApplicationId}: {Count} stale regulatory finding(s).",
+                    applicationId, stale.Count);
+                TempData["FundingAgreementError"] =
+                    Application.Regulatory.RegulatoryFreshnessCopy.BuildBlockMessage(stale);
                 return RedirectToRoute(new { controller = "Audit", action = "Detail", id = applicationId });
             }
         }

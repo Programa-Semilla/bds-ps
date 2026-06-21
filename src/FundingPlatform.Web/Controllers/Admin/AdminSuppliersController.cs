@@ -135,6 +135,7 @@ public class AdminSuppliersController : Controller
         int? fundId,
         int? processId,
         bool? hasIncompleteCompliance,
+        bool? syncFailed,
         int page = 1,
         int pageSize = 25,
         CancellationToken ct = default)
@@ -161,6 +162,7 @@ public class AdminSuppliersController : Controller
             FundId = fundId,
             ProcessId = processId,
             SearchTerm = search,
+            HaciendaSyncFailed = syncFailed,
         };
 
         var (items, total) = await _supplierRepository.ListForSupplierAdminAsync(filter, page, pageSize);
@@ -177,7 +179,8 @@ public class AdminSuppliersController : Controller
                 s.BranchCount,
                 s.HasIncompleteCompliance,
                 s.UpdatedAt,
-                s.LastUsedAt)).ToList(),
+                s.LastUsedAt,
+                s.HaciendaSyncOutcome)).ToList(),
             TotalCount = total,
             Page = page,
             PageSize = pageSize,
@@ -188,6 +191,7 @@ public class AdminSuppliersController : Controller
             SearchTerm = search,
             FundFilter = fundId,
             ProcessIdFilter = processId,
+            SyncFailedFilter = syncFailed == true,
             FundHierarchy = fundHierarchy,
         };
 
@@ -262,6 +266,10 @@ public class AdminSuppliersController : Controller
             HasWarning = supplier.HasWarning,
             WarningNote = supplier.WarningNote,
             RowVersion = supplier.RowVersion,
+            // Spec 043 (US3) — last Hacienda sync outcome surface.
+            HaciendaSyncAttemptAt = supplier.HaciendaSyncAttemptAt,
+            HaciendaSyncOutcome = supplier.HaciendaSyncOutcome,
+            HaciendaSyncError = supplier.HaciendaSyncError,
             VerifiedByUserId = supplier.VerifiedByUserId,
             VerifiedAt = supplier.VerifiedAt,
             RejectionReason = supplier.RejectionReason,

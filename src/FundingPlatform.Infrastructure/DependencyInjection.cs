@@ -5,9 +5,11 @@ using FundingPlatform.Application.Admin.Reports;
 using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Admin.Users;
 using FundingPlatform.Application.AiComparison;
+using FundingPlatform.Application.Abstractions.Hacienda;
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Application.Options;
+using FundingPlatform.Application.Regulatory;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.AiComparison.Anthropic;
@@ -204,6 +206,9 @@ public static class DependencyInjection
         services.AddScoped<Application.FundsUsageEvidence.IFundsUsageEvidenceService,
             Services.FundsUsageEvidenceService>();
 
+        // Spec 043 — regulatory freshness gating + Hacienda API sync.
+        services.AddRegulatoryFreshness(configuration);
+
         // Spec 020 — AI quote comparison wiring.
         services.AddAiComparison(configuration);
 
@@ -253,6 +258,63 @@ public static class DependencyInjection
             // stub's static call counters are independent of DI lifetime.
             services.AddScoped<IAiClient, StubAiClient>();
         }
+
+        return services;
+    }
+
+    /// <summary>
+    /// Spec 043 — regulatory-freshness gate query, the config-gated Hacienda API
+    /// client (Live vs Fake, mirroring <c>AiComparison:Provider</c>), and the two
+    /// daily background workers (sync + stale-value digest).
+    /// </summary>
+    public static IServiceCollection AddRegulatoryFreshness(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<RegulatoryFreshnessOptions>(
+            configuration.GetSection(RegulatoryFreshnessOptions.SectionName));
+        services.Configure<HaciendaSyncOptions>(
+            configuration.GetSection(HaciendaSyncOptions.SectionName));
+
+        // Freshness query backing the auditor-stage gate (US1) + the warning (US4).
+        services.AddScoped<IRegulatoryFreshnessService, Services.RegulatoryFreshnessService>();
+
+        // Config-gated Hacienda API client (mirrors AiComparison:Provider Stub/Anthropic).
+        // Default to the offline Fake so dev/E2E never hit the live API without depending on
+        // env-var forwarding (the AiComparison Stub-default lesson); real envs opt in with
+        // Regulatory:HaciendaSync:Provider=Live via azd-env / container config.
+        var haciendaProvider = configuration[$"{HaciendaSyncOptions.SectionName}:Provider"] ?? "Fake";
+        if (string.Equals(haciendaProvider, "Live", StringComparison.OrdinalIgnoreCase))
+        {
+            var baseUrl = configuration[$"{HaciendaSyncOptions.SectionName}:BaseUrl"]
+                ?? "https://api.hacienda.go.cr";
+            // Manually-constructed long-lived HttpClient (no Microsoft.Extensions.Http /
+            // IHttpClientFactory dependency — reuse-first per the plan). A single client for a
+            // once-daily singleton worker is safe; PooledConnectionLifetime opts the long-lived
+            // singleton into periodic DNS refresh (the singleton-HttpClient staleness caveat).
+            services.AddSingleton<IHaciendaApiClient>(sp => new Hacienda.LiveHaciendaApiClient(
+                new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(15) })
+                {
+                    BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/"),
+                    Timeout = TimeSpan.FromSeconds(30),
+                },
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Hacienda.LiveHaciendaApiClient>>()));
+        }
+        else
+        {
+            services.AddSingleton<IHaciendaApiClient, Hacienda.FakeHaciendaApiClient>();
+        }
+
+        // Daily Hacienda sync worker (US2) — singleton (creates its own DI scope per cycle,
+        // mirroring StageExpiryReminderService) so the public RunOnceAsync seam is reachable
+        // from the Development trigger endpoint and from the same instance the host runs.
+        services.AddSingleton<BackgroundServices.HaciendaSyncService>();
+        services.AddHostedService(sp => sp.GetRequiredService<BackgroundServices.HaciendaSyncService>());
+
+        // Daily stale-value digest worker (US4) + its branded email factory.
+        services.AddScoped<Email.RegulatoryDigestEmailFactory>();
+        services.AddSingleton<BackgroundServices.RegulatoryFreshnessDigestService>();
+        services.AddHostedService(sp => sp.GetRequiredService<BackgroundServices.RegulatoryFreshnessDigestService>());
 
         return services;
     }

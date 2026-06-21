@@ -119,4 +119,11 @@ public enum UserFacingErrorCode
     /// provider has CCSS status <c>sin inscripción</c> (a hard block). The Detail
     /// carries the provider name for the templated es-CR message.</summary>
     SupplierCcssSinInscripcion,
+
+    // Spec 043 — regulatory freshness gate (FR-007 / FR-009).
+    /// <summary>Spec 043 / FR-007 / FR-009 — an auditor advance action was refused
+    /// because one or more relied-on providers have a stale/never-reviewed required
+    /// regulatory field. The Detail carries the full es-CR enumerated block message
+    /// (provider + field + last-reviewed), surfaced verbatim (data, not domain English).</summary>
+    RegulatoryDataStale,
 }

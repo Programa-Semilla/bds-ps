@@ -30,6 +30,9 @@ public class AdminSupplierListViewModel
     /// <summary>Currently selected Fund filter (null = all).</summary>
     public int? FundFilter { get; init; }
 
+    /// <summary>Spec 043 / US3 / FR-020 — "verificación fallida" filter is active.</summary>
+    public bool SyncFailedFilter { get; init; }
+
     /// <summary>Fondo → Proceso catalog (active Funds only) for the cascading
     /// drill-down filter. Suppliers are not Group-scoped, so the Group level is
     /// not rendered here.</summary>
@@ -50,4 +53,6 @@ public record AdminSupplierRowViewModel(
     int BranchCount,
     bool HasIncompleteCompliance,
     DateTime UpdatedAt,
-    DateTime? LastUsedAt = null);
+    DateTime? LastUsedAt = null,
+    // Spec 043 / US3 — last Hacienda sync outcome for the "verificación fallida" row badge.
+    HaciendaSyncOutcome? HaciendaSyncOutcome = null);

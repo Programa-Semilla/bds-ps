@@ -41,6 +41,12 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(s => s.HasWarning).IsRequired();
         builder.Property(s => s.WarningNote).HasMaxLength(1000);
 
+        // Spec 043 — per-provider Hacienda sync outcome. TINYINT-enum needs explicit
+        // HasConversion<byte?>() or real-SQL materialization throws Byte→Int32 (spec 040 lesson).
+        builder.Property(s => s.HaciendaSyncAttemptAt);
+        builder.Property(s => s.HaciendaSyncOutcome).HasConversion<byte?>();
+        builder.Property(s => s.HaciendaSyncError).HasMaxLength(500);
+
         // Spec 038 / D15 — optimistic concurrency token.
         builder.Property(s => s.RowVersion).IsRowVersion();
 

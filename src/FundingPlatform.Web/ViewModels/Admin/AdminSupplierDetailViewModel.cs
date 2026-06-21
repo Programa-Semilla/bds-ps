@@ -30,6 +30,11 @@ public class AdminSupplierDetailViewModel
     public string? WarningNote { get; init; }
     public byte[] RowVersion { get; init; } = [];
 
+    // Spec 043 (US3) — last Hacienda daily-sync outcome (null outcome = never synced).
+    public DateTime? HaciendaSyncAttemptAt { get; init; }
+    public HaciendaSyncOutcome? HaciendaSyncOutcome { get; init; }
+    public string? HaciendaSyncError { get; init; }
+
     public string? VerifiedByUserId { get; init; }
     public DateTime? VerifiedAt { get; init; }
     public string? RejectionReason { get; init; }

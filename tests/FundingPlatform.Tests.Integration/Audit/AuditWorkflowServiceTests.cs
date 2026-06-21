@@ -1,4 +1,5 @@
 using FundingPlatform.Application.Audit;
+using FundingPlatform.Application.Regulatory;
 using FundingPlatform.Application.Reviewer;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
@@ -34,6 +35,8 @@ public class AuditWorkflowServiceTests
             new ChecklistTemplateRepository(ctx),
             new NotificationOutboxWriter(ctx),
             ctx,
+            new RegulatoryFreshnessService(
+                ctx, Microsoft.Extensions.Options.Options.Create(new RegulatoryFreshnessOptions())),
             NullLogger<AuditWorkflowService>.Instance);
 
     private static async Task<int> SeedActiveChecklistAsync(AppDbContext ctx, ChecklistStage stage)

@@ -16,7 +16,7 @@ CLAUDE.md *Recent Changes* log (the repo's normal cross-feature context channel)
 | **A** | Provider compliance model + Auditor role (foundation) | §2.3, §9, §10 (10.1/10.1.1/10.3/10.4/10.5/10.5.1/10.6), §13, §15 (15.1–15.4, 15.6, 15.7), §22.5/22.6/22.11A, §23.1, §25.1, §28.4/28.5 | — | shipped → `specs/038-auditor-provider-compliance/` (PR #69) |
 | **B** | Supplier recommendation algorithm rewrite | §14, §22.7/22.8, §6 (item-line fields), §28.2/28.3 | A | shipped → `specs/039-supplier-recommendation/` (PR #70) |
 | **C** | Auditor workflow stage | §11, §12, §18, §19, §22.9/22.10/22.11, §23.1/23.2, §25.2/25.4, §28.9 | A | delivered → `specs/040-auditor-workflow-stage/` (branch `040-auditor-workflow-stage`; US1–US4 + cross-cutting E2E green) |
-| **D** | Regulatory freshness gating + Hacienda API sync | §15.5, §16, §17, §25.3, §28.6/28.7 | A | not-started |
+| **D** | Regulatory freshness gating + Hacienda API sync | §15.5, §16, §17, §25.3, §28.6/28.7 | A | spec-created → `specs/043-regulatory-freshness-hacienda-sync/` |
 | **E** | Fund process windows + applicant timing UX | §3, §22.1/22.2/22.2A, §24.1/24.2, §26.1–26.3, §28.11/28.12 | — (touches Process/Fund) | not-started |
 | **F** | Per-user funding limit per process | §4, §22.3, §26.4/26.5, §28.1/28.10 | — | not-started |
 | **G** | Applicant timeline + % progress | §20, §24.8 | — (nice after E) | not-started |

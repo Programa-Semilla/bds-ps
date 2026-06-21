@@ -70,6 +70,10 @@ public class AuditorWorkflowTests : AuthenticatedTestBase
         await Page.Locator("[data-testid=audit-checklist-save]").ClickAsync();
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
+        // Spec 043 — the selected supplier is never-reviewed (would block confirm/release
+        // on the new freshness gate); mark it fresh so this slice-C golden path advances.
+        await FundingAgreementSeeder.SetSelectedSuppliersRegulatoryFreshAsync(ConnectionString, appId);
+
         // Simulate the auditor's PDF generation via SQL (the project convention for
         // bypassing Syncfusion in E2E); the auditor then confirms + releases through the UI.
         await FundingAgreementSeeder.SeedGeneratedAgreementAsync(

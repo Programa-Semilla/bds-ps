@@ -1,6 +1,7 @@
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Application.Errors;
 using FundingPlatform.Application.Notifications;
+using FundingPlatform.Application.Regulatory;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Interfaces;
@@ -24,6 +25,8 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
     private readonly IChecklistTemplateRepository _checklists;
     private readonly INotificationOutboxWriter _outbox;
     private readonly AppDbContext _db;
+    // Spec 043 / FR-009 — defense-in-depth freshness gate at confirm/release.
+    private readonly IRegulatoryFreshnessService _freshness;
     private readonly ILogger<AuditWorkflowService> _logger;
 
     public AuditWorkflowService(
@@ -31,13 +34,29 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
         IChecklistTemplateRepository checklists,
         INotificationOutboxWriter outbox,
         AppDbContext db,
+        IRegulatoryFreshnessService freshness,
         ILogger<AuditWorkflowService> logger)
     {
         _applications = applications;
         _checklists = checklists;
         _outbox = outbox;
         _db = db;
+        _freshness = freshness;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Spec 043 / FR-007 / FR-009 — returns a refusal result when any relied-on
+    /// provider has a stale/never-reviewed required regulatory field; null when all
+    /// are fresh. The es-CR detail enumerates provider + field + last-reviewed.
+    /// </summary>
+    private async Task<AuditActionResult?> RegulatoryStaleRefusalAsync(int appId, CancellationToken ct)
+    {
+        var stale = await _freshness.GetStaleFindingsForApplicationAsync(appId, ct);
+        if (stale.Count == 0) return null;
+        return AuditActionResult.Fail(UserFacingError.From(
+            UserFacingErrorCode.RegulatoryDataStale,
+            RegulatoryFreshnessCopy.BuildBlockMessage(stale)));
     }
 
     // ----- reviewer side -----
@@ -224,6 +243,9 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
         var application = await _applications.GetByIdWithResponseAndAppealsAsync(appId);
         if (application is null) return AuditActionResult.Fail(UserFacingError.From(UserFacingErrorCode.ApplicationNotFound));
 
+        // Spec 043 / FR-009 — defense in depth: a crafted POST cannot confirm a stale app.
+        if (await RegulatoryStaleRefusalAsync(appId, ct) is { } staleRefusal) return staleRefusal;
+
         try
         {
             application.ConfirmAgreementPdf(auditorUserId);
@@ -241,6 +263,9 @@ public sealed class AuditWorkflowService : IAuditWorkflowService
     {
         var application = await _applications.GetByIdWithResponseAndAppealsAsync(appId);
         if (application is null) return AuditActionResult.Fail(UserFacingError.From(UserFacingErrorCode.ApplicationNotFound));
+
+        // Spec 043 / FR-009 — defense in depth: a crafted POST cannot release a stale app.
+        if (await RegulatoryStaleRefusalAsync(appId, ct) is { } staleRefusal) return staleRefusal;
 
         try
         {

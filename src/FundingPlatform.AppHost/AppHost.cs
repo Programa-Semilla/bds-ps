@@ -131,6 +131,11 @@ var aiOrphanReapAfterMinutes = builder.Configuration["AiComparison:OrphanReapAft
 var aiPromptVersion = builder.Configuration["AiComparison:PromptVersion"] ?? "2026-05-11";
 var aiSchemaVersion = builder.Configuration["AiComparison:SchemaVersion"] ?? "v1";
 
+// Spec 043 — Hacienda sync provider defaults to the offline "Fake" so dev +
+// E2E (constitution Principle III) never hit the live api.hacienda.go.cr.
+// Real environments override Regulatory:HaciendaSync:Provider=Live via azd-env.
+var haciendaProvider = builder.Configuration["Regulatory:HaciendaSync:Provider"] ?? "Fake";
+
 // E2E fixture runs with EphemeralStorage=true and a fresh DB per fixture run, so
 // the sentinel admin (admin@programa-semilla.test) is seeded on every startup. In
 // ephemeral mode we force the deterministic test password regardless of other
@@ -211,7 +216,8 @@ var webApp = builder.AddProject<Projects.FundingPlatform_Web>("webapp")
     .WithEnvironment("AiComparison__TokenCapPerRunInput", aiTokenCapPerRunInput)
     .WithEnvironment("AiComparison__OrphanReapAfterMinutes", aiOrphanReapAfterMinutes)
     .WithEnvironment("AiComparison__PromptVersion", aiPromptVersion)
-    .WithEnvironment("AiComparison__SchemaVersion", aiSchemaVersion);
+    .WithEnvironment("AiComparison__SchemaVersion", aiSchemaVersion)
+    .WithEnvironment("Regulatory__HaciendaSync__Provider", haciendaProvider);
 
 if (!string.IsNullOrEmpty(aiApiKey))
 {

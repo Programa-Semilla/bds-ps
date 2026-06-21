@@ -220,6 +220,12 @@ public class SupplierRepository : ISupplierRepository
             query = query.Where(s => supplierIdsInFund.Contains(s.Id));
         }
 
+        if (filter.HaciendaSyncFailed == true)
+        {
+            // Spec 043 / FR-020 — providers whose last daily Hacienda sync attempt failed.
+            query = query.Where(s => s.HaciendaSyncOutcome == HaciendaSyncOutcome.Failure);
+        }
+
         // Compute LastUsedAt via correlated subquery — translates to SQL Server
         // OUTER APPLY (max). Null when the supplier has no quotations yet.
         var projected = query.Select(s => new
@@ -254,7 +260,8 @@ public class SupplierRepository : ISupplierRepository
                 || x.Supplier.CcssStatus == null
                 || x.Supplier.SicopStatus == null,
             x.Supplier.UpdatedAt,
-            x.LastUsedAt)).ToList();
+            x.LastUsedAt,
+            x.Supplier.HaciendaSyncOutcome)).ToList();
 
         return (rows, total);
     }

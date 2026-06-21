@@ -21,12 +21,17 @@ public static class ReviewFreshness
                 ? "revisado hace 1 día"
                 : $"revisado hace {days} días";
 
-        var by = string.IsNullOrWhiteSpace(byName) ? string.Empty : $" por {byName}";
+        // Spec 043 — automated sources (the daily Hacienda sync writes Api with
+        // by="system") render as "por el sistema" rather than the raw actor id.
+        var isSystemSource = source is RegulatoryReviewSource.Api or RegulatoryReviewSource.System;
+        var by = isSystemSource
+            ? " por el sistema"
+            : string.IsNullOrWhiteSpace(byName) ? string.Empty : $" por {byName}";
 
         var src = source switch
         {
             RegulatoryReviewSource.Manual => " (manual)",
-            RegulatoryReviewSource.Api => " (API)",
+            RegulatoryReviewSource.Api => " (Hacienda)",
             RegulatoryReviewSource.System => " (sistema)",
             _ => string.Empty,
         };

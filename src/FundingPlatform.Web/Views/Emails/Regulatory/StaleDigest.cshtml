@@ -1,0 +1,8 @@
+@model DirectEmailModel
+@* Spec 043 / US4 — branded daily stale-regulatory-value digest to group-scoped auditors.
+   Rendered through the shared _EmailLayout; copy + affected-applications card supplied
+   by RegulatoryDigestEmailFactory. *@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+@await Html.PartialAsync("~/Views/Emails/Shared/_DirectBody.cshtml", Model)

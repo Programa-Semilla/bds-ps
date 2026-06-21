@@ -48,6 +48,14 @@ public partial class Supplier
     public bool HasWarning { get; private set; }
     public string? WarningNote { get; private set; }
 
+    // ----- Spec 043 — per-provider Hacienda daily-sync outcome -----
+    /// <summary>UTC instant of the last daily Hacienda sync attempt (success or failure); null = never.</summary>
+    public DateTime? HaciendaSyncAttemptAt { get; private set; }
+    /// <summary>Outcome of the last sync attempt; null = never attempted.</summary>
+    public HaciendaSyncOutcome? HaciendaSyncOutcome { get; private set; }
+    /// <summary>Failure reason (es-CR) when the last attempt failed; cleared on success.</summary>
+    public string? HaciendaSyncError { get; private set; }
+
     /// <summary>Spec 038 / D15 — optimistic-concurrency token (multi-auditor + slice-D API contention).</summary>
     public byte[] RowVersion { get; private set; } = [];
 
@@ -390,6 +398,89 @@ public partial class Supplier
             RegulatoryChangeKind.ReviewedNoChange,
             RegulatoryReviewSource.Manual);
     }
+
+    /// <summary>Spec 043 — max length of the persisted sync-failure reason.</summary>
+    public const int HaciendaSyncErrorMaxLength = 500;
+
+    /// <summary>
+    /// Spec 043 (US2) — applies a successful Hacienda sync lookup. When the mapped
+    /// status differs from the current value it is updated and a
+    /// <see cref="RegulatoryChangeKind.Changed"/> record returned; otherwise a
+    /// <see cref="RegulatoryChangeKind.ReviewedNoChange"/> record. Always stamps the
+    /// Hacienda last-reviewed metadata (now / <paramref name="systemActorUserId"/> / <c>Api</c>) and
+    /// records a <see cref="Enums.HaciendaSyncOutcome.Success"/> sync outcome (clearing any error).
+    /// <paramref name="systemActorUserId"/> must be a real <c>AspNetUsers</c> id (the system sentinel)
+    /// so the per-field last-reviewer FK is satisfied; the display renders it as "por el sistema"
+    /// via the <c>Api</c> source.
+    /// </summary>
+    public RegulatoryChange ApplyHaciendaSyncResult(HaciendaStatus mapped, DateTime nowUtc, string systemActorUserId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(systemActorUserId);
+        var old = HaciendaStatus;
+        var kind = mapped != old ? RegulatoryChangeKind.Changed : RegulatoryChangeKind.ReviewedNoChange;
+
+        HaciendaStatus = mapped;
+        HaciendaLastReviewedAt = nowUtc;
+        HaciendaLastReviewedBy = systemActorUserId;
+        HaciendaLastReviewedSource = RegulatoryReviewSource.Api;
+
+        HaciendaSyncAttemptAt = nowUtc;
+        HaciendaSyncOutcome = Enums.HaciendaSyncOutcome.Success;
+        HaciendaSyncError = null;
+        UpdatedAt = nowUtc;
+
+        return new RegulatoryChange(
+            RegulatoryChangeField.Hacienda,
+            ((byte?)old)?.ToString(),
+            ((byte?)mapped).ToString(),
+            kind,
+            RegulatoryReviewSource.Api);
+    }
+
+    /// <summary>
+    /// Spec 043 (US2/US3, FR-018) — records a failed Hacienda sync attempt. Sets only
+    /// the sync metadata (attempt time / <see cref="Enums.HaciendaSyncOutcome.Failure"/> /
+    /// reason); never touches any regulatory status or last-reviewed field so a transient
+    /// API failure can never corrupt known-good regulatory data.
+    /// </summary>
+    public void RecordHaciendaSyncFailure(DateTime nowUtc, string reason)
+    {
+        HaciendaSyncAttemptAt = nowUtc;
+        HaciendaSyncOutcome = Enums.HaciendaSyncOutcome.Failure;
+        HaciendaSyncError = string.IsNullOrWhiteSpace(reason)
+            ? "Error desconocido."
+            : reason.Length > HaciendaSyncErrorMaxLength ? reason[..HaciendaSyncErrorMaxLength] : reason;
+        UpdatedAt = nowUtc;
+    }
+
+    // ----------- Spec 043 — regulatory freshness predicate (pure, FR-001/FR-005) -----------
+
+    /// <summary>
+    /// Spec 043 / FR-001 — true when any required regulatory field
+    /// (Hacienda/CCSS/SICOP) is stale: its last-reviewed timestamp is null or
+    /// older than <paramref name="windowDays"/> relative to <paramref name="nowUtc"/>.
+    /// </summary>
+    public bool IsRegulatoryStale(int windowDays, DateTime nowUtc)
+        => StaleRequiredFields(windowDays, nowUtc).Count > 0;
+
+    /// <summary>
+    /// Spec 043 / FR-001 / FR-005 — the specific required fields that are stale.
+    /// All three fields are required. A field is stale when its last-reviewed
+    /// timestamp is null OR strictly older than the freshness window cutoff
+    /// (<c>nowUtc - windowDays</c>); a review exactly at the cutoff is fresh.
+    /// </summary>
+    public IReadOnlyList<RegulatoryField> StaleRequiredFields(int windowDays, DateTime nowUtc)
+    {
+        var cutoff = nowUtc.AddDays(-windowDays);
+        var stale = new List<RegulatoryField>(3);
+        if (IsFieldStale(HaciendaLastReviewedAt, cutoff)) stale.Add(RegulatoryField.Hacienda);
+        if (IsFieldStale(CcssLastReviewedAt, cutoff)) stale.Add(RegulatoryField.Ccss);
+        if (IsFieldStale(SicopLastReviewedAt, cutoff)) stale.Add(RegulatoryField.Sicop);
+        return stale;
+    }
+
+    private static bool IsFieldStale(DateTime? lastReviewedAt, DateTime cutoff)
+        => lastReviewedAt is null || lastReviewedAt.Value < cutoff;
 
     // ----------- Branch operations (single source of truth for invariants) -----------
 

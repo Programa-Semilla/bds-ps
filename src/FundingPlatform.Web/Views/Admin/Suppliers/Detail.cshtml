@@ -57,6 +57,26 @@
                             <div class="form-text" data-testid="hacienda-freshness">
                                 @ReviewFreshness.Describe(Model.HaciendaReviewedAt, Model.HaciendaReviewedByName, Model.HaciendaReviewedSource)
                             </div>
+                            @if (Model.HaciendaSyncAttemptAt is { } syncAt)
+                            {
+                                <div class="form-text" data-testid="hacienda-sync-outcome">
+                                    @if (Model.HaciendaSyncOutcome == HaciendaSyncOutcome.Failure)
+                                    {
+                                        <span class="text-danger">
+                                            <i class="ti ti-alert-triangle"></i> @RegulatoryFreshnessResources.SyncFailure_Label
+                                        </span>
+                                        @if (!string.IsNullOrWhiteSpace(Model.HaciendaSyncError))
+                                        {
+                                            <text> — @Model.HaciendaSyncError</text>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">@RegulatoryFreshnessResources.OutcomeLabel(Model.HaciendaSyncOutcome)</span>
+                                    }
+                                    <span class="text-secondary"> (@syncAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))</span>
+                                </div>
+                            }
                         </div>
 
                         <div class="mb-3">

@@ -1,0 +1,15 @@
+@using FundingPlatform.Application.Regulatory
+@model IReadOnlyList<StaleRegulatoryFinding>
+@* Spec 043 / US4 / FR-010 — non-blocking early warning. Empty when all providers are fresh. *@
+@if (Model.Count > 0)
+{
+    <div class="alert alert-warning" role="alert" data-testid="regulatory-freshness-warning">
+        <div class="fw-bold">@RegulatoryFreshnessCopy.WarningHeading</div>
+        <ul class="mb-0">
+            @foreach (var f in Model)
+            {
+                <li>@RegulatoryFreshnessCopy.FindingLine(f.SupplierName, f.Field, f.LastReviewedAt)</li>
+            }
+        </ul>
+    </div>
+}

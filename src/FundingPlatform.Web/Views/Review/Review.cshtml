@@ -14,6 +14,9 @@
         Title: $"Revisar solicitud N.º {Model.ApplicationId}",
         Subtitle: Model.ApplicantName))
 
+@* Spec 043 / US4 / FR-010 — non-blocking regulatory-freshness warning (early heads-up before audit). *@
+@await Component.InvokeAsync("RegulatoryFreshnessWarning", new { applicationId = Model.ApplicationId })
+
 @if (TempData["ReviewSuccess"] is string reviewOk)
 {
     <div class="alert alert-success" data-testid="review-toast-success">@reviewOk</div>
