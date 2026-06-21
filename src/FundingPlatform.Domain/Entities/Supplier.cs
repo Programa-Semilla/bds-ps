@@ -391,6 +391,35 @@ public partial class Supplier
             RegulatoryReviewSource.Manual);
     }
 
+    // ----------- Spec 043 — regulatory freshness predicate (pure, FR-001/FR-005) -----------
+
+    /// <summary>
+    /// Spec 043 / FR-001 — true when any required regulatory field
+    /// (Hacienda/CCSS/SICOP) is stale: its last-reviewed timestamp is null or
+    /// older than <paramref name="windowDays"/> relative to <paramref name="nowUtc"/>.
+    /// </summary>
+    public bool IsRegulatoryStale(int windowDays, DateTime nowUtc)
+        => StaleRequiredFields(windowDays, nowUtc).Count > 0;
+
+    /// <summary>
+    /// Spec 043 / FR-001 / FR-005 — the specific required fields that are stale.
+    /// All three fields are required. A field is stale when its last-reviewed
+    /// timestamp is null OR strictly older than the freshness window cutoff
+    /// (<c>nowUtc - windowDays</c>); a review exactly at the cutoff is fresh.
+    /// </summary>
+    public IReadOnlyList<RegulatoryField> StaleRequiredFields(int windowDays, DateTime nowUtc)
+    {
+        var cutoff = nowUtc.AddDays(-windowDays);
+        var stale = new List<RegulatoryField>(3);
+        if (IsFieldStale(HaciendaLastReviewedAt, cutoff)) stale.Add(RegulatoryField.Hacienda);
+        if (IsFieldStale(CcssLastReviewedAt, cutoff)) stale.Add(RegulatoryField.Ccss);
+        if (IsFieldStale(SicopLastReviewedAt, cutoff)) stale.Add(RegulatoryField.Sicop);
+        return stale;
+    }
+
+    private static bool IsFieldStale(DateTime? lastReviewedAt, DateTime cutoff)
+        => lastReviewedAt is null || lastReviewedAt.Value < cutoff;
+
     // ----------- Branch operations (single source of truth for invariants) -----------
 
     /// <summary>

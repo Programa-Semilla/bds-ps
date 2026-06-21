@@ -275,6 +275,9 @@ public static class DependencyInjection
         services.Configure<HaciendaSyncOptions>(
             configuration.GetSection(HaciendaSyncOptions.SectionName));
 
+        // Freshness query backing the auditor-stage gate (US1) + the warning (US4).
+        services.AddScoped<IRegulatoryFreshnessService, Services.RegulatoryFreshnessService>();
+
         return services;
     }
 }
