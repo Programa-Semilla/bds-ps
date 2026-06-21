@@ -1,6 +1,6 @@
 # Review Brief: Regulatory Freshness Gating + Hacienda API Sync
 
-**Spec:** specs/042-regulatory-freshness-hacienda-sync/spec.md
+**Spec:** specs/043-regulatory-freshness-hacienda-sync/spec.md
 **Generated:** 2026-06-21
 
 > Reviewer's guide to scope and key decisions. See full spec for details.

@@ -1,6 +1,6 @@
 # Feature Specification: Regulatory Freshness Gating + Hacienda API Sync
 
-**Feature Branch**: `042-regulatory-freshness-hacienda-sync`
+**Feature Branch**: `043-regulatory-freshness-hacienda-sync`
 **Created**: 2026-06-21
 **Status**: Draft
 **Input**: feedback-3 slice D (master `seeds/feedback-3/AI_Coding_Agent_Unified_Requirements.md` §15.5, §16, §17, §24.7 reuse, §25.3; resolves §28.6 and §28.7). Builds on shipped slice A (`specs/038-auditor-provider-compliance/`).

@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-21
 **Status:** spec-created
-**Spec:** specs/042-regulatory-freshness-hacienda-sync/
+**Spec:** specs/043-regulatory-freshness-hacienda-sync/
 
 ## Problem Framing
 
@@ -36,7 +36,7 @@ Real client (B) — captured the live contract (response `{ nombre, tipoIdentifi
 - **§25.3** → include a daily auditor stale-value digest via the existing outbox + allowlist.
 - **§16.4** → per-provider last-sync outcome on the supplier detail screen + "verificación fallida" filter/badge on the admin list + `AdminAuditEvent` per failure.
 
-Spec written as **042-regulatory-freshness-hacienda-sync**, reviewed SOUND by `speckit-spex-gates-review-spec` (no critical/important issues).
+Spec written as **043-regulatory-freshness-hacienda-sync**, reviewed SOUND by `speckit-spex-gates-review-spec` (no critical/important issues).
 
 ## Open Threads
 
