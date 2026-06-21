@@ -1,0 +1,211 @@
+@using FundingPlatform.Domain.Enums
+@model FundingPlatform.Web.ViewModels.Audit.AuditDetailViewModel
+@{
+    ViewData["Title"] = $"Auditoría — {Model.Application.ApplicantName}";
+    var app = Model.Application;
+    var review = Model.Review;
+    var appState = Enum.Parse<ApplicationState>(review.State);
+}
+
+@* Spec 040 / FR-007 — the auditor read surface reuses the reviewer comparison styling. *@
+<link rel="stylesheet" href="~/css/comparison.css" />
+
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <h2 class="page-title">Auditoría: @app.ApplicantName</h2>
+        <div class="text-secondary">Solicitud #@app.ApplicationId</div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        @if (TempData["AuditSuccess"] is string ok)
+        {
+            <div class="alert alert-success" data-testid="audit-toast-success">@ok</div>
+        }
+        @if (TempData["AuditError"] is string err)
+        {
+            <div class="alert alert-danger" data-testid="audit-toast-error">@err</div>
+        }
+        @if (TempData["FundingAgreementError"] is string faErr)
+        {
+            <div class="alert alert-danger" data-testid="audit-fa-error">@faErr</div>
+        }
+
+        <div class="row">
+            <div class="col-12">
+                @* Spec 040 / FR-007 — applicant + state summary (reviewer-equivalent). *@
+                <div class="card mb-3" data-testid="audit-summary">
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <strong>Solicitante:</strong>
+                                <span class="applicant-name">@review.ApplicantName</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Puntaje de desempeño:</strong>
+                                <span class="performance-score">
+                                    @if (review.ApplicantPerformanceScore.HasValue)
+                                    {
+                                        @review.ApplicantPerformanceScore.Value.ToString("F2")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary">N/D</span>
+                                    }
+                                </span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Estado:</strong>
+                                <span class="application-state">
+                                    @await Html.PartialAsync("Components/_StatusPill", new StatusPillViewModel(appState))
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @* Spec 040 / FR-007 — the shared read-only decision summary (same view the
+                   reviewer, applicant, and funding-agreement surfaces render). *@
+                <div class="card mb-3" data-testid="audit-decision-summary">
+                    <div class="card-header"><h3 class="card-title">Resumen de decisiones</h3></div>
+                    <div class="card-body">
+                        @await Html.PartialAsync("_DecisionSummary", review.DecisionSummary)
+                    </div>
+                </div>
+
+                @if (review.Impacts.Count > 0)
+                {
+                    <div class="card mb-3" data-testid="audit-impacts">
+                        <div class="card-header"><h3 class="card-title">Impactos de la solicitud</h3></div>
+                        <div class="card-body">
+                            @foreach (var impact in review.Impacts)
+                            {
+                                <div class="mb-2">
+                                    <strong>@impact.TemplateName</strong>
+                                    @if (impact.Parameters.Count > 0)
+                                    {
+                                        <table class="fl-table mt-1" data-density="reviewer">
+                                            <thead><tr><th>Parámetro</th><th>Valor</th></tr></thead>
+                                            <tbody>
+                                                @foreach (var p in impact.Parameters)
+                                                {
+                                                    <tr><td>@p.DisplayLabel</td><td>@p.Value</td></tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @* Spec 040 / FR-007 — per-item provider/quotation detail with the seven-criterion
+                   score breakdown, regulatory-status compliance, documents, and AI comparison,
+                   rendered read-only via the shared _ItemReviewDetails partial. *@
+                <h4 class="mb-2" data-testid="audit-items">Ítems (@review.Items.Count)</h4>
+                @foreach (var item in review.Items)
+                {
+                    var itemReviewStatus = Enum.Parse<ItemReviewStatus>(item.ReviewStatus);
+                    <div class="card mb-3 review-item" data-item-id="@item.ItemId">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>@item.ProductName</strong>
+                                <span class="text-secondary ms-2">(@item.CategoryName)</span>
+                                @if (!string.IsNullOrWhiteSpace(item.LineCode))
+                                {
+                                    <span class="badge bg-blue-lt ms-2">@item.LineCode</span>
+                                }
+                            </div>
+                            <span class="review-status-badge">
+                                @await Html.PartialAsync("Components/_StatusPill", new StatusPillViewModel(itemReviewStatus))
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            @await Html.PartialAsync("_ItemReviewDetails", item)
+                        </div>
+                    </div>
+                }
+
+                @* Spec 040 — the checklist hosts Save / Aprobar / Devolver (they submit the
+                   live marks via formaction). *@
+                @await Html.PartialAsync("_AuditChecklist", Model.Checklist)
+
+                @* Spec 040 — post-approval agreement actions (the auditor's PDF step). Generate
+                   becomes available once the audit is approved; download/confirm/release appear
+                   once the PDF exists. *@
+                <div class="card mb-3">
+                    <div class="card-header"><h3 class="card-title">Convenio</h3></div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2">
+                            @* Generation reuses the re-gated FundingAgreement endpoint. *@
+                            <form method="post" action="/Applications/@app.ApplicationId/FundingAgreement/Generate">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-primary"
+                                        data-testid="audit-generate"
+                                        @(Model.CanGenerate ? "" : "disabled")>
+                                    @(Model.Checklist.AgreementExists ? "Regenerar convenio" : "Generar convenio")
+                                </button>
+                            </form>
+
+                            @if (Model.Checklist.AgreementExists)
+                            {
+                                <a class="btn btn-outline-secondary"
+                                   href="/Applications/@app.ApplicationId/FundingAgreement/Download"
+                                   data-testid="audit-download">Descargar convenio</a>
+
+                                <form method="post" asp-controller="Audit" asp-action="Confirm" asp-route-id="@app.ApplicationId">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-outline-success"
+                                            data-testid="audit-confirm"
+                                            @(Model.CanConfirm ? "" : "disabled")>
+                                        @(Model.Checklist.AgreementConfirmed ? "PDF confirmado ✓" : "Confirmar que el PDF es correcto")
+                                    </button>
+                                </form>
+
+                                <form method="post" asp-controller="Audit" asp-action="Release" asp-route-id="@app.ApplicationId">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-success"
+                                            data-testid="audit-release"
+                                            @(Model.CanRelease ? "" : "disabled")>
+                                        Liberar para firma
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                        <div class="form-hint mt-2">
+                            Apruebe la auditoría para generar el convenio. Tras generarlo, confírmelo y libérelo para la firma del solicitante.
+                        </div>
+                    </div>
+                </div>
+
+                @if (Model.History.Count > 0)
+                {
+                    <div class="card mb-3" data-testid="audit-history">
+                        <div class="card-header"><h3 class="card-title">Historial de la solicitud</h3></div>
+                        <div class="list-group list-group-flush">
+                            @foreach (var entry in Model.History)
+                            {
+                                <div class="list-group-item" data-testid="audit-history-entry">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>@entry.ActionLabel</strong>
+                                        <span class="text-secondary">@entry.Timestamp.ToString("yyyy-MM-dd HH:mm")</span>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(entry.Details))
+                                    {
+                                        <div class="text-secondary small">@entry.Details</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/audit-checklist.js"></script>
+}

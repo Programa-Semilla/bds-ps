@@ -30,6 +30,9 @@ public class FundingAgreementController : Controller
 {
     private readonly FundingAgreementService _service;
     private readonly SignedUploadService _signedUploadService;
+    // Spec 040 — auditor generation re-gate (checklist completeness) + group scope.
+    private readonly Application.Audit.IAuditWorkflowService _auditWorkflow;
+    private readonly Application.Reviewer.IReviewerScopeProvider _scopeProvider;
     private readonly IApplicationRepository _applicationRepository;
     private readonly IFundingAgreementHtmlRenderer _htmlRenderer;
     private readonly IFundingAgreementPdfRenderer _pdfRenderer;
@@ -55,6 +58,8 @@ public class FundingAgreementController : Controller
     public FundingAgreementController(
         FundingAgreementService service,
         SignedUploadService signedUploadService,
+        Application.Audit.IAuditWorkflowService auditWorkflow,
+        Application.Reviewer.IReviewerScopeProvider scopeProvider,
         IApplicationRepository applicationRepository,
         IFundingAgreementHtmlRenderer htmlRenderer,
         IFundingAgreementPdfRenderer pdfRenderer,
@@ -69,6 +74,8 @@ public class FundingAgreementController : Controller
     {
         _service = service;
         _signedUploadService = signedUploadService;
+        _auditWorkflow = auditWorkflow;
+        _scopeProvider = scopeProvider;
         _applicationRepository = applicationRepository;
         _htmlRenderer = htmlRenderer;
         _pdfRenderer = pdfRenderer;
@@ -101,7 +108,9 @@ public class FundingAgreementController : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var isAdministrator = User.IsInRole("Admin");
-        var isReviewer = User.IsInRole("Reviewer");
+        // Spec 040 / FR-005 / FR-013 — PDF generation moved reviewer → auditor. Only an
+        // Auditor or Admin may generate; the reviewer authorization branch is removed.
+        var isAuditor = User.IsInRole("Auditor");
 
         var application = await _service.LoadForGenerationAsync(applicationId);
         if (application is null)
@@ -110,23 +119,43 @@ public class FundingAgreementController : Controller
             return NotFound();
         }
 
-        var canUserAccess = application.CanUserAccessFundingAgreement(
-            applicantUserId: userId,
-            isAdministrator: isAdministrator,
-            isReviewerAssignedToThisApplication: isReviewer);
-
-        if (!canUserAccess)
-        {
-            LogUnauthorized(applicationId, "Generate", "access-denied");
-            return NotFound();
-        }
-
-        if (!application.CanUserGenerateFundingAgreement(
-                isAdministrator: isAdministrator,
-                isReviewerAssignedToThisApplication: isReviewer))
+        if (!isAdministrator && !isAuditor)
         {
             LogUnauthorized(applicationId, "Generate", "role-forbidden");
             return StatusCode(403);
+        }
+
+        // Spec 040 / D7 / D12 — a non-admin auditor is group-scoped exactly like a
+        // reviewer: their groups must overlap the applicant's, else 403.
+        if (isAuditor && !isAdministrator)
+        {
+            var scope = await _scopeProvider.GetForUserAsync(userId, isAdmin: false, HttpContext.RequestAborted);
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(
+                applicationId, scope.GroupIds, HttpContext.RequestAborted);
+            if (!allowed)
+            {
+                LogUnauthorized(applicationId, "Generate", "group-scope-denied");
+                return StatusCode(403);
+            }
+        }
+
+        // Spec 040 / D11 — the auditor path requires PendingAudit + a complete (all
+        // required compliant) audit checklist. Admins retain a generate bypass.
+        if (!isAdministrator)
+        {
+            if (application.State != Domain.Enums.ApplicationState.PendingAudit)
+            {
+                LogUnauthorized(applicationId, "Generate", "not-pending-audit");
+                return StatusCode(403);
+            }
+            var complete = await _auditWorkflow.IsAuditChecklistCompleteAsync(
+                applicationId, HttpContext.RequestAborted);
+            if (!complete)
+            {
+                TempData["FundingAgreementError"] =
+                    "No se puede generar el convenio: la lista de verificación de auditoría está incompleta.";
+                return RedirectToRoute(new { controller = "Audit", action = "Detail", id = applicationId });
+            }
         }
 
         var isRegeneration = application.FundingAgreement is not null;
@@ -319,6 +348,12 @@ public class FundingAgreementController : Controller
         }
 
         TempData["FundingAgreementSuccess"] = "Convenio de financiamiento generado.";
+        // Spec 040 — an auditor generating during the audit stage returns to the audit
+        // surface (confirm + release happen there), not the signing-phase FA details.
+        if (isAuditor && !isAdministrator)
+        {
+            return RedirectToRoute(new { controller = "Audit", action = "Detail", id = applicationId });
+        }
         return RedirectToRoute(new { controller = "FundingAgreement", action = "Details", applicationId });
     }
 
@@ -328,6 +363,8 @@ public class FundingAgreementController : Controller
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var isAdministrator = User.IsInRole("Admin");
         var isReviewer = User.IsInRole("Reviewer");
+        // Spec 040 — an in-scope auditor may download the agreement they are auditing.
+        var isAuditor = User.IsInRole("Auditor");
 
         var application = await _service.LoadForGenerationAsync(applicationId);
         if (application is null)
@@ -336,10 +373,17 @@ public class FundingAgreementController : Controller
             return NotFound();
         }
 
-        if (!application.CanUserAccessFundingAgreement(
-                applicantUserId: userId,
-                isAdministrator: isAdministrator,
-                isReviewerAssignedToThisApplication: isReviewer))
+        var canAccess = application.CanUserAccessFundingAgreement(
+            applicantUserId: userId,
+            isAdministrator: isAdministrator,
+            isReviewerAssignedToThisApplication: isReviewer);
+        if (!canAccess && isAuditor && !isAdministrator)
+        {
+            var scope = await _scopeProvider.GetForUserAsync(userId, isAdmin: false, HttpContext.RequestAborted);
+            canAccess = await _applicationRepository.ApplicantSharesAnyGroupAsync(
+                applicationId, scope.GroupIds, HttpContext.RequestAborted);
+        }
+        if (!canAccess)
         {
             LogUnauthorized(applicationId, "Download", "access-denied");
             return NotFound();

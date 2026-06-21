@@ -1,0 +1,33 @@
+@model List<FundingPlatform.Web.ViewModels.Admin.ChecklistItemViewModel>
+
+@* Spec 040 / US4 — repeating checklist-item rows + JS clone/reindex (mirrors
+   _CategoryFieldsEditor). Ordering is the row position; required is a per-row flag. *@
+<hr />
+<h4>Ítems de verificación</h4>
+<div id="checklistItemsContainer">
+    @for (int i = 0; i < Model.Count; i++)
+    {
+        <div class="card mb-2 checklist-item-row" data-index="@i">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Ítem @(i + 1)</h6>
+                    <button type="button" class="btn btn-sm btn-danger remove-checklist-item"
+                            data-testid="admin-checklist-remove-item">Eliminar</button>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Texto</label>
+                    <input name="Items[@i].Text" value="@Model[i].Text" class="form-control"
+                           data-testid="admin-checklist-item-text" required />
+                </div>
+                <div class="form-check">
+                    <input name="Items[@i].IsRequired" type="checkbox" class="form-check-input" value="true"
+                           @(Model[i].IsRequired ? "checked" : "") data-testid="admin-checklist-item-required" />
+                    <label class="form-check-label">Obligatorio</label>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<button type="button" class="btn btn-outline-primary mb-3" id="addChecklistItem"
+        data-testid="admin-checklist-add-item">Agregar ítem</button>

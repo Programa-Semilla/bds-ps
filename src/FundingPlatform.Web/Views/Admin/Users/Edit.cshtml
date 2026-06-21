@@ -220,9 +220,10 @@
                 userCodeField.style.display = role === 'Applicant' ? '' : 'none';
             }
             if (groupsField) {
-                // Spec 016 / FR-009 + spec 021 / FR-007 — Admin AND SupplierAdmin
-                // both bypass Process/Group scope.
-                var isGroupless = role === 'Admin' || role === 'Auditor';
+                // Spec 016 / FR-009 — only Admin bypasses Process/Group scope.
+                // Spec 040 / FR-017 — the Auditor role is now group-scoped exactly like
+                // Reviewer, so the group selector is shown for Auditor too.
+                var isGroupless = role === 'Admin';
                 groupsField.style.display = isGroupless ? 'none' : '';
             }
         }

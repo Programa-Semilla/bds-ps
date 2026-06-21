@@ -23,8 +23,12 @@
     vertical-align: top;
 }
 
+/* The comparison table is also an `.fl-table`, whose brand header styling
+   (dark-teal background + white text, tokens.css `.fl-table thead th`) is readable
+   and WCAG-AA. This rule previously forced a LIGHT background here without setting a
+   text color, so the brand's white text rendered white-on-light-gray (unreadable).
+   Let the brand `.fl-table thead th` own the header background + color. */
 .comparison-table thead th {
-    background-color: var(--tblr-bg-surface-secondary, #f6f8fb);
     text-align: left;
 }
 

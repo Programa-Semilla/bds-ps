@@ -16,6 +16,15 @@
                 new BreadcrumbItem(FundsUsageEvidenceResources.Stage_Title),
             }))
 
+    @if (Model.IsReadOnly)
+    {
+        <div class="alert alert-info" data-testid="evidence-readonly-notice">
+            <i class="ti ti-lock"></i> @FundsUsageEvidenceResources.ReadOnly_Notice
+        </div>
+    }
+
+    @if (!Model.IsReadOnly)
+    {
     <div class="card mb-4">
         <div class="card-body">
             <form method="post"
@@ -49,6 +58,7 @@
             </form>
         </div>
     </div>
+    }
 
     @if (Model.Items.Count == 0)
     {
@@ -66,6 +76,7 @@
                     {
                         ApplicationId = Model.ApplicationId,
                         Item = item,
+                        IsReadOnly = Model.IsReadOnly,
                     })
             }
         </div>

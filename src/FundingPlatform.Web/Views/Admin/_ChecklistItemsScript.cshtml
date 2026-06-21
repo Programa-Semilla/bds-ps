@@ -1,0 +1,58 @@
+@model int
+
+@* Spec 040 / US4 — add/remove/reindex for the checklist-item repeating rows.
+   @Model is the initial item count (starting index). *@
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let itemIndex = @Model;
+        const container = document.getElementById('checklistItemsContainer');
+        const addBtn = document.getElementById('addChecklistItem');
+        if (!container || !addBtn) { return; }
+
+        addBtn.addEventListener('click', function () {
+            const idx = itemIndex;
+            const card = document.createElement('div');
+            card.className = 'card mb-2 checklist-item-row';
+            card.setAttribute('data-index', idx);
+            card.innerHTML = `
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">Ítem ${idx + 1}</h6>
+                        <button type="button" class="btn btn-sm btn-danger remove-checklist-item" data-testid="admin-checklist-remove-item">Eliminar</button>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Texto</label>
+                        <input name="Items[${idx}].Text" class="form-control" data-testid="admin-checklist-item-text" required />
+                    </div>
+                    <div class="form-check">
+                        <input name="Items[${idx}].IsRequired" type="checkbox" class="form-check-input" value="true" checked data-testid="admin-checklist-item-required" />
+                        <label class="form-check-label">Obligatorio</label>
+                    </div>
+                </div>`;
+            container.appendChild(card);
+            itemIndex++;
+        });
+
+        container.addEventListener('click', function (e) {
+            if (e.target.classList.contains('remove-checklist-item')) {
+                e.target.closest('.checklist-item-row').remove();
+                reindexItems();
+            }
+        });
+
+        function reindexItems() {
+            const rows = container.querySelectorAll('.checklist-item-row');
+            rows.forEach(function (row, idx) {
+                row.setAttribute('data-index', idx);
+                row.querySelector('h6').textContent = 'Ítem ' + (idx + 1);
+                row.querySelectorAll('input').forEach(function (input) {
+                    const name = input.getAttribute('name');
+                    if (name) {
+                        input.setAttribute('name', name.replace(/Items\[\d+\]/, 'Items[' + idx + ']'));
+                    }
+                });
+            });
+            itemIndex = rows.length;
+        }
+    });
+</script>

@@ -928,14 +928,14 @@ public class UserAdministrationService : IUserAdministrationService
 
     /// <summary>
     /// Spec 016 / FR-009 — Admin role MUST never carry memberships.
-    /// Spec 021 / FR-007 — SupplierAdmin is global-scope (no Process/Group); same
-    /// strip-on-write rule applies so the membership table can never accumulate
-    /// orphan rows for these two roles.
+    /// Spec 040 / FR-017 — the Auditor role is now GROUP-SCOPED (like Reviewer), so its
+    /// memberships are persisted, not stripped (supersedes the spec-021 global-scope
+    /// rule for this role). Only Admin remains groupless. Auditors may have zero groups
+    /// (then their inbox is empty, mirroring a reviewer with no groups).
     /// </summary>
     private static IReadOnlyList<int> NormalizeGroupIdsForRole(string? role, IReadOnlyList<int> ids)
     {
-        if (string.Equals(role, AdminRole, StringComparison.Ordinal)
-            || string.Equals(role, SupplierAdminRole, StringComparison.Ordinal))
+        if (string.Equals(role, AdminRole, StringComparison.Ordinal))
         {
             return Array.Empty<int>();
         }

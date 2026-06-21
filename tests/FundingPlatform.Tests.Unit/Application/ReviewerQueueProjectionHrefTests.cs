@@ -115,6 +115,10 @@ public class ReviewerQueueProjectionHrefTests
             .Returns((new List<AppEntity> { app }, TotalCount: 1));
         repo.GetByStateForReviewerAsync(ApplicationState.UnderReview, Arg.Any<ReviewerScopeHint>(), 1, 200, Arg.Any<string?>())
             .Returns((new List<AppEntity>(), 0));
+        // Spec 040 — the projection also fetches ReturnedFromAudit (auditor-returned
+        // applications back in the reviewer's court). Stub it so the mock matches the contract.
+        repo.GetByStateForReviewerAsync(ApplicationState.ReturnedFromAudit, Arg.Any<ReviewerScopeHint>(), 1, 200, Arg.Any<string?>())
+            .Returns((new List<AppEntity>(), 0));
         repo.GetByStateForReviewerAsync(ApplicationState.Resolved, Arg.Any<ReviewerScopeHint>(), 1, 200, Arg.Any<string?>())
             .Returns((new List<AppEntity>(), 0));
 

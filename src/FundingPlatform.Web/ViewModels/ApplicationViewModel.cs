@@ -23,13 +23,30 @@ public class ApplicationViewModel
     /// </summary>
     public List<ApplicationImpactDisplayViewModel> Impacts { get; set; } = new();
 
-    /// <summary>Spec 035 (evolved 2026-06-16, D16) — submit gate: ≥1 declared impact and
-    /// every item attributed + justified. Required category/impact values are gated
-    /// server-side at submit.</summary>
-    public bool ReadyForSubmit =>
-        Items.Count > 0
-        && Impacts.Count > 0
-        && Items.All(i => i.HasImpactAttribution && !string.IsNullOrWhiteSpace(i.ImpactJustification));
+    /// <summary>
+    /// Submit gate, as a list of precise, user-facing blockers (so the disabled-button
+    /// tooltip can name exactly what's missing per item). Requires ≥1 item, ≥1 declared
+    /// impact, and every item attributed to an impact. The impact justification is
+    /// OPTIONAL (no longer a submit blocker). Required category/impact values are gated
+    /// server-side at submit.
+    /// </summary>
+    public List<string> SubmitBlockers
+    {
+        get
+        {
+            var blockers = new List<string>();
+            if (Items.Count == 0) blockers.Add("Agregue al menos un ítem");
+            if (Impacts.Count == 0) blockers.Add("Debe declarar al menos un impacto");
+            foreach (var item in Items.Where(i => !i.HasImpactAttribution))
+            {
+                blockers.Add($"El ítem '{item.ProductName}' necesita un impacto asociado");
+            }
+            return blockers;
+        }
+    }
+
+    /// <summary>True when there are no submit blockers.</summary>
+    public bool ReadyForSubmit => SubmitBlockers.Count == 0;
 
     /// <summary>Spec 021 — active categories (kept for the draft editor toolbar).</summary>
     public List<SelectListItem> Categories { get; set; } = new();

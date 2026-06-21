@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-19 (session #37)
+Last updated: 2026-06-19 (session #38)
 
 ## Sessions
 
@@ -41,18 +41,24 @@ Last updated: 2026-06-19 (session #37)
 | 33 | 2026-06-17 | official-brand-alignment | shipped (PR #67) | 037 |
 | 34 | 2026-06-17 | applicant-companies | shipped (PR #68) | 037 |
 | 35 | 2026-06-17 | feedback-3-provider-compliance | shipped (PR #69) | 038 |
-| 36 | 2026-06-18 | supplier-recommendation | spec-created | 039 |
-| 37 | 2026-06-19 | email-brand-lift | spec-created | 041 |
+| 36 | 2026-06-18 | supplier-recommendation | shipped (PR #70) | 039 |
+| 37 | 2026-06-18 | auditor-workflow-stage | shipped (PR #72) | 040 |
+| 37 | 2026-06-19 | email-brand-lift | shipped (PR #73) | 041 |
+| 38 | 2026-06-19 | evidence-inbox | shipped (PR #72) | 041 |
+
+> Note: feature number **041** was used twice by parallel sessions —
+> `041-email-brand-lift` (this session #37) and `041-evidence-inbox` (#38, shipped
+> via PR #72). Disambiguate by slug, as with the two `021-` slugs.
 
 ## Open Threads
 
-- Spec-041 OQ-1 (gates the live trigger of the "Nueva empresa para revisión" email): exact business trigger (newly registered applicant Company? something submitted for review?) and recipient (reviewer pool? auditors?) — template ships without a live trigger until confirmed (from #37)
-- Spec-041 OQ-2 (only substantive risk): is "entering review" a distinct lifecycle transition from submission, or is submit→review atomic (making the new "solicitud en revisión" applicant email redundant with the submission receipt)? Verify against the application state model in plan (from #37)
-- Spec-041 OQ-3 (mechanical): public image-serving path for hosted email brand assets — dedicated `/email-assets/` static path vs existing `wwwroot/lib` (from #37)
-- Spec-041 plan-time: name the new event identities (e.g. `APPLICATION_UNDER_REVIEW_APPLICANT`, `COMPANY_SUBMITTED_FOR_REVIEW`); confirm no dacpac change (string-stored event types, spec-028 pattern); and where the password-changed confirmation hooks into the Identity reset/change success path (direct-send, `InvitationEmailFactory` pattern) (from #37)
-- Spec-041 reopens spec 019/#17's "email signature text-only" decision to add hosted brand imagery — mitigated by image-blocked degradation (NFR-004); revisit if deliverability regresses (from #37)
+- Spec-041 (evidence-inbox) business decision: should admins retain write access to funds-usage evidence after a process closes, or be frozen read-only like reviewers? (Spec assumes frozen.) Plus inbox row ordering (deferred to plan). (from #38)
+- Session bug fixed outside any spec: the reviewer queue (`ReviewerQueueProjection`) did not surface `ReturnedFromAudit` applications, so auditor-returned apps never reappeared in the reviewer worklist; fixed + unit/E2E covered. (from #38)
+- Spec-041 (email-brand-lift) OQ-1 resolved: the "Nueva empresa para revisión" email was withdrawn as a duplication of spec 038's supplier→auditor notification (`IProviderCreatedNotifier`); no auditor group-scoping. (from #37)
 
-- Feedback-3 slices C–H remain unspecified; B (supplier recommendation) is now spec-created (#36 → spec 039). C (auditor workflow stage) and D (regulatory freshness + Hacienda API) are the next foundation-dependent slices; C inherits slice B's reviewer-advance progression gate. Master doc + slice map: `seeds/feedback-3/` (from #35, #36)
+- Feedback-3 slices D–H remain unspecified; B (supplier recommendation) shipped (#36 → spec 039, PR #70) and C (auditor workflow stage) shipped (#37 → spec 040, PR #72). D (regulatory freshness + Hacienda API) is the next foundation-dependent slice; E/F/G/H are independent. Master doc + slice map: `seeds/feedback-3/` (from #35, #36, #37)
+- Spec-040 plan-time: seeded default checklist template's `appliesToStage` (recommend `both`); whom the agreement records as generating actor now that the auditor generates it; cross-cutting E2E ripple from removing the reviewer's direct generate-agreement path (existing funding-agreement/signing tests route through audit) (from #37)
+- Spec-040 plan-time: where the two new application states (`PendingAudit`/`ReturnedFromAudit`) slot in the domain state machine + dacpac, and the new `ChecklistTemplate`/`ChecklistTemplateItem`/`ApplicationChecklistResponse` tables (§22.9–22.11) — greenfield, no backfill (from #37)
 - Spec-039 plan-time: where the CCSS-`sin inscripción` progression-gate evaluation lives (a single advance-guard/eligibility service) so slice C re-anchors it with minimal churn (from #36)
 - Spec-039 plan-time: total-score display treatment — raw total + breakdown vs. an "X/14" fraction (spec leaves presentation open) (from #36)
 - Spec-039 plan-time: introduce the two new required quote fields via dacpac + post-deploy seed-data update; ensure every seeded quote is populated so existing seeds don't fail the new validation (Constitution IV) (from #36)

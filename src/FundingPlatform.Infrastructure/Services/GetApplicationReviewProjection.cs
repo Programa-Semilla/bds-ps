@@ -117,13 +117,13 @@ public sealed class GetApplicationReviewProjection : IGetApplicationReviewProjec
 
         var minQuotations = await ResolveMinimumQuotationsAsync(application.GroupId, ct);
         // Spec 035 (evolved 2026-06-16, D16) — submit requires ≥1 declared impact and
-        // every item attributed + justified + min-quotations. Required category fields
-        // + required impact values are gated at submit by the domain/service.
+        // every item attributed + min-quotations. The per-item impact justification was
+        // relaxed to OPTIONAL (2026-06-18) and no longer gates submission. Required
+        // category fields + required impact values are gated at submit by the domain/service.
         var canSubmit = application.Items.Count >= 1
                         && application.Impacts.Count >= 1
                         && application.Items.All(i =>
                             i.ItemImpacts.Count >= 1
-                            && !string.IsNullOrWhiteSpace(i.ImpactJustification)
                             && i.Quotations.Count >= minQuotations);
 
         return new ApplicationReviewViewModel(

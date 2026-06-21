@@ -53,6 +53,7 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
 
         var includeApplicant = IncludesApplicantBucket(context.EventType);
         var includeReviewers = IncludesReviewerBucket(context.EventType);
+        var includeAuditors  = IncludesAuditorBucket(context.EventType);
         var includeAdmins    = IncludesAdminBucket(context.EventType);
 
         if (includeApplicant)
@@ -115,6 +116,41 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
                         Email: r.Email ?? string.Empty,
                         DisplayName: BuildDisplayName(r.FirstName, r.LastName, r.UserName),
                         Bucket: RecipientBucket.Reviewer,
+                        TemplateVariantKey: applicantVariantKey));
+                }
+            }
+        }
+
+        if (includeAuditors)
+        {
+            var stageGroupIds = context.Payload.StageGroupIds;
+            if (stageGroupIds.Count > 0)
+            {
+                // Spec 040 / FR-018 — the auditor bucket mirrors the reviewer query with
+                // the role filter swapped to "AUDITOR": users holding the Auditor role who
+                // are members of the application's stage group (spec-016 group overlap).
+                // Auditors cannot be applicants, but the applicant exclusion is kept for
+                // parity/defense-in-depth (a dual-role user never self-notifies).
+                var applicantUserId = context.Payload.ApplicantUserId;
+                var auditorRows = await (
+                    from m in _context.UserGroupMemberships
+                    where stageGroupIds.Contains(m.GroupId) && m.UserId != applicantUserId
+                    join u in _context.Users on m.UserId equals u.Id
+                    join ur in _context.UserRoles on u.Id equals ur.UserId
+                    join r in _context.Roles on ur.RoleId equals r.Id
+                    where r.NormalizedName == "AUDITOR"
+                    orderby u.Id
+                    select new { u.Id, u.Email, u.UserName, u.FirstName, u.LastName })
+                    .Distinct()
+                    .ToListAsync(ct);
+
+                foreach (var a in auditorRows)
+                {
+                    candidates.Add(new NotificationRecipient(
+                        UserId: a.Id,
+                        Email: a.Email ?? string.Empty,
+                        DisplayName: BuildDisplayName(a.FirstName, a.LastName, a.UserName),
+                        Bucket: RecipientBucket.Auditor,
                         TemplateVariantKey: applicantVariantKey));
                 }
             }
@@ -203,6 +239,15 @@ public sealed class NotificationRecipientResolver : INotificationRecipientResolv
         NotificationEvent.SignedUploadSubmittedReviewer => true,
         NotificationEvent.SignedUploadReplacedReviewer  => true,
         NotificationEvent.SignedUploadWithdrawnReviewer => true,
+        // Spec 040 / FR-011 — auditor return notifies the stage-group reviewers.
+        NotificationEvent.ReturnedToReviewerFromAudit   => true,
+        _ => false,
+    };
+
+    private static bool IncludesAuditorBucket(NotificationEvent ev) => ev switch
+    {
+        // Spec 040 / FR-018 — send-to-audit notifies the stage-group auditors.
+        NotificationEvent.SentToAuditAuditor => true,
         _ => false,
     };
 

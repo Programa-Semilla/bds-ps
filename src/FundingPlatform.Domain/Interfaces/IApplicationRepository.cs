@@ -43,6 +43,15 @@ public interface IApplicationRepository
     Task<(List<Application> Items, int TotalCount)> GetPendingAgreementPagedAsync(int page, int pageSize);
 
     /// <summary>
+    /// Spec 040 / FR-006 — the group-scoped auditor inbox: <c>PendingAudit</c> applications
+    /// whose applicant shares a group with the auditor (admin short-circuits), loaded with the
+    /// data the inbox row needs to triage — Applicant, Items + selected-supplier compliance
+    /// (provider warning indicator), and VersionHistory (time entered audit).
+    /// </summary>
+    Task<(List<Application> Items, int TotalCount)> GetPendingAuditInboxAsync(
+        ReviewerScopeHint scope, int page, int pageSize, string? searchTerm = null);
+
+    /// <summary>
     /// Spec 016 / FR-012 — true when the application's applicant
     /// (via <c>Applicant.UserId</c>) shares at least one group id with
     /// <paramref name="reviewerGroupIds"/>. Used by detail-page authorization

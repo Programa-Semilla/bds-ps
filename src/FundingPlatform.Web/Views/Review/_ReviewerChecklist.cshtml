@@ -1,0 +1,79 @@
+@model FundingPlatform.Web.ViewModels.ReviewApplicationViewModel
+@{
+    var isResend = Model.ShowReturnedFromAudit;
+    var requiredCount = Model.ReviewerChecklistItems.Count(i => i.IsRequired);
+}
+
+@if (isResend && Model.AuditFindings.Count > 0)
+{
+    <div class="card mb-4 border-danger" data-testid="audit-findings-card">
+        <div class="card-header"><h3 class="card-title text-danger">Hallazgos de auditoría</h3></div>
+        <div class="card-body">
+            <p class="text-secondary">La auditoría devolvió esta solicitud por las siguientes no conformidades:</p>
+            <ul>
+                @foreach (var f in Model.AuditFindings)
+                {
+                    <li data-testid="audit-finding">
+                        <strong>@f.ItemText</strong>@(string.IsNullOrWhiteSpace(f.Reason) ? "" : $" — {f.Reason}")
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+<div class="card mb-4" data-testid="reviewer-checklist-card">
+    <div class="card-header">
+        <h3 class="card-title">@(isResend ? "Reenviar a auditoría" : "Enviar a auditoría")</h3>
+    </div>
+    <form method="post" asp-controller="Review" asp-action="SendToAudit" asp-route-id="@Model.ApplicationId">
+        @Html.AntiForgeryToken()
+        <div class="card-body">
+            <p class="text-secondary">
+                Complete la lista de verificación del revisor para
+                @(isResend ? "reenviar" : "enviar") la solicitud a auditoría.
+            </p>
+            @if (Model.ReviewerChecklistItems.Count == 0)
+            {
+                <p class="text-secondary" data-testid="reviewer-checklist-empty">
+                    No hay lista de verificación del revisor configurada; puede enviar directamente.
+                </p>
+            }
+            @foreach (var item in Model.ReviewerChecklistItems)
+            {
+                <label class="form-check" data-testid="reviewer-checklist-item">
+                    <input class="form-check-input reviewer-checklist-input" type="checkbox"
+                           name="checkedItemIds" value="@item.TemplateItemId"
+                           data-required="@(item.IsRequired ? "true" : "false")"
+                           @(item.Checked ? "checked" : "") data-testid="reviewer-check" />
+                    <span class="form-check-label">
+                        @item.Text @if (item.IsRequired) { <span class="text-danger">*</span> }
+                    </span>
+                </label>
+            }
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary" data-testid="reviewer-send-to-audit"
+                    data-required-count="@requiredCount">
+                @(isResend ? "Reenviar a auditoría" : "Enviar a auditoría")
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        var card = document.querySelector('[data-testid=reviewer-checklist-card]');
+        if (!card) return;
+        var btn = card.querySelector('[data-testid=reviewer-send-to-audit]');
+        var required = card.querySelectorAll('.reviewer-checklist-input[data-required="true"]');
+        function refresh() {
+            var allChecked = Array.prototype.every.call(required, function (c) { return c.checked; });
+            btn.disabled = !allChecked;
+        }
+        Array.prototype.forEach.call(card.querySelectorAll('.reviewer-checklist-input'), function (c) {
+            c.addEventListener('change', refresh);
+        });
+        refresh();
+    })();
+</script>

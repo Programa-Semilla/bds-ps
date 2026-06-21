@@ -1,0 +1,19 @@
+@model EmailRenderModel
+@{
+    ViewData["DisableLayout"] = true;
+}Nueva solicitud en auditoría — Solicitud #@Model.Payload.ApplicationId
+
+Hola @Model.Recipient.DisplayName,
+
+La solicitud de @Model.Payload.ApplicantDisplayName (#@Model.Payload.ApplicationId) fue enviada a auditoría. Revisá la documentación, completá la lista de verificación de auditoría y aprobá o devolvé la solicitud al revisor.
+
+Abrir en auditoría:
+@Model.CtaUrl
+
+Saludos cordiales,
+Programa Semilla
+Sistema de Banca para el Desarrollo
+
+—
+Para soporte: soporte@@programa-semilla.cr
+Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.

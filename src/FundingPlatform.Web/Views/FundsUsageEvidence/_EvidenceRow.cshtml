@@ -16,23 +16,35 @@
                 </a>
             </div>
 
-            <form method="post"
-                  asp-controller="FundsUsageEvidence" asp-action="EditNote"
-                  asp-route-applicationId="@Model.ApplicationId" asp-route-evidenceId="@item.Id"
-                  class="mb-1">
-                @Html.AntiForgeryToken()
-                <label class="form-label small text-muted mb-1">@FundsUsageEvidenceResources.List_Note</label>
-                <textarea name="note" class="form-control form-control-sm" rows="2" maxlength="250"
-                          placeholder="@FundsUsageEvidenceResources.Note_Empty"
-                          data-testid="evidence-note-edit"
-                          data-char-counter="@counterId">@item.Note</textarea>
-                <div class="form-hint text-end">
-                    <span id="@counterId">@(item.Note?.Length ?? 0)</span>@FundsUsageEvidenceResources.Upload_NoteCounterSuffix
+            @if (Model.IsReadOnly)
+            {
+                <div class="mb-1">
+                    <label class="form-label small text-muted mb-1">@FundsUsageEvidenceResources.List_Note</label>
+                    <div data-testid="evidence-note-readonly">
+                        @(string.IsNullOrWhiteSpace(item.Note) ? FundsUsageEvidenceResources.Note_Empty : item.Note)
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-sm btn-outline-secondary mt-1" data-testid="evidence-note-save">
-                    @FundsUsageEvidenceResources.Action_SaveNote
-                </button>
-            </form>
+            }
+            else
+            {
+                <form method="post"
+                      asp-controller="FundsUsageEvidence" asp-action="EditNote"
+                      asp-route-applicationId="@Model.ApplicationId" asp-route-evidenceId="@item.Id"
+                      class="mb-1">
+                    @Html.AntiForgeryToken()
+                    <label class="form-label small text-muted mb-1">@FundsUsageEvidenceResources.List_Note</label>
+                    <textarea name="note" class="form-control form-control-sm" rows="2" maxlength="250"
+                              placeholder="@FundsUsageEvidenceResources.Note_Empty"
+                              data-testid="evidence-note-edit"
+                              data-char-counter="@counterId">@item.Note</textarea>
+                    <div class="form-hint text-end">
+                        <span id="@counterId">@(item.Note?.Length ?? 0)</span>@FundsUsageEvidenceResources.Upload_NoteCounterSuffix
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary mt-1" data-testid="evidence-note-save">
+                        @FundsUsageEvidenceResources.Action_SaveNote
+                    </button>
+                </form>
+            }
 
             <div class="text-muted small">
                 @FundsUsageEvidenceResources.List_UploadedBy: @item.UploadedByDisplayName
@@ -40,21 +52,24 @@
             </div>
         </div>
 
-        <div class="col-auto">
-            <form method="post"
-                  asp-controller="FundsUsageEvidence" asp-action="Delete"
-                  asp-route-applicationId="@Model.ApplicationId" asp-route-evidenceId="@item.Id">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-sm btn-outline-danger"
-                        data-testid="evidence-delete"
-                        data-confirm
-                        data-confirm-variant="destructive"
-                        data-confirm-title="@FundsUsageEvidenceResources.Confirm_DeleteTitle"
-                        data-confirm-body="@FundsUsageEvidenceResources.Confirm_DeleteBody"
-                        data-confirm-label="@FundsUsageEvidenceResources.Action_Delete">
-                    <i class="ti ti-trash"></i> @FundsUsageEvidenceResources.Action_Delete
-                </button>
-            </form>
-        </div>
+        @if (!Model.IsReadOnly)
+        {
+            <div class="col-auto">
+                <form method="post"
+                      asp-controller="FundsUsageEvidence" asp-action="Delete"
+                      asp-route-applicationId="@Model.ApplicationId" asp-route-evidenceId="@item.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                            data-testid="evidence-delete"
+                            data-confirm
+                            data-confirm-variant="destructive"
+                            data-confirm-title="@FundsUsageEvidenceResources.Confirm_DeleteTitle"
+                            data-confirm-body="@FundsUsageEvidenceResources.Confirm_DeleteBody"
+                            data-confirm-label="@FundsUsageEvidenceResources.Action_Delete">
+                        <i class="ti ti-trash"></i> @FundsUsageEvidenceResources.Action_Delete
+                    </button>
+                </form>
+            </div>
+        }
     </div>
 </div>

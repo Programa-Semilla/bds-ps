@@ -42,7 +42,7 @@
             var tooltip = label ?? "Ver archivo de proveedor";
             if (page.HasValue) tooltip += $" (pág. {page.Value})";
 
-            var href = Url.Action("Citation", "Review", new { applicationItemId = Model.ApplicationItemId, sourceRefId = blobId }) ?? "#";
+            var href = Url.Action("Citation", "ReviewDocuments", new { applicationItemId = Model.ApplicationItemId, sourceRefId = blobId }) ?? "#";
             html.Append("<sup data-testid=\"comparison-citation\"><a href=\"")
                 .Append(System.Net.WebUtility.HtmlEncode(href))
                 .Append("\" target=\"_blank\" rel=\"noopener\" title=\"")
@@ -160,26 +160,31 @@
             }
         }
 
-        <div class="comparison-actions mt-2">
-            <button type="button"
-                    class="btn btn-sm btn-primary comparison-generate-btn"
-                    data-testid="comparison-generate-btn"
-                    data-item-id="@Model.ApplicationItemId"
-                    data-action="@(Model.HasArtifact ? "regenerate" : "generate")">
-                @(Model.HasArtifact ? "Regenerar" : "Generar comparación")
-            </button>
-            @if (Model.IsAdmin)
-            {
-                <label class="form-check form-check-inline ms-2 comparison-bypass-toggle"
-                       data-testid="comparison-bypass-toggle"
-                       data-item-id="@Model.ApplicationItemId">
-                    <input type="checkbox" class="form-check-input" />
-                    <span class="form-check-label">Anular límites</span>
-                </label>
-            }
-            <span class="comparison-status text-secondary small ms-2"
-                  data-testid="comparison-status-pill"
-                  data-item-id="@Model.ApplicationItemId"></span>
-        </div>
+        @* Spec 040 / FR-007 — the auditor surface renders the comparison read-only;
+           the generate/regenerate controls (which need comparison.js) are suppressed. *@
+        @if (!Model.ReadOnly)
+        {
+            <div class="comparison-actions mt-2">
+                <button type="button"
+                        class="btn btn-sm btn-primary comparison-generate-btn"
+                        data-testid="comparison-generate-btn"
+                        data-item-id="@Model.ApplicationItemId"
+                        data-action="@(Model.HasArtifact ? "regenerate" : "generate")">
+                    @(Model.HasArtifact ? "Regenerar" : "Generar comparación")
+                </button>
+                @if (Model.IsAdmin)
+                {
+                    <label class="form-check form-check-inline ms-2 comparison-bypass-toggle"
+                           data-testid="comparison-bypass-toggle"
+                           data-item-id="@Model.ApplicationItemId">
+                        <input type="checkbox" class="form-check-input" />
+                        <span class="form-check-label">Anular límites</span>
+                    </label>
+                }
+                <span class="comparison-status text-secondary small ms-2"
+                      data-testid="comparison-status-pill"
+                      data-item-id="@Model.ApplicationItemId"></span>
+            </div>
+        }
     }
 </div>

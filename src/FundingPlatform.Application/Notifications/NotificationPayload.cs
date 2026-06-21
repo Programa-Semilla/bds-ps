@@ -24,13 +24,20 @@ namespace FundingPlatform.Application.Notifications;
 /// admin never receives a copy of their own action. Optional + nullable: legacy spec-021 rows
 /// have no such field and deserialize to null, which the resolver treats as "no actor to exclude".
 /// </param>
+/// <param name="AuditFindings">
+/// Spec 040 / FR-011 — for <c>ReturnedToReviewerFromAudit</c>, the auditor's per-item
+/// non-compliance findings ("item — reason") rendered in the email body so the reviewer
+/// sees the reasons without opening the app. Optional + nullable: every other event
+/// serializes/deserializes it as null.
+/// </param>
 public sealed record NotificationPayload(
     int ApplicationId,
     string ApplicantUserId,
     string ApplicantDisplayName,
     IReadOnlyList<int> StageGroupIds,
     string? OutcomeCode,
-    string? ActorUserId = null)
+    string? ActorUserId = null,
+    IReadOnlyList<string>? AuditFindings = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

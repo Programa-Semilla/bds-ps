@@ -171,8 +171,10 @@ public class ItemCategoryImpactTests
     }
 
     [Test]
-    public void Validate_ItemWithoutJustification_ReportsIt()
+    public void Validate_ItemWithoutJustification_IsAllowed()
     {
+        // The per-item impact justification was relaxed to OPTIONAL (2026-06-18) — an item
+        // attributed to a declared impact but without a justification must NOT block submit.
         var app = new AppEntity(applicantId: 1, 1, null,"ACME");
         DeclareImpact(app, 1, MakeTemplate());
         var item = new Item("Laptop", categoryId: 1);
@@ -181,7 +183,8 @@ public class ItemCategoryImpactTests
 
         var errors = app.Validate(minQuotations: 0);
 
-        Assert.That(errors, Has.Some.Contains("justificación de impacto"));
+        Assert.That(errors, Has.None.Contains("justificación de impacto"),
+            "The impact justification is optional and must not produce a submit error.");
     }
 
     [Test]

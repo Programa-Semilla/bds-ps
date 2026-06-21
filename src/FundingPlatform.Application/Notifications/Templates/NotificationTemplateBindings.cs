@@ -226,8 +226,8 @@ public static class NotificationTemplateBindings
                 TemplateVariantKey: "applicant-signed-upload-rejected",
                 CtaRouteTemplate: "/Applications/{id}/FundingAgreement"),
 
-            // Spec 041 / US2 / FR-011 — applicant learns a reviewer began review.
-            // Fired at the Submitted → UnderReview transition; applicant-only.
+            // Spec 041 (email-brand-lift) / US2 / FR-011 — applicant learns a reviewer began
+            // review. Fired at the Submitted → UnderReview transition; applicant-only.
             [NotificationEvent.ApplicationUnderReviewApplicant] = new(
                 NotificationEvent.ApplicationUnderReviewApplicant,
                 SubjectTemplate: "Tu solicitud está en revisión — Solicitud #{ApplicationId}",
@@ -235,6 +235,23 @@ public static class NotificationTemplateBindings
                 TextViewName:    "ApplicationUnderReviewApplicant.text",
                 TemplateVariantKey: "applicant-under-review",
                 CtaRouteTemplate: "/Application/Details/{id}"),
+
+            // Spec 040 — auditor workflow stage.
+            [NotificationEvent.ReturnedToReviewerFromAudit] = new(
+                NotificationEvent.ReturnedToReviewerFromAudit,
+                SubjectTemplate: "Solicitud devuelta por auditoría — Solicitud #{ApplicationId}",
+                HtmlViewName:    "ReturnedToReviewerFromAudit",
+                TextViewName:    "ReturnedToReviewerFromAudit.text",
+                TemplateVariantKey: "reviewer-returned-from-audit",
+                CtaRouteTemplate: "/Review/{id}"),
+
+            [NotificationEvent.SentToAuditAuditor] = new(
+                NotificationEvent.SentToAuditAuditor,
+                SubjectTemplate: "Nueva solicitud en auditoría: {ApplicantName}",
+                HtmlViewName:    "SentToAuditAuditor",
+                TextViewName:    "SentToAuditAuditor.text",
+                TemplateVariantKey: "auditor-sent-to-audit",
+                CtaRouteTemplate: "/Audit/{id}"),
         };
 
     /// <summary>Lookup helper. Throws on unknown event (closed map invariant).</summary>
