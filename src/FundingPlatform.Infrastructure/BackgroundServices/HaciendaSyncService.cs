@@ -142,7 +142,13 @@ public sealed class HaciendaSyncService : BackgroundService
         if (supplier is null) return SyncOutcome.Skipped; // deleted mid-run
 
         var now = DateTime.UtcNow;
-        var lookup = await client.LookupAsync(supplier.LegalId, ct).ConfigureAwait(false);
+
+        // Validate the local id before any network call: a CR taxpayer identification is
+        // ≥9 digits. A malformed/blank id is recorded as a failure with NO API call.
+        var digits = new string(supplier.LegalId.Where(char.IsDigit).ToArray());
+        var lookup = digits.Length < 9
+            ? HaciendaLookupResult.Failed("Identificación inválida para consulta en Hacienda.")
+            : await client.LookupAsync(supplier.LegalId, ct).ConfigureAwait(false);
         var mapped = HaciendaStatusMapper.Map(lookup);
 
         SyncOutcome outcome;

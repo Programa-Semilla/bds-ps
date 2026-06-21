@@ -82,6 +82,13 @@
                 <label class="form-check-label" for="ha-inc-comp">Cumplimiento incompleto</label>
             </div>
         }
+        @* Spec 043 / US3 / FR-020 — surface providers the daily Hacienda sync could not verify. *@
+        <div class="form-check form-check-inline align-self-center">
+            <input class="form-check-input" type="checkbox" name="syncFailed" value="true"
+                   id="ha-sync-failed" @(Model.SyncFailedFilter ? "checked" : "")
+                   data-testid="admin-suppliers-syncfailed-filter" />
+            <label class="form-check-label" for="ha-sync-failed">@RegulatoryFreshnessResources.SyncFailure_FilterLabel</label>
+        </div>
         <button type="submit" class="btn btn-secondary">Aplicar</button>
     </form>
 
@@ -147,6 +154,12 @@
                                     else
                                     {
                                         <span class="badge bg-green-lt"><i class="ti ti-check"></i> Completo</span>
+                                    }
+                                    @if (row.HaciendaSyncOutcome == HaciendaSyncOutcome.Failure)
+                                    {
+                                        <span class="badge bg-red-lt ms-1" data-testid="admin-supplier-syncfailed-badge">
+                                            <i class="ti ti-cloud-off"></i> @RegulatoryFreshnessResources.SyncFailure_Label
+                                        </span>
                                     }
                                 </td>
                                 <td data-testid="admin-supplier-last-used">

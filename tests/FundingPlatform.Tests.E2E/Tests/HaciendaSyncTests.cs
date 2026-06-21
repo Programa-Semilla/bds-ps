@@ -56,4 +56,32 @@ public class HaciendaSyncTests : AuthenticatedTestBase
         await Expect(Page.Locator("[data-testid=admin-supplier-hacienda-select]")).ToHaveValueAsync("2"); // al día
         await Expect(Page.Locator("[data-testid=hacienda-freshness]")).ToContainTextAsync("por el sistema");
     }
+
+    [Test]
+    public async Task StagedFailure_Sync_SurfacesVerificacionFallida_AndLeavesDataIntact()
+    {
+        var uniqueId = Guid.NewGuid().ToString("N")[..8];
+        await CreateApplicationAndSubmitResponseAsync(uniqueId, _quotationFilePath);
+        var supplierId = await SupplierSeed.GetSupplierIdByNameAsync(ConnectionString, "Supplier Alpha");
+
+        // Fail only this provider (by its cédula); everyone else syncs "al día" so the
+        // "verificación fallida" filter isolates exactly this row.
+        var cedula = IdentificationData.CedulaJuridica($"SQ1-{uniqueId}");
+        await Page.GotoAsync($"{BaseUrl}/Dev/StageHaciendaOutcome?kind=aldia");
+        await Page.GotoAsync($"{BaseUrl}/Dev/StageHaciendaOutcome?identificacion={Uri.EscapeDataString(cedula)}&kind=failed");
+        await Page.GotoAsync($"{BaseUrl}/Dev/RunHaciendaSync");
+
+        await LoginAsAuditorAsync("hsync_fail");
+
+        // Detail surfaces "verificación fallida"; the never-reviewed status is untouched.
+        await Page.GotoAsync($"{BaseUrl}/Admin/Suppliers/{supplierId}");
+        await Expect(Page.Locator("[data-testid=hacienda-sync-outcome]")).ToContainTextAsync("verificación fallida");
+        await Expect(Page.Locator("[data-testid=admin-supplier-hacienda-select]")).ToHaveValueAsync(""); // sin revisar
+
+        // Admin-list "verificación fallida" filter finds the provider + its badge.
+        await Page.GotoAsync($"{BaseUrl}/Admin/Suppliers?syncFailed=true");
+        var row = Page.Locator($"[data-testid=admin-supplier-row-{supplierId}]");
+        await Expect(row).ToBeVisibleAsync();
+        await Expect(row.Locator("[data-testid=admin-supplier-syncfailed-badge]")).ToBeVisibleAsync();
+    }
 }

@@ -143,4 +143,83 @@ public class HaciendaSyncTests
         var s = await LoadAsync(sp, id);
         Assert.That(s.HaciendaStatus, Is.EqualTo(HaciendaStatus.SinInscripcion));
     }
+
+    // ----- US3 — failures visible, never silent, never corrupting data -----
+
+    [Test]
+    public async Task ApiFailure_LeavesRegulatoryDataIntact_RecordsFailure_AndAudit()
+    {
+        using var sp = BuildProvider($"hac-fail-{Guid.NewGuid():N}");
+        var reviewedAt = DateTime.UtcNow.AddDays(-3);
+        var id = await SeedSupplierAsync(sp, s =>
+            s.ApplyRegulatoryEdit(HaciendaStatus.AlDia, null, null, false, false, null, "auditor-1", reviewedAt));
+        FakeHaciendaApiClient.StageDefault(HaciendaLookupResult.Failed("error simulado"));
+
+        var summary = await NewService(sp).RunOnceAsync(CancellationToken.None);
+
+        Assert.That(summary.Failed, Is.EqualTo(1));
+        var s = await LoadAsync(sp, id);
+        // FR-018 — status + last-reviewed are untouched.
+        Assert.That(s.HaciendaStatus, Is.EqualTo(HaciendaStatus.AlDia));
+        Assert.That(s.HaciendaLastReviewedAt, Is.EqualTo(reviewedAt));
+        Assert.That(s.HaciendaLastReviewedBy, Is.EqualTo("auditor-1"));
+        // Failure metadata recorded.
+        Assert.That(s.HaciendaSyncOutcome, Is.EqualTo(HaciendaSyncOutcome.Failure));
+        Assert.That(s.HaciendaSyncError, Is.EqualTo("error simulado"));
+
+        var audits = await AuditsAsync(sp, id);
+        Assert.That(audits.Any(a => a.Action == AdminAuditEvent.SupplierHaciendaSyncFailed), Is.True);
+    }
+
+    [Test]
+    public async Task MalformedIdentification_RecordsFailure_WithoutCallingApi()
+    {
+        using var sp = BuildProvider($"hac-malformed-{Guid.NewGuid():N}");
+        int id;
+        using (var scope = sp.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var supplier = Supplier.CreateDraft(
+                "PASS123", "Proveedor pasaporte", 1, "Sede", null, null, null, null, null, null, null);
+            db.Suppliers.Add(supplier);
+            await db.SaveChangesAsync();
+            id = supplier.Id;
+        }
+        FakeHaciendaApiClient.StageDefault(
+            HaciendaLookupResult.Found(null, new HaciendaSituacion("Inscrito", false, false)));
+
+        var summary = await NewService(sp).RunOnceAsync(CancellationToken.None);
+
+        Assert.That(summary.Failed, Is.EqualTo(1));
+        Assert.That(FakeHaciendaApiClient.LookupCallCount, Is.EqualTo(0), "malformed id must skip the API call");
+        var s = await LoadAsync(sp, id);
+        Assert.That(s.HaciendaSyncOutcome, Is.EqualTo(HaciendaSyncOutcome.Failure));
+        Assert.That(s.HaciendaStatus, Is.Null, "no status was set");
+    }
+
+    [Test]
+    public async Task BatchContinuesPastFailure_OtherProvidersStillSynced()
+    {
+        using var sp = BuildProvider($"hac-batch-{Guid.NewGuid():N}");
+        int failId, okId;
+        using (var scope = sp.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var fail = Supplier.CreateDraft("3-101-111111", "Falla", 1, "Sede", null, null, null, null, null, null, null);
+            var ok = Supplier.CreateDraft("3-101-222222", "OK", 1, "Sede", null, null, null, null, null, null, null);
+            db.Suppliers.AddRange(fail, ok);
+            await db.SaveChangesAsync();
+            failId = fail.Id; okId = ok.Id;
+        }
+        FakeHaciendaApiClient.StageOutcome("3101111111", HaciendaLookupResult.Failed("error simulado"));
+        FakeHaciendaApiClient.StageDefault(
+            HaciendaLookupResult.Found(null, new HaciendaSituacion("Inscrito", false, false)));
+
+        var summary = await NewService(sp).RunOnceAsync(CancellationToken.None);
+
+        Assert.That(summary.Failed, Is.EqualTo(1));
+        Assert.That(summary.Changed, Is.EqualTo(1));
+        Assert.That((await LoadAsync(sp, failId)).HaciendaSyncOutcome, Is.EqualTo(HaciendaSyncOutcome.Failure));
+        Assert.That((await LoadAsync(sp, okId)).HaciendaStatus, Is.EqualTo(HaciendaStatus.AlDia));
+    }
 }

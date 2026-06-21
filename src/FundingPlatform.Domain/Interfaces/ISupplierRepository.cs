@@ -45,7 +45,9 @@ public sealed record SupplierAdminLastUsedRow(
     int BranchCount,
     bool HasIncompleteCompliance,
     DateTime UpdatedAt,
-    DateTime? LastUsedAt);
+    DateTime? LastUsedAt,
+    // Spec 043 (US3) — last Hacienda sync outcome for the row badge / "verificación fallida" filter.
+    HaciendaSyncOutcome? HaciendaSyncOutcome = null);
 
 /// <summary>
 /// Filter for the admin Suppliers queue. All fields are optional; when null/blank
@@ -78,4 +80,11 @@ public sealed class SupplierAdminFilter
     /// <see cref="LegalIdContains"/> + <see cref="NameContains"/> pair.
     /// </summary>
     public string? SearchTerm { get; init; }
+
+    /// <summary>
+    /// Spec 043 / US3 / FR-020 — when true, restrict the list to providers whose last
+    /// Hacienda sync attempt failed (<c>HaciendaSyncOutcome == Failure</c>). When null,
+    /// the filter is omitted.
+    /// </summary>
+    public bool? HaciendaSyncFailed { get; init; }
 }
