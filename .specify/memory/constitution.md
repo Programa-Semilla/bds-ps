@@ -1,20 +1,19 @@
 <!--
 Sync Impact Report
 ==================
-Version change: (template) → 1.0.0
-Modified principles: N/A (initial creation)
-Added sections:
-  - Core Principles (6 principles)
-  - Technology Standards
-  - Development Workflow
-  - Governance
-Removed sections: None
+Version change: 1.0.0 → 1.1.0
+Modified principles: N/A
+Modified sections:
+  - Technology Standards — Runtime updated .NET 8+ → .NET 10 (LTS); File Storage updated
+    from "local file system (initial)" to the shipped pluggable IObjectStorage model
+    (Azurite dev / Azure Blob prod / local-filesystem fallback, spec 014).
+Added/removed sections: None
 Templates requiring updates:
   - .specify/templates/plan-template.md — ✅ no update needed (Constitution Check section is generic)
-  - .specify/templates/spec-template.md — ✅ no update needed (structure aligns with principles)
-  - .specify/templates/tasks-template.md — ✅ no update needed (story-based organization and E2E test expectations align)
-  - .specify/templates/checklist-template.md — ✅ no update needed (generic structure)
-  - .specify/templates/agent-file-template.md — ✅ no update needed (generic structure)
+  - .specify/templates/spec-template.md — ✅ no update needed
+  - .specify/templates/tasks-template.md — ✅ no update needed
+  - .specify/templates/checklist-template.md — ✅ no update needed
+  - .specify/templates/agent-file-template.md — ✅ no update needed
 Follow-up TODOs: None
 -->
 
@@ -86,7 +85,7 @@ The following technology stack is mandated for all features in this project:
 
 | Component | Technology | Constraint |
 |-----------|-----------|------------|
-| Runtime | .NET 8+ (latest LTS) | All projects target this version |
+| Runtime | .NET 10 (LTS) | All projects target `net10.0` (EF Core 10) |
 | Web Framework | ASP.NET MVC | Server-side rendering, no SPA frameworks |
 | Orchestration | .NET Aspire | Service discovery, health checks, telemetry |
 | Database | SQL Server | Aspire-managed container for dev, persistent instance for prod |
@@ -94,7 +93,7 @@ The following technology stack is mandated for all features in this project:
 | ORM | Entity Framework Core | Data access only, Code First model mapping |
 | Authentication | ASP.NET Identity | Self-managed users with role-based authorization |
 | E2E Testing | Playwright for .NET | NUnit test runner, Page Object Model pattern |
-| File Storage | Local file system (initial) | Interface-based for future swap to cloud storage |
+| File Storage | Pluggable `IObjectStorage` | Azurite (dev) / Azure Blob (prod) / local-filesystem fallback (spec 014) |
 
 Adding new technologies or frameworks MUST be documented in the feature plan and justified against existing stack capabilities.
 
@@ -149,4 +148,4 @@ The constitution version follows semantic versioning:
 - Complexity violations MUST be tracked in plan.md's Complexity Tracking table.
 - Refer to CLAUDE.md for runtime development guidance and active command reference.
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-15 | **Last Amended**: 2026-04-15
+**Version**: 1.1.0 | **Ratified**: 2026-04-15 | **Last Amended**: 2026-06-21
