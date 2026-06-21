@@ -206,3 +206,16 @@ A story is delivered only when its **filtered E2E tests have been personally exe
 - The live Hacienda API is **never** called in tests — `Regulatory:HaciendaSync:Provider=Fake` in dev/ephemeral; `FakeHaciendaApiClient` supplies outcomes.
 - No new managed dependency; schema change is dacpac-only; no new `ApplicationState` or `NotificationEvent`.
 - Commit after each task or logical group; commit + push at each speckit checkpoint per project convention.
+
+## Deviations (implementation)
+
+1. **Shared es-CR copy in Application, not Web.Resources.** The gate/warning/digest formatters live in `Application/Regulatory/RegulatoryFreshnessCopy.cs` (field labels, finding line, block/warning headings, digest copy) because Infrastructure (`AuditWorkflowService`, the digest factory) *and* Web both produce them — the same Clean-Architecture exception spec 034 made for `BatchUserRowReasons`. The Web `RegulatoryFreshnessResources` (T002/T030) keeps view-only strings (outcome labels, filter label) and **delegates** field labels to the Application copy.
+2. **`UserFacingErrorCode.RegulatoryDataStale`** (new) — its translator passes the `Detail` (the data-driven es-CR enumerated block message) through verbatim, mirroring the shipped `SupplierCcssSinInscripcion` precedent (data in `Detail`, not domain English).
+3. **`LiveHaciendaApiClient` uses a manually-constructed long-lived `HttpClient`** (singleton registration) instead of `IHttpClientFactory`/`AddHttpClient` (T019/T021 wording): `Microsoft.Extensions.Http` is not referenced in the Infrastructure project, so this honors "no new managed dependency". A single client for a once-daily worker is safe.
+4. **Integration tests use EF InMemory** (matches the project's prevailing service-test pattern + the spec-041 precedent). Real-SQL behavior — TINYINT `HasConversion<byte?>` materialization and the **`RowVersion` concurrency-skip (FR-025)** — is exercised only by the E2E suite (real SQL), not unit/integration.
+5. **Gate scope = non-admin (auditor) path.** The freshness block sits inside the existing `if (!isAdministrator)` branch in `FundingAgreementController.Generate` (and unconditionally in `AuditWorkflowService.Confirm/Release` for defense-in-depth); admins retain the slice-C advance bypass, consistent with the `IsAuditChecklistCompleteAsync` gate.
+6. **Digest reuses `HaciendaSyncOptions.RunAtLocalTime`** for its daily schedule (no separate digest-time config knob).
+7. **Extra dev endpoint `/Dev/StageHaciendaOutcome`** (beyond the contract's two `/Dev/Run*`) lets E2E stage `FakeHaciendaApiClient` outcomes deterministically over HTTP (the fake's staging is otherwise in-process static).
+8. **Malformed-id pre-validation** (T031/contract): the sync validates the local id (≥9 digits) and records a failure *without* an API call for malformed ids (e.g. passport-only suppliers).
+9. **T024** extended `ReviewFreshness.Describe` so Api/System sources render "por el sistema (Hacienda)/(sistema)" (slice-A `RegulatoryDisplayTests` updated accordingly).
+10. **T043** (Inscrito+omiso=SI → `CobroAdministrativo`) shipped best-effort per research D1; flagged for stakeholder confirmation, non-blocking. `DesinscritoDeOficio` is never auto-set (no `fe/ae` signal).
