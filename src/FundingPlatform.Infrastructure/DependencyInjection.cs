@@ -8,6 +8,7 @@ using FundingPlatform.Application.AiComparison;
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Application.Options;
+using FundingPlatform.Application.Regulatory;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Interfaces;
 using FundingPlatform.Infrastructure.AiComparison.Anthropic;
@@ -204,6 +205,9 @@ public static class DependencyInjection
         services.AddScoped<Application.FundsUsageEvidence.IFundsUsageEvidenceService,
             Services.FundsUsageEvidenceService>();
 
+        // Spec 043 — regulatory freshness gating + Hacienda API sync.
+        services.AddRegulatoryFreshness(configuration);
+
         // Spec 020 — AI quote comparison wiring.
         services.AddAiComparison(configuration);
 
@@ -253,6 +257,23 @@ public static class DependencyInjection
             // stub's static call counters are independent of DI lifetime.
             services.AddScoped<IAiClient, StubAiClient>();
         }
+
+        return services;
+    }
+
+    /// <summary>
+    /// Spec 043 — regulatory-freshness gate query, the config-gated Hacienda API
+    /// client (Live vs Fake, mirroring <c>AiComparison:Provider</c>), and the two
+    /// daily background workers (sync + stale-value digest).
+    /// </summary>
+    public static IServiceCollection AddRegulatoryFreshness(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<RegulatoryFreshnessOptions>(
+            configuration.GetSection(RegulatoryFreshnessOptions.SectionName));
+        services.Configure<HaciendaSyncOptions>(
+            configuration.GetSection(HaciendaSyncOptions.SectionName));
 
         return services;
     }
