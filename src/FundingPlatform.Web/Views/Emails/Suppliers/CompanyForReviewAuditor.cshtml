@@ -1,8 +1,0 @@
-@model DirectEmailModel
-@* Spec 041 / US4 / T036 — branded "nueva empresa para revisión" email (reference
-   copy #9). Rendered through the shared _EmailLayout; "Detalle de la empresa" card
-   supplied by CompanyForReviewNotifier. Live trigger/recipient deferred (OQ-1). *@
-@{
-    ViewData["Title"] = Model.Subject;
-}
-@await Html.PartialAsync("~/Views/Emails/Shared/_DirectBody.cshtml", Model)

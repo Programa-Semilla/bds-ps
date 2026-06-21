@@ -123,11 +123,13 @@ description: "Task list for ALIA Transactional Email Brand UI-Lift (041)"
 
 ---
 
-## Phase 6: User Story 4 — "Nueva empresa para revisión" stub (Priority: P3)
+## Phase 6: User Story 4 — "Nueva empresa para revisión" stub (Priority: P3) — ❌ WITHDRAWN 2026-06-20
 
-**Goal**: A branded template + notifier seam exist; no live trigger until OQ-1 is resolved.
+> **WITHDRAWN (OQ-1 resolved).** The intended scenario ("applicant adds a new supplier → notify auditors") is already shipped by spec 038's `IProviderCreatedNotifier`, so this US4 stub was a **duplication**. All US4 artifacts (T034–T036: `ICompanyForReviewNotifier`/`CompanyForReviewNotifier`, `CompanyForReviewAuditor.cshtml` + `.text` twin, `CompanyForReviewNotifierTests`, DI registration, design-system twin-list entry) were **deleted**. Group-scoping of auditors was declined. See `spec.md` Evolution Log (2026-06-20).
 
-**Independent Test**: Render-test the template with sample company data; confirm no live notification is emitted anywhere.
+**Goal** (original, withdrawn): A branded template + notifier seam exist; no live trigger until OQ-1 is resolved.
+
+**Independent Test** (original, withdrawn): Render-test the template with sample company data; confirm no live notification is emitted anywhere.
 
 ### Tests for User Story 4
 

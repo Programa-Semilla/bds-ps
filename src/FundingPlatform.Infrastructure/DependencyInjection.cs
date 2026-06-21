@@ -159,9 +159,6 @@ public static class DependencyInjection
         // Spec 038 — auditor provider-compliance mutations + new-provider notification.
         services.AddScoped<Application.Suppliers.Compliance.ISupplierComplianceService, Services.SupplierComplianceService>();
         services.AddScoped<Application.Suppliers.Notifications.IProviderCreatedNotifier, Suppliers.ProviderCreatedNotifier>();
-        // Spec 041 / US4 / FR-013 — "nueva empresa para revisión" notifier seam.
-        // Render-only stub; live trigger/recipient deferred (OQ-1), no call site yet.
-        services.AddScoped<Application.Suppliers.Notifications.ICompanyForReviewNotifier, Suppliers.CompanyForReviewNotifier>();
 
         // Spec 025 — location-chain resolver (distrito → cantón → provincia) used by
         // both supplier-branch write paths for server-side hierarchy validation +

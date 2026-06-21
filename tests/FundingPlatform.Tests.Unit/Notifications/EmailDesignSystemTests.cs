@@ -158,7 +158,6 @@ public class EmailDesignSystemTests
         "Stages/T72ReminderEmail",
         "Stages/ExpiredEmail",
         "Suppliers/ProviderCreatedAuditor",
-        "Suppliers/CompanyForReviewAuditor",
     };
 
     [Test]
