@@ -48,6 +48,14 @@ public partial class Supplier
     public bool HasWarning { get; private set; }
     public string? WarningNote { get; private set; }
 
+    // ----- Spec 043 — per-provider Hacienda daily-sync outcome -----
+    /// <summary>UTC instant of the last daily Hacienda sync attempt (success or failure); null = never.</summary>
+    public DateTime? HaciendaSyncAttemptAt { get; private set; }
+    /// <summary>Outcome of the last sync attempt; null = never attempted.</summary>
+    public HaciendaSyncOutcome? HaciendaSyncOutcome { get; private set; }
+    /// <summary>Failure reason (es-CR) when the last attempt failed; cleared on success.</summary>
+    public string? HaciendaSyncError { get; private set; }
+
     /// <summary>Spec 038 / D15 — optimistic-concurrency token (multi-auditor + slice-D API contention).</summary>
     public byte[] RowVersion { get; private set; } = [];
 
@@ -389,6 +397,56 @@ public partial class Supplier
             code?.ToString(),
             RegulatoryChangeKind.ReviewedNoChange,
             RegulatoryReviewSource.Manual);
+    }
+
+    /// <summary>Spec 043 — max length of the persisted sync-failure reason.</summary>
+    public const int HaciendaSyncErrorMaxLength = 500;
+
+    /// <summary>
+    /// Spec 043 (US2) — applies a successful Hacienda sync lookup. When the mapped
+    /// status differs from the current value it is updated and a
+    /// <see cref="RegulatoryChangeKind.Changed"/> record returned; otherwise a
+    /// <see cref="RegulatoryChangeKind.ReviewedNoChange"/> record. Always stamps the
+    /// Hacienda last-reviewed metadata (now / <c>"system"</c> / <c>Api</c>) and records
+    /// a <see cref="Enums.HaciendaSyncOutcome.Success"/> sync outcome (clearing any error).
+    /// </summary>
+    public RegulatoryChange ApplyHaciendaSyncResult(HaciendaStatus mapped, DateTime nowUtc)
+    {
+        var old = HaciendaStatus;
+        var kind = mapped != old ? RegulatoryChangeKind.Changed : RegulatoryChangeKind.ReviewedNoChange;
+
+        HaciendaStatus = mapped;
+        HaciendaLastReviewedAt = nowUtc;
+        HaciendaLastReviewedBy = "system";
+        HaciendaLastReviewedSource = RegulatoryReviewSource.Api;
+
+        HaciendaSyncAttemptAt = nowUtc;
+        HaciendaSyncOutcome = Enums.HaciendaSyncOutcome.Success;
+        HaciendaSyncError = null;
+        UpdatedAt = nowUtc;
+
+        return new RegulatoryChange(
+            RegulatoryChangeField.Hacienda,
+            ((byte?)old)?.ToString(),
+            ((byte?)mapped).ToString(),
+            kind,
+            RegulatoryReviewSource.Api);
+    }
+
+    /// <summary>
+    /// Spec 043 (US2/US3, FR-018) — records a failed Hacienda sync attempt. Sets only
+    /// the sync metadata (attempt time / <see cref="Enums.HaciendaSyncOutcome.Failure"/> /
+    /// reason); never touches any regulatory status or last-reviewed field so a transient
+    /// API failure can never corrupt known-good regulatory data.
+    /// </summary>
+    public void RecordHaciendaSyncFailure(DateTime nowUtc, string reason)
+    {
+        HaciendaSyncAttemptAt = nowUtc;
+        HaciendaSyncOutcome = Enums.HaciendaSyncOutcome.Failure;
+        HaciendaSyncError = string.IsNullOrWhiteSpace(reason)
+            ? "Error desconocido."
+            : reason.Length > HaciendaSyncErrorMaxLength ? reason[..HaciendaSyncErrorMaxLength] : reason;
+        UpdatedAt = nowUtc;
     }
 
     // ----------- Spec 043 — regulatory freshness predicate (pure, FR-001/FR-005) -----------

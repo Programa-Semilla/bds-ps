@@ -5,6 +5,7 @@ using FundingPlatform.Application.Admin.Reports;
 using FundingPlatform.Application.Admin.Reports.Services;
 using FundingPlatform.Application.Admin.Users;
 using FundingPlatform.Application.AiComparison;
+using FundingPlatform.Application.Abstractions.Hacienda;
 using FundingPlatform.Application.Audit;
 using FundingPlatform.Application.Interfaces;
 using FundingPlatform.Application.Options;
@@ -277,6 +278,35 @@ public static class DependencyInjection
 
         // Freshness query backing the auditor-stage gate (US1) + the warning (US4).
         services.AddScoped<IRegulatoryFreshnessService, Services.RegulatoryFreshnessService>();
+
+        // Config-gated Hacienda API client (mirrors AiComparison:Provider Stub/Anthropic).
+        // Default Fake for dev/E2E (the live API is never called in tests); real envs set Live.
+        var haciendaProvider = configuration[$"{HaciendaSyncOptions.SectionName}:Provider"] ?? "Live";
+        if (string.Equals(haciendaProvider, "Live", StringComparison.OrdinalIgnoreCase))
+        {
+            var baseUrl = configuration[$"{HaciendaSyncOptions.SectionName}:BaseUrl"]
+                ?? "https://api.hacienda.go.cr";
+            // Manually-constructed long-lived HttpClient (no Microsoft.Extensions.Http /
+            // IHttpClientFactory dependency — reuse-first per the plan). A single client for a
+            // once-daily singleton worker is safe; BaseAddress + timeout pinned here.
+            services.AddSingleton<IHaciendaApiClient>(sp => new Hacienda.LiveHaciendaApiClient(
+                new HttpClient
+                {
+                    BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/"),
+                    Timeout = TimeSpan.FromSeconds(30),
+                },
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Hacienda.LiveHaciendaApiClient>>()));
+        }
+        else
+        {
+            services.AddSingleton<IHaciendaApiClient, Hacienda.FakeHaciendaApiClient>();
+        }
+
+        // Daily Hacienda sync worker (US2) — singleton (creates its own DI scope per cycle,
+        // mirroring StageExpiryReminderService) so the public RunOnceAsync seam is reachable
+        // from the Development trigger endpoint and from the same instance the host runs.
+        services.AddSingleton<BackgroundServices.HaciendaSyncService>();
+        services.AddHostedService(sp => sp.GetRequiredService<BackgroundServices.HaciendaSyncService>());
 
         return services;
     }

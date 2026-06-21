@@ -23,6 +23,14 @@ CREATE TABLE [dbo].[Suppliers]
     [IsPmeOrPyme]              BIT             NOT NULL CONSTRAINT [DF_Suppliers_IsPmeOrPyme] DEFAULT (0),
     [HasWarning]               BIT             NOT NULL CONSTRAINT [DF_Suppliers_HasWarning] DEFAULT (0),
     [WarningNote]              NVARCHAR(1000)  NULL,
+
+    -- Spec 043: per-provider Hacienda daily-sync outcome (read by the supplier
+    -- detail + admin-list "verificación fallida" filter). All nullable → migration-safe,
+    -- no backfill. NULL outcome = never synced.
+    [HaciendaSyncAttemptAt]    DATETIME2       NULL,
+    [HaciendaSyncOutcome]      TINYINT         NULL,
+    [HaciendaSyncError]        NVARCHAR(500)   NULL,
+
     [RowVersion]               ROWVERSION      NOT NULL,
 
     -- Spec 013: lifecycle (FR-021, FR-024, FR-035). Default 2 = Verified so existing

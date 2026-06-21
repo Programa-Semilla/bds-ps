@@ -72,9 +72,10 @@ public class RegulatoryDisplayTests
     [Test]
     public void Describe_SourceSuffixes_ForApiAndSystem()
     {
+        // Spec 043 — automated sources read as "por el sistema"; Api labels its source as Hacienda.
         Assert.That(ReviewFreshness.Describe(DateTime.UtcNow, null, RegulatoryReviewSource.Api),
-            Is.EqualTo("revisado hoy (API)"));
+            Is.EqualTo("revisado hoy por el sistema (Hacienda)"));
         Assert.That(ReviewFreshness.Describe(DateTime.UtcNow, null, RegulatoryReviewSource.System),
-            Is.EqualTo("revisado hoy (sistema)"));
+            Is.EqualTo("revisado hoy por el sistema (sistema)"));
     }
 }

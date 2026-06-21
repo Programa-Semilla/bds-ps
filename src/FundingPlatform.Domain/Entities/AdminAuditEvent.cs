@@ -113,6 +113,11 @@ public class AdminAuditEvent
     /// <summary>Spec 038 — auditor changed the provider warning flag/note.</summary>
     public const string SupplierWarningChanged = "supplier.warning_changed";
 
+    /// <summary>Spec 043 — the daily Hacienda sync could not verify a provider
+    /// (transport/parse error, malformed local id). Payload: {supplierId, identificacion, reason}.
+    /// The <c>supplier.</c> prefix routes to TargetTypeSupplier (TargetId = supplierId).</summary>
+    public const string SupplierHaciendaSyncFailed = "supplier.hacienda_sync_failed";
+
     /// <summary>Spec 038 — target-type discriminator for provider regulatory mutations.
     /// The <c>supplier.</c> prefix routes here in <c>AdminAuditEventWriter</c> and,
     /// unlike the other prefixes, sets <c>TargetId = supplierId</c> (not the "0"
