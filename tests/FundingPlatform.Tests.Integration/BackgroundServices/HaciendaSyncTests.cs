@@ -17,8 +17,11 @@ namespace FundingPlatform.Tests.Integration.BackgroundServices;
 /// <summary>
 /// Spec 043 / US2 (T025) — DB-backed coverage of <see cref="HaciendaSyncService.RunOnceAsync"/>
 /// driven by <see cref="FakeHaciendaApiClient"/> (the live API is never called). Covers
-/// changed/unchanged/404/no-inscrito outcomes + the audit verbs (source Api). The
-/// RowVersion-concurrency skip is real-SQL-only (covered by E2E).
+/// changed/unchanged/404/no-inscrito outcomes + the audit verbs (source Api).
+///
+/// NOT covered here: the RowVersion optimistic-concurrency skip (FR-025). EF InMemory does
+/// not enforce row-version concurrency, and no test deterministically races a concurrent
+/// auditor edit mid-sync — that path is verified by construction only (see review-findings T-1).
 ///
 /// SCOPE: EF InMemory provider (mirrors the rest of this project's service tests).
 /// </summary>
@@ -205,6 +208,24 @@ public class HaciendaSyncTests
         var s = await LoadAsync(sp, id);
         Assert.That(s.HaciendaSyncOutcome, Is.EqualTo(HaciendaSyncOutcome.Failure));
         Assert.That(s.HaciendaStatus, Is.Null, "no status was set");
+    }
+
+    [Test]
+    public async Task BatchSize_ProcessesAllSuppliersAcrossMultipleBatches()
+    {
+        using var sp = BuildProvider($"hac-batches-{Guid.NewGuid():N}");
+        for (var i = 0; i < 5; i++) await SeedSupplierAsync(sp);
+        FakeHaciendaApiClient.StageDefault(
+            HaciendaLookupResult.Found(null, new HaciendaSituacion("Inscrito", false, false)));
+
+        // BatchSize 2 with 5 suppliers → 3 batches; all must be processed (FR-017).
+        var svc = new HaciendaSyncService(
+            sp, Options.Create(new HaciendaSyncOptions { Provider = "Fake", BatchSize = 2 }),
+            NullLogger<HaciendaSyncService>.Instance);
+        var summary = await svc.RunOnceAsync(CancellationToken.None);
+
+        Assert.That(summary.Checked, Is.EqualTo(5));
+        Assert.That(summary.Changed, Is.EqualTo(5));
     }
 
     [Test]

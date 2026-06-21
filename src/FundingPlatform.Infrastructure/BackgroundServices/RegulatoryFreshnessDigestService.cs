@@ -140,10 +140,23 @@ public sealed class RegulatoryFreshnessDigestService : BackgroundService
         var sent = 0;
         foreach (var entry in byAuditor.Values)
         {
-            var message = await factory.BuildAsync(entry.Email, entry.First, entry.Lines, ct).ConfigureAwait(false);
-            if (await SendWithBackoffAsync(sender, message, ct).ConfigureAwait(false) == EmailSendOutcome.Sent)
+            // One bad recipient (build/render/send exception) must not starve the rest of the
+            // batch — mirror StageExpiryReminderService's per-recipient isolation.
+            try
             {
-                sent++;
+                var message = await factory.BuildAsync(entry.Email, entry.First, entry.Lines, ct).ConfigureAwait(false);
+                if (await SendWithBackoffAsync(sender, message, ct).ConfigureAwait(false) == EmailSendOutcome.Sent)
+                {
+                    sent++;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Regulatory digest to {Email} failed; continuing with the rest.", entry.Email);
             }
         }
         return sent;

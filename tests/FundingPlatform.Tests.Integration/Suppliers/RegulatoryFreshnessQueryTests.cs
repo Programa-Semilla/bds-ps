@@ -17,9 +17,10 @@ namespace FundingPlatform.Tests.Integration.Suppliers;
 /// all-fresh empty result.
 ///
 /// SCOPE: parity with the existing slice-A/persistence integration tests — uses the
-/// EF InMemory provider so the entity-graph query is exercised without the
-/// AspireFixture; real-SQL behavior (TINYINT conversion, RowVersion) is covered by
-/// the E2E suite.
+/// EF InMemory provider so the entity-graph query is exercised without the AspireFixture.
+/// TINYINT-conversion materialization is exercised by the E2E suite (real SQL); the
+/// RowVersion optimistic-concurrency skip (FR-025) is not deterministically tested
+/// anywhere (see review-findings T-1).
 /// </summary>
 [TestFixture]
 public class RegulatoryFreshnessQueryTests

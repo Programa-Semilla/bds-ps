@@ -11,8 +11,10 @@ public sealed class HaciendaSyncOptions
     public const string SectionName = "Regulatory:HaciendaSync";
 
     /// <summary>Selects the client impl: <c>Live</c> → real API; anything else → the
-    /// offline fake (default for Aspire dev + E2E). Mirrors <c>AiComparison:Provider</c>.</summary>
-    public string Provider { get; set; } = "Live";
+    /// offline fake. Defaults to the offline <c>Fake</c> so dev/E2E never hit the live API
+    /// even if read directly (the DI gate also defaults to Fake); real envs opt into
+    /// <c>Live</c> via azd-env / container config. Mirrors <c>AiComparison:Provider</c>.</summary>
+    public string Provider { get; set; } = "Fake";
 
     /// <summary>Gate the daily worker. When false the worker does not schedule cycles.</summary>
     public bool Enabled { get; set; } = true;

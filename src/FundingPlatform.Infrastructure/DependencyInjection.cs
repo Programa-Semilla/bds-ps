@@ -290,9 +290,10 @@ public static class DependencyInjection
                 ?? "https://api.hacienda.go.cr";
             // Manually-constructed long-lived HttpClient (no Microsoft.Extensions.Http /
             // IHttpClientFactory dependency — reuse-first per the plan). A single client for a
-            // once-daily singleton worker is safe; BaseAddress + timeout pinned here.
+            // once-daily singleton worker is safe; PooledConnectionLifetime opts the long-lived
+            // singleton into periodic DNS refresh (the singleton-HttpClient staleness caveat).
             services.AddSingleton<IHaciendaApiClient>(sp => new Hacienda.LiveHaciendaApiClient(
-                new HttpClient
+                new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(15) })
                 {
                     BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/"),
                     Timeout = TimeSpan.FromSeconds(30),

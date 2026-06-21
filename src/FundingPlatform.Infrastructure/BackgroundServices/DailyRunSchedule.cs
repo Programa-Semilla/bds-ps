@@ -44,7 +44,10 @@ public static class DailyRunSchedule
 
     private static TimeZoneInfo ResolveCostaRica()
     {
-        foreach (var id in new[] { "America/Costa_Rica", "Central Standard Time" })
+        // "Central America Standard Time" is the Windows id that is UTC-6 with NO DST (Costa
+        // Rica); the US "Central Standard Time" observes DST and would drift the run time by an
+        // hour for half the year, so it is deliberately NOT used.
+        foreach (var id in new[] { "America/Costa_Rica", "Central America Standard Time" })
         {
             try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
             catch (TimeZoneNotFoundException) { }

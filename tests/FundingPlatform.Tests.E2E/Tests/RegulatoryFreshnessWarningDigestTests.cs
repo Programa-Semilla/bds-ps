@@ -58,6 +58,8 @@ public class RegulatoryFreshnessWarningDigestTests : AuthenticatedTestBase
         var reviewerWarning = Page.Locator("[data-testid=regulatory-freshness-warning]");
         await Expect(reviewerWarning).ToBeVisibleAsync();
         await Expect(reviewerWarning).ToContainTextAsync("sin revisar");
+        // FR-010 — the warning must NAME the at-risk provider (not just render).
+        await Expect(reviewerWarning).ToContainTextAsync("Supplier ");
 
         // Reviewer sends to audit so the app enters the audit pipeline (PendingAudit).
         var reviewerChecks = Page.Locator("[data-testid=reviewer-check][data-required='true']");
@@ -72,7 +74,9 @@ public class RegulatoryFreshnessWarningDigestTests : AuthenticatedTestBase
         await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
         await LoginAsync(Page, auditorEmail, Password);
         await Page.GotoAsync($"{BaseUrl}/Audit/{appId}");
-        await Expect(Page.Locator("[data-testid=regulatory-freshness-warning]")).ToBeVisibleAsync();
+        var auditorWarning = Page.Locator("[data-testid=regulatory-freshness-warning]");
+        await Expect(auditorWarning).ToBeVisibleAsync();
+        await Expect(auditorWarning).ToContainTextAsync("Supplier ");
 
         // ---- Daily digest (dev trigger) → captured for the group-scoped auditor ----
         await MailCapture.DrainAsync();
@@ -85,5 +89,7 @@ public class RegulatoryFreshnessWarningDigestTests : AuthenticatedTestBase
             m.ToAddresses.Any(t => t.Contains(auditorEmail, StringComparison.OrdinalIgnoreCase)));
         Assert.That(mine, Is.Not.Null,
             $"Expected a stale-value digest to the group-scoped auditor {auditorEmail}.");
+        // SC-005 — the digest body must name the stale provider, not just carry the subject.
+        Assert.That(mine!.HtmlBody + mine.TextBody, Does.Contain("Supplier "));
     }
 }

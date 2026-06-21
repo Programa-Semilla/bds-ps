@@ -167,7 +167,11 @@ public class FundingAgreementController : Controller
                 applicationId, HttpContext.RequestAborted);
             if (stale.Count > 0)
             {
-                LogUnauthorized(applicationId, "Generate", "regulatory-stale");
+                // Business-rule refusal (not an authorization rejection): keep it out of the
+                // LogUnauthorized taxonomy so authz triage isn't polluted (deep-review A-1).
+                _logger.LogInformation(
+                    "Funding agreement generation blocked for application {ApplicationId}: {Count} stale regulatory finding(s).",
+                    applicationId, stale.Count);
                 TempData["FundingAgreementError"] =
                     Application.Regulatory.RegulatoryFreshnessCopy.BuildBlockMessage(stale);
                 return RedirectToRoute(new { controller = "Audit", action = "Detail", id = applicationId });

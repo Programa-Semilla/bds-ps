@@ -30,6 +30,8 @@ public static class HaciendaStatusMapper
                     "inscrito" => s.Moroso
                         ? HaciendaStatus.EstadoMoroso
                         : s.Omiso ? HaciendaStatus.CobroAdministrativo : HaciendaStatus.AlDia,
+                    // The fe/ae `estado` vocabulary does not distinguish "de oficio", so
+                    // HaciendaStatus.DesinscritoDeOficio is unreachable via sync (manual-only).
                     "desinscrito" => s.Moroso
                         ? HaciendaStatus.DesinscritoMoroso
                         : HaciendaStatus.DesinscritoAlDia,

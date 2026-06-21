@@ -7,8 +7,9 @@ namespace FundingPlatform.Infrastructure.Hacienda;
 
 /// <summary>
 /// Spec 043 — live <c>IHaciendaApiClient</c> over <c>GET {BaseUrl}/fe/ae?identificacion={id}</c>.
-/// Typed <see cref="HttpClient"/> (BaseAddress + timeout configured in DI via
-/// <c>AddHttpClient</c>); no new managed dependency (built-in HTTP + System.Text.Json).
+/// Uses a manually-constructed long-lived <see cref="HttpClient"/> (BaseAddress + timeout +
+/// a pooled-connection lifetime are configured in DI — NOT <c>AddHttpClient</c>, to avoid the
+/// Microsoft.Extensions.Http dependency); no new managed dependency (built-in HTTP + System.Text.Json).
 /// Never throws for transport/HTTP errors — they map to
 /// <see cref="HaciendaLookupResult.Failed"/> so one provider's failure can't abort the batch.
 /// </summary>
