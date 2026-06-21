@@ -23,6 +23,45 @@ public static class FundingAgreementSeeder
         System.Text.Encoding.UTF8.GetBytes("%PDF-1.4\nseeded placeholder\n%%EOF\n");
 
     /// <summary>
+    /// Spec 043 — marks every supplier selected by the application's items as
+    /// regulatory-fresh: all three required statuses set to a favorable value with
+    /// <c>LastReviewedAt = now - daysAgo</c>. With the default <paramref name="daysAgo"/>
+    /// of 1 the suppliers clear the freshness gate; pass a value &gt; the window
+    /// (default 30) to force them stale-by-date (exercising the date-formatted block
+    /// message). Statuses: Hacienda <c>AlDia=2</c>, CCSS <c>AlDia=2</c>, SICOP
+    /// <c>SinSanciones=2</c>; source <c>Api=2</c>; reviewer left null (no FK needed).
+    /// </summary>
+    public static async Task SetSelectedSuppliersRegulatoryAsync(
+        string connectionString, int applicationId, int daysAgo = 1)
+    {
+        using var conn = new SqlConnection(connectionString);
+        await conn.OpenAsync();
+
+        const string sql = @"
+UPDATE s SET
+    HaciendaStatus = 2, HaciendaLastReviewedAt = @at, HaciendaLastReviewedSource = 2,
+    CcssStatus = 2,     CcssLastReviewedAt = @at,     CcssLastReviewedSource = 2,
+    SicopStatus = 2,    SicopLastReviewedAt = @at,    SicopLastReviewedSource = 2,
+    UpdatedAt = @now
+FROM dbo.Suppliers s
+WHERE s.Id IN (
+    SELECT i.SelectedSupplierId FROM dbo.Items i
+    WHERE i.ApplicationId = @appId AND i.SelectedSupplierId IS NOT NULL);";
+
+        using var cmd = new SqlCommand(sql, conn);
+        var now = DateTime.UtcNow;
+        cmd.Parameters.AddWithValue("@at", now.AddDays(-daysAgo));
+        cmd.Parameters.AddWithValue("@now", now);
+        cmd.Parameters.AddWithValue("@appId", applicationId);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>Spec 043 — convenience: mark the application's selected suppliers fresh
+    /// (reviewed today) so the regulatory-freshness gate permits the auditor advance.</summary>
+    public static Task SetSelectedSuppliersRegulatoryFreshAsync(string connectionString, int applicationId)
+        => SetSelectedSuppliersRegulatoryAsync(connectionString, applicationId, daysAgo: 1);
+
+    /// <summary>
     /// Inserts a FundingAgreement row for the given application (if none exists yet)
     /// and optionally uploads a placeholder PDF to Azurite at the canonical blob key.
     /// Returns the persisted blob key.
