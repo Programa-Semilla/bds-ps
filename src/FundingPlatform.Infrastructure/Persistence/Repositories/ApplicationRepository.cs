@@ -245,6 +245,55 @@ public class ApplicationRepository : IApplicationRepository
         return (items, totalCount);
     }
 
+    public async Task<(List<AppEntity> Items, int TotalCount)> GetPendingAuditInboxAsync(
+        Domain.Interfaces.ReviewerScopeHint scope, int page, int pageSize, string? searchTerm = null)
+    {
+        // Spec 040 / FR-006 — group-scoped PendingAudit inbox with the includes the row needs:
+        // selected-supplier compliance (provider warning) + VersionHistory (entered-audit time).
+        // Read-only triage list: AsNoTracking + AsSplitQuery avoids change-tracking overhead and
+        // the cartesian row explosion from the nested Items→Quotations + VersionHistory collections.
+        IQueryable<AppEntity> query = _queryFilter.ExcludeArchivedFund(
+                _queryFilter.ExcludeDeleted(_context.Applications))
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(a => a.Applicant)
+            .Include(a => a.Items)
+                .ThenInclude(i => i.Quotations)
+                    .ThenInclude(q => q.Supplier)
+            .Include(a => a.VersionHistory)
+            .Where(a => a.State == Domain.Enums.ApplicationState.PendingAudit);
+
+        if (!scope.IsAdmin)
+        {
+            var groupIds = scope.GroupIds.ToList();
+            if (groupIds.Count == 0)
+            {
+                return (new List<AppEntity>(), 0);
+            }
+            query = from a in query
+                    where _context.UserGroupMemberships.Any(m =>
+                        m.UserId == a.Applicant!.UserId && groupIds.Contains(m.GroupId))
+                    select a;
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var likeTerm = $"%{searchTerm.Trim()}%";
+            query = query.Where(a =>
+                a.Applicant != null
+                && (EF.Functions.Like(a.Applicant.FirstName, likeTerm)
+                 || EF.Functions.Like(a.Applicant.LastName, likeTerm)
+                 || EF.Functions.Like(a.Applicant.LegalId, likeTerm)
+                 || EF.Functions.Like(a.Applicant.UserCode, likeTerm)
+                 || EF.Functions.Like(a.Applicant.Email, likeTerm)));
+        }
+
+        query = query.OrderBy(a => a.UpdatedAt);
+        var totalCount = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return (items, totalCount);
+    }
+
     public async Task<bool> ApplicantSharesAnyGroupAsync(
         int applicationId,
         IReadOnlyCollection<int> reviewerGroupIds,

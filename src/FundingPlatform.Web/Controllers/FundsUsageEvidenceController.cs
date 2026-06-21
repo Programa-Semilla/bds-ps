@@ -52,11 +52,14 @@ public sealed class FundsUsageEvidenceController : Controller
         }
 
         var items = await _service.ListAsync(applicationId, ct);
+        var isReadOnly = await IsProcessClosedAsync(applicationId, ct); // Spec 041 / FR-006
+
         return View(new FundsUsageEvidenceIndexViewModel
         {
             ApplicationId = applicationId,
             Items = items,
             AcceptExtensions = string.Join(",", EvidenceFileTypePolicy.AllowedExtensions),
+            IsReadOnly = isReadOnly,
         });
     }
 
@@ -68,6 +71,17 @@ public sealed class FundsUsageEvidenceController : Controller
         if (!await IsAccessibleAsync(applicationId, ct))
         {
             return NotFound();
+        }
+
+        // Spec 041 / FR-007 — once the access gate has passed, refuse any write
+        // while the governing Process is Closed (covers crafted POSTs that bypass
+        // the hidden UI). Order matters: this runs strictly AFTER IsAccessibleAsync
+        // so an unauthorized caller still gets the flat 404 and never learns
+        // "closed vs. nonexistent" (FR-008).
+        if (await IsProcessClosedAsync(applicationId, ct))
+        {
+            TempData["ErrorMessage"] = FundsUsageEvidenceResources.Error_ProcessClosed;
+            return RedirectToAction(nameof(Index), new { applicationId });
         }
 
         if (file is null || file.Length == 0)
@@ -122,6 +136,14 @@ public sealed class FundsUsageEvidenceController : Controller
             return NotFound();
         }
 
+        // Spec 041 / FR-007 — reject the edit when the process is closed (after the
+        // access gate, so unauthorized callers still 404 without disclosure).
+        if (await IsProcessClosedAsync(applicationId, ct))
+        {
+            TempData["ErrorMessage"] = FundsUsageEvidenceResources.Error_ProcessClosed;
+            return RedirectToAction(nameof(Index), new { applicationId });
+        }
+
         try
         {
             await _service.EditNoteAsync(evidenceId, note, GetUserId(), ct);
@@ -147,6 +169,14 @@ public sealed class FundsUsageEvidenceController : Controller
         if (!await IsAccessibleAsync(applicationId, ct) || !await EvidenceBelongsAsync(applicationId, evidenceId, ct))
         {
             return NotFound();
+        }
+
+        // Spec 041 / FR-007 — reject the delete when the process is closed (after the
+        // access gate, so unauthorized callers still 404 without disclosure).
+        if (await IsProcessClosedAsync(applicationId, ct))
+        {
+            TempData["ErrorMessage"] = FundsUsageEvidenceResources.Error_ProcessClosed;
+            return RedirectToAction(nameof(Index), new { applicationId });
         }
 
         try
@@ -209,6 +239,19 @@ public sealed class FundsUsageEvidenceController : Controller
     private async Task<bool> EvidenceBelongsAsync(int applicationId, int evidenceId, CancellationToken ct)
         => await _db.FundsUsageEvidence.AsNoTracking()
             .AnyAsync(e => e.Id == evidenceId && e.ApplicationId == applicationId, ct);
+
+    /// <summary>
+    /// Spec 041 / FR-004/FR-006 — the governing Process (<c>Application → Group →
+    /// Process</c>) is <c>Closed</c>. Evaluated live per request so reopening a
+    /// Process restores read-write automatically. Null nav (no group/process) maps
+    /// to "not closed" — i.e. read-write — which is safe because access is already
+    /// gated and any real executed application has a group/process chain.
+    /// </summary>
+    private async Task<bool> IsProcessClosedAsync(int applicationId, CancellationToken ct)
+        => await _db.Applications.AsNoTracking()
+            .Where(a => a.Id == applicationId)
+            .Select(a => (ProcessStatus?)a.Group!.Process!.Status)
+            .FirstOrDefaultAsync(ct) == ProcessStatus.Closed;
 
     private string GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 }

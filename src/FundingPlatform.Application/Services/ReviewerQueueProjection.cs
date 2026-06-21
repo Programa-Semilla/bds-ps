@@ -80,18 +80,24 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
         // hiding work that has not yet transitioned to UnderReview.
         var submitted   = await _applications.GetByStateForReviewerAsync(ApplicationState.Submitted, hint, 1, 200, searchTerm);
         var underReview = await _applications.GetByStateForReviewerAsync(ApplicationState.UnderReview, hint, 1, 200, searchTerm);
+        // Spec 040 — the auditor can return an application to the reviewer for rework
+        // (ReturnedFromAudit). It is back in the reviewer's court (rework + re-send to
+        // audit), so it must surface on the queue alongside Submitted/UnderReview;
+        // otherwise the reviewer gets the email but never sees it on the dashboard.
+        var returned    = await _applications.GetByStateForReviewerAsync(ApplicationState.ReturnedFromAudit, hint, 1, 200, searchTerm);
         var resolved    = await _applications.GetByStateForReviewerAsync(ApplicationState.Resolved, hint, 1, 200, searchTerm);
 
-        var allCandidates = submitted.Items.Concat(underReview.Items).Concat(resolved.Items).ToList();
+        var allCandidates = submitted.Items.Concat(underReview.Items).Concat(returned.Items).Concat(resolved.Items).ToList();
         var now = DateTimeOffset.UtcNow;
 
         // Counts (filter-independent). "Awaiting your review" includes Submitted
-        // (no reviewer has opened it) plus UnderReview that hasn't received a
-        // per-item decision yet.
+        // (no reviewer has opened it), UnderReview that hasn't received a per-item
+        // decision yet, and ReturnedFromAudit (awaiting the reviewer's rework).
         int awaiting = submitted.Items.Count
-                     + underReview.Items.Count(a => a.VersionHistory.LastOrDefault()?.Action != "ReviewItem");
+                     + underReview.Items.Count(a => a.VersionHistory.LastOrDefault()?.Action != "ReviewItem")
+                     + returned.Items.Count;
         int inProgress = underReview.Items.Count(a => a.VersionHistory.Any(v => v.Action == "ReviewItem"));
-        int aging = submitted.Items.Concat(underReview.Items)
+        int aging = submitted.Items.Concat(underReview.Items).Concat(returned.Items)
             .Count(a => _journey.DaysInCurrentState(a, now) > threshold);
         int decidedThisMonth = resolved.Items.Count(a => a.UpdatedAt.Year == DateTime.UtcNow.Year && a.UpdatedAt.Month == DateTime.UtcNow.Month);
 
@@ -128,8 +134,9 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
         var hint = new ReviewerScopeHint(scope.IsAdmin, scope.GroupIds);
         var submitted   = await _applications.GetByStateForReviewerAsync(ApplicationState.Submitted, hint, 1, 200, searchTerm);
         var underReview = await _applications.GetByStateForReviewerAsync(ApplicationState.UnderReview, hint, 1, 200, searchTerm);
+        var returned    = await _applications.GetByStateForReviewerAsync(ApplicationState.ReturnedFromAudit, hint, 1, 200, searchTerm);
         var resolved    = await _applications.GetByStateForReviewerAsync(ApplicationState.Resolved, hint, 1, 200, searchTerm);
-        var all = submitted.Items.Concat(underReview.Items).Concat(resolved.Items).ToList();
+        var all = submitted.Items.Concat(underReview.Items).Concat(returned.Items).Concat(resolved.Items).ToList();
         return await ProjectRowsAsync(all, filter, threshold, DateTimeOffset.UtcNow);
     }
 
@@ -142,7 +149,9 @@ public sealed class ReviewerQueueProjection : IReviewerQueueProjection
         var filtered = filter switch
         {
             ReviewerFilter.AwaitingMe => apps.Where(a =>
-                a.State == ApplicationState.Submitted || a.State == ApplicationState.UnderReview).ToList(),
+                a.State == ApplicationState.Submitted
+                || a.State == ApplicationState.UnderReview
+                || a.State == ApplicationState.ReturnedFromAudit).ToList(),
             ReviewerFilter.Aging      => apps.Where(a => _journey.DaysInCurrentState(a, now) > agingThresholdDays).ToList(),
             ReviewerFilter.SentBack   => apps.Where(a => a.VersionHistory.Any(v => v.Action == "SendBack")).ToList(),
             ReviewerFilter.Appealing  => apps.Where(a => a.Appeals.Any(p => p.Status == AppealStatus.Open)).ToList(),

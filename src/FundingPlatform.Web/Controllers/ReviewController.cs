@@ -33,6 +33,8 @@ public class ReviewController : Controller
     private readonly IStageExpiryClock _stageExpiryClock;
     private readonly IComparisonOrchestrator _comparisonOrchestrator;
     private readonly IDecisionSummaryProjection _decisionSummary;
+    // Spec 040 — reviewer send-to-audit / re-send + reviewer-checklist projection.
+    private readonly Application.Audit.IAuditWorkflowService _auditWorkflow;
     // Spec 027 / US5 — reviewer/admin write surface for the applicant's CodigoPersonal.
     private readonly Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> _userManager;
     private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
@@ -49,10 +51,12 @@ public class ReviewController : Controller
         IStageExpiryClock stageExpiryClock,
         IComparisonOrchestrator comparisonOrchestrator,
         IDecisionSummaryProjection decisionSummary,
+        Application.Audit.IAuditWorkflowService auditWorkflow,
         Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager,
         Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _reviewService = reviewService;
+        _auditWorkflow = auditWorkflow;
         _signedUploadService = signedUploadService;
         _queueProjection = queueProjection;
         _errorTranslator = errorTranslator;
@@ -291,7 +295,80 @@ public class ReviewController : Controller
             };
         }
 
+        // Spec 040 / US2 + US3 — at ResponseFinalized (no agreement yet) the reviewer
+        // completes the reviewer checklist and sends to audit (the former "Generate
+        // agreement" path); at ReturnedFromAudit they see the auditor's findings and
+        // re-send. The agreement-existence check disambiguates the two ResponseFinalized
+        // phases (pre-audit vs post-release signing).
+        var hasAgreement = aggregate?.FundingAgreement is not null;
+        if (dto.State == Domain.Enums.ApplicationState.ResponseFinalized && !hasAgreement)
+        {
+            viewModel.ShowReviewerChecklist = true;
+        }
+        else if (dto.State == Domain.Enums.ApplicationState.ReturnedFromAudit)
+        {
+            viewModel.ShowReturnedFromAudit = true;
+        }
+
+        if (viewModel.ShowReviewerChecklist || viewModel.ShowReturnedFromAudit)
+        {
+            var reviewerChecklist = await _auditWorkflow.GetReviewerChecklistAsync(id, ct);
+            viewModel.ReviewerChecklistItems = reviewerChecklist.Items
+                .Select(i => new ReviewerChecklistItemViewModel
+                {
+                    TemplateItemId = i.TemplateItemId,
+                    Text = i.Text,
+                    IsRequired = i.IsRequired,
+                    Checked = i.Checked,
+                }).ToList();
+            viewModel.AuditFindings = reviewerChecklist.Findings
+                .Select(f => new AuditFindingViewModel { ItemText = f.ItemText, Reason = f.Reason })
+                .ToList();
+        }
+
         return View(viewModel);
+    }
+
+    /// <summary>
+    /// Spec 040 / US2 + US3 — the reviewer completes the reviewer checklist and sends the
+    /// application to audit (from ResponseFinalized) or re-sends it after rework (from
+    /// ReturnedFromAudit). Group-overlap gated like the rest of the reviewer surface.
+    /// </summary>
+    [HttpPost]
+    [Route("Review/{id:int}/SendToAudit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendToAudit(int id, List<int> checkedItemIds, CancellationToken ct = default)
+    {
+        var scope = await GetScopeAsync(ct);
+        if (!scope.IsAdmin)
+        {
+            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(id, scope.GroupIds, ct);
+            if (!allowed) return Forbid();
+        }
+
+        var application = await _applicationRepository.GetByIdAsync(id);
+        if (application is null) return NotFound();
+
+        var userId = GetUserId();
+        var checks = (checkedItemIds ?? new List<int>())
+            .Select(itemId => new Application.Audit.ReviewerCheck(itemId, true))
+            .ToList();
+
+        var result = application.State == Domain.Enums.ApplicationState.ReturnedFromAudit
+            ? await _auditWorkflow.ResendToAuditAsync(id, checks, userId, ct)
+            : await _auditWorkflow.SubmitReviewerChecklistAndSendToAuditAsync(id, checks, userId, ct);
+
+        if (result.Success)
+        {
+            TempData["ReviewSuccess"] = "Solicitud enviada a auditoría.";
+            return RedirectToAction(nameof(GenerateAgreement));
+        }
+
+        if (result.Error is not null)
+        {
+            TempData["ReviewError"] = _errorTranslator.Translate(result.Error);
+        }
+        return RedirectToRoute(new { controller = "Review", action = "Review", id });
     }
 
     /// <summary>Spec 020 / FR-A1 — sync per-item generation endpoint.</summary>
@@ -431,118 +508,6 @@ public class ReviewController : Controller
         public bool ForceAll { get; set; }
         public bool BypassRateLimit { get; set; }
         public bool BypassTokenCap { get; set; }
-    }
-
-    /// <summary>
-    /// Spec 020 / US5 — resolve a citation source-ref into a signed URL.
-    /// Citation IDs are `<applicationItemId>:<documentId>` (the orchestrator
-    /// projects supplier blobs through the Document id; we resolve back here).
-    /// </summary>
-    [HttpGet]
-    [Route("Review/Citations/{applicationItemId:int}/{sourceRefId}")]
-    public async Task<IActionResult> Citation(
-        int applicationItemId,
-        string sourceRefId,
-        CancellationToken ct)
-    {
-        var parentApplicationId = await _reviewService.GetApplicationIdForItemAsync(applicationItemId, ct);
-        if (parentApplicationId is null) return NotFound();
-
-        var scope = await GetScopeAsync(ct);
-        if (!scope.IsAdmin)
-        {
-            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(parentApplicationId.Value, scope.GroupIds, ct);
-            if (!allowed) return Forbid();
-        }
-
-        // The citation marker is rendered as a relative link to the Document by
-        // id; storage handle resolution is delegated to the existing document
-        // download endpoint. We 302 to that path so the spec-014 SAS-TTL policy
-        // is enforced centrally.
-        if (!int.TryParse(sourceRefId, out var documentId))
-            return NotFound();
-
-        // Look up the blob key via the Document row and stream it through
-        // IObjectStorage (spec 014 / FR-018). The orchestrator wires storage
-        // by category; supplier-quotation files live under application-attachments.
-        var storage = HttpContext.RequestServices.GetRequiredService<
-            FundingPlatform.Application.Abstractions.Storage.IObjectStorage>();
-        var db = HttpContext.RequestServices.GetRequiredService<
-            FundingPlatform.Infrastructure.Persistence.AppDbContext>();
-        var doc = await db.Documents.FirstOrDefaultAsync(d => d.Id == documentId, ct);
-        if (doc is null || string.IsNullOrEmpty(doc.BlobKey)) return NotFound();
-
-        var key = FundingPlatform.Application.Abstractions.Storage.ObjectKey.Parse(doc.BlobKey);
-        var handle = await storage.ResolveServingHandleAsync(
-            FundingPlatform.Application.Abstractions.Storage.FileCategory.ApplicationAttachment,
-            key,
-            FundingPlatform.Application.Abstractions.Storage.ServingMode.TimeLimitedUrl,
-            ct);
-
-        if (handle is FundingPlatform.Application.Abstractions.Storage.TimeLimitedUrlHandle url)
-            return Redirect(url.Url.ToString());
-        if (handle is FundingPlatform.Application.Abstractions.Storage.BackendStreamHandle stream)
-            return File(stream.Content, stream.ContentType ?? "application/octet-stream", doc.OriginalFileName);
-        return NotFound();
-    }
-
-    /// <summary>
-    /// Spec 023 / FR-014 (evolution 2026-05-20) — reviewer (group-scoped) and
-    /// Admin download the PDF attached to any quotation on an Application
-    /// they're authorized to view. Mirrors the auth + storage rails of the
-    /// spec-020 <see cref="Citation"/> endpoint but is keyed by
-    /// <c>quotationId</c> directly so the reviewer Review screen can build
-    /// the link without an extra DocumentId resolution step.
-    /// </summary>
-    [HttpGet]
-    [Route("Review/Quotation/{quotationId:int}/Download")]
-    public async Task<IActionResult> DownloadQuotation(
-        int quotationId,
-        CancellationToken ct)
-    {
-        var db = HttpContext.RequestServices.GetRequiredService<
-            FundingPlatform.Infrastructure.Persistence.AppDbContext>();
-        var quotation = await db.Quotations
-            .Include(q => q.Document)
-            .FirstOrDefaultAsync(q => q.Id == quotationId, ct);
-        if (quotation is null
-            || quotation.Document is null
-            || string.IsNullOrEmpty(quotation.Document.BlobKey))
-            return NotFound();
-
-        var parentApplicationId = await db.Items
-            .Where(i => i.Id == quotation.ItemId)
-            .Select(i => (int?)i.ApplicationId)
-            .FirstOrDefaultAsync(ct);
-        if (parentApplicationId is null) return NotFound();
-        var scope = await GetScopeAsync(ct);
-        if (!scope.IsAdmin)
-        {
-            var allowed = await _applicationRepository.ApplicantSharesAnyGroupAsync(
-                parentApplicationId.Value, scope.GroupIds, ct);
-            if (!allowed) return Forbid();
-        }
-
-        // Spec 023 / FR-014 (evolution) — same rationale as the applicant
-        // download path: force BackendStream so `Content-Disposition: attachment`
-        // is set on the response and the browser saves the file. Inline preview
-        // is intentionally not exposed on this endpoint.
-        var storage = HttpContext.RequestServices.GetRequiredService<
-            FundingPlatform.Application.Abstractions.Storage.IObjectStorage>();
-        var key = FundingPlatform.Application.Abstractions.Storage.ObjectKey.Parse(
-            quotation.Document.BlobKey);
-        var handle = await storage.ResolveServingHandleAsync(
-            FundingPlatform.Application.Abstractions.Storage.FileCategory.ApplicationAttachment,
-            key,
-            FundingPlatform.Application.Abstractions.Storage.ServingMode.BackendStream,
-            ct);
-
-        if (handle is FundingPlatform.Application.Abstractions.Storage.BackendStreamHandle stream)
-            return File(
-                stream.Content,
-                stream.ContentType ?? "application/octet-stream",
-                quotation.Document.OriginalFileName);
-        return NotFound();
     }
 
     /// <summary>Spec 020 / FR-A4 — enqueue per-item comparison jobs for the whole application.</summary>
@@ -736,87 +701,8 @@ public class ReviewController : Controller
 
     private string GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
+    // Spec 040 / FR-007 — the DTO→VM projection moved to the shared
+    // ReviewApplicationViewModelMapper so the auditor surface projects identically.
     private static ReviewApplicationViewModel MapToViewModel(Application.DTOs.ReviewApplicationDto dto)
-    {
-        var hasUnresolved = dto.Items.Any(i =>
-            i.ReviewStatus == Domain.Enums.ItemReviewStatus.Pending ||
-            i.ReviewStatus == Domain.Enums.ItemReviewStatus.NeedsInfo);
-
-        return new ReviewApplicationViewModel
-        {
-            ApplicationId = dto.ApplicationId,
-            ApplicantName = dto.ApplicantName,
-            ApplicantPerformanceScore = dto.ApplicantPerformanceScore,
-            State = dto.State.ToString(),
-            SubmittedAt = dto.SubmittedAt,
-            HasUnresolvedItems = hasUnresolved,
-            RejectedSupplierCount = dto.RejectedSupplierCount,
-            Items = dto.Items.Select(item => new ReviewItemViewModel
-            {
-                ItemId = item.ItemId,
-                ProductName = item.ProductName,
-                CategoryName = item.CategoryName,
-                ReviewStatus = item.ReviewStatus.ToString(),
-                ReviewComment = item.ReviewComment,
-                SelectedSupplierId = item.SelectedSupplierId,
-                IsNotTechnicallyEquivalent = item.IsNotTechnicallyEquivalent,
-                LineCode = item.LineCode,
-                HasRecommendationTie = item.HasRecommendationTie,
-                HasAnyEligible = item.HasAnyEligible,
-                AttributedImpactNames = item.AttributedImpactNames,
-                ImpactJustification = item.ImpactJustification,
-                Quotations = item.Quotations.Select(q => new ReviewQuotationViewModel
-                {
-                    QuotationId = q.QuotationId,
-                    SupplierId = q.SupplierId,
-                    SupplierName = q.SupplierName,
-                    SupplierLegalId = q.SupplierLegalId,
-                    Price = q.Price,
-                    ValidUntil = q.ValidUntil,
-                    DocumentFileName = q.DocumentFileName,
-                    IsRecommended = q.IsRecommended,
-                    IsEligible = q.IsEligible,
-                    BlockReason = q.BlockReason,
-                    Total = q.Total,
-                    PriceScore = q.PriceScore,
-                    DeliveryLeadTimeScore = q.DeliveryLeadTimeScore,
-                    WarrantyTimeScore = q.WarrantyTimeScore,
-                    HaciendaScore = q.HaciendaScore,
-                    CcssScore = q.CcssScore,
-                    SicopScore = q.SicopScore,
-                    PmeOrPymeScore = q.PmeOrPymeScore,
-                    DeliveryLeadTimeValue = q.DeliveryLeadTimeValue,
-                    DeliveryLeadTimeUnit = q.DeliveryLeadTimeUnit,
-                    WarrantyValue = q.WarrantyValue,
-                    WarrantyUnit = q.WarrantyUnit,
-                    IsSupplierVerified = q.IsSupplierVerified,
-                    IsSupplierRejected = q.IsSupplierRejected,
-                    Currency = q.Currency,
-                    ConvertedCrcAmount = q.ConvertedCrcAmount,
-                    SnapshotRateValue = q.SnapshotRateValue,
-                    SnapshotRateType = q.SnapshotRateType,
-                    SnapshotEffectiveAtUtc = q.SnapshotEffectiveAtUtc,
-                    Compliance = q.Compliance,
-                    LegacyNeedsReview = q.LegacyNeedsReview,
-                }).ToList(),
-                // Spec 035 / D1 — per-item category field values.
-                CategoryFields = item.CategoryFields.Select(cf => new CategoryFieldDisplayViewModel
-                {
-                    Label = cf.Label,
-                    Value = cf.Value,
-                }).ToList()
-            }).ToList(),
-            // Spec 035 (evolved 2026-06-16, D16) — the application's declared impacts.
-            Impacts = dto.Impacts.Select(ai => new ApplicationImpactDisplayViewModel
-            {
-                TemplateName = ai.TemplateName,
-                Parameters = ai.Parameters.Select(p => new ImpactParameterDisplayViewModel
-                {
-                    Name = p.Name,
-                    DisplayLabel = p.DisplayLabel,
-                    Value = p.Value,
-                }).ToList(),
-            }).ToList(),
-        };
-    }
+        => ReviewApplicationViewModelMapper.Map(dto);
 }

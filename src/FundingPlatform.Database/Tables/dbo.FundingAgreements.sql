@@ -9,6 +9,11 @@ CREATE TABLE [dbo].[FundingAgreements]
     [GeneratedAtUtc]    DATETIME2(3)   NOT NULL,
     [GeneratedByUserId] NVARCHAR(450)  NOT NULL,
     [GeneratedVersion]  INT            NOT NULL CONSTRAINT DF_FundingAgreements_GeneratedVersion DEFAULT(1),
+    -- Spec 040 / D11 — auditor PDF-correctness confirmation. Additive nullable columns
+    -- (migration-safe on populated DBs; cleared by regenerate). Release-for-signature is
+    -- blocked until AuditorConfirmedAtUtc is set.
+    [AuditorConfirmedAtUtc]    DATETIME2(3)  NULL,
+    [AuditorConfirmedByUserId] NVARCHAR(450) NULL,
     [RowVersion]        ROWVERSION     NOT NULL,
 
     CONSTRAINT [PK_FundingAgreements] PRIMARY KEY CLUSTERED ([Id]),

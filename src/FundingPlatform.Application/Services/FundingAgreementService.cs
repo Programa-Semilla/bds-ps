@@ -96,25 +96,6 @@ public class FundingAgreementService
         return await _applicationRepository.GetByIdWithResponseAndAppealsAsync(applicationId);
     }
 
-    // Spec 028 / US3 — applicant-bucket enqueue for AGREEMENT_GENERATED_APPLICANT.
-    // Two-phase: called AFTER the workflow SaveChangesAsync so the VersionHistory
-    // row carries its identity (the idempotency anchor).
-    private async Task EnqueueAgreementGeneratedAsync(
-        AppEntity application, int versionHistoryId, string actorUserId)
-    {
-        var applicantDisplayName = application.Applicant is not null
-            ? $"{application.Applicant.FirstName} {application.Applicant.LastName}".Trim()
-            : "Solicitante";
-        var applicantUserId = application.Applicant?.UserId ?? string.Empty;
-        var payload = new NotificationPayload(
-            application.Id, applicantUserId, applicantDisplayName,
-            Array.Empty<int>(), OutcomeCode: null, ActorUserId: actorUserId);
-        await _outboxWriter.EnqueueAsync(
-            NotificationEvent.AgreementGeneratedApplicant, application.Id, versionHistoryId,
-            payload, CancellationToken.None);
-        await _applicationRepository.SaveChangesAsync();
-    }
-
     public async Task<GenerateFundingAgreementResult> PersistGenerationAsync(
         AppEntity application,
         string userId,
@@ -149,10 +130,10 @@ public class FundingAgreementService
             await _applicationRepository.UpdateAsync(application);
             await _applicationRepository.SaveChangesAsync();
 
-            // Spec 028 / US3 / FR-010 — notify the applicant the convenio is ready
-            // to sign (actor = the generating reviewer/admin, excluded if also an
-            // admin recipient). Two-phase save mirrors ReviewService.SendBackAsync.
-            await EnqueueAgreementGeneratedAsync(application, vhRow.Id, actorUserId: userId);
+            // Spec 040 / D10 — the "ready to sign" notification (AgreementGeneratedApplicant)
+            // is RE-POINTED off generation: the auditor generates the PDF during audit, then
+            // the applicant is notified only when the auditor RELEASES it for signature
+            // (AuditWorkflowService.ReleaseForSignatureAsync). No enqueue here anymore.
 
             var dto = new FundingAgreementDto(
                 application.Id,

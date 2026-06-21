@@ -1,0 +1,58 @@
+@using FundingPlatform.Domain.Enums
+@model FundingPlatform.Web.ViewModels.Admin.CreateChecklistViewModel
+@{
+    ViewData["Title"] = "Nueva plantilla de checklist";
+}
+
+<div class="page-header"><div class="container-xl"><h2 class="page-title">Nueva plantilla de checklist</h2></div></div>
+
+<div class="page-body">
+    <div class="container-xl">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" asp-action="CreateChecklist" data-testid="admin-checklist-create-form">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="All" class="text-danger"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Name">Nombre</label>
+                        <input asp-for="Name" class="form-control" data-testid="admin-checklist-name" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Description">Descripción</label>
+                        <textarea asp-for="Description" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" asp-for="AppliesToStage">Etapa</label>
+                            <select asp-for="AppliesToStage" class="form-select" data-testid="admin-checklist-stage">
+                                <option value="@((int)ChecklistStage.Reviewer)">Revisión</option>
+                                <option value="@((int)ChecklistStage.Auditor)">Auditoría</option>
+                                <option value="@((int)ChecklistStage.Both)" selected>Ambas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check mt-4">
+                                <input asp-for="Activate" type="checkbox" class="form-check-input" value="true"
+                                       data-testid="admin-checklist-activate-on-create" />
+                                <label class="form-check-label">Activar al crear</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    @await Html.PartialAsync("_ChecklistItemsEditor", Model.Items)
+
+                    <div class="d-flex justify-content-between mt-3">
+                        <a class="btn btn-outline-secondary" asp-action="Checklists">Cancelar</a>
+                        <button type="submit" class="btn btn-primary" data-testid="admin-checklist-submit">Crear</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ChecklistItemsScript", Model.Items.Count)
+}

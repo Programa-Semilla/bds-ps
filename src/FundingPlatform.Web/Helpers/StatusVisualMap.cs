@@ -14,6 +14,9 @@ public static class StatusVisualMap
         ApplicationState.AppealOpen => new StatusVisual("bg-warning", "ti ti-alert-triangle", "Apelación abierta"),
         ApplicationState.ResponseFinalized => new StatusVisual("bg-info", "ti ti-checks", "Respuesta finalizada"),
         ApplicationState.AgreementExecuted => new StatusVisual("bg-success", "ti ti-file-check", "Convenio ejecutado"),
+        // Spec 040 — auditor workflow stage states.
+        ApplicationState.PendingAudit => new StatusVisual("bg-azure", "ti ti-shield-search", "En auditoría"),
+        ApplicationState.ReturnedFromAudit => new StatusVisual("bg-warning", "ti ti-arrow-back-up", "Devuelta por auditoría"),
         _ => throw new ArgumentOutOfRangeException(nameof(s), s, "Unhandled ApplicationState"),
     };
 

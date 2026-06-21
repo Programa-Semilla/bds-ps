@@ -1,0 +1,25 @@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+<h1>Solicitud devuelta por auditoría</h1>
+<p>Hola @Model.Recipient.DisplayName,</p>
+<p>
+    Auditoría devolvió la solicitud de <strong>@Model.Payload.ApplicantDisplayName</strong>
+    (<strong>#@Model.Payload.ApplicationId</strong>) por hallazgos de no conformidad.
+    Realizá los ajustes necesarios y reenviá la solicitud a auditoría.
+</p>
+@if (Model.Payload.AuditFindings is { Count: > 0 })
+{
+    <p><strong>Ítems no conformes:</strong></p>
+    <ul>
+        @foreach (var finding in Model.Payload.AuditFindings)
+        {
+            <li>@finding</li>
+        }
+    </ul>
+}
+<p>
+    <a class="cta" href="@Model.CtaUrl">Ver la solicitud</a>
+</p>
+<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
+    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>

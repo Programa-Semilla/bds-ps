@@ -95,5 +95,21 @@ public class GenerateComparisonTests : AuthenticatedTestBase
 
         // The es-CR narrative panel renders the cheapest/most-expensive call-out.
         await Expect(Page.Locator(".comparison-narratives")).ToContainTextAsync("Análisis de Costos");
+
+        // The comparison header must be READABLE: text color and background must contrast
+        // (regression — the header previously rendered white text on a light surface because
+        // comparison.css overrode the brand dark-teal header background without a text color).
+        var lumDelta = await Page.Locator("[data-testid='comparison-table'] thead th").First.EvaluateAsync<double>(@"
+            th => {
+                const cs = getComputedStyle(th);
+                const lum = (rgb) => {
+                    const m = rgb.match(/\d+(\.\d+)?/g).map(Number);
+                    const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+                    return 0.2126 * f(m[0]) + 0.7152 * f(m[1]) + 0.0722 * f(m[2]);
+                };
+                return Math.abs(lum(cs.color) - lum(cs.backgroundColor));
+            }");
+        Assert.That(lumDelta, Is.GreaterThan(0.4),
+            "Comparison header text/background must contrast (luminance delta > 0.4).");
     }
 }

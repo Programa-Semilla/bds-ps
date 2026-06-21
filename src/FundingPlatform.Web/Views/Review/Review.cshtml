@@ -14,6 +14,20 @@
         Title: $"Revisar solicitud N.º {Model.ApplicationId}",
         Subtitle: Model.ApplicantName))
 
+@if (TempData["ReviewSuccess"] is string reviewOk)
+{
+    <div class="alert alert-success" data-testid="review-toast-success">@reviewOk</div>
+}
+@if (TempData["ReviewError"] is string reviewErr)
+{
+    <div class="alert alert-danger" data-testid="review-toast-error">@reviewErr</div>
+}
+
+@if (Model.ShowReviewerChecklist || Model.ShowReturnedFromAudit)
+{
+    @await Html.PartialAsync("_ReviewerChecklist", Model)
+}
+
 @if (Model.RejectedSupplierCount > 0)
 {
     <div class="alert alert-danger" role="alert" data-testid="rejected-suppliers-banner">
@@ -185,193 +199,9 @@
             </span>
         </div>
         <div class="card-body">
-            @if (item.CategoryFields.Count > 0)
-            {
-                <div class="mb-3">
-                    <strong>Especificaciones de la categoría:</strong>
-                    <table class="fl-table mt-1" data-density="reviewer" data-testid="review-item-category-fields">
-                        <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
-                        <tbody>
-                            @foreach (var field in item.CategoryFields)
-                            {
-                                <tr><td>@field.Label</td><td>@(string.IsNullOrWhiteSpace(field.Value) ? "—" : field.Value)</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-
-            @if (item.AttributedImpactNames.Count > 0 || !string.IsNullOrWhiteSpace(item.ImpactJustification))
-            {
-                <div class="mb-3">
-                    <strong>Impactos asociados:</strong> @(item.AttributedImpactNames.Count > 0 ? string.Join(", ", item.AttributedImpactNames) : "—")
-                    @if (!string.IsNullOrWhiteSpace(item.ImpactJustification))
-                    {
-                        <div class="mt-1"><strong>Justificación:</strong> @item.ImpactJustification</div>
-                    }
-                </div>
-            }
-
-            <div class="mb-3">
-                <strong>Cotizaciones:</strong>
-                @if (!item.HasAnyEligible)
-                {
-                    <div class="alert alert-danger mt-1" data-testid="no-eligible-supplier">
-                        Ningún proveedor elegible — todos los proveedores de este ítem están bloqueados por la CCSS.
-                    </div>
-                }
-                else if (item.HasRecommendationTie)
-                {
-                    <div class="alert alert-warning mt-1" data-testid="recommendation-tie">
-                        Selección manual requerida — varios proveedores empatan en el puntaje más alto.
-                    </div>
-                }
-                <table class="fl-table mt-1" data-density="reviewer">
-                    <thead>
-                        <tr>
-                            <th>Proveedor</th>
-                            <th>Cédula jurídica</th>
-                            <th>Puntaje</th>
-                            <th>Desglose</th>
-                            <th>Precio</th>
-                            <th>Vigente hasta</th>
-                            <th>Documento</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var q in item.Quotations)
-                        {
-                            ExchangeRateSnapshot? qSnapshot = null;
-                            if (q.SnapshotRateValue.HasValue
-                                && !string.IsNullOrEmpty(q.SnapshotRateType)
-                                && q.SnapshotEffectiveAtUtc.HasValue)
-                            {
-                                var qRateType = Enum.Parse<RateType>(q.SnapshotRateType);
-                                qSnapshot = new ExchangeRateSnapshot(
-                                    Guid.Empty, q.SnapshotRateValue.Value, qRateType,
-                                    q.SnapshotEffectiveAtUtc.Value);
-                            }
-                            CurrencyCode? qOriginalCurrency = string.IsNullOrEmpty(q.Currency)
-                                ? null : CurrencyCode.From(q.Currency);
-                            <tr class="quotation-row @(q.IsRecommended ? "table-success" : "") @(q.IsEligible ? "" : "table-danger")"
-                                data-testid="review-quotation-row" data-quotation-id="@q.QuotationId">
-                                <td>
-                                    @q.SupplierName
-                                    @if (q.Compliance is not null)
-                                    {
-                                        <partial name="_SupplierComplianceBadge" model="q.Compliance" />
-                                    }
-                                </td>
-                                <td>@q.SupplierLegalId</td>
-                                <td>
-                                    @if (q.IsEligible)
-                                    {
-                                        <span class="supplier-score fw-bold" data-testid="quotation-total">@q.Total<span class="text-muted">/14</span></span>
-                                    }
-                                    else
-                                    {
-                                        <span class="status status-red" data-testid="quotation-blocked">Bloqueado</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (q.IsEligible)
-                                    {
-                                        <div class="score-breakdown small" data-testid="score-breakdown">
-                                            <div><span class="text-muted">Precio:</span> <strong>@q.PriceScore</strong></div>
-                                            <div><span class="text-muted">Entrega:</span> <strong>@q.DeliveryLeadTimeScore</strong> <span class="text-muted">(@q.DeliveryLeadTimeValue @FundingPlatform.Web.Helpers.DurationUnitLabels.Label(q.DeliveryLeadTimeUnit))</span></div>
-                                            <div><span class="text-muted">Garantía:</span> <strong>@q.WarrantyTimeScore</strong> <span class="text-muted">(@q.WarrantyValue @FundingPlatform.Web.Helpers.DurationUnitLabels.Label(q.WarrantyUnit))</span></div>
-                                            <div><span class="text-muted">Hacienda:</span> <strong>@q.HaciendaScore</strong> <span class="text-muted">(@FundingPlatform.Web.Helpers.RegulatoryStatusLabels.Label(q.Compliance?.Hacienda))</span></div>
-                                            <div><span class="text-muted">CCSS:</span> <strong>@q.CcssScore</strong> <span class="text-muted">(@FundingPlatform.Web.Helpers.RegulatoryStatusLabels.Label(q.Compliance?.Ccss))</span></div>
-                                            <div><span class="text-muted">SICOP:</span> <strong>@q.SicopScore</strong> <span class="text-muted">(@FundingPlatform.Web.Helpers.RegulatoryStatusLabels.Label(q.Compliance?.Sicop))</span></div>
-                                            <div><span class="text-muted">PYME:</span> <strong>@q.PmeOrPymeScore</strong> <span class="text-muted">(@(q.PmeOrPymeScore == 2 ? "Sí" : "No"))</span></div>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-danger small" data-testid="block-reason">No inscrito en la CCSS</span>
-                                    }
-                                </td>
-                                <td>
-                                    @* Spec 015 / T415 — replace raw "C"-format Price with the multi-currency component. *@
-                                    @await Component.InvokeAsync("MoneyDisplay", new
-                                    {
-                                        original = (decimal?)q.Price,
-                                        originalCurrency = qOriginalCurrency,
-                                        convertedCrc = q.ConvertedCrcAmount,
-                                        snapshot = qSnapshot
-                                    })
-                                    @if (q.LegacyNeedsReview)
-                                    {
-                                        <span class="badge bg-warning text-dark ms-1" data-testid="review-quotation-legacy">Pendiente de revisión</span>
-                                    }
-                                </td>
-                                <td>@q.ValidUntil.ToString("dd/MM/yyyy")</td>
-                                <td>
-                                    @* Spec 023 / FR-014 (evolution) — reviewer downloads the
-                                       PDF directly from the quotation row. Group-scoped + admin
-                                       auth is enforced server-side. *@
-                                    <a asp-action="DownloadQuotation" asp-controller="Review"
-                                       asp-route-quotationId="@q.QuotationId"
-                                       class="btn btn-sm btn-outline-secondary fl-doc-link"
-                                       data-testid="review-quotation-download-@q.QuotationId"
-                                       title="@q.DocumentFileName"
-                                       aria-label="Descargar archivo de @q.SupplierName (@q.DocumentFileName)">
-                                        <i class="ti ti-download me-1"></i><span class="fl-doc-name">@q.DocumentFileName</span>
-                                    </a>
-                                </td>
-                                <td>
-                                    @if (!q.IsEligible)
-                                    {
-                                        <span class="status status-red" data-testid="blocked-supplier-badge"
-                                              title="Proveedor no inscrito en la CCSS">
-                                            <i class="ti ti-ban"></i> Bloqueado — no inscrito en la CCSS
-                                        </span>
-                                    }
-                                    @if (q.IsRecommended)
-                                    {
-                                        <span class="recommended-badge status status-green"><i class="ti ti-star"></i> Recomendada</span>
-                                    }
-                                    @if (q.IsSupplierRejected)
-                                    {
-                                        <span class="status status-red ms-1" data-testid="rejected-supplier-badge"
-                                              title="Proveedor rechazado">
-                                            <i class="ti ti-x"></i> Rechazado
-                                        </span>
-                                    }
-                                    else if (!q.IsSupplierVerified)
-                                    {
-                                        <span class="status status-yellow ms-1" data-testid="pending-verification-badge"
-                                              title="@FundingPlatform.Web.Resources.SuppliersResources.PendingVerificationBadge">
-                                            <i class="ti ti-clock"></i> @FundingPlatform.Web.Resources.SuppliersResources.PendingVerificationBadge
-                                        </span>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            @if (item.Comparison is not null)
-            {
-                @await Html.PartialAsync("_ComparisonRegion", item.Comparison)
-            }
-
-            @if (item.ReviewComment is not null)
-            {
-                <div class="mb-3">
-                    <strong>Comentario de revisión:</strong>
-                    <p class="mb-0 fst-italic">@item.ReviewComment</p>
-                </div>
-            }
-
-            @if (item.IsNotTechnicallyEquivalent)
-            {
-                <div class="alert alert-warning py-1 mb-3">
-                    <strong>Marcado:</strong> Las cotizaciones no son técnicamente equivalentes.
-                </div>
-            }
+            @* Spec 040 / FR-007 — the read-only per-item detail is shared with the auditor
+               surface via _ItemReviewDetails. The interactive reviewer forms below stay here. *@
+            @await Html.PartialAsync("_ItemReviewDetails", item)
 
             @if (Model.State == nameof(ApplicationState.UnderReview))
             {

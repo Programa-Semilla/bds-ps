@@ -26,6 +26,8 @@ public static class DependencyInjection
         services.AddScoped<IJourneyProjector, JourneyProjector>();
         services.AddScoped<IApplicantDashboardProjection, ApplicantDashboardProjection>();
         services.AddScoped<IReviewerQueueProjection, ReviewerQueueProjection>();
+        // Spec 040 — group-scoped auditor inbox.
+        services.AddScoped<Audit.IAuditorQueueProjection, AuditorQueueProjection>();
         services.AddSingleton<IApplicantCopyProvider, ApplicantCopyProvider>();
         services.AddSingleton<IReviewerCopyProvider, ReviewerCopyProvider>();
         services.AddSingleton<ICeremonyCopyProvider, CeremonyCopyProvider>();

@@ -121,17 +121,22 @@ public class GenerateAgreementQueueTests : AuthenticatedTestBase
     /// reviewer has navigated to the agreement page.  The queue-departure and
     /// banner assertions are unaffected by this bypass.
     /// </summary>
+    /// <summary>
+    /// Spec 040 / T055 — rewired: PDF generation moved to the auditor, so the reviewer's
+    /// "Generar convenio" queue is now the entry point for completing the reviewer checklist
+    /// and SENDING TO AUDIT. Opening a queue row lands on the Review surface (not the
+    /// funding-agreement page), and sending to audit removes the app from the queue (it is
+    /// no longer ResponseFinalized-without-agreement). The downstream auditor generate /
+    /// release / applicant-ready-to-sign flow is covered by AuditorWorkflowTests.
+    /// </summary>
     [Test]
-    public async Task EndToEndChain_ReviewerGeneratesAgreement_ApplicantSeesReadyToSignBanner()
+    public async Task EndToEndChain_ReviewerSendsToAudit_AppLeavesGenerateQueue()
     {
         var uniqueId = Guid.NewGuid().ToString("N")[..8];
-        var (applicationId, applicantEmail, applicantPassword) =
+        var (applicationId, _, _) =
             await CreateApplicationAndSubmitResponseAsync(uniqueId, _quotationFilePath);
 
         var reviewerEmail = $"ga_chain_{uniqueId}@example.com";
-        var adminEmail = $"ga_chain_admin_{uniqueId}@example.com";
-        await RegisterUserAsync(Page, adminEmail, Password, "GA", "ChainAdmin", $"GACA-{uniqueId}");
-        await AssignRoleAsync(adminEmail, "Admin");
         await RegisterUserAsync(Page, reviewerEmail, Password, "GA", "ChainReviewer", $"GAC-{uniqueId}");
         await AssignRoleAsync(reviewerEmail, "Reviewer");
         await LoginAsync(Page, reviewerEmail, Password);
@@ -141,41 +146,35 @@ public class GenerateAgreementQueueTests : AuthenticatedTestBase
         await queuePage.ClickGenerateAgreementTab();
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
-        // Verify the app appears in the queue, then click Open
+        // Verify the app appears in the queue, then click Open — which now lands on the
+        // Review surface (the reviewer-checklist + send-to-audit card), NOT the FA page.
         await Expect(Page.Locator(
             $"[data-testid=generate-agreement-row][data-application-id='{applicationId}']")).ToBeVisibleAsync();
         await Page.Locator(
             $"[data-testid=generate-agreement-row][data-application-id='{applicationId}'] a:has-text('{UiCopy.Open}')")
             .ClickAsync();
-
-        Assert.That(Regex.IsMatch(Page.Url, $@"/Applications/{applicationId}/FundingAgreement"), Is.True,
-            $"Expected to land on funding-agreement details page; was at {Page.Url}");
-
-        // Seed the agreement via SQL (bypasses Syncfusion — same approach as SigningWayfindingTests).
-        // This simulates what "Generate agreement" would do in a licensed environment.
-        var seededBlobKey = await FundingAgreementSeeder.SeedGeneratedAgreementAsync(
-            ConnectionString, applicationId, adminEmail, CreateBlobServiceClient());
-        _seededFiles.Add(seededBlobKey);
-
-        // Reload the page and confirm the Download link is now present (agreement seeded)
-        await Page.ReloadAsync();
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Expect(Page.Locator("[data-testid=funding-agreement-download]")).ToBeVisibleAsync(
-            new LocatorAssertionsToBeVisibleOptions { Timeout = 10_000 });
 
-        // The application should now leave the Generate Agreement tab
-        // (queue filter: State == ResponseFinalized AND FundingAgreement IS NULL)
+        Assert.That(Regex.IsMatch(Page.Url, $@"/Review/{applicationId}"), Is.True,
+            $"Expected to land on the Review surface; was at {Page.Url}");
+        await Expect(Page.Locator("[data-testid=reviewer-checklist-card]")).ToBeVisibleAsync();
+
+        // Complete the required reviewer checklist items and send to audit.
+        var requiredChecks = Page.Locator("[data-testid=reviewer-check][data-required='true']");
+        var requiredCount = await requiredChecks.CountAsync();
+        for (var i = 0; i < requiredCount; i++)
+        {
+            await requiredChecks.Nth(i).CheckAsync();
+        }
+        await Page.Locator("[data-testid=reviewer-send-to-audit]").ClickAsync();
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+        // The application leaves the Generate Agreement queue (now PendingAudit, not
+        // ResponseFinalized-without-agreement).
         await queuePage.GotoAsync(BaseUrl);
         await queuePage.ClickGenerateAgreementTab();
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
         await Expect(Page.Locator(
             $"[data-testid=generate-agreement-row][data-application-id='{applicationId}']")).ToHaveCountAsync(0);
-
-        // Log back in as the applicant and confirm the ready-to-sign banner
-        await Page.Locator("form[action*='Account/Logout'] button[type=submit]").ClickAsync();
-        await LoginAsync(Page, applicantEmail, applicantPassword);
-        await Page.GotoAsync($"{BaseUrl}/ApplicantResponse/Index/{applicationId}");
-        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-        await Expect(Page.Locator("[data-testid=signing-banner-ready]")).ToBeVisibleAsync();
     }
 }

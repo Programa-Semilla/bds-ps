@@ -18,8 +18,14 @@
     `NewSupplier.FirstBranch.CantonId` yield valid CSS `#id` selectors); the
     `name` attributes keep the dotted field names for model binding.
 
-    All three are `required` → client-side gating (no silent blank submit, FR-006);
-    the controller re-validates + aggregates server-side. Tabler form-select styling.
+    All three are server-side required (FR-005/FR-006); the controller aggregates the
+    es-CR validation errors into the form's validation summary. The native `required`
+    attribute is deliberately NOT set: these selects are enhanced by the spec-031
+    searchable-select (the native <select> is clipped to 1px), so native HTML5
+    required-validation would fire its bubble on an invisible element — a silent
+    submit-block with no visible message (the reported bug). Relying on the server-side
+    gate guarantees a visible error across all browsers. The label asterisk still marks
+    the field as required. Tabler form-select styling.
 *@
 @{
     static string Slug(string s) => s.Replace(".", "-").Replace("[", "-").Replace("]", string.Empty);
@@ -33,7 +39,7 @@
         <select id="@provinceSelectId"
                 class="form-select"
                 name="@Model.ProvinceFieldName"
-                required
+                
                 data-testid="@provinceSelectId"
                 data-searchable
                 data-cascade-source="province"
@@ -60,7 +66,7 @@
         <select id="@cantonSelectId"
                 class="form-select"
                 name="@Model.CantonFieldName"
-                required
+                
                 data-testid="@cantonSelectId"
                 data-searchable
                 data-cascade-source="canton"
@@ -88,7 +94,7 @@
         <select id="@districtSelectId"
                 class="form-select"
                 name="@Model.DistrictFieldName"
-                required
+                
                 data-testid="@districtSelectId"
                 data-searchable
                 data-cascade-current="@(Model.SelectedDistrictId?.ToString() ?? string.Empty)">

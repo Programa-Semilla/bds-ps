@@ -26,6 +26,10 @@ public class FundingAgreementConfiguration : IEntityTypeConfiguration<FundingAgr
         builder.Property(f => f.GeneratedByUserId).IsRequired().HasMaxLength(450);
         builder.Property(f => f.GeneratedVersion).IsRequired().HasDefaultValue(1);
 
+        // Spec 040 / D11 — auditor PDF-correctness confirmation (nullable; cleared on regenerate).
+        builder.Property(f => f.AuditorConfirmedAtUtc);
+        builder.Property(f => f.AuditorConfirmedByUserId).HasMaxLength(450);
+
         builder.Property(f => f.RowVersion).IsRowVersion();
 
         builder

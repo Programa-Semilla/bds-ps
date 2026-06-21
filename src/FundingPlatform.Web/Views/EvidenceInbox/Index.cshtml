@@ -1,0 +1,63 @@
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.EvidenceInboxViewModel
+@{
+    ViewData["Title"] = EvidenceInboxResources.Title;
+}
+
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <h2 class="page-title">@EvidenceInboxResources.Title</h2>
+        <div class="text-secondary">@EvidenceInboxResources.Subtitle</div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table card-table table-vcenter" data-testid="evidence-inbox-table">
+                    <thead>
+                        <tr>
+                            <th>@EvidenceInboxResources.Col_Number</th>
+                            <th>@EvidenceInboxResources.Col_Applicant</th>
+                            <th>@EvidenceInboxResources.Col_Fund</th>
+                            <th>@EvidenceInboxResources.Col_Process</th>
+                            <th>@EvidenceInboxResources.Col_Executed</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Rows.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="text-secondary" data-testid="evidence-inbox-empty">
+                                    @EvidenceInboxResources.Empty
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr data-testid="evidence-inbox-row"
+                                data-application-id="@row.ApplicationId"
+                                data-application-number="@row.ApplicationNumber">
+                                <td>@row.ApplicationNumber</td>
+                                <td>@row.ApplicantName</td>
+                                <td>@row.FundName</td>
+                                <td>@row.ProcessName</td>
+                                <td>@row.ExecutedAtUtc.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-primary"
+                                       asp-controller="FundsUsageEvidence" asp-action="Index"
+                                       asp-route-applicationId="@row.ApplicationId"
+                                       data-testid="evidence-inbox-open">
+                                        @EvidenceInboxResources.Action_Open
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

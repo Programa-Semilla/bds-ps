@@ -46,4 +46,9 @@ public static class FundsUsageEvidenceResources
     // Confirm dialog (spec 024)
     public const string Confirm_DeleteTitle = "Eliminar evidencia";
     public const string Confirm_DeleteBody = "¿Eliminar este archivo de evidencia? Esta acción no se puede deshacer.";
+
+    // Spec 041 — read-only mode when the governing Process is Closed.
+    // The page stays reachable (view + download) but writes are blocked (FR-006/FR-007).
+    public const string ReadOnly_Notice = "El proceso está cerrado. Esta evidencia es de solo lectura; puede consultarla y descargarla, pero no agregar, editar ni eliminar archivos.";
+    public const string Error_ProcessClosed = "El proceso está cerrado. No se pueden modificar las evidencias.";
 }

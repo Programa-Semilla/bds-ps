@@ -1,0 +1,86 @@
+@using FundingPlatform.Domain.Enums
+@model FundingPlatform.Web.ViewModels.Admin.ChecklistAdminViewModel
+@{
+    ViewData["Title"] = "Plantillas de checklist";
+    string StageLabel(ChecklistStage s) => s switch
+    {
+        ChecklistStage.Reviewer => "Revisión",
+        ChecklistStage.Auditor => "Auditoría",
+        _ => "Ambas",
+    };
+}
+
+<div class="page-header d-print-none">
+    <div class="container-xl d-flex justify-content-between align-items-center">
+        <h2 class="page-title">Plantillas de checklist</h2>
+        <a class="btn btn-primary" asp-action="CreateChecklist" data-testid="admin-checklist-create">Nueva plantilla</a>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        @if (TempData["SuccessMessage"] is string ok)
+        {
+            <div class="alert alert-success" data-testid="admin-checklist-success">@ok</div>
+        }
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table card-table table-vcenter" data-testid="admin-checklist-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Etapa</th>
+                            <th>Ítems</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Templates.Count == 0)
+                        {
+                            <tr><td colspan="5" class="text-secondary">No hay plantillas configuradas.</td></tr>
+                        }
+                        @foreach (var t in Model.Templates)
+                        {
+                            <tr data-testid="admin-checklist-row" data-checklist-id="@t.Id">
+                                <td>@t.Name</td>
+                                <td>@StageLabel(t.AppliesToStage)</td>
+                                <td>@t.ItemCount</td>
+                                <td>
+                                    @if (t.IsActive)
+                                    {
+                                        <span class="badge bg-success" data-testid="admin-checklist-active">Activa</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Inactiva</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-primary" asp-action="EditChecklist" asp-route-id="@t.Id"
+                                       data-testid="admin-checklist-edit">Editar</a>
+                                    @if (t.IsActive)
+                                    {
+                                        <form method="post" asp-action="DeactivateChecklist" asp-route-id="@t.Id" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                                    data-testid="admin-checklist-deactivate">Desactivar</button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form method="post" asp-action="ActivateChecklist" asp-route-id="@t.Id" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-success"
+                                                    data-testid="admin-checklist-activate">Activar</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

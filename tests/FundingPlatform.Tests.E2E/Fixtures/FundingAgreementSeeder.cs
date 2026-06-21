@@ -196,6 +196,43 @@ VALUES
     }
 
     /// <summary>
+    /// Spec 040 / T021 — flips an application that has reached ResponseFinalized (5) to
+    /// PendingAudit (7) so it appears in the auditor inbox, and records a SentToAudit
+    /// VersionHistory marker. No FundingAgreement is created (the auditor generates it).
+    /// The reviewer-checklist completeness is irrelevant on this path (it is only
+    /// evaluated at the live SendToAudit transition, which the seeder bypasses).
+    /// </summary>
+    public static async Task SeedPendingAuditApplicationAsync(
+        string connectionString,
+        int applicationId,
+        string reviewerUserEmail)
+    {
+        using var conn = new SqlConnection(connectionString);
+        await conn.OpenAsync();
+
+        var reviewerUserId = await GetUserIdByEmailAsync(conn, reviewerUserEmail);
+
+        const string updateSql = @"UPDATE dbo.Applications SET State = 7, UpdatedAt = @now WHERE Id = @appId;";
+        using (var cmd = new SqlCommand(updateSql, conn))
+        {
+            cmd.Parameters.AddWithValue("@now", DateTime.UtcNow);
+            cmd.Parameters.AddWithValue("@appId", applicationId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        const string vhSql = @"
+INSERT INTO dbo.VersionHistory (ApplicationId, UserId, Action, Details, Timestamp)
+VALUES (@appId, @userId, 'SentToAudit', 'Enviado a auditoría (seed)', @now);";
+        using (var cmd = new SqlCommand(vhSql, conn))
+        {
+            cmd.Parameters.AddWithValue("@appId", applicationId);
+            cmd.Parameters.AddWithValue("@userId", reviewerUserId);
+            cmd.Parameters.AddWithValue("@now", DateTime.UtcNow);
+            await cmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
     /// Inserts placeholder FundingAgreement rows for every ResponseFinalized application
     /// (state = 5) that does not yet have one. Used by the SC-010-A empty-state test to
     /// neutralize queue rows seeded by sibling test classes (ApplicantResponseTests,

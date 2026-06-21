@@ -40,6 +40,8 @@ public static class DependencyInjection
         // Spec 037 — applicant company aggregate.
         services.AddScoped<ICompanyRepository, CompanyRepository>();
         services.AddScoped<IImpactTemplateRepository, ImpactTemplateRepository>();
+        // Spec 040 — checklist template gate-resolution reads.
+        services.AddScoped<IChecklistTemplateRepository, ChecklistTemplateRepository>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<ISystemConfigurationRepository, SystemConfigurationRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
@@ -97,6 +99,11 @@ public static class DependencyInjection
         // (pending-quotation tile moved from admin per R-12).
         services.AddScoped<Application.ReviewerDashboard.IReviewerDashboardProjection,
             Persistence.ReviewerDashboardProjection>();
+
+        // Spec 041 — funds-usage evidence inbox projection (executed apps in
+        // active processes, group-scoped exactly like the reviewer queue).
+        services.AddScoped<Application.EvidenceInbox.IEvidenceInboxProjection,
+            Persistence.EvidenceInboxProjection>();
 
         // Spec 021 — public-code generator, password-reset token store, soft-delete
         // query filter, terse audit writer for the new event-kind discriminators.
@@ -179,6 +186,11 @@ public static class DependencyInjection
 
         // Spec 029 / US1 — Fund (Fondo) admin CRUD + lifecycle + regulation storage.
         services.AddScoped<Application.Funds.IFundService, Services.FundService>();
+
+        // Spec 040 — auditor workflow orchestration (send-to-audit, audit, release, return).
+        services.AddScoped<Application.Audit.IAuditWorkflowService, Services.AuditWorkflowService>();
+        // Spec 040 / US4 — admin checklist-template CRUD.
+        services.AddScoped<Application.Checklists.IChecklistTemplateService, Services.ChecklistTemplateService>();
 
         // Spec 037 / US2 — applicant company admin management (add/rename/archive/unarchive).
         services.AddScoped<Application.Admin.Companies.ICompanyAdministrationService,

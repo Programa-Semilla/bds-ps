@@ -89,6 +89,20 @@ public class AdminAuditEvent
     /// The <c>company.</c> prefix routes here in <c>AdminAuditEventWriter</c>.</summary>
     public const string TargetTypeCompany = "company";
 
+    // ---------- Spec 040 — checklist template (admin) mutations. ----------
+    /// <summary>Spec 040 / FR-014 — admin created a checklist template.</summary>
+    public const string ActionChecklistCreate = "checklist.create";
+    /// <summary>Spec 040 / FR-014 — admin edited a checklist template (full-replace items).</summary>
+    public const string ActionChecklistEdit = "checklist.edit";
+    /// <summary>Spec 040 / FR-014 — admin activated a checklist template (one active per effective stage).</summary>
+    public const string ActionChecklistActivate = "checklist.activate";
+    /// <summary>Spec 040 / FR-014 — admin deactivated a checklist template.</summary>
+    public const string ActionChecklistDeactivate = "checklist.deactivate";
+
+    /// <summary>Spec 040 — target-type discriminator for checklist-template mutations.
+    /// The <c>checklist.</c> prefix routes here in <c>AdminAuditEventWriter</c>.</summary>
+    public const string TargetTypeChecklist = "checklist";
+
     // ---------- Spec 038 — provider regulatory compliance mutations (auditor). ----------
     /// <summary>Spec 038 — auditor changed a Hacienda/CCSS/SICOP regulatory status.</summary>
     public const string SupplierRegulatoryChanged = "supplier.regulatory_changed";
