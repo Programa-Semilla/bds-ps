@@ -127,8 +127,8 @@ Reviewers and auditors see a non-blocking warning naming at-risk providers/field
 - **FR-012**: For each provider, the job MUST consult the Hacienda tax-status service using the provider's identification number, via a replaceable integration seam so that automated tests inject a fake and the live service is never called in tests.
 - **FR-013**: On a successful lookup, the job MUST map the Hacienda result onto the provider's Hacienda status; if the mapped status differs from the current value, it MUST update the value.
 - **FR-014**: On every successful lookup (changed or unchanged), the job MUST refresh the Hacienda last-reviewed timestamp and record the source as automated, and MUST write an audit entry — recording the previous and new value with automated source when changed, and recording that the provider was checked when unchanged. (Reuses slice A's `AdminAuditEvent` shape and `RegulatoryReviewSource.Api`.)
-- **FR-015**: When the lookup reports the identification is not registered, the job MUST set the Hacienda status to the "no inscripción" status and audit the change.
-- **FR-016**: The mapping from Hacienda result to status MUST be: registered + not in arrears + not omitted → "al día"; registered + in arrears → "moroso"; not-registered result → "sin inscripción"; with the less-common combinations (omitted-but-not-in-arrears; de-registered variants) resolved per the mapping confirmed at plan. *(See Open Questions.)*
+- **FR-015**: When the lookup returns a definite **200 `estado:"No inscrito"`**, the job MUST set the Hacienda status to "sin inscripción" and audit the change. An **HTTP 404** ("information not available") is distinct and MUST set "sin información" (not "sin inscripción") — see FR-016 / [research D1](research.md#d1--hacienda-feae-contract--status-mapping-resolves-oq1). *(Refined at plan: 404 ≠ "No inscrito".)*
+- **FR-016**: The mapping from Hacienda result to status MUST be (resolved at plan, [research D1](research.md#d1--hacienda-feae-contract--status-mapping-resolves-oq1)): registered + not in arrears + not omitted → "al día"; registered + in arrears → "moroso"; registered + omitted (not in arrears) → "cobro administrativo"; de-registered + not in arrears → "desinscrito al día"; de-registered + in arrears → "desinscrito moroso"; **200 "No inscrito" → "sin inscripción"**; **HTTP 404 → "sin información"**; transport/5xx/timeout/unparseable/unrecognized-`estado`/malformed-local-id → **failure (no value change)**. "Desinscrito de oficio" is not distinguishable from `fe/ae` and is never auto-set (manual-only). *(Open Question 1 resolved.)*
 - **FR-017**: The sync coverage MUST be all providers (per §16.2), processed in a way that a large catalog does not exhaust resources (batched/throttled). *(Batching detail at plan.)*
 
 **Sync failure handling & visibility**
@@ -140,7 +140,7 @@ Reviewers and auditors see a non-blocking warning naming at-risk providers/field
 
 **Stale-value notification**
 
-- **FR-022**: The system MUST send a daily notification (digest) listing providers with stale required regulatory values to the auditors scoped to those providers, through the existing email outbox + allowlist pipeline. (Resolves §25.3 toward "notify".)
+- **FR-022**: The system MUST send a daily notification (digest) listing providers with stale required regulatory values to the auditors scoped to those providers. Resolved at plan ([research D3](research.md#d3--stale-value-notification-daily-digest-direct-send-audit-pipeline-scoped-resolves-oq3)): the digest is sent **directly via `IEmailSender`** (the `StageExpiryReminderService` pattern, allowlist applied) **rather than the per-application transactional outbox** — a recurring multi-application per-auditor digest does not fit the outbox's per-application idempotency key, and this adds **no new `NotificationEvent`**. Scope: applications in the audit pipeline (`PendingAudit`/`ReturnedFromAudit`) → their `Group` → that group's `Auditor`-role members. (Resolves §25.3 toward "notify"; Open Question 3 resolved.)
 
 **Cross-cutting**
 
@@ -193,6 +193,8 @@ Reviewers and auditors see a non-blocking warning naming at-risk providers/field
 
 ## Open Questions
 
-1. **Less-common Hacienda mapping** — the mapping for `estado` containing "Desinscrito" variants and for `omiso = SI` (when not `moroso`) onto the existing `HaciendaStatus` enum should be confirmed against the real Hacienda value vocabulary at plan time. The common cases (al día / moroso / sin inscripción) are settled (FR-016).
-2. **Referenced-provider selection semantics** (FR-006) — confirm precisely which quotations count as "selected for the application" (e.g. recommended-and-approved per item vs. any attached quotation) when computing the freshness gate, against the slice-B/C application model.
-3. **Notification cadence** (FR-022) — daily digest of currently-stale providers (proposed) vs. notify once when a value first crosses the staleness threshold. Proposing the daily digest for simplicity; confirm at plan.
+All three were resolved at plan time (research.md) and the resolutions are now folded into the FRs above.
+
+1. **Less-common Hacienda mapping** — **RESOLVED** ([research D1](research.md#d1--hacienda-feae-contract--status-mapping-resolves-oq1), FR-016): full mapping table fixed via live sampling; 404→"sin información" distinct from 200 "No inscrito"→"sin inscripción"; `Inscrito`+`omiso=SI`→"cobro administrativo" (best-effort, stakeholder-confirm task T043); "Desinscrito de oficio" never auto-set.
+2. **Referenced-provider selection semantics** (FR-006) — **RESOLVED** ([research D2](research.md#d2--referenced-provider-scope-for-the-gate-resolves-oq2)): the distinct `Supplier`s referenced by the application's approved items via `Item.SelectedSupplierId` (the agreement's counterparties), not every attached quotation.
+3. **Notification cadence** (FR-022) — **RESOLVED** ([research D3](research.md#d3--stale-value-notification-daily-digest-direct-send-audit-pipeline-scoped-resolves-oq3)): daily digest, sent directly (not the outbox), scoped to audit-pipeline applications → group → auditors.
