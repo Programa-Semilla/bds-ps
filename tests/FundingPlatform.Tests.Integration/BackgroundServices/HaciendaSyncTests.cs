@@ -38,7 +38,16 @@ public class HaciendaSyncTests
         services.AddSingleton<IHaciendaApiClient, FakeHaciendaApiClient>();
         services.AddScoped<IAdminAuditEventWriter, AdminAuditEventWriter>();
         services.AddLogging();
-        return services.BuildServiceProvider();
+        var sp = services.BuildServiceProvider();
+
+        // The sync attributes its audit + LastReviewedBy to the system sentinel (FK to AspNetUsers).
+        using (var scope = sp.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Users.Add(ApplicationUser.CreateSentinel("system@local"));
+            db.SaveChanges();
+        }
+        return sp;
     }
 
     private static HaciendaSyncService NewService(ServiceProvider sp) =>
@@ -86,7 +95,8 @@ public class HaciendaSyncTests
         var s = await LoadAsync(sp, id);
         Assert.That(s.HaciendaStatus, Is.EqualTo(HaciendaStatus.AlDia));
         Assert.That(s.HaciendaLastReviewedSource, Is.EqualTo(RegulatoryReviewSource.Api));
-        Assert.That(s.HaciendaLastReviewedBy, Is.EqualTo("system"));
+        // Attributed to the system sentinel (a real AspNetUsers id), not the literal "system".
+        Assert.That(s.HaciendaLastReviewedBy, Is.Not.Null.And.Not.Empty);
         Assert.That(s.HaciendaSyncOutcome, Is.EqualTo(HaciendaSyncOutcome.Success));
 
         var audits = await AuditsAsync(sp, id);

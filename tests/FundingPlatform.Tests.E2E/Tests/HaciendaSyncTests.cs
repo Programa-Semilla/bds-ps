@@ -47,8 +47,14 @@ public class HaciendaSyncTests : AuthenticatedTestBase
         var supplierId = await SupplierSeed.GetSupplierIdByNameAsync(ConnectionString, "Supplier Alpha");
 
         // Stage "al día" for everyone, then run one sync cycle (both anonymous dev seams).
-        await Page.GotoAsync($"{BaseUrl}/Dev/StageHaciendaOutcome?kind=aldia");
-        await Page.GotoAsync($"{BaseUrl}/Dev/RunHaciendaSync");
+        var stageResp = await Page.GotoAsync($"{BaseUrl}/Dev/StageHaciendaOutcome?kind=aldia");
+        var stageBody = await stageResp!.TextAsync();
+        Assert.That(stageResp.Status, Is.EqualTo(200), $"stage: {stageResp.Status} {stageBody}");
+        var runResp = await Page.GotoAsync($"{BaseUrl}/Dev/RunHaciendaSync");
+        var runBody = await runResp!.TextAsync();
+        TestContext.Out.WriteLine($"[043] stage='{stageBody}' run='{runBody}'");
+        Assert.That(runResp.Status, Is.EqualTo(200), runBody);
+        Assert.That(runBody, Does.Not.Contain("\"checked\":0"), $"sync processed 0 suppliers: {runBody}");
 
         await LoginAsAuditorAsync("hsync_ok");
         await Page.GotoAsync($"{BaseUrl}/Admin/Suppliers/{supplierId}");
@@ -69,7 +75,8 @@ public class HaciendaSyncTests : AuthenticatedTestBase
         var cedula = IdentificationData.CedulaJuridica($"SQ1-{uniqueId}");
         await Page.GotoAsync($"{BaseUrl}/Dev/StageHaciendaOutcome?kind=aldia");
         await Page.GotoAsync($"{BaseUrl}/Dev/StageHaciendaOutcome?identificacion={Uri.EscapeDataString(cedula)}&kind=failed");
-        await Page.GotoAsync($"{BaseUrl}/Dev/RunHaciendaSync");
+        var runResp = await Page.GotoAsync($"{BaseUrl}/Dev/RunHaciendaSync");
+        Assert.That(runResp!.Status, Is.EqualTo(200), await runResp.TextAsync());
 
         await LoginAsAuditorAsync("hsync_fail");
 

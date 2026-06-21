@@ -21,7 +21,7 @@ public class SupplierHaciendaSyncTests
         var s = MakeDraft();
         var now = DateTime.UtcNow;
 
-        var change = s.ApplyHaciendaSyncResult(HaciendaStatus.AlDia, now);
+        var change = s.ApplyHaciendaSyncResult(HaciendaStatus.AlDia, now, "system");
 
         Assert.That(s.HaciendaStatus, Is.EqualTo(HaciendaStatus.AlDia));
         Assert.That(s.HaciendaLastReviewedAt, Is.EqualTo(now));
@@ -41,10 +41,10 @@ public class SupplierHaciendaSyncTests
     public void ApplyHaciendaSyncResult_SameValue_ReturnsReviewedNoChange_ButRefreshesTimestamp()
     {
         var s = MakeDraft();
-        s.ApplyHaciendaSyncResult(HaciendaStatus.AlDia, DateTime.UtcNow.AddDays(-10));
+        s.ApplyHaciendaSyncResult(HaciendaStatus.AlDia, DateTime.UtcNow.AddDays(-10), "system");
         var now = DateTime.UtcNow;
 
-        var change = s.ApplyHaciendaSyncResult(HaciendaStatus.AlDia, now);
+        var change = s.ApplyHaciendaSyncResult(HaciendaStatus.AlDia, now, "system");
 
         Assert.That(change.Kind, Is.EqualTo(RegulatoryChangeKind.ReviewedNoChange));
         Assert.That(s.HaciendaStatus, Is.EqualTo(HaciendaStatus.AlDia));
@@ -85,7 +85,7 @@ public class SupplierHaciendaSyncTests
     {
         var s = MakeDraft();
         s.RecordHaciendaSyncFailure(DateTime.UtcNow, "boom");
-        s.ApplyHaciendaSyncResult(HaciendaStatus.AlDia, DateTime.UtcNow);
+        s.ApplyHaciendaSyncResult(HaciendaStatus.AlDia, DateTime.UtcNow, "system");
 
         Assert.That(s.HaciendaSyncOutcome, Is.EqualTo(HaciendaSyncOutcome.Success));
         Assert.That(s.HaciendaSyncError, Is.Null);

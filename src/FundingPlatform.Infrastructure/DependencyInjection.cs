@@ -280,8 +280,10 @@ public static class DependencyInjection
         services.AddScoped<IRegulatoryFreshnessService, Services.RegulatoryFreshnessService>();
 
         // Config-gated Hacienda API client (mirrors AiComparison:Provider Stub/Anthropic).
-        // Default Fake for dev/E2E (the live API is never called in tests); real envs set Live.
-        var haciendaProvider = configuration[$"{HaciendaSyncOptions.SectionName}:Provider"] ?? "Live";
+        // Default to the offline Fake so dev/E2E never hit the live API without depending on
+        // env-var forwarding (the AiComparison Stub-default lesson); real envs opt in with
+        // Regulatory:HaciendaSync:Provider=Live via azd-env / container config.
+        var haciendaProvider = configuration[$"{HaciendaSyncOptions.SectionName}:Provider"] ?? "Fake";
         if (string.Equals(haciendaProvider, "Live", StringComparison.OrdinalIgnoreCase))
         {
             var baseUrl = configuration[$"{HaciendaSyncOptions.SectionName}:BaseUrl"]

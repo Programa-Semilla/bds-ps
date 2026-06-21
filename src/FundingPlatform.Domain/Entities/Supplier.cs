@@ -407,17 +407,21 @@ public partial class Supplier
     /// status differs from the current value it is updated and a
     /// <see cref="RegulatoryChangeKind.Changed"/> record returned; otherwise a
     /// <see cref="RegulatoryChangeKind.ReviewedNoChange"/> record. Always stamps the
-    /// Hacienda last-reviewed metadata (now / <c>"system"</c> / <c>Api</c>) and records
-    /// a <see cref="Enums.HaciendaSyncOutcome.Success"/> sync outcome (clearing any error).
+    /// Hacienda last-reviewed metadata (now / <paramref name="systemActorUserId"/> / <c>Api</c>) and
+    /// records a <see cref="Enums.HaciendaSyncOutcome.Success"/> sync outcome (clearing any error).
+    /// <paramref name="systemActorUserId"/> must be a real <c>AspNetUsers</c> id (the system sentinel)
+    /// so the per-field last-reviewer FK is satisfied; the display renders it as "por el sistema"
+    /// via the <c>Api</c> source.
     /// </summary>
-    public RegulatoryChange ApplyHaciendaSyncResult(HaciendaStatus mapped, DateTime nowUtc)
+    public RegulatoryChange ApplyHaciendaSyncResult(HaciendaStatus mapped, DateTime nowUtc, string systemActorUserId)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(systemActorUserId);
         var old = HaciendaStatus;
         var kind = mapped != old ? RegulatoryChangeKind.Changed : RegulatoryChangeKind.ReviewedNoChange;
 
         HaciendaStatus = mapped;
         HaciendaLastReviewedAt = nowUtc;
-        HaciendaLastReviewedBy = "system";
+        HaciendaLastReviewedBy = systemActorUserId;
         HaciendaLastReviewedSource = RegulatoryReviewSource.Api;
 
         HaciendaSyncAttemptAt = nowUtc;

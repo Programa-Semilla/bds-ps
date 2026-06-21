@@ -87,10 +87,24 @@ public sealed class HaciendaSyncService : BackgroundService
         var perCallDelayMs = Math.Max(0, _options.Value.PerCallDelayMs);
 
         List<int> supplierIds;
+        string? systemActorId;
         using (var scope = _services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             supplierIds = await db.Suppliers.Select(s => s.Id).ToListAsync(ct).ConfigureAwait(false);
+            // The audit ActorUserId + per-field LastReviewedBy carry FKs to AspNetUsers, so the
+            // automated actor must be a real id — the system sentinel (excluded by a global query
+            // filter, hence IgnoreQueryFilters).
+            systemActorId = await db.Users.IgnoreQueryFilters()
+                .Where(u => u.IsSystemSentinel)
+                .Select(u => u.Id)
+                .FirstOrDefaultAsync(ct).ConfigureAwait(false);
+        }
+
+        if (string.IsNullOrEmpty(systemActorId))
+        {
+            _logger.LogError("Hacienda sync aborted: no system sentinel user found to attribute the sync to.");
+            return new HaciendaSyncSummary(0, 0, 0, 0);
         }
 
         int checkedCount = 0, changed = 0, unchanged = 0, failed = 0;
@@ -103,7 +117,7 @@ public sealed class HaciendaSyncService : BackgroundService
                 checkedCount++;
                 try
                 {
-                    switch (await SyncOneAsync(supplierId, ct).ConfigureAwait(false))
+                    switch (await SyncOneAsync(supplierId, systemActorId, ct).ConfigureAwait(false))
                     {
                         case SyncOutcome.Changed: changed++; break;
                         case SyncOutcome.Unchanged: unchanged++; break;
@@ -128,7 +142,7 @@ public sealed class HaciendaSyncService : BackgroundService
         return new HaciendaSyncSummary(checkedCount, changed, unchanged, failed);
     }
 
-    private async Task<SyncOutcome> SyncOneAsync(int supplierId, CancellationToken ct)
+    private async Task<SyncOutcome> SyncOneAsync(int supplierId, string systemActorId, CancellationToken ct)
     {
         // Fresh scope per provider so a RowVersion conflict (or any failure) is fully
         // isolated and cannot poison a shared DbContext.
@@ -157,17 +171,17 @@ public sealed class HaciendaSyncService : BackgroundService
             var reason = lookup.Reason ?? "No se pudo verificar el estado en Hacienda.";
             supplier.RecordHaciendaSyncFailure(now, reason);
             await audit.WriteAsync(
-                AdminAuditEvent.SupplierHaciendaSyncFailed, "system",
+                AdminAuditEvent.SupplierHaciendaSyncFailed, systemActorId,
                 FailurePayload(supplierId, supplier.LegalId, reason), ct).ConfigureAwait(false);
             outcome = SyncOutcome.Failed;
         }
         else
         {
-            var change = supplier.ApplyHaciendaSyncResult(mapped.Value, now);
+            var change = supplier.ApplyHaciendaSyncResult(mapped.Value, now, systemActorId);
             var action = change.Kind == RegulatoryChangeKind.Changed
                 ? AdminAuditEvent.SupplierRegulatoryChanged
                 : AdminAuditEvent.SupplierRegulatoryReviewed;
-            await audit.WriteAsync(action, "system", SuccessPayload(supplierId, change), ct).ConfigureAwait(false);
+            await audit.WriteAsync(action, systemActorId, SuccessPayload(supplierId, change), ct).ConfigureAwait(false);
             outcome = change.Kind == RegulatoryChangeKind.Changed ? SyncOutcome.Changed : SyncOutcome.Unchanged;
         }
 
