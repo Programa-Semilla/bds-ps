@@ -2,25 +2,22 @@
 @{
     ViewData["Title"] = Model.Subject;
 }
-<h1>Solicitud devuelta por auditoría</h1>
-<p>Hola @Model.Recipient.DisplayName,</p>
-<p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_Hero.cshtml", "Solicitud devuelta por auditoría")
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">Hola, @Model.Recipient.DisplayName:</p>
+<p style="margin:0 0 16px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
     Auditoría devolvió la solicitud de <strong>@Model.Payload.ApplicantDisplayName</strong>
     (<strong>#@Model.Payload.ApplicationId</strong>) por hallazgos de no conformidad.
-    Realizá los ajustes necesarios y reenviá la solicitud a auditoría.
+    Ingresá a @EmailBrand.PlatformName para revisar los hallazgos, realizar los ajustes y reenviar la solicitud a auditoría.
 </p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_StatusCard.cshtml", new StatusCardModel("Detalle de la solicitud", new List<DetailRow> { new("Solicitante", Model.Payload.ApplicantDisplayName), new("Número de solicitud", $"#{Model.Payload.ApplicationId}") }))
 @if (Model.Payload.AuditFindings is { Count: > 0 })
 {
-    <p><strong>Ítems no conformes:</strong></p>
-    <ul>
+    <p style="margin:0 0 8px 0;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;font-weight:600;">Ítems no conformes:</p>
+    <ul style="margin:0 0 16px 0;padding-left:20px;font-family:'Inter',Arial,sans-serif;font-size:15px;line-height:1.6;color:#243b40;">
         @foreach (var finding in Model.Payload.AuditFindings)
         {
-            <li>@finding</li>
+            <li style="margin:0 0 4px 0;">@finding</li>
         }
     </ul>
 }
-<p>
-    <a class="cta" href="@Model.CtaUrl">Ver la solicitud</a>
-</p>
-<p>Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br />
-    <span style="color:#6e6e73;font-size:13px;">@Model.CtaUrl</span></p>
+@await Html.PartialAsync("~/Views/Emails/Shared/_CtaButton.cshtml", new CtaButtonModel(Model.CtaUrl, "Ver la solicitud"))

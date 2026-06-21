@@ -3,9 +3,9 @@
     ViewData["DisableLayout"] = true;
 }Solicitud devuelta por auditoría — Solicitud #@Model.Payload.ApplicationId
 
-Hola @Model.Recipient.DisplayName,
+Hola, @Model.Recipient.DisplayName:
 
-Auditoría devolvió la solicitud de @Model.Payload.ApplicantDisplayName (#@Model.Payload.ApplicationId) por hallazgos de no conformidad. Realizá los ajustes necesarios y reenviá la solicitud a auditoría.
+Auditoría devolvió la solicitud de @Model.Payload.ApplicantDisplayName (#@Model.Payload.ApplicationId) por hallazgos de no conformidad. Ingresá a @EmailBrand.PlatformName para revisar los hallazgos, realizar los ajustes y reenviar la solicitud a auditoría.
 @if (Model.Payload.AuditFindings is { Count: > 0 })
 {
 @:
@@ -19,10 +19,9 @@ Auditoría devolvió la solicitud de @Model.Payload.ApplicantDisplayName (#@Mode
 Ver la solicitud:
 @Model.CtaUrl
 
-Saludos cordiales,
-Programa Semilla
-Sistema de Banca para el Desarrollo
+@EmailBrand.SignOffClosing
+@EmailBrand.SignOff
 
 —
-Para soporte: soporte@@programa-semilla.cr
-Este es un correo automático del Sistema de Banca para el Desarrollo. Por favor, no respondas a esta dirección.
+Para consultas: @EmailBrand.SupportEmail · @EmailBrand.SupportPhone
+@EmailBrand.AutomaticMessageNote
