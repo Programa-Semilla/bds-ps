@@ -2,7 +2,6 @@ using FundingPlatform.Application.Notifications;
 using FundingPlatform.Application.Notifications.Email;
 using FundingPlatform.Application.Notifications.Templates;
 using FundingPlatform.Domain.Notifications;
-using Microsoft.Extensions.Configuration;
 
 namespace FundingPlatform.Web.Services;
 
@@ -23,14 +22,14 @@ namespace FundingPlatform.Web.Services;
 public sealed class RazorEmailRenderer : IEmailTemplateRenderer
 {
     private readonly IEmailViewRenderer _viewRenderer;
-    private readonly IConfiguration _config;
+    private readonly IEmailBaseUrlProvider _baseUrlProvider;
 
     public RazorEmailRenderer(
         IEmailViewRenderer viewRenderer,
-        IConfiguration config)
+        IEmailBaseUrlProvider baseUrlProvider)
     {
         _viewRenderer = viewRenderer;
-        _config = config;
+        _baseUrlProvider = baseUrlProvider;
     }
 
     public async Task<RenderedEmail> RenderAsync(
@@ -46,13 +45,15 @@ public sealed class RazorEmailRenderer : IEmailTemplateRenderer
         var subject = NotificationTemplateBindings.RenderSubject(
             eventType, payload.ApplicantDisplayName, payload.ApplicationId);
 
-        // FR-026 / spec 028 R-001 — composed deep link from Notifications:BaseUrl
-        // + the event's CtaRouteTemplate (event-driven, not bucket-derived).
-        var baseUrl = _config["Notifications:BaseUrl"] ?? string.Empty;
+        // FR-026 / spec 028 R-001 — composed deep link from the resolved base URL
+        // + the event's CtaRouteTemplate (event-driven, not bucket-derived). The
+        // dispatch worker has no request context, so the provider falls back to
+        // Notifications:BaseUrl here.
+        var baseUrl = _baseUrlProvider.GetBaseUrl();
         var ctaUrl = ComposeCtaUrl(eventType, baseUrl, payload.ApplicationId);
 
         // Spec 041 / Decision 2 / FR-002 — absolute brand-image URLs composed from
-        // Notifications:BaseUrl against the official assets already in wwwroot/lib/brand.
+        // the same resolved base URL against the official assets in wwwroot/lib/brand.
         var logoUrl = Combine(baseUrl, BrandAssets.LogoPath);
         var partnerStripUrl = Combine(baseUrl, BrandAssets.PartnerStripPath);
 

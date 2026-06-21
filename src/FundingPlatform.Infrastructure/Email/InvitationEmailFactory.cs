@@ -5,7 +5,6 @@
 using System.Globalization;
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Notifications.Email;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace FundingPlatform.Infrastructure.Email;
@@ -24,16 +23,16 @@ public sealed class InvitationEmailFactory
     private const string Subject = "Le han creado una cuenta — establezca su contraseña";
 
     private readonly IEmailViewRenderer _viewRenderer;
-    private readonly IConfiguration _config;
+    private readonly IEmailBaseUrlProvider _baseUrlProvider;
     private readonly ILogger<InvitationEmailFactory> _logger;
 
     public InvitationEmailFactory(
         IEmailViewRenderer viewRenderer,
-        IConfiguration config,
+        IEmailBaseUrlProvider baseUrlProvider,
         ILogger<InvitationEmailFactory> logger)
     {
         _viewRenderer = viewRenderer;
-        _config = config;
+        _baseUrlProvider = baseUrlProvider;
         _logger = logger;
     }
 
@@ -56,7 +55,7 @@ public sealed class InvitationEmailFactory
             .ToOffset(TimeSpan.FromHours(-6)) // CR is UTC-6 (no DST)
             .ToString("dd/MM/yyyy HH:mm", new CultureInfo("es-CR"));
 
-        var baseUrl = _config["Notifications:BaseUrl"];
+        var baseUrl = _baseUrlProvider.GetBaseUrl();
         var model = new DirectEmailModel(
             Subject: Subject,
             HeroTitle: "Bienvenida a ALIA",

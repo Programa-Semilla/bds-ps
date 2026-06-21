@@ -7,7 +7,6 @@ using FundingPlatform.Application.Notifications.Email;
 using FundingPlatform.Application.Suppliers.Notifications;
 using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace FundingPlatform.Infrastructure.Suppliers;
@@ -31,20 +30,20 @@ public sealed class ProviderCreatedNotifier : IProviderCreatedNotifier
     private readonly AppDbContext _db;
     private readonly IEmailSender _emailSender;
     private readonly IEmailViewRenderer _viewRenderer;
-    private readonly IConfiguration _config;
+    private readonly IEmailBaseUrlProvider _baseUrlProvider;
     private readonly ILogger<ProviderCreatedNotifier> _logger;
 
     public ProviderCreatedNotifier(
         AppDbContext db,
         IEmailSender emailSender,
         IEmailViewRenderer viewRenderer,
-        IConfiguration config,
+        IEmailBaseUrlProvider baseUrlProvider,
         ILogger<ProviderCreatedNotifier> logger)
     {
         _db = db;
         _emailSender = emailSender;
         _viewRenderer = viewRenderer;
-        _config = config;
+        _baseUrlProvider = baseUrlProvider;
         _logger = logger;
     }
 
@@ -77,7 +76,7 @@ public sealed class ProviderCreatedNotifier : IProviderCreatedNotifier
             }
             creatorName = string.IsNullOrWhiteSpace(creatorName) ? "—" : creatorName;
 
-            var baseUrl = (_config["Notifications:BaseUrl"] ?? string.Empty).TrimEnd('/');
+            var baseUrl = _baseUrlProvider.GetBaseUrl();
             var reviewLink = $"{baseUrl}/Admin/Suppliers/{supplier.Id}";
             var createdAtLocal = supplier.CreatedAt
                 .AddHours(-6) // CR is UTC-6 (no DST)

@@ -9,7 +9,6 @@
 using System.Globalization;
 using FundingPlatform.Application.Notifications.Email;
 using FundingPlatform.Infrastructure.Email;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FundingPlatform.Tests.Unit.Email;
@@ -31,12 +30,13 @@ public class InvitationEmailFactoryTests
         }
     }
 
-    private static IConfiguration Config() =>
-        new ConfigurationBuilder().AddInMemoryCollection(
-            new Dictionary<string, string?> { ["Notifications:BaseUrl"] = "https://app.example" }).Build();
+    private sealed class StubBaseUrlProvider(string baseUrl) : IEmailBaseUrlProvider
+    {
+        public string GetBaseUrl() => baseUrl;
+    }
 
     private static InvitationEmailFactory Build(CapturingRenderer r) =>
-        new(r, Config(), NullLogger<InvitationEmailFactory>.Instance);
+        new(r, new StubBaseUrlProvider("https://app.example"), NullLogger<InvitationEmailFactory>.Instance);
 
     [Test]
     public async Task BuildAsync_SetsEsCrSubject_AndRendersHtmlPlusText()

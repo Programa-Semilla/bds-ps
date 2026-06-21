@@ -6,7 +6,6 @@ using System.Globalization;
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Notifications.Email;
 using FundingPlatform.Domain.Enums;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace FundingPlatform.Infrastructure.Email;
@@ -21,16 +20,16 @@ namespace FundingPlatform.Infrastructure.Email;
 public sealed class StageReminderEmailFactory
 {
     private readonly IEmailViewRenderer _viewRenderer;
-    private readonly IConfiguration _config;
+    private readonly IEmailBaseUrlProvider _baseUrlProvider;
     private readonly ILogger<StageReminderEmailFactory> _logger;
 
     public StageReminderEmailFactory(
         IEmailViewRenderer viewRenderer,
-        IConfiguration config,
+        IEmailBaseUrlProvider baseUrlProvider,
         ILogger<StageReminderEmailFactory> logger)
     {
         _viewRenderer = viewRenderer;
-        _config = config;
+        _baseUrlProvider = baseUrlProvider;
         _logger = logger;
     }
 
@@ -89,7 +88,7 @@ public sealed class StageReminderEmailFactory
             _ => throw new ArgumentOutOfRangeException(nameof(bucket), bucket, null),
         };
 
-        var baseUrl = _config["Notifications:BaseUrl"];
+        var baseUrl = _baseUrlProvider.GetBaseUrl();
         var model = new DirectEmailModel(
             Subject: subject,
             HeroTitle: heroTitle,

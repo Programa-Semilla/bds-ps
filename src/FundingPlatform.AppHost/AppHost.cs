@@ -298,6 +298,18 @@ void ForwardNotification(string envKey, string? value)
 
 ForwardNotification("Notifications__Provider",         notificationsProvider);
 ForwardNotification("Notifications__BaseUrl",          notificationsBaseUrl);
+
+// Spec 041 bugfix — in local run mode, when Notifications:BaseUrl is NOT explicitly
+// configured, pin it to the Web app's own Aspire-assigned external endpoint. This is
+// the base used by BACKGROUND-dispatched mail (the outbox dispatch worker + stage-
+// reminder worker), which has no HTTP request to fall back to, so without this it used
+// the stale appsettings localhost default and produced broken email image URLs. Direct-
+// send mail already resolves the live request host via IEmailBaseUrlProvider. Skipped in
+// publish mode (Azure uses the container template / azd-env value).
+if (!builder.ExecutionContext.IsPublishMode && string.IsNullOrWhiteSpace(notificationsBaseUrl))
+{
+    webApp.WithEnvironment("Notifications__BaseUrl", webApp.GetEndpoint("https"));
+}
 ForwardNotification("Notifications__Mailgun__ApiKey",  mailgunApiKey);
 ForwardNotification("Notifications__Mailgun__Domain",  mailgunDomain);
 ForwardNotification("Notifications__Mailgun__BaseUrl", mailgunBaseUrl);

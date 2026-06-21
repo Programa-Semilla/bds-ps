@@ -4,7 +4,6 @@
 
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Notifications.Email;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace FundingPlatform.Infrastructure.Email;
@@ -24,16 +23,16 @@ public sealed class PasswordChangedEmailFactory
     private const string Subject = "Tu contraseña fue actualizada";
 
     private readonly IEmailViewRenderer _viewRenderer;
-    private readonly IConfiguration _config;
+    private readonly IEmailBaseUrlProvider _baseUrlProvider;
     private readonly ILogger<PasswordChangedEmailFactory> _logger;
 
     public PasswordChangedEmailFactory(
         IEmailViewRenderer viewRenderer,
-        IConfiguration config,
+        IEmailBaseUrlProvider baseUrlProvider,
         ILogger<PasswordChangedEmailFactory> logger)
     {
         _viewRenderer = viewRenderer;
-        _config = config;
+        _baseUrlProvider = baseUrlProvider;
         _logger = logger;
     }
 
@@ -49,7 +48,7 @@ public sealed class PasswordChangedEmailFactory
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(toAddress);
 
-        var baseUrl = _config["Notifications:BaseUrl"];
+        var baseUrl = _baseUrlProvider.GetBaseUrl();
         var model = new DirectEmailModel(
             Subject: Subject,
             HeroTitle: "Tu contraseña fue actualizada",

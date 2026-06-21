@@ -81,6 +81,11 @@ public class StageExpiryReminderServiceTests
                     ["Notifications:BaseUrl"] = "https://test.example",
                 }).Build());
         services.AddSingleton<IEmailViewRenderer, StubEmailViewRenderer>();
+        // Spec 041 bugfix — the factory now resolves its base URL through
+        // IEmailBaseUrlProvider (request-aware in production; config-backed in this
+        // worker context). A stub returning the test base URL keeps the subject/recipient
+        // assertions unchanged.
+        services.AddSingleton<IEmailBaseUrlProvider>(new StubBaseUrlProvider("https://test.example"));
         services.AddSingleton<StageReminderEmailFactory>();
 
         _services = services.BuildServiceProvider();
@@ -300,5 +305,10 @@ public class StageExpiryReminderServiceTests
     {
         public Task<string> RenderViewAsync(string viewPath, object model, bool disableLayout, CancellationToken ct)
             => Task.FromResult(string.Empty);
+    }
+
+    private sealed class StubBaseUrlProvider(string baseUrl) : IEmailBaseUrlProvider
+    {
+        public string GetBaseUrl() => baseUrl;
     }
 }

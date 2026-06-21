@@ -8,7 +8,6 @@
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Identity;
 using FundingPlatform.Application.Notifications.Email;
-using Microsoft.Extensions.Configuration;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Infrastructure.Email;
 using FundingPlatform.Web.Controllers;
@@ -137,11 +136,10 @@ public class ForgotPasswordEnumerationTests
         // Spec 041 — the factory now renders through IEmailViewRenderer; this suite
         // asserts enumeration-neutral banners, not the email body, so a no-op renderer
         // double suffices (the send is best-effort and its result is ignored here).
-        var emailConfig = new ConfigurationBuilder().AddInMemoryCollection(
-            new Dictionary<string, string?> { ["Notifications:BaseUrl"] = "https://localhost" }).Build();
+        var emailBaseUrl = new StubBaseUrlProvider("https://localhost");
         var factory = new ForgotPasswordEmailFactory(
             new NoopEmailViewRenderer(),
-            emailConfig,
+            emailBaseUrl,
             NullLogger<ForgotPasswordEmailFactory>.Instance);
 
         // We construct the controller with the stub Identity-flow handlers
@@ -163,7 +161,7 @@ public class ForgotPasswordEnumerationTests
             _capture,
             factory,
             new PasswordChangedEmailFactory(
-                new NoopEmailViewRenderer(), emailConfig,
+                new NoopEmailViewRenderer(), emailBaseUrl,
                 NullLogger<PasswordChangedEmailFactory>.Instance));
 
         var httpContext = new DefaultHttpContext { RequestServices = provider };
@@ -224,5 +222,10 @@ public class ForgotPasswordEnumerationTests
     {
         public Task<string> RenderViewAsync(string viewPath, object model, bool disableLayout, CancellationToken ct)
             => Task.FromResult(string.Empty);
+    }
+
+    private sealed class StubBaseUrlProvider(string baseUrl) : IEmailBaseUrlProvider
+    {
+        public string GetBaseUrl() => baseUrl;
     }
 }

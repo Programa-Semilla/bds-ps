@@ -5,7 +5,6 @@ using FundingPlatform.Infrastructure.Persistence;
 using FundingPlatform.Infrastructure.Suppliers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FundingPlatform.Tests.Integration.Persistence;
@@ -44,10 +43,12 @@ public class ProviderCreatedNotifierTests
         return supplier.Id;
     }
 
-    private static IConfiguration Config() =>
-        new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Notifications:BaseUrl"] = "https://test.example" })
-            .Build();
+    private static IEmailBaseUrlProvider BaseUrl() => new StubBaseUrlProvider("https://test.example");
+
+    private sealed class StubBaseUrlProvider(string baseUrl) : IEmailBaseUrlProvider
+    {
+        public string GetBaseUrl() => baseUrl;
+    }
 
     [Test]
     public async Task NotifyAuditorsAsync_SendsOnePerAuditor_WithRequiredBody()
@@ -57,7 +58,7 @@ public class ProviderCreatedNotifierTests
         var sender = new CapturingSender();
 
         using var ctx = CreateContext(dbName);
-        var notifier = new ProviderCreatedNotifier(ctx, sender, new DumpRenderer(), Config(),
+        var notifier = new ProviderCreatedNotifier(ctx, sender, new DumpRenderer(), BaseUrl(),
             NullLogger<ProviderCreatedNotifier>.Instance);
 
         await notifier.NotifyAuditorsAsync(supplierId, CancellationToken.None);
@@ -78,7 +79,7 @@ public class ProviderCreatedNotifierTests
         var supplierId = await SeedSupplierAndAuditorsAsync(dbName, auditorCount: 1);
 
         using var ctx = CreateContext(dbName);
-        var notifier = new ProviderCreatedNotifier(ctx, new ThrowingSender(), new DumpRenderer(), Config(),
+        var notifier = new ProviderCreatedNotifier(ctx, new ThrowingSender(), new DumpRenderer(), BaseUrl(),
             NullLogger<ProviderCreatedNotifier>.Instance);
 
         // FR-024 — best-effort: must not throw to the caller.
@@ -93,7 +94,7 @@ public class ProviderCreatedNotifierTests
         var sender = new CapturingSender();
 
         using var ctx = CreateContext(dbName);
-        var notifier = new ProviderCreatedNotifier(ctx, sender, new DumpRenderer(), Config(),
+        var notifier = new ProviderCreatedNotifier(ctx, sender, new DumpRenderer(), BaseUrl(),
             NullLogger<ProviderCreatedNotifier>.Instance);
 
         await notifier.NotifyAuditorsAsync(supplierId, CancellationToken.None);
