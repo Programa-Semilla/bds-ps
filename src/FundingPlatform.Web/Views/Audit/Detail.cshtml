@@ -32,6 +32,9 @@
             <div class="alert alert-danger" data-testid="audit-fa-error">@faErr</div>
         }
 
+        @* Spec 043 / US4 / FR-010 — non-blocking regulatory-freshness warning (mirrors the hard gate). *@
+        @await Component.InvokeAsync("RegulatoryFreshnessWarning", new { applicationId = app.ApplicationId })
+
         <div class="row">
             <div class="col-12">
                 @* Spec 040 / FR-007 — applicant + state summary (reviewer-equivalent). *@

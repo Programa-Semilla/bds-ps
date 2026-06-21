@@ -308,6 +308,11 @@ public static class DependencyInjection
         services.AddSingleton<BackgroundServices.HaciendaSyncService>();
         services.AddHostedService(sp => sp.GetRequiredService<BackgroundServices.HaciendaSyncService>());
 
+        // Daily stale-value digest worker (US4) + its branded email factory.
+        services.AddScoped<Email.RegulatoryDigestEmailFactory>();
+        services.AddSingleton<BackgroundServices.RegulatoryFreshnessDigestService>();
+        services.AddHostedService(sp => sp.GetRequiredService<BackgroundServices.RegulatoryFreshnessDigestService>());
+
         return services;
     }
 }

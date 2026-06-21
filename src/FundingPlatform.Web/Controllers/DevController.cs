@@ -18,11 +18,16 @@ public sealed class DevController : Controller
 {
     private readonly IWebHostEnvironment _env;
     private readonly HaciendaSyncService _haciendaSync;
+    private readonly RegulatoryFreshnessDigestService _freshnessDigest;
 
-    public DevController(IWebHostEnvironment env, HaciendaSyncService haciendaSync)
+    public DevController(
+        IWebHostEnvironment env,
+        HaciendaSyncService haciendaSync,
+        RegulatoryFreshnessDigestService freshnessDigest)
     {
         _env = env;
         _haciendaSync = haciendaSync;
+        _freshnessDigest = freshnessDigest;
     }
 
     [HttpGet("RunHaciendaSync")]
@@ -31,6 +36,14 @@ public sealed class DevController : Controller
         if (!_env.IsDevelopment()) return NotFound();
         var summary = await _haciendaSync.RunOnceAsync(ct);
         return Json(summary);
+    }
+
+    [HttpGet("RunFreshnessDigest")]
+    public async Task<IActionResult> RunFreshnessDigest(CancellationToken ct)
+    {
+        if (!_env.IsDevelopment()) return NotFound();
+        var sent = await _freshnessDigest.RunOnceAsync(ct);
+        return Json(new { sent });
     }
 
     /// <summary>
