@@ -246,7 +246,7 @@
                                 <label class="form-label" for="stageKind">Etapa</label>
                                 <select name="stageKind" id="stageKind" class="form-select" required
                                         data-testid="admin-process-stage-kind">
-                                    <option value="@StageKind.Solicitud">Solicitud (def. @(detail.SolicitudWindowDays ?? 14))</option>
+                                    @* Spec 044 — Solicitud removed; reception windows gate submission timing. *@
                                     <option value="@StageKind.Revision">Revisión (def. @(detail.RevisionWindowDays ?? 10))</option>
                                     <option value="@StageKind.Facturacion">Facturación (def. @(detail.FacturacionWindowDays ?? 30))</option>
                                 </select>
@@ -264,10 +264,6 @@
                         </form>
                         <hr />
                         <dl class="row mb-0">
-                            <dt class="col-sm-6">Solicitud</dt>
-                            <dd class="col-sm-6" data-testid="admin-process-window-solicitud">
-                                @(detail.SolicitudWindowDays is null ? "por defecto" : $"{detail.SolicitudWindowDays} día(s)")
-                            </dd>
                             <dt class="col-sm-6">Revisión</dt>
                             <dd class="col-sm-6" data-testid="admin-process-window-revision">
                                 @(detail.RevisionWindowDays is null ? "por defecto" : $"{detail.RevisionWindowDays} día(s)")

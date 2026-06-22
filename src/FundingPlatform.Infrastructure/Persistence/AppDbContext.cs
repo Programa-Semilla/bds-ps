@@ -70,6 +70,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     // Spec 021-feedback-session-may13 — Process / Plantilla aggregates,
     // Province/Cantón catalog, PasswordResetToken single-use marker.
     public DbSet<Process> Processes => Set<Process>();
+    // Spec 044 — general per-Process calendar items (reception windows gate submission).
+    public DbSet<ProcessEvent> ProcessEvents => Set<ProcessEvent>();
     public DbSet<Plantilla> Plantillas => Set<Plantilla>();
     public DbSet<ProcessPlantilla> ProcessPlantillas => Set<ProcessPlantilla>();
     public DbSet<Province> Provinces => Set<Province>();

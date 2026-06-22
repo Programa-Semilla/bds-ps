@@ -343,7 +343,6 @@ public sealed class ProcessService : IProcessService, IProcessQueryService
             process.Status,
             process.CreatedAt,
             process.ClosedAt,
-            process.SolicitudWindowDays,
             process.RevisionWindowDays,
             process.FacturacionWindowDays,
             snapshotDto,

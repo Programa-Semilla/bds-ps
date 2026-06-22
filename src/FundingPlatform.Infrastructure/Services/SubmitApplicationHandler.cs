@@ -13,13 +13,11 @@ using Microsoft.EntityFrameworkCore;
 namespace FundingPlatform.Infrastructure.Services;
 
 /// <summary>
-/// Spec 021 / T091 / FR-006 / FR-017 — EF-backed
-/// <see cref="ISubmitApplicationHandler"/>. Wraps the stage-aware
-/// <see cref="AppEntity.Submit(int, StageKind, DateTimeOffset, DateTimeOffset)"/>
-/// overload, resolving <c>stageClosesAt</c> from
-/// <see cref="Process.OverrideForStage"/> when the Application's group is
-/// attached to a Process, falling back to the platform default in
-/// <c>SystemConfigurations[Stage.Solicitud.WindowDays]</c>.
+/// Spec 021 / T091 — EF-backed <see cref="ISubmitApplicationHandler"/>.
+///
+/// Spec 044 — the legacy Solicitud duration gate was removed; reception windows
+/// (<c>ProcessEvents</c>) now gate submission timing. US2 (T026) layers the
+/// reception-window evaluation here before <see cref="AppEntity.Submit(int)"/>.
 /// </summary>
 public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
 {
@@ -73,7 +71,6 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
         }
 
         var minQuotations = await ResolveMinimumQuotationsAsync(application, ct);
-        var stageClosesAt = await ResolveStageClosesAtAsync(application, ct);
 
         // Spec 013 / FR-024 — every owned Draft supplier referenced by a
         // quotation flips to PendingReview atomically with the submission.
@@ -106,11 +103,7 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
         // the predicate reflects prior cycles only.
         var isResubmit = await _outbox.HasPriorSendBackAsync(application.Id, ct);
 
-        application.Submit(
-            minQuotations,
-            StageKind.Solicitud,
-            stageClosesAt,
-            _clock.UtcNow);
+        application.Submit(minQuotations);
 
         // Spec 013 — workflow audit: a "Submitted" VersionHistory row marks the
         // Draft→Submitted transition. Pre-spec-021 ApplicationService.Submit
@@ -181,29 +174,4 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
         return 2;
     }
 
-    private async Task<DateTimeOffset> ResolveStageClosesAtAsync(AppEntity application, CancellationToken ct)
-    {
-        // Spec 029 / FR-017 — resolve the per-Process stage-window override through
-        // the application's Group anchor (Group → Process), not the ambiguous
-        // membership join.
-        int? overrideDays = await (
-            from g in _db.Groups
-            where g.Id == application.GroupId
-            join p in _db.Processes on g.ProcessId equals p.Id
-            select p.SolicitudWindowDays).FirstOrDefaultAsync(ct);
-
-        int days = overrideDays ?? await ResolvePlatformDefaultAsync(ct);
-        return application.StageEnteredAt.AddDays(days);
-    }
-
-    private async Task<int> ResolvePlatformDefaultAsync(CancellationToken ct)
-    {
-        var config = await _db.SystemConfigurations
-            .FirstOrDefaultAsync(c => c.Key == "Stage.Solicitud.WindowDays", ct);
-        if (config is not null && int.TryParse(config.Value, out var parsed) && parsed > 0)
-        {
-            return parsed;
-        }
-        return 14;
-    }
 }

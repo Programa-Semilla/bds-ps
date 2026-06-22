@@ -111,10 +111,16 @@ public sealed class StageExpiryReminderService : BackgroundService
         var queryFilter = scope.ServiceProvider.GetRequiredService<IApplicationQueryFilter>();
         // Spec 029 / FR-020 — archived-Fund applications no longer receive
         // stage-expiry reminders (their work is frozen).
+        // Spec 044 — Draft/AppealOpen (applicant-editing) states no longer have a
+        // live stage window: the Solicitud duration gate was removed, so they get
+        // no stage-expiry reminders. Only reviewer (Revision) and signing
+        // (Facturación) windows remain. AgreementExecuted is terminal.
         var candidates = await queryFilter
             .ExcludeArchivedFund(queryFilter.ExcludeDeleted(db.Applications))
             .Include(a => a.Applicant)
-            .Where(a => a.State != ApplicationState.AgreementExecuted)
+            .Where(a => a.State != ApplicationState.AgreementExecuted
+                && a.State != ApplicationState.Draft
+                && a.State != ApplicationState.AppealOpen)
             .ToListAsync(ct).ConfigureAwait(false);
 
         foreach (var app in candidates)

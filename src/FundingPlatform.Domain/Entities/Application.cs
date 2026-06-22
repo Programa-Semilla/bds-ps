@@ -406,52 +406,6 @@ public class Application
     }
 
     /// <summary>
-    /// Spec 021 / FR-006 / FR-017 — full Submit guard chain. Composes the legacy
-    /// item/impact validators with the new stage-window check.
-    ///
-    /// Guards (data-model.md state transitions, FR-017):
-    /// 1. <c>HasAtLeastOneItem</c>
-    /// 2. <c>EachItemHasMinimumQuotations</c> (uses snapshot's
-    ///    <c>MinimumQuotationsPerItem</c>)
-    /// 3. Spec 035 — per-Item impact assigned + required category fields present
-    ///    (enumerated by <see cref="Validate"/>).
-    /// 4. <c>StageWindowOpen</c> — current instant &lt; <paramref name="stageClosesAt"/>;
-    ///    otherwise throws <see cref="StageWindowClosedException"/> which the Web
-    ///    layer maps to HTTP 422 (R-13).
-    ///
-    /// Required impact-parameter-value validation is enforced by the Application
-    /// layer (it depends on template metadata living outside Domain).
-    /// </summary>
-    public void Submit(
-        int minQuotations,
-        StageKind currentStage,
-        DateTimeOffset stageClosesAt,
-        DateTimeOffset now)
-    {
-        // Stage-window guard fires FIRST so an expired window short-circuits
-        // before we enumerate the per-item validation list.
-        if (now >= stageClosesAt)
-        {
-            throw new StageWindowClosedException(currentStage, stageClosesAt);
-        }
-
-        // Enumerate every submit-blocker in one pass so the applicant sees all
-        // problems at once (per-item quotation counts + per-item impact + required
-        // category fields, spec 035). Validate now carries the per-item impact gate.
-        var errors = Validate(minQuotations);
-        if (errors.Count > 0)
-        {
-            throw new InvalidOperationException(
-                $"Cannot submit application: {string.Join("; ", errors)}");
-        }
-
-        State = ApplicationState.Submitted;
-        SubmittedAt = DateTime.UtcNow;
-        UpdatedAt = DateTime.UtcNow;
-        ResetStageState();
-    }
-
-    /// <summary>
     /// Records a version history entry for this application.
     /// </summary>
     public void AddVersionHistory(VersionHistory entry)

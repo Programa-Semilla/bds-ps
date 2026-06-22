@@ -49,8 +49,8 @@ public class SubmitGuardTests
             phone: null,
             performanceScore: null);
         _ctx.Applicants.Add(applicant);
-        _ctx.SystemConfigurations.Add(
-            new SystemConfiguration("Stage.Solicitud.WindowDays", "14", description: null));
+        // Spec 044 — Solicitud window config removed; submission timing is gated by
+        // reception windows (covered in ReceptionWindowSubmissionTests).
         _ctx.SystemConfigurations.Add(
             new SystemConfiguration("MinQuotationsPerItem", "2", description: null));
         await _ctx.SaveChangesAsync();
@@ -115,20 +115,8 @@ public class SubmitGuardTests
         Assert.That(ex!.Message, Does.Not.Contain("archivada"));
     }
 
-    [Test]
-    public async Task Submit_WhenStageWindowClosed_ThrowsStageWindowClosed()
-    {
-        var application = new AppEntity(_applicantId, 1, null,"Sazón Vegetariano");
-        application.AssignPublicCode(new PublicCode("A7K2-9XF4"));
-        _ctx.Applications.Add(application);
-        await _ctx.SaveChangesAsync();
-
-        _clock.Set(application.StageEnteredAt.AddDays(20));
-
-        Assert.That(
-            async () => await _handler.SubmitAsync(new SubmitApplicationCommand(application.Id)),
-            Throws.InstanceOf<StageWindowClosedException>());
-    }
+    // Spec 044 — the Solicitud stage-window-closed submit test was removed; the
+    // reception-window submission gate is covered in ReceptionWindowSubmissionTests.
 
     [Test]
     public async Task Submit_HappyPath_TransitionsToSubmitted()

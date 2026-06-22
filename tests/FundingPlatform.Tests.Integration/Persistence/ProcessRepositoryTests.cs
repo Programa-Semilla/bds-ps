@@ -52,7 +52,7 @@ public class ProcessRepositoryTests
             Assert.That(loaded!.Name, Is.EqualTo("Crocus 2025"));
             Assert.That(loaded.Status, Is.EqualTo(ProcessStatus.Active));
             Assert.That(loaded.ClosedAt, Is.Null);
-            Assert.That(loaded.SolicitudWindowDays, Is.Null);
+            // Spec 044 — SolicitudWindowDays removed.
             Assert.That(loaded.RevisionWindowDays, Is.Null);
             Assert.That(loaded.FacturacionWindowDays, Is.Null);
         }
@@ -106,7 +106,7 @@ public class ProcessRepositoryTests
         {
             var process = await ctx.Processes.FirstAsync(p => p.Id == id);
             process.OverrideStageWindow(StageKind.Facturacion, 45);
-            process.OverrideStageWindow(StageKind.Solicitud, 21);
+            process.OverrideStageWindow(StageKind.Revision, 21);
             await ctx.SaveChangesAsync();
         }
 
@@ -114,25 +114,23 @@ public class ProcessRepositoryTests
         {
             var loaded = await ctx.Processes.FirstAsync(p => p.Id == id);
             Assert.That(loaded.FacturacionWindowDays, Is.EqualTo(45));
-            Assert.That(loaded.SolicitudWindowDays, Is.EqualTo(21));
-            Assert.That(loaded.RevisionWindowDays, Is.Null,
-                "Revision override left untouched should still be null.");
+            Assert.That(loaded.RevisionWindowDays, Is.EqualTo(21));
         }
 
         // Round-trip clearing one override back to null.
         using (var ctx = CreateContext(dbName))
         {
             var process = await ctx.Processes.FirstAsync(p => p.Id == id);
-            process.OverrideStageWindow(StageKind.Solicitud, null);
+            process.OverrideStageWindow(StageKind.Revision, null);
             await ctx.SaveChangesAsync();
         }
 
         using (var ctx = CreateContext(dbName))
         {
             var loaded = await ctx.Processes.FirstAsync(p => p.Id == id);
-            Assert.That(loaded.SolicitudWindowDays, Is.Null);
+            Assert.That(loaded.RevisionWindowDays, Is.Null);
             Assert.That(loaded.FacturacionWindowDays, Is.EqualTo(45),
-                "Clearing Solicitud must not affect Facturacion.");
+                "Clearing Revisión must not affect Facturación.");
         }
     }
 

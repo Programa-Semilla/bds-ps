@@ -170,15 +170,13 @@ public class AutosaveEndpointTests
     }
 
     [Test]
-    public async Task Handle_WhenStageWindowClosed_ThrowsStageWindowClosed()
+    public async Task Handle_IsAlwaysAllowed_RegardlessOfElapsedTime()
     {
-        // Seed the platform default stage window so the handler resolves a
-        // closure instant of (StageEnteredAt + 14d). Advance the clock past it.
-        _ctx.SystemConfigurations.Add(
-            new SystemConfiguration("Stage.Solicitud.WindowDays", "14", description: null));
-        await _ctx.SaveChangesAsync();
-
-        _clock.Set(_application.StageEnteredAt.AddDays(20));
+        // Spec 044 / FR-015 — existing-draft editing is ALWAYS allowed. The legacy
+        // Solicitud duration window that used to 422 autosave was removed (reception
+        // windows gate submission + new-draft creation, not draft editing). Even far
+        // in the future the autosave succeeds (only the ETag path can reject).
+        _clock.Set(_application.StageEnteredAt.AddDays(3650));
 
         var cmd = new AutosaveFieldCommand(
             PublicCode: "A7K2-9XF3",
@@ -186,9 +184,10 @@ public class AutosaveEndpointTests
             Value: _companyId.ToString(),
             Etag: null);
 
-        Assert.That(
-            async () => await _handler.HandleAsync(cmd, _applicantId),
-            Throws.InstanceOf<StageWindowClosedException>());
+        var result = await _handler.HandleAsync(cmd, _applicantId);
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.Etag, Is.Not.Null.And.Not.Empty);
     }
 
     private sealed class FakeStageExpiryClock : IStageExpiryClock

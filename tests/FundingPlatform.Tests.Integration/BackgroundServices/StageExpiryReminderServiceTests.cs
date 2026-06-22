@@ -93,8 +93,7 @@ public class StageExpiryReminderServiceTests
         _service = new StageExpiryReminderService(_services, NullLogger<StageExpiryReminderService>.Instance);
 
         // Platform default — used when the Application's owning Process has no override.
-        _ctx.SystemConfigurations.Add(
-            new SystemConfiguration("Stage.Solicitud.WindowDays", "14", description: null));
+        // Spec 044 — Stage.Solicitud.WindowDays removed (reception windows replace it).
         _ctx.SystemConfigurations.Add(
             new SystemConfiguration("Stage.Revision.WindowDays", "10", description: null));
         _ctx.SystemConfigurations.Add(
@@ -126,25 +125,25 @@ public class StageExpiryReminderServiceTests
     [Test]
     public async Task ThreeApplications_AtT72hT24hAndExpired_EachReceiveExactlyOneReminder()
     {
-        // Solicitud window default = 14 days. We want three Applications whose
-        // close-at instant lands inside the T-72h, T-24h, and expired buckets
-        // relative to _baseInstant.
+        // Spec 044 — Revisión window default = 10 days (Submitted stage). We want
+        // three Applications whose close-at instant lands inside the T-72h, T-24h,
+        // and expired buckets relative to _baseInstant.
         //
-        //   T-72h Applicant: StageEnteredAt = baseInstant - (14d - 70h)  → 70h remaining
-        //   T-24h Applicant: StageEnteredAt = baseInstant - (14d - 23h)  → 23h remaining
-        //   Expired Applicant: StageEnteredAt = baseInstant - 15d        → -1d remaining
+        //   T-72h Applicant: StageEnteredAt = baseInstant - (10d - 70h)  → 70h remaining
+        //   T-24h Applicant: StageEnteredAt = baseInstant - (10d - 23h)  → 23h remaining
+        //   Expired Applicant: StageEnteredAt = baseInstant - 11d        → -1d remaining
 
         var t72 = await SeedApplicantAndApplicationAsync(
             "u-72", "t72@example.com", "Vivi", "T72",
-            stageEnteredAt: _baseInstant - TimeSpan.FromDays(14) + TimeSpan.FromHours(70),
+            stageEnteredAt: _baseInstant - TimeSpan.FromDays(10) + TimeSpan.FromHours(70),
             publicCode: "AAAA-2222");
         var t24 = await SeedApplicantAndApplicationAsync(
             "u-24", "t24@example.com", "Vivi", "T24",
-            stageEnteredAt: _baseInstant - TimeSpan.FromDays(14) + TimeSpan.FromHours(23),
+            stageEnteredAt: _baseInstant - TimeSpan.FromDays(10) + TimeSpan.FromHours(23),
             publicCode: "BBBB-3333");
         var exp = await SeedApplicantAndApplicationAsync(
             "u-exp", "exp@example.com", "Vivi", "Exp",
-            stageEnteredAt: _baseInstant - TimeSpan.FromDays(15),
+            stageEnteredAt: _baseInstant - TimeSpan.FromDays(11),
             publicCode: "CCCC-4444");
 
         var sent = await _service.ExecuteOneCycleAsync(CancellationToken.None);
@@ -173,7 +172,7 @@ public class StageExpiryReminderServiceTests
         // Seed one T-72h Applicant, run twice without advancing the clock.
         await SeedApplicantAndApplicationAsync(
             "u-dup", "dup@example.com", "Vivi", "Dup",
-            stageEnteredAt: _baseInstant - TimeSpan.FromDays(14) + TimeSpan.FromHours(70),
+            stageEnteredAt: _baseInstant - TimeSpan.FromDays(10) + TimeSpan.FromHours(70),
             publicCode: "DDDD-5555");
 
         var firstCycle = await _service.ExecuteOneCycleAsync(CancellationToken.None);
@@ -269,7 +268,11 @@ public class StageExpiryReminderServiceTests
         _ctx.Applications.Add(app);
         await _ctx.SaveChangesAsync();
 
+        // Spec 044 — Draft/AppealOpen no longer receive stage-expiry reminders
+        // (the Solicitud duration gate was removed). Seed in Submitted (Revisión)
+        // stage so the reviewer-window reminder buckets are exercised.
         _ctx.Entry(app).Property(nameof(AppEntity.StageEnteredAt)).CurrentValue = stageEnteredAt;
+        _ctx.Entry(app).Property(nameof(AppEntity.State)).CurrentValue = ApplicationState.Submitted;
         await _ctx.SaveChangesAsync();
 
         return app.Id;
