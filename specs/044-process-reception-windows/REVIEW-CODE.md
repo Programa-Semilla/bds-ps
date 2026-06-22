@@ -68,3 +68,44 @@ Deviations from [plan.md](plan.md)/[tasks.md](tasks.md), framed as questions:
 - Service "integration" tests (`ReceptionWindowServiceTests`, `ProcessEventSchemaTests`, `ReceptionWindowSubmissionTests`) use EF InMemory, following the shipped `FundServiceTests`/`ProcessRenameServiceTests` precedent; real-SQL coverage is via E2E. Question: acceptable given CLAUDE.md's "integration hits real DB" rule, or should these move to the real-SQL fixture?
 - E2E consolidated into 2 files (`ReceptionWindowAdminTests`, `ReceptionWindowApplicantTests`) rather than the 4 files named in [T024](tasks.md)/[T029](tasks.md)/[T034](tasks.md)/[T036](tasks.md), to share the isolated-process setup. Question: acceptable consolidation?
 - Risk: `ReceptionWindowSeed` (E2E) inserts windows on an isolated Process; if a future suite relied on the shared demo Process having no windows, it is unaffected (isolation by construction). Question: any shared-fixture pollution concern I missed?
+
+---
+
+## Deep Review Report
+
+> Automated multi-perspective code review results. This section summarizes what
+> was checked, what was found, and what remains for human review.
+
+**Date:** 2026-06-22 | **Rounds:** 1/3 | **Gate:** PASS
+
+### Review Agents
+
+| Agent | Findings | Status |
+|-------|----------|--------|
+| Correctness | 6 | completed |
+| Architecture & Idioms | 5 | completed |
+| Security | 2 | completed |
+| Production Readiness | 3 (+5 verifications) | completed |
+| Test Quality | 7 | completed |
+| CodeRabbit (external) | — | skipped (not installed) |
+| Copilot (external) | — | skipped (not installed) |
+
+### Findings Summary
+
+| Severity | Found | Fixed | Remaining |
+|----------|-------|-------|-----------|
+| Critical | 0 | 0 | 0 |
+| Important | 7 | 7 | 0 |
+| Minor | 16 | 9 | 7 (documented) |
+
+### What was fixed automatically
+
+The high-impact cluster was the **Review submit surface**, which the original crafted-POST E2E had masked: a field-complete draft with a closed/upcoming window rendered an *enabled* submit button and, on POST, raw 422 JSON. Fixed by making `/Applications/{publicCode}/Review` reception-aware (notice + timing-gated button + composed reasons), catching `ReceptionWindowClosedException` in `Submit`, and suppressing the (now-mislabeled) Solicitud stage banner on Draft review. **Security:** reception actions are now `Admin`-only (FR-001) and window mutations are scoped to the route Process (no IDOR). **Tests:** added `BusinessTimeZone` conversion coverage, an admin CR→UTC persistence read-back, a genuine open-window happy-path submit, and a non-tautological FR-017 proof. Plus minor sweeps (no-op audit short-circuit, concurrency catch, gate keyed on `ControlsSubmissionAvailability`, unused `CurrentOffset` removed, clock discipline, doc fix).
+
+### What still needs human attention
+
+All Critical and Important findings were resolved. 7 Minor findings remain, documented as accepted in [review-findings.md](review-findings.md) (FINDING-17…23) — e.g. the gating projection key-lookup (tiny row counts), `DATETIMEOFFSET(0)` second precision (benign given minute-granular input), and the US5 schema round-trip being InMemory-structural (real TINYINT materialization covered by E2E). Reviewers may glance at these but they are not blocking.
+
+### Recommendation
+
+All findings addressed. Code is ready for human review with no known blockers. See [review-findings.md](review-findings.md) for the full finding-by-finding record and [spec.md](spec.md) for requirements.

@@ -22,8 +22,4 @@ public interface IBusinessTimeZone
     /// <summary>Projects an absolute UTC instant into Costa Rica local time for
     /// es-CR display (<c>dd/MM/yyyy HH:mm</c>).</summary>
     DateTimeOffset ToBusinessLocal(DateTimeOffset utc);
-
-    /// <summary>The current UTC offset of the business timezone (−06:00 for CR,
-    /// which observes no DST).</summary>
-    TimeSpan CurrentOffset { get; }
 }

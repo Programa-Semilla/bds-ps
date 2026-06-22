@@ -80,6 +80,14 @@ public sealed class ReceptionWindowService : IReceptionWindowService
         ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
 
         var window = await LoadAsync(windowId, ct);
+
+        // Spec 030 convention — a no-op (already in the requested state) persists
+        // nothing and writes no audit row (mirrors ProcessService.RenameAsync).
+        if (window.IsActive == isActive)
+        {
+            return;
+        }
+
         if (isActive)
         {
             window.Activate(actorUserId);

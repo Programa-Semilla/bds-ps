@@ -102,65 +102,48 @@ public class ReceptionWindowApplicantTests : ReceptionWindowE2EBase
     // ---------------- US2 — submission gating ----------------
 
     [Test]
-    public async Task Submission_BlockedWhenUpcoming_AllowedWhenOpen()
+    public async Task Submission_ReviewButtonDisabledWithTimingReason_WhenUpcoming()
     {
-        // Upcoming: a draft can be created but submission is refused (422 + es-CR).
+        // A draft can be created during an upcoming window, but the Review submit
+        // surface (where submission actually happens) must disable the confirm
+        // button and explain the timing block (FR-013 / SC-003).
         var upUnique = Guid.NewGuid().ToString("N")[..6];
         await SetupAsync(upUnique, ReceptionWindowSeed.WindowState.Upcoming);
         var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
-        var blockedId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
 
-        var (status, body) = await CraftedSubmitAsync(blockedId);
-        Assert.That(status, Is.EqualTo(422), "Upcoming reception ⇒ submit refused with 422.");
-        Assert.That(body, Does.Contain("abre el"), "422 body carries the typed es-CR open-instant message.");
-        await Logout();
+        await GotoReviewAsync();
+        await Expect(Notice).ToHaveAttributeAsync("data-reception-state", "upcoming");
+        await Expect(Page.Locator("[data-testid=review-confirm-submit]")).ToBeDisabledAsync();
+        await Expect(Page.Locator("[data-testid=review-cannot-submit-timing]")).ToBeVisibleAsync();
+    }
 
-        // Open: the reception gate passes (submission proceeds past it — a now-incomplete
-        // draft then trips item validation, NOT the reception 422).
+    [Test]
+    public async Task Submission_ReviewShowsOpenNotice_NoTimingBlock_WhenOpen()
+    {
+        // During an open window the reception gate adds no timing block on Review;
+        // the open notice shows (any remaining disable is field-completeness only).
         var openUnique = Guid.NewGuid().ToString("N")[..6];
         await SetupAsync(openUnique, ReceptionWindowSeed.WindowState.Open);
+        var appPage = new ApplicationPage(Page);
         await appPage.GotoListAsync(BaseUrl);
         await appPage.CreateApplicationAsync();
         await Expect(Page).ToHaveURLAsync(new Regex(@"/Application/Edit/\d+"));
-        var openId = int.Parse(Regex.Match(Page.Url, @"/Application/Edit/(\d+)").Groups[1].Value);
 
-        var (openStatus, _) = await CraftedSubmitAsync(openId);
-        Assert.That(openStatus, Is.Not.EqualTo(422),
-            "Open reception ⇒ the gate does not block (submission proceeds past it).");
+        await GotoReviewAsync();
+        await Expect(Notice).ToHaveAttributeAsync("data-reception-state", "open");
+        await Expect(Page.Locator("[data-testid=review-cannot-submit-timing]")).ToHaveCountAsync(0);
     }
 
-    /// <summary>Issues an authenticated, antiforgery-valid POST to the Submit endpoint
-    /// carrying the live browser session cookies + a token scraped from the draft editor.
-    /// Returns (status, body) after following redirects.</summary>
-    private async Task<(int Status, string Body)> CraftedSubmitAsync(int appId)
+    /// <summary>From the draft editor, follow the submit button's data-review-url to the
+    /// /Applications/{publicCode}/Review surface (where submission actually occurs).</summary>
+    private async Task GotoReviewAsync()
     {
-        await Page.GotoAsync($"{BaseUrl}/Application/Edit/{appId}");
-        var token = await Page.Locator("input[name=__RequestVerificationToken]").First.GetAttributeAsync("value")
-            ?? throw new InvalidOperationException("No antiforgery token on the editor.");
-
-        var baseUri = new Uri(BaseUrl);
-        var handler = new HttpClientHandler
-        {
-            ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
-            AllowAutoRedirect = true,
-            CookieContainer = new System.Net.CookieContainer(),
-        };
-        foreach (var c in await Context.CookiesAsync())
-        {
-            try { handler.CookieContainer.Add(new System.Net.Cookie(c.Name, c.Value, string.IsNullOrEmpty(c.Path) ? "/" : c.Path, baseUri.Host)); }
-            catch { /* skip a cookie the container rejects */ }
-        }
-
-        using var client = new HttpClient(handler);
-        using var content = new FormUrlEncodedContent(new[]
-        {
-            new KeyValuePair<string, string>("__RequestVerificationToken", token),
-        });
-        var resp = await client.PostAsync($"{BaseUrl}/Application/{appId}/Submit", content);
-        var body = await resp.Content.ReadAsStringAsync();
-        return ((int)resp.StatusCode, body);
+        var reviewUrl = await Page.Locator("[data-testid=application-edit-submit]")
+            .GetAttributeAsync("data-review-url")
+            ?? throw new InvalidOperationException("Edit submit button has no data-review-url.");
+        await Page.GotoAsync($"{BaseUrl}{reviewUrl}");
     }
 }

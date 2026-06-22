@@ -398,10 +398,25 @@ public class ApplicationController : Controller
         {
             return NotFound();
         }
-        // Spec 021 / T119 / FR-024 — surface the stage countdown banner on the
-        // /review surface so the applicant sees the live remaining-time before
-        // pressing "Confirmar y enviar".
-        await PopulateStageBannerAsync(review.Id);
+        // Spec 044 / US3 / FR-013 — the /review surface is where the applicant
+        // actually submits ("Confirmar y enviar"), so the reception-window notice
+        // and the timing-disabled state MUST be here too. For a Draft we show the
+        // reception notice (and stash CanSubmit so the view can disable + explain);
+        // the legacy Solicitud stage banner is suppressed for Drafts (it would
+        // mislabel a Draft as "Revisión" now that the Solicitud arm is gone). For
+        // non-Draft (read view) the Revisión/Facturación stage banner still applies.
+        if (review.State == FundingPlatform.Domain.Enums.ApplicationState.Draft)
+        {
+            var now = _stageExpiryClock.UtcNow;
+            var availability = await _receptionWindows.GetAvailabilityForApplicationAsync(review.Id, now, default);
+            ViewData["ReceptionNotice"] =
+                ViewModels.ReceptionWindowNoticeViewModel.FromAvailability(availability, _businessTime, now);
+            ViewData["ReceptionCanSubmit"] = availability.CanSubmit;
+        }
+        else
+        {
+            await PopulateStageBannerAsync(review.Id);
+        }
         return View(review);
     }
 
@@ -431,6 +446,23 @@ public class ApplicationController : Controller
             // mapped to 422 by the global DomainExceptionFilter).
             await _submitHandler.SubmitAsync(new SubmitApplicationCommand(id));
             TempData["SuccessMessage"] = "Solicitud enviada con éxito.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (FundingPlatform.Domain.Exceptions.ReceptionWindowClosedException ex)
+        {
+            // Spec 044 / FR-009 — the navigational submit POST must surface a friendly
+            // es-CR explanation, not the raw 422 ProblemDetails the global filter
+            // emits for fetch callers. (The Review submit button is also disabled when
+            // the window isn't open; this catch covers a crafted/raced POST.)
+            var instant = ex.BoundaryUtc is { } b
+                ? _businessTime.ToBusinessLocal(b).ToString("dd/MM/yyyy HH:mm")
+                : null;
+            var message = instant is null
+                ? Resources.ReceptionWindowResources.RefusalGeneric
+                : ex.Status == FundingPlatform.Domain.ReceptionWindows.SubmissionAvailabilityStatus.AllWindowsClosed
+                    ? Resources.ReceptionWindowResources.RefusalAllClosed(instant)
+                    : Resources.ReceptionWindowResources.RefusalBeforeOpen(instant);
+            TempData["ValidationErrors"] = System.Text.Json.JsonSerializer.Serialize(new List<string> { message });
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (InvalidOperationException ex)

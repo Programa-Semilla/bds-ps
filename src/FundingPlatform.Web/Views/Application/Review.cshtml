@@ -23,13 +23,22 @@
             new BreadcrumbItem("Revisión"),
         }))
 
-@* Spec 021 / T119 / FR-024 — stage countdown banner on /review surface. *@
+@* Spec 021 / T119 / FR-024 — stage countdown banner on /review surface (non-Draft read view). *@
 @{
     var stageBanner = ViewData["StageBanner"] as FundingPlatform.Web.ViewModels.StageCountdownBannerViewModel;
+    // Spec 044 / US3 — reception-window notice + timing gate on the Draft submit surface.
+    var receptionNotice = ViewData["ReceptionNotice"] as FundingPlatform.Web.ViewModels.ReceptionWindowNoticeViewModel;
+    var receptionCanSubmit = ViewData["ReceptionCanSubmit"] as bool? ?? true;
+    // The applicant can only submit when fields are complete AND a window is open.
+    var canSubmitNow = Model.CanSubmit && receptionCanSubmit;
 }
 @if (stageBanner is not null)
 {
     @await Html.PartialAsync("_StageCountdownBanner", stageBanner)
+}
+@if (receptionNotice is not null)
+{
+    @await Html.PartialAsync("_ReceptionWindowNotice", receptionNotice)
 }
 
 <div class="card mb-4">
@@ -195,14 +204,19 @@
        control. Uses `alert-danger` (red) for blocking errors per the
        Tabler convention; `alert-warning` (pale yellow) is reserved for
        non-blocking advisories. *@
-    @if (!Model.CanSubmit)
+    @if (!canSubmitNow)
     {
         <div class="alert alert-danger" role="alert" data-testid="review-cannot-submit">
             <h4 class="alert-title">
                 <i class="ti ti-alert-circle me-1" aria-hidden="true"></i>
-                No se puede enviar — faltan los siguientes campos:
+                No se puede enviar todavía:
             </h4>
             <ul class="mb-0 mt-1">
+                @* Spec 044 / FR-013 — the timing reason composes with the field reasons. *@
+                @if (!receptionCanSubmit)
+                {
+                    <li data-testid="review-cannot-submit-timing">La recepción de solicitudes no está abierta en este momento.</li>
+                }
                 @if (Model.Items.Count == 0)
                 {
                     <li>Al menos un ítem</li>
@@ -231,9 +245,9 @@
             @Html.AntiForgeryToken()
             <button type="submit"
                     class="btn btn-success"
-                    @(Model.CanSubmit ? "" : "disabled")
+                    @(canSubmitNow ? "" : "disabled")
                     data-testid="review-confirm-submit"
-                    title="@(Model.CanSubmit ? "Enviar definitivamente" : "Complete los campos faltantes antes de enviar")">
+                    title="@(canSubmitNow ? "Enviar definitivamente" : "Complete los campos faltantes o espere a que abra la recepción")">
                 <i class="ti ti-send me-1"></i>@ConfirmButtonText
             </button>
         </form>

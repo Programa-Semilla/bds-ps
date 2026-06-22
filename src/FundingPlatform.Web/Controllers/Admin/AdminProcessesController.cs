@@ -40,6 +40,7 @@ public class AdminProcessesController : Controller
     private readonly Application.Processes.ReceptionWindows.IReceptionWindowService _receptionWindows;
     private readonly Application.Processes.ReceptionWindows.IReceptionWindowQuery _receptionWindowQuery;
     private readonly Application.Time.IBusinessTimeZone _businessTime;
+    private readonly Domain.Interfaces.IStageExpiryClock _clock;
 
     public AdminProcessesController(
         IProcessService processes,
@@ -51,7 +52,8 @@ public class AdminProcessesController : Controller
         Application.Admin.Filters.IFundHierarchyProvider fundHierarchy,
         Application.Processes.ReceptionWindows.IReceptionWindowService receptionWindows,
         Application.Processes.ReceptionWindows.IReceptionWindowQuery receptionWindowQuery,
-        Application.Time.IBusinessTimeZone businessTime)
+        Application.Time.IBusinessTimeZone businessTime,
+        Domain.Interfaces.IStageExpiryClock clock)
     {
         _processes = processes;
         _processQuery = processQuery;
@@ -63,6 +65,7 @@ public class AdminProcessesController : Controller
         _receptionWindows = receptionWindows;
         _receptionWindowQuery = receptionWindowQuery;
         _businessTime = businessTime;
+        _clock = clock;
     }
 
     /// <summary>Spec 029 / FR-002 — Active Funds for the Process Fund selector.</summary>
@@ -200,7 +203,7 @@ public class AdminProcessesController : Controller
             .ToListAsync(ct);
 
         // Spec 044 / US1 — reception windows projected into CR local time for the card.
-        var windowRows = await _receptionWindowQuery.GetForProcessAsync(id, DateTimeOffset.UtcNow, ct);
+        var windowRows = await _receptionWindowQuery.GetForProcessAsync(id, _clock.UtcNow, ct);
         var windows = windowRows
             .Select(w => new ReceptionWindowDisplayRow(
                 w.Id,
@@ -340,11 +343,14 @@ public class AdminProcessesController : Controller
     }
 
     // ===== Spec 044 / US1 — reception-window CRUD =====================================
-    // All actions re-render Details (BuildDetailsViewModelAsync) on validation error
-    // (spec-030 pattern) and TempData-flash + redirect on success. datetime-local
-    // inputs are CR-local wall-clock values → UTC via IBusinessTimeZone.ToUtc.
+    // Admin-only (FR-001 "Administrators" — overrides the class-level Admin,Auditor).
+    // Window-scoped actions verify the window belongs to the route Process (no
+    // cross-process mutation). Errors surface as TempData toasts (mirrors the
+    // sibling AssignPlantilla/StageOverride actions); success → redirect to Details.
+    // datetime-local inputs are CR-local wall-clock values → UTC via IBusinessTimeZone.
 
     [HttpPost("{id:int}/ReceptionWindows")]
+    [Authorize(Roles = "Admin")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateReceptionWindow(
         int id, string? name, DateTime? start, DateTime? end,
@@ -378,11 +384,14 @@ public class AdminProcessesController : Controller
     }
 
     [HttpPost("{id:int}/ReceptionWindows/{windowId:int}/Update")]
+    [Authorize(Roles = "Admin")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateReceptionWindow(
         int id, int windowId, string? name, DateTime? start, DateTime? end,
         string? applicantMessage, string? description, int displayOrder, CancellationToken ct)
     {
+        if (!await WindowBelongsToProcessAsync(id, windowId, ct)) return NotFound();
+
         if (WindowInputError(name, start, end) is { } inputError)
         {
             TempData["ErrorMessage"] = inputError;
@@ -403,6 +412,10 @@ public class AdminProcessesController : Controller
         {
             return NotFound();
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            TempData["ErrorMessage"] = "La ventana fue modificada por otra persona; vuelva a intentarlo.";
+        }
         catch (ArgumentException ex)
         {
             TempData["ErrorMessage"] = MapWindowError(ex);
@@ -411,10 +424,13 @@ public class AdminProcessesController : Controller
     }
 
     [HttpPost("{id:int}/ReceptionWindows/{windowId:int}/SetActive")]
+    [Authorize(Roles = "Admin")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SetReceptionWindowActive(
         int id, int windowId, bool isActive, CancellationToken ct)
     {
+        if (!await WindowBelongsToProcessAsync(id, windowId, ct)) return NotFound();
+
         var actorId = _userManager.GetUserId(User) ?? string.Empty;
         try
         {
@@ -427,13 +443,20 @@ public class AdminProcessesController : Controller
         {
             return NotFound();
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            TempData["ErrorMessage"] = "La ventana fue modificada por otra persona; vuelva a intentarlo.";
+        }
         return RedirectToAction(nameof(Details), new { id });
     }
 
     [HttpPost("{id:int}/ReceptionWindows/{windowId:int}/Delete")]
+    [Authorize(Roles = "Admin")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteReceptionWindow(int id, int windowId, CancellationToken ct)
     {
+        if (!await WindowBelongsToProcessAsync(id, windowId, ct)) return NotFound();
+
         var actorId = _userManager.GetUserId(User) ?? string.Empty;
         try
         {
@@ -444,8 +467,17 @@ public class AdminProcessesController : Controller
         {
             return NotFound();
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            TempData["ErrorMessage"] = "La ventana fue modificada por otra persona; vuelva a intentarlo.";
+        }
         return RedirectToAction(nameof(Details), new { id });
     }
+
+    /// <summary>Spec 044 — guards against cross-process mutation: the window in the
+    /// route must belong to the route Process (no IDOR via a mismatched windowId).</summary>
+    private Task<bool> WindowBelongsToProcessAsync(int processId, int windowId, CancellationToken ct)
+        => _db.ProcessEvents.AnyAsync(e => e.Id == windowId && e.ProcessId == processId, ct);
 
     /// <summary>Shared es-CR pre-validation for window create/update. Returns the
     /// first es-CR message (surfaced as a TempData error toast), or null when valid.</summary>

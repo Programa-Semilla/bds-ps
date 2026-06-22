@@ -73,8 +73,12 @@ public sealed class ReceptionWindowQuery : IReceptionWindowQuery
         }
 
         var snapshots = await _db.ProcessEvents.AsNoTracking()
+            // FR-002 — a reception window is the ReceptionWindow type WITH the
+            // submission-control flag set; gating keys off the flag so future
+            // event types (informational/deadline/milestone) never gate.
             .Where(e => e.ProcessId == processId
                 && e.EventType == ProcessEventType.ReceptionWindow
+                && e.ControlsSubmissionAvailability
                 && e.IsActive)
             .Select(e => new ReceptionWindowSnapshot(
                 e.Id, e.Name, e.StartUtc, e.EndUtc, e.ApplicantFacingMessage))

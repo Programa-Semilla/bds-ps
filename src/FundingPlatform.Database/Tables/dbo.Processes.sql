@@ -13,7 +13,7 @@ CREATE TABLE [dbo].[Processes]
     [FundId]                 INT            NOT NULL CONSTRAINT [DF_Processes_FundId] DEFAULT (0),
     -- Spec 044 — SolicitudWindowDays dropped; reception windows (dbo.ProcessEvents)
     -- replace the Solicitud duration submission gate. Dropped on populated DBs by
-    -- PostDeployment/07_DropSolicitudWindowDays.sql.
+    -- PostDeployment/09_DropSolicitudWindowDays.sql.
     [RevisionWindowDays]     INT            NULL,
     [FacturacionWindowDays]  INT            NULL,
     [CreatedAt]              DATETIMEOFFSET(0)   NOT NULL CONSTRAINT [DF_Processes_CreatedAt] DEFAULT (SYSUTCDATETIME()),

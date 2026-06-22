@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Data.SqlClient;
 using Microsoft.Playwright;
 
 namespace FundingPlatform.Tests.E2E.Tests;
@@ -72,6 +73,36 @@ public class ReceptionWindowAdminTests : ReceptionWindowE2EBase
         await Page.Locator("#fl-shared-confirm-modal [data-testid=\"confirm-button\"]").ClickAsync();
         await Expect(RowByName($"Renombrada-{unique}")).ToHaveCountAsync(0);
         await Expect(Rows).ToHaveCountAsync(1);
+    }
+
+    [Test]
+    public async Task CostaRicaLocalInput_PersistsAsAbsoluteUtc()
+    {
+        // FR-005 / SC-007 — the admin enters CR-local wall-clock; the system stores
+        // the absolute instant (CR is UTC−6). Read the persisted StartUtc back from SQL.
+        var unique = Guid.NewGuid().ToString("N")[..6];
+        await RegisterAdminAndLoginAsync(unique);
+        var processId = await AdminCreateProcessWithGroupAsync($"RWTz-{unique}", $"RWGT-{unique}");
+
+        await Page.GotoAsync($"{BaseUrl}/Admin/Processes/{processId}");
+        // A fixed, unambiguous CR-local instant well in the future.
+        await CreateWindowAsync($"TZ-{unique}", "2030-06-01T08:00", "2030-06-02T08:00");
+        await Expect(RowByName($"TZ-{unique}")).ToBeVisibleAsync();
+
+        DateTimeOffset startUtc;
+        using (var conn = new SqlConnection(ConnectionString))
+        {
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT [StartUtc] FROM [dbo].[ProcessEvents] WHERE [ProcessId]=@p AND [Name]=@n";
+            cmd.Parameters.AddWithValue("@p", processId);
+            cmd.Parameters.AddWithValue("@n", $"TZ-{unique}");
+            startUtc = (DateTimeOffset)(await cmd.ExecuteScalarAsync())!;
+        }
+
+        // 08:00 Costa Rica == 14:00 UTC.
+        Assert.That(startUtc.ToUniversalTime(),
+            Is.EqualTo(new DateTimeOffset(2030, 6, 1, 14, 0, 0, TimeSpan.Zero)));
     }
 
     [Test]

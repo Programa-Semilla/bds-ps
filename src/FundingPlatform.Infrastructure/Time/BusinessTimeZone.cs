@@ -41,8 +41,6 @@ public sealed class BusinessTimeZone : IBusinessTimeZone
         }
     }
 
-    public TimeSpan CurrentOffset => _fixedOffset;
-
     public DateTimeOffset ToUtc(DateTime businessLocal)
     {
         // The datetime-local input has no zone; treat it as a CR wall-clock value.

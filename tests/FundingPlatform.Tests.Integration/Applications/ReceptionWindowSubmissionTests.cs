@@ -172,28 +172,66 @@ public class ReceptionWindowSubmissionTests
     }
 
     [Test]
-    public async Task NonRetroactive_DeactivatingWindowAfterSubmit_LeavesSubmittedApplicationUnchanged()
+    public async Task Open_CompleteApplication_Submits_AndStaysSubmittedAfterWindowDeactivated()
     {
-        // FR-017 — gating is point-in-time at submit. A submitted application's state
-        // is independent of later window edits. We simulate a prior successful submit
-        // (the full happy-path submit is E2E-only) by transitioning the row to
-        // Submitted, then deactivate the window and assert the state is untouched and
-        // the application is still readable.
+        // SC-004 + FR-017 — a COMPLETE application really submits during an open
+        // window (genuine state transition through the gate), and a later window
+        // deactivation does NOT revoke that completed submission (point-in-time gate).
         await AddWindowAsync(Now.AddDays(-1), Now.AddDays(1));
-        var appId = await NewDraftAsync();
+        var appId = await BuildCompleteDraftAsync();
+
+        await SubmitAsync(appId); // passes the gate, then full validation → Submitted
+
+        var afterSubmit = await _ctx.Applications.AsNoTracking().FirstAsync(a => a.Id == appId);
+        Assert.That(afterSubmit.State, Is.EqualTo(ApplicationState.Submitted),
+            "A complete application submitted inside an open window must reach Submitted (SC-004).");
+
+        // Later: admin deactivates the window. The already-submitted app is untouched.
         var window = await _ctx.ProcessEvents.FirstAsync(e => e.ProcessId == _processId);
-
-        var app = await _ctx.Applications.FirstAsync(a => a.Id == appId);
-        _ctx.Entry(app).Property(nameof(AppEntity.State)).CurrentValue = ApplicationState.Submitted;
-        await _ctx.SaveChangesAsync();
-
-        // Later: admin deactivates (and could delete) the window.
         window.Deactivate("admin");
         await _ctx.SaveChangesAsync();
 
-        var reloaded = await _ctx.Applications.AsNoTracking().FirstAsync(a => a.Id == appId);
-        Assert.That(reloaded.State, Is.EqualTo(ApplicationState.Submitted),
-            "A submitted application must be unaffected by later reception-window edits (FR-017).");
+        var afterDeactivate = await _ctx.Applications.AsNoTracking().FirstAsync(a => a.Id == appId);
+        Assert.That(afterDeactivate.State, Is.EqualTo(ApplicationState.Submitted),
+            "A later reception-window deactivation must not revoke a completed submission (FR-017).");
+    }
+
+    /// <summary>Builds a submit-ready draft: one item with two stuffed quotations
+    /// (default minQuotations=2), attributed to one application-level impact with a
+    /// justification — mirrors the ApplicationSubmitGuardTests happy-path construction.</summary>
+    private async Task<int> BuildCompleteDraftAsync()
+    {
+        var app = new AppEntity(_applicantId, _groupId, null, "Empresa");
+        app.AssignPublicCode(new PublicCode("WXYZ-3456"));
+
+        var template = new ImpactTemplate("ImpactA", description: null, isActive: true);
+        _ctx.Add(template);
+        await _ctx.SaveChangesAsync();
+
+        var impact = app.AddImpact(template, Array.Empty<ImpactParameterValue>());
+        var item = new Item("Producto A", categoryId: 1);
+        StuffQuotation(item);
+        StuffQuotation(item);
+        app.AddItem(item);
+        _ctx.Applications.Add(app);
+        await _ctx.SaveChangesAsync();
+
+        item.AttributeImpacts(new[] { impact.Id });
+        item.SetImpactJustification("apoya el empleo");
+        await _ctx.SaveChangesAsync();
+        return app.Id;
+    }
+
+    private static void StuffQuotation(Item item)
+    {
+        var quotation = new Quotation(
+            supplierId: 1, supplierBranchId: 1, documentId: 1, price: 100m,
+            validUntil: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)), currency: "CRC",
+            deliveryLeadTime: new TimeDuration(30, DurationUnit.Days),
+            warranty: new TimeDuration(12, DurationUnit.Months));
+        var field = typeof(Item).GetField("_quotations",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        ((List<Quotation>)field.GetValue(item)!).Add(quotation);
     }
 
     private sealed class FakeClock : IStageExpiryClock
