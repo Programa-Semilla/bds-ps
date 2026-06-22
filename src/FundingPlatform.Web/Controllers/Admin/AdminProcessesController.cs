@@ -350,9 +350,10 @@ public class AdminProcessesController : Controller
         int id, string? name, DateTime? start, DateTime? end,
         string? applicantMessage, string? description, int displayOrder, CancellationToken ct)
     {
-        if (!ValidateWindowInput(name, start, end))
+        if (WindowInputError(name, start, end) is { } inputError)
         {
-            return await ReRenderDetailsAsync(id, ct);
+            TempData["ErrorMessage"] = inputError;
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         var actorId = _userManager.GetUserId(User) ?? string.Empty;
@@ -364,7 +365,6 @@ public class AdminProcessesController : Controller
                     applicantMessage, description, displayOrder),
                 actorId, ct);
             TempData["SuccessMessage"] = Resources.AdminReceptionWindowsResources.CreatedToast;
-            return RedirectToAction(nameof(Details), new { id });
         }
         catch (KeyNotFoundException)
         {
@@ -372,9 +372,9 @@ public class AdminProcessesController : Controller
         }
         catch (ArgumentException ex)
         {
-            ModelState.AddModelError(string.Empty, MapWindowError(ex));
-            return await ReRenderDetailsAsync(id, ct);
+            TempData["ErrorMessage"] = MapWindowError(ex);
         }
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     [HttpPost("{id:int}/ReceptionWindows/{windowId:int}/Update")]
@@ -383,9 +383,10 @@ public class AdminProcessesController : Controller
         int id, int windowId, string? name, DateTime? start, DateTime? end,
         string? applicantMessage, string? description, int displayOrder, CancellationToken ct)
     {
-        if (!ValidateWindowInput(name, start, end))
+        if (WindowInputError(name, start, end) is { } inputError)
         {
-            return await ReRenderDetailsAsync(id, ct);
+            TempData["ErrorMessage"] = inputError;
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         var actorId = _userManager.GetUserId(User) ?? string.Empty;
@@ -397,7 +398,6 @@ public class AdminProcessesController : Controller
                     applicantMessage, description, displayOrder),
                 actorId, ct);
             TempData["SuccessMessage"] = Resources.AdminReceptionWindowsResources.UpdatedToast;
-            return RedirectToAction(nameof(Details), new { id });
         }
         catch (KeyNotFoundException)
         {
@@ -405,9 +405,9 @@ public class AdminProcessesController : Controller
         }
         catch (ArgumentException ex)
         {
-            ModelState.AddModelError(string.Empty, MapWindowError(ex));
-            return await ReRenderDetailsAsync(id, ct);
+            TempData["ErrorMessage"] = MapWindowError(ex);
         }
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     [HttpPost("{id:int}/ReceptionWindows/{windowId:int}/SetActive")]
@@ -447,27 +447,23 @@ public class AdminProcessesController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    /// <summary>Shared es-CR pre-validation for window create/update. Adds a
-    /// <c>ModelState</c> error (and returns false) when the name or dates are bad.</summary>
-    private bool ValidateWindowInput(string? name, DateTime? start, DateTime? end)
+    /// <summary>Shared es-CR pre-validation for window create/update. Returns the
+    /// first es-CR message (surfaced as a TempData error toast), or null when valid.</summary>
+    private static string? WindowInputError(string? name, DateTime? start, DateTime? end)
     {
-        var ok = true;
         if (string.IsNullOrWhiteSpace(name))
         {
-            ModelState.AddModelError(nameof(name), Resources.AdminReceptionWindowsResources.NameRequired);
-            ok = false;
+            return Resources.AdminReceptionWindowsResources.NameRequired;
         }
         if (start is null || end is null)
         {
-            ModelState.AddModelError(nameof(start), Resources.AdminReceptionWindowsResources.DatesRequired);
-            ok = false;
+            return Resources.AdminReceptionWindowsResources.DatesRequired;
         }
-        else if (end.Value <= start.Value)
+        if (end.Value <= start.Value)
         {
-            ModelState.AddModelError(nameof(end), Resources.AdminReceptionWindowsResources.EndAfterStart);
-            ok = false;
+            return Resources.AdminReceptionWindowsResources.EndAfterStart;
         }
-        return ok;
+        return null;
     }
 
     private static string MapWindowError(ArgumentException ex)
@@ -477,13 +473,6 @@ public class AdminProcessesController : Controller
             "name" => Resources.AdminReceptionWindowsResources.NameRequired,
             _ => ex.Message,
         };
-
-    private async Task<IActionResult> ReRenderDetailsAsync(int id, CancellationToken ct)
-    {
-        var vm = await BuildDetailsViewModelAsync(id, ct);
-        if (vm is null) return NotFound();
-        return View(nameof(Details), vm);
-    }
 
     [HttpPost("{id:int}/Groups")]
     [ValidateAntiForgeryToken]

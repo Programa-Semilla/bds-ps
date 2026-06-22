@@ -188,7 +188,9 @@ public class ApplicationController : Controller
                 var closedInstant = availability.LastClosedWindow is { } lc
                     ? _businessTime.ToBusinessLocal(lc.EndUtc).ToString("dd/MM/yyyy HH:mm")
                     : null;
-                ModelState.AddModelError(nameof(CreateApplicationViewModel.GroupId),
+                // Model-level (empty key) so the refusal shows in the ModelOnly summary
+                // for both single-group (hidden input, no field span) and multi-group layouts.
+                ModelState.AddModelError(string.Empty,
                     closedInstant is null
                         ? Resources.ReceptionWindowResources.RefusalGeneric
                         : Resources.ReceptionWindowResources.RefusalAllClosed(closedInstant));
