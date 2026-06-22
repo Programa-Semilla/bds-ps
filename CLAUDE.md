@@ -169,7 +169,9 @@ _Older entries condensed to one line each — see `specs/NNN-slug/` for full det
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes.
 
 <!-- SPECKIT START -->
-**Last shipped: 043-regulatory-freshness-hacienda-sync** (PR #75) — full detail in Recent Changes above. **No active plan in flight.** **feedback-3 is fully shipped:** slice A `038-auditor-provider-compliance` (PR #69), slice B `039-supplier-recommendation` (PR #70), slice C `040-auditor-workflow-stage` (co-shipped in PR #72), slice D `043` (PR #75).
+**Active plan: 044-process-reception-windows** (feedback-3 slice E) — plan + design artifacts created (`specs/044-process-reception-windows/plan.md`; spec/research/data-model/contracts/quickstart done, tasks next). Admin-configured absolute-date reception windows on a Process (stored as general `dbo.ProcessEvents`) replace the per-application Solicitud duration submission gate; submission + new-draft creation gated on "now ∈ active window" (pure UTC instant comparison; CR timezone only at admin input/display via new `IBusinessTimeZone`); typed es-CR refusal + applicant countdown notice; drops `SolicitudWindowDays` (+ its submit/autosave/StageExpiry-Solicitud consumers); Revisión/Facturación timing untouched. No new managed deps.
+
+**Last shipped: 043-regulatory-freshness-hacienda-sync** (PR #75) — full detail in Recent Changes above. **feedback-3 slices A–D shipped:** slice A `038-auditor-provider-compliance` (PR #69), slice B `039-supplier-recommendation` (PR #70), slice C `040-auditor-workflow-stage` (co-shipped in PR #72), slice D `043` (PR #75); **slice E `044` in flight (this plan)**.
 
 **Specs not detailed in Recent Changes above:**
 - `039-supplier-recommendation` (slice B, PR #70) — seven-criterion deterministic explainable supplier recommendation; CCSS `sin inscripción` hard block + per-item approval guard; two new required quote fields (delivery lead time + warranty as `TimeDuration`/`DurationUnit`).
