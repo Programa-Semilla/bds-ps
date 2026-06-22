@@ -51,4 +51,25 @@ public sealed class AdminProcessDetailsViewModel
 
     /// <summary>Spec 029 / FR-009 — Active Funds available as reassignment targets.</summary>
     public IReadOnlyList<SelectListItem> FundOptions { get; init; } = Array.Empty<SelectListItem>();
+
+    /// <summary>Spec 044 / US1 — reception windows for the "Ventanas de recepción"
+    /// card, with start/end already projected into Costa Rica local time for display
+    /// and the <c>datetime-local</c> edit inputs.</summary>
+    public IReadOnlyList<ReceptionWindowDisplayRow> ReceptionWindows { get; init; }
+        = Array.Empty<ReceptionWindowDisplayRow>();
 }
+
+/// <summary>Spec 044 / US1 — a reception window projected for admin display:
+/// <see cref="StartLocal"/>/<see cref="EndLocal"/> are Costa Rica wall-clock
+/// values (the card renders them and pre-fills the edit <c>datetime-local</c>
+/// inputs).</summary>
+public sealed record ReceptionWindowDisplayRow(
+    int Id,
+    string Name,
+    DateTime StartLocal,
+    DateTime EndLocal,
+    string? ApplicantFacingMessage,
+    string? Description,
+    bool IsActive,
+    int DisplayOrder,
+    ReceptionWindowState State);

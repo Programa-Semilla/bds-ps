@@ -6,6 +6,7 @@
 *@
 @using FundingPlatform.Domain.Enums
 @using FundingPlatform.Web.Models
+@using RW = FundingPlatform.Web.Resources.AdminReceptionWindowsResources
 @model FundingPlatform.Web.ViewModels.Admin.AdminProcessDetailsViewModel
 @{
     var detail = Model.Detail;
@@ -273,6 +274,167 @@
                                 @(detail.FacturacionWindowDays is null ? "por defecto" : $"{detail.FacturacionWindowDays} día(s)")
                             </dd>
                         </dl>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* Spec 044 / US1 — Reception windows. Rendered for Active AND Closed
+           processes (config is allowed anytime). Dates are entered/displayed in
+           Costa Rica local time; the controller converts to UTC for storage. *@
+        <div class="col-12">
+            <div class="card" data-testid="admin-process-reception-windows-card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">@RW.CardTitle</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">@RW.CardHelp</p>
+
+                    @* Create form. *@
+                    <form method="post" asp-action="CreateReceptionWindow" asp-controller="AdminProcesses"
+                          asp-route-id="@detail.Id" class="row g-2 align-items-end mb-3"
+                          data-testid="admin-reception-window-create-form">
+                        @Html.AntiForgeryToken()
+                        <div class="col-md-4">
+                            <label class="form-label" for="rw-name">@RW.NameLabel</label>
+                            <input name="name" id="rw-name" class="form-control" maxlength="120" required
+                                   data-testid="reception-window-name" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="rw-start">@RW.StartLabel</label>
+                            <input name="start" id="rw-start" type="datetime-local" class="form-control" required
+                                   data-testid="reception-window-start" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="rw-end">@RW.EndLabel</label>
+                            <input name="end" id="rw-end" type="datetime-local" class="form-control" required
+                                   data-testid="reception-window-end" />
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100"
+                                    data-testid="reception-window-create-submit">@RW.AddButton</button>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="rw-msg">@RW.ApplicantMessageLabel</label>
+                            <input name="applicantMessage" id="rw-msg" class="form-control" maxlength="500"
+                                   data-testid="reception-window-message" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="rw-desc">@RW.DescriptionLabel</label>
+                            <input name="description" id="rw-desc" class="form-control" maxlength="500" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label" for="rw-order">@RW.DisplayOrderLabel</label>
+                            <input name="displayOrder" id="rw-order" type="number" value="0" class="form-control" />
+                        </div>
+                    </form>
+
+                    @if (Model.ReceptionWindows.Count == 0)
+                    {
+                        <p class="text-muted mb-0" data-testid="reception-window-empty">@RW.NoWindows</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-vcenter" data-testid="reception-window-table">
+                                <thead>
+                                    <tr>
+                                        <th>@RW.NameLabel</th>
+                                        <th>@RW.StartLabel</th>
+                                        <th>@RW.EndLabel</th>
+                                        <th>Estado</th>
+                                        <th class="text-end">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var w in Model.ReceptionWindows)
+                                    {
+                                        var badge = !w.IsActive
+                                            ? (RW.BadgeInactive, "bg-secondary-lt")
+                                            : w.State switch
+                                            {
+                                                ReceptionWindowState.OpenNow => (RW.BadgeOpen, "bg-green-lt"),
+                                                ReceptionWindowState.Upcoming => (RW.BadgeUpcoming, "bg-blue-lt"),
+                                                _ => (RW.BadgeClosed, "bg-secondary-lt"),
+                                            };
+                                        <tr data-testid="reception-window-row" data-window-id="@w.Id">
+                                            <td data-testid="reception-window-row-name">@w.Name</td>
+                                            <td>@w.StartLocal.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td>@w.EndLocal.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td>
+                                                <span class="badge @badge.Item2" data-testid="reception-window-state">
+                                                    @badge.Item1
+                                                </span>
+                                            </td>
+                                            <td class="text-end">
+                                                <div class="d-flex gap-1 justify-content-end">
+                                                    @* Activate / deactivate. *@
+                                                    <form method="post" asp-action="SetReceptionWindowActive"
+                                                          asp-controller="AdminProcesses" asp-route-id="@detail.Id"
+                                                          asp-route-windowId="@w.Id">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="isActive" value="@((!w.IsActive).ToString().ToLowerInvariant())" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                                                data-testid="reception-window-toggle-active">
+                                                            @(w.IsActive ? RW.DeactivateButton : RW.ActivateButton)
+                                                        </button>
+                                                    </form>
+                                                    @* Delete. *@
+                                                    <form method="post" asp-action="DeleteReceptionWindow"
+                                                          asp-controller="AdminProcesses" asp-route-id="@detail.Id"
+                                                          asp-route-windowId="@w.Id">
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                                data-testid="reception-window-delete"
+                                                                data-confirm
+                                                                data-confirm-variant="destructive"
+                                                                data-confirm-label="@RW.DeleteButton"
+                                                                data-confirm-title="@RW.DeleteButton"
+                                                                data-confirm-body="@RW.DeleteConfirm"
+                                                                onclick="return (function(b){ return confirm(b.getAttribute('data-confirm-body')); })(this);">
+                                                            @RW.DeleteButton
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                                @* Inline edit form (collapsible). *@
+                                                <details class="mt-2 text-start">
+                                                    <summary class="text-secondary" data-testid="reception-window-edit-toggle">@RW.EditButton</summary>
+                                                    <form method="post" asp-action="UpdateReceptionWindow"
+                                                          asp-controller="AdminProcesses" asp-route-id="@detail.Id"
+                                                          asp-route-windowId="@w.Id" class="row g-2 mt-1"
+                                                          data-testid="reception-window-edit-form">
+                                                        @Html.AntiForgeryToken()
+                                                        <div class="col-md-4">
+                                                            <input name="name" class="form-control" maxlength="120" required
+                                                                   value="@w.Name" data-testid="reception-window-edit-name" />
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <input name="start" type="datetime-local" class="form-control" required
+                                                                   value="@w.StartLocal.ToString("yyyy-MM-ddTHH:mm")"
+                                                                   data-testid="reception-window-edit-start" />
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <input name="end" type="datetime-local" class="form-control" required
+                                                                   value="@w.EndLocal.ToString("yyyy-MM-ddTHH:mm")"
+                                                                   data-testid="reception-window-edit-end" />
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <button type="submit" class="btn btn-sm btn-primary w-100"
+                                                                    data-testid="reception-window-edit-submit">@RW.SaveButton</button>
+                                                        </div>
+                                                        <input type="hidden" name="displayOrder" value="@w.DisplayOrder" />
+                                                        <div class="col-md-8">
+                                                            <input name="applicantMessage" class="form-control" maxlength="500"
+                                                                   value="@w.ApplicantFacingMessage" placeholder="@RW.ApplicantMessageLabel" />
+                                                        </div>
+                                                    </form>
+                                                </details>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     }
                 </div>
             </div>

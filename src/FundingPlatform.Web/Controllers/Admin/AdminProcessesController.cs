@@ -36,6 +36,10 @@ public class AdminProcessesController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly AppDbContext _db;
     private readonly Application.Admin.Filters.IFundHierarchyProvider _fundHierarchy;
+    // Spec 044 — reception-window admin CRUD + CR-local input/display.
+    private readonly Application.Processes.ReceptionWindows.IReceptionWindowService _receptionWindows;
+    private readonly Application.Processes.ReceptionWindows.IReceptionWindowQuery _receptionWindowQuery;
+    private readonly Application.Time.IBusinessTimeZone _businessTime;
 
     public AdminProcessesController(
         IProcessService processes,
@@ -44,7 +48,10 @@ public class AdminProcessesController : Controller
         IGroupService groups,
         UserManager<ApplicationUser> userManager,
         AppDbContext db,
-        Application.Admin.Filters.IFundHierarchyProvider fundHierarchy)
+        Application.Admin.Filters.IFundHierarchyProvider fundHierarchy,
+        Application.Processes.ReceptionWindows.IReceptionWindowService receptionWindows,
+        Application.Processes.ReceptionWindows.IReceptionWindowQuery receptionWindowQuery,
+        Application.Time.IBusinessTimeZone businessTime)
     {
         _processes = processes;
         _processQuery = processQuery;
@@ -53,6 +60,9 @@ public class AdminProcessesController : Controller
         _userManager = userManager;
         _db = db;
         _fundHierarchy = fundHierarchy;
+        _receptionWindows = receptionWindows;
+        _receptionWindowQuery = receptionWindowQuery;
+        _businessTime = businessTime;
     }
 
     /// <summary>Spec 029 / FR-002 — Active Funds for the Process Fund selector.</summary>
@@ -189,6 +199,21 @@ public class AdminProcessesController : Controller
             .Select(f => new SelectListItem(f.Name, f.Id.ToString()))
             .ToListAsync(ct);
 
+        // Spec 044 / US1 — reception windows projected into CR local time for the card.
+        var windowRows = await _receptionWindowQuery.GetForProcessAsync(id, DateTimeOffset.UtcNow, ct);
+        var windows = windowRows
+            .Select(w => new ReceptionWindowDisplayRow(
+                w.Id,
+                w.Name,
+                _businessTime.ToBusinessLocal(w.StartUtc).DateTime,
+                _businessTime.ToBusinessLocal(w.EndUtc).DateTime,
+                w.ApplicantFacingMessage,
+                w.Description,
+                w.IsActive,
+                w.DisplayOrder,
+                w.State))
+            .ToList();
+
         return new AdminProcessDetailsViewModel
         {
             Detail = detail,
@@ -196,6 +221,7 @@ public class AdminProcessesController : Controller
             CloseBlockingPublicCodes = TempData["CloseBlockingPublicCodes"] as string[]
                 ?? Array.Empty<string>(),
             FundOptions = fundOptions,
+            ReceptionWindows = windows,
         };
     }
 
@@ -311,6 +337,152 @@ public class AdminProcessesController : Controller
             TempData["ErrorMessage"] = "El proceso está cerrado; no se pueden modificar las ventanas de etapa.";
         }
         return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // ===== Spec 044 / US1 — reception-window CRUD =====================================
+    // All actions re-render Details (BuildDetailsViewModelAsync) on validation error
+    // (spec-030 pattern) and TempData-flash + redirect on success. datetime-local
+    // inputs are CR-local wall-clock values → UTC via IBusinessTimeZone.ToUtc.
+
+    [HttpPost("{id:int}/ReceptionWindows")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateReceptionWindow(
+        int id, string? name, DateTime? start, DateTime? end,
+        string? applicantMessage, string? description, int displayOrder, CancellationToken ct)
+    {
+        if (!ValidateWindowInput(name, start, end))
+        {
+            return await ReRenderDetailsAsync(id, ct);
+        }
+
+        var actorId = _userManager.GetUserId(User) ?? string.Empty;
+        try
+        {
+            await _receptionWindows.CreateAsync(
+                new Application.Processes.ReceptionWindows.CreateReceptionWindowCommand(
+                    id, name!.Trim(), _businessTime.ToUtc(start!.Value), _businessTime.ToUtc(end!.Value),
+                    applicantMessage, description, displayOrder),
+                actorId, ct);
+            TempData["SuccessMessage"] = Resources.AdminReceptionWindowsResources.CreatedToast;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException ex)
+        {
+            ModelState.AddModelError(string.Empty, MapWindowError(ex));
+            return await ReRenderDetailsAsync(id, ct);
+        }
+    }
+
+    [HttpPost("{id:int}/ReceptionWindows/{windowId:int}/Update")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateReceptionWindow(
+        int id, int windowId, string? name, DateTime? start, DateTime? end,
+        string? applicantMessage, string? description, int displayOrder, CancellationToken ct)
+    {
+        if (!ValidateWindowInput(name, start, end))
+        {
+            return await ReRenderDetailsAsync(id, ct);
+        }
+
+        var actorId = _userManager.GetUserId(User) ?? string.Empty;
+        try
+        {
+            await _receptionWindows.UpdateAsync(
+                new Application.Processes.ReceptionWindows.UpdateReceptionWindowCommand(
+                    windowId, name!.Trim(), _businessTime.ToUtc(start!.Value), _businessTime.ToUtc(end!.Value),
+                    applicantMessage, description, displayOrder),
+                actorId, ct);
+            TempData["SuccessMessage"] = Resources.AdminReceptionWindowsResources.UpdatedToast;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException ex)
+        {
+            ModelState.AddModelError(string.Empty, MapWindowError(ex));
+            return await ReRenderDetailsAsync(id, ct);
+        }
+    }
+
+    [HttpPost("{id:int}/ReceptionWindows/{windowId:int}/SetActive")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetReceptionWindowActive(
+        int id, int windowId, bool isActive, CancellationToken ct)
+    {
+        var actorId = _userManager.GetUserId(User) ?? string.Empty;
+        try
+        {
+            await _receptionWindows.SetActiveAsync(windowId, isActive, actorId, ct);
+            TempData["SuccessMessage"] = isActive
+                ? Resources.AdminReceptionWindowsResources.ActivatedToast
+                : Resources.AdminReceptionWindowsResources.DeactivatedToast;
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost("{id:int}/ReceptionWindows/{windowId:int}/Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteReceptionWindow(int id, int windowId, CancellationToken ct)
+    {
+        var actorId = _userManager.GetUserId(User) ?? string.Empty;
+        try
+        {
+            await _receptionWindows.DeleteAsync(windowId, actorId, ct);
+            TempData["SuccessMessage"] = Resources.AdminReceptionWindowsResources.DeletedToast;
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    /// <summary>Shared es-CR pre-validation for window create/update. Adds a
+    /// <c>ModelState</c> error (and returns false) when the name or dates are bad.</summary>
+    private bool ValidateWindowInput(string? name, DateTime? start, DateTime? end)
+    {
+        var ok = true;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            ModelState.AddModelError(nameof(name), Resources.AdminReceptionWindowsResources.NameRequired);
+            ok = false;
+        }
+        if (start is null || end is null)
+        {
+            ModelState.AddModelError(nameof(start), Resources.AdminReceptionWindowsResources.DatesRequired);
+            ok = false;
+        }
+        else if (end.Value <= start.Value)
+        {
+            ModelState.AddModelError(nameof(end), Resources.AdminReceptionWindowsResources.EndAfterStart);
+            ok = false;
+        }
+        return ok;
+    }
+
+    private static string MapWindowError(ArgumentException ex)
+        => ex.ParamName switch
+        {
+            "endUtc" => Resources.AdminReceptionWindowsResources.EndAfterStart,
+            "name" => Resources.AdminReceptionWindowsResources.NameRequired,
+            _ => ex.Message,
+        };
+
+    private async Task<IActionResult> ReRenderDetailsAsync(int id, CancellationToken ct)
+    {
+        var vm = await BuildDetailsViewModelAsync(id, ct);
+        if (vm is null) return NotFound();
+        return View(nameof(Details), vm);
     }
 
     [HttpPost("{id:int}/Groups")]
