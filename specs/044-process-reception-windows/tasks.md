@@ -130,8 +130,8 @@ description: "Task list for 044-process-reception-windows implementation"
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T038 [P] Run `quickstart.md` walkthrough manually (admin config → applicant gating/notice → no-window regression).
-- [ ] T039 Run delivery-gate suites: `Tests.Unit` (ReceptionWindow*), `Tests.Integration` (ReceptionWindow*/SubmitGuard/Autosave), filtered E2E (`ReceptionWindow*`) **plus** the no-window submission regression (Submit*/ApplicantCompanySelection) for SC-005. Confirm green.
+- [X] T038 [P] Run `quickstart.md` walkthrough manually (admin config → applicant gating/notice → no-window regression).
+- [X] T039 Run delivery-gate suites: `Tests.Unit` (ReceptionWindow*), `Tests.Integration` (ReceptionWindow*/SubmitGuard/Autosave), filtered E2E (`ReceptionWindow*`) **plus** the no-window submission regression (Submit*/ApplicantCompanySelection) for SC-005. Confirm green.
 - [ ] T040 [P] Update CLAUDE.md *Recent Changes* + decomposition/brainstorm status to shipped on merge; optional multi-agent deep review (`speckit-spex-deep-review-review`).
 
 ---
