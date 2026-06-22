@@ -77,10 +77,10 @@ description: "Task list for 044-process-reception-windows implementation"
 
 **Independent Test**: Seed a window covering now-±/past/future; submit a complete application each time — allowed inside, 422-with-reason before/between/after, open when no windows.
 
-- [ ] T025 [P] [US2] Add `UserFacingErrorCode.ReceptionWindowClosed` in `src/FundingPlatform.Application/Errors/UserFacingErrorCode.cs` and map it (Detail verbatim) in the Web `IUserFacingErrorTranslator` impl.
-- [ ] T026 [US2] Inject `IReceptionWindowQuery` + `IStageExpiryClock` into `SubmitApplicationHandler`; before `application.Submit(minQuotations)`, evaluate `GetAvailabilityForApplicationAsync(_clock.UtcNow)` and throw `ReceptionWindowClosedException(status, boundary)` when `!CanSubmit`.
-- [ ] T027 [US2] Add a `ReceptionWindowClosedException` case → **422** + typed es-CR message in `src/FundingPlatform.Web/Filters/DomainExceptionFilter.cs` (alongside/replacing the Solicitud `StageWindowClosedException` case).
-- [ ] T028 [US2] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/ReceptionWindowSubmissionTests.cs` (faked `IStageExpiryClock`): open→submit OK; before/between/all-closed→`ReceptionWindowClosedException` w/ correct status+boundary; no-window→OK; boundary `now==Start` OK / `now==End` blocked (SC-002); **non-retroactivity (FR-017): submit under an open window, then deactivate/delete that window → the already-submitted application is unchanged (state stays Submitted) and still readable.**
+- [X] T025 [P] [US2] Add `UserFacingErrorCode.ReceptionWindowClosed` in `src/FundingPlatform.Application/Errors/UserFacingErrorCode.cs` and map it (Detail verbatim) in the Web `IUserFacingErrorTranslator` impl.
+- [X] T026 [US2] Inject `IReceptionWindowQuery` + `IStageExpiryClock` into `SubmitApplicationHandler`; before `application.Submit(minQuotations)`, evaluate `GetAvailabilityForApplicationAsync(_clock.UtcNow)` and throw `ReceptionWindowClosedException(status, boundary)` when `!CanSubmit`.
+- [X] T027 [US2] Add a `ReceptionWindowClosedException` case → **422** + typed es-CR message in `src/FundingPlatform.Web/Filters/DomainExceptionFilter.cs` (alongside/replacing the Solicitud `StageWindowClosedException` case).
+- [X] T028 [US2] Integration tests `tests/FundingPlatform.Tests.Integration/Applications/ReceptionWindowSubmissionTests.cs` (faked `IStageExpiryClock`): open→submit OK; before/between/all-closed→`ReceptionWindowClosedException` w/ correct status+boundary; no-window→OK; boundary `now==Start` OK / `now==End` blocked (SC-002); **non-retroactivity (FR-017): submit under an open window, then deactivate/delete that window → the already-submitted application is unchanged (state stays Submitted) and still readable.**
 - [ ] T029 [US2] E2E `tests/FundingPlatform.Tests.E2E/ReceptionWindowSubmissionTests.cs`: window seeded around real `UtcNow` → submit succeeds; past-only window → submit blocked with es-CR reason (422 toast).
 
 **Checkpoint**: Submission hard-gated; refusals explained; backward-compatible.
@@ -93,10 +93,10 @@ description: "Task list for 044-process-reception-windows implementation"
 
 **Independent Test**: Render create/edit for windows in each state; verify the right mode, instant (es-CR `dd/MM/yyyy HH:mm`), and remaining-time when open.
 
-- [ ] T030 [P] [US3] `ReceptionWindowNoticeViewModel` in `src/FundingPlatform.Web/ViewModels/ReceptionWindowNoticeViewModel.cs` (state, boundary instant in CR local, remaining `TimeSpan`, applicant message).
-- [ ] T031 [P] [US3] `_ReceptionWindowNotice.cshtml` partial in `src/FundingPlatform.Web/Views/Shared/` — Open (close countdown), Upcoming (open instant + "puede preparar un borrador"), Closed, Unrestricted (renders nothing); pure render.
-- [ ] T032 [P] [US3] es-CR `ReceptionWindowResources` in `src/FundingPlatform.Web/Resources/ReceptionWindowResources.cs` (notice copy).
-- [ ] T033 [US3] Build the notice VM in `src/FundingPlatform.Web/Controllers/ApplicationController.cs` for Create + Edit (via `IReceptionWindowQuery` + `IBusinessTimeZone`); render it atop `Views/Application/Create.cshtml`; on `Views/Application/Edit.cshtml` **replace** the Solicitud `_StageCountdownBanner` (remove its build branch at the former `:759`); disabled-submit explanation when not open.
+- [X] T030 [P] [US3] `ReceptionWindowNoticeViewModel` in `src/FundingPlatform.Web/ViewModels/ReceptionWindowNoticeViewModel.cs` (state, boundary instant in CR local, remaining `TimeSpan`, applicant message).
+- [X] T031 [P] [US3] `_ReceptionWindowNotice.cshtml` partial in `src/FundingPlatform.Web/Views/Shared/` — Open (close countdown), Upcoming (open instant + "puede preparar un borrador"), Closed, Unrestricted (renders nothing); pure render.
+- [X] T032 [P] [US3] es-CR `ReceptionWindowResources` in `src/FundingPlatform.Web/Resources/ReceptionWindowResources.cs` (notice copy).
+- [X] T033 [US3] Build the notice VM in `src/FundingPlatform.Web/Controllers/ApplicationController.cs` for Create + Edit (via `IReceptionWindowQuery` + `IBusinessTimeZone`); render it atop `Views/Application/Create.cshtml`; on `Views/Application/Edit.cshtml` **replace** the Solicitud `_StageCountdownBanner` (remove its build branch at the former `:759`); disabled-submit explanation when not open.
 - [ ] T034 [US3] E2E `tests/FundingPlatform.Tests.E2E/ReceptionWindowNoticeTests.cs`: open (countdown shown) / upcoming (next-open instant + drafting note) / closed; assert es-CR datetime format and disabled-submit reason.
 
 **Checkpoint**: Applicants see professional, accurate timing notices.
@@ -109,7 +109,7 @@ description: "Task list for 044-process-reception-windows implementation"
 
 **Independent Test**: All-closed process → create refused with es-CR reason; existing draft still opens/edits; no-window/future-window → create allowed.
 
-- [ ] T035 [US4] In `ApplicationController.Create` POST, after group/company validation and before `CreateApplicationAsync`, call `GetAvailabilityForGroupAsync(_clock.UtcNow)`; when `!CanCreateDraft` add an es-CR `ModelState` error on `GroupId` and re-render (no guard on existing-draft edit).
+- [X] T035 [US4] In `ApplicationController.Create` POST, after group/company validation and before `CreateApplicationAsync`, call `GetAvailabilityForGroupAsync(_clock.UtcNow)`; when `!CanCreateDraft` add an es-CR `ModelState` error on `GroupId` and re-render (no guard on existing-draft edit).
 - [ ] T036 [US4] E2E `tests/FundingPlatform.Tests.E2E/ReceptionWindowDraftGuardTests.cs`: all-closed process blocks new draft (es-CR reason) but existing draft still editable; no-window/upcoming process allows create.
 
 **Checkpoint**: No dead-end drafts; existing drafts never trapped.
@@ -122,7 +122,7 @@ description: "Task list for 044-process-reception-windows implementation"
 
 **Independent Test**: Persist a reception window and a non-reception event type; both round-trip.
 
-- [ ] T037 [US5] Integration assertion in `tests/FundingPlatform.Tests.Integration/Processes/ProcessEventSchemaTests.cs`: reception window persists with `EventType=ReceptionWindow` + `ControlsSubmissionAvailability=true`; a `ProcessEventType.Informational` row round-trips (no behavior) — proving the schema accepts other types.
+- [X] T037 [US5] Integration assertion in `tests/FundingPlatform.Tests.Integration/Processes/ProcessEventSchemaTests.cs`: reception window persists with `EventType=ReceptionWindow` + `ControlsSubmissionAvailability=true`; a `ProcessEventType.Informational` row round-trips (no behavior) — proving the schema accepts other types.
 
 **Checkpoint**: US5 verified structurally.
 

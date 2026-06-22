@@ -24,15 +24,18 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
     private readonly AppDbContext _db;
     private readonly IStageExpiryClock _clock;
     private readonly INotificationOutboxWriter _outbox;
+    private readonly Application.Processes.ReceptionWindows.IReceptionWindowQuery _receptionWindows;
 
     public SubmitApplicationHandler(
         AppDbContext db,
         IStageExpiryClock clock,
-        INotificationOutboxWriter outbox)
+        INotificationOutboxWriter outbox,
+        Application.Processes.ReceptionWindows.IReceptionWindowQuery receptionWindows)
     {
         _db = db;
         _clock = clock;
         _outbox = outbox;
+        _receptionWindows = receptionWindows;
     }
 
     public async Task SubmitAsync(SubmitApplicationCommand cmd, CancellationToken ct = default)
@@ -68,6 +71,20 @@ public sealed class SubmitApplicationHandler : ISubmitApplicationHandler
                 throw new InvalidOperationException(
                     "La empresa seleccionada fue archivada. Seleccione una empresa activa para enviar.");
             }
+        }
+
+        // Spec 044 / FR-008 — gate submission on an active reception window
+        // (Application → Group → Process). No windows ⇒ Unrestricted ⇒ allowed
+        // (FR-007). The refusal carries the relevant boundary instant for the
+        // typed es-CR message (DomainExceptionFilter → 422). Point-in-time at
+        // submit, so later window edits never affect a submitted application (FR-017).
+        var availability = await _receptionWindows.GetAvailabilityForApplicationAsync(
+            application.Id, _clock.UtcNow, ct);
+        if (!availability.CanSubmit)
+        {
+            var boundary = availability.NextWindow?.StartUtc ?? availability.LastClosedWindow?.EndUtc;
+            throw new FundingPlatform.Domain.Exceptions.ReceptionWindowClosedException(
+                availability.Status, boundary);
         }
 
         var minQuotations = await ResolveMinimumQuotationsAsync(application, ct);

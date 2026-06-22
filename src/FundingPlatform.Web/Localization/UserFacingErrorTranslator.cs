@@ -48,6 +48,10 @@ public sealed class UserFacingErrorTranslator : IUserFacingErrorTranslator
         // (provider + field + last-reviewed) built by RegulatoryFreshnessCopy.
         UserFacingErrorCode.RegulatoryDataStale when !string.IsNullOrWhiteSpace(error.Detail) =>
             error.Detail!,
+        // Spec 044 / FR-008 — the Detail is the typed es-CR refusal message
+        // (open/close instant in CR time) built by the Web layer.
+        UserFacingErrorCode.ReceptionWindowClosed when !string.IsNullOrWhiteSpace(error.Detail) =>
+            error.Detail!,
         _ => Translate(error.Code),
     };
 
@@ -185,6 +189,10 @@ public sealed class UserFacingErrorTranslator : IUserFacingErrorTranslator
         // Spec 043 / FR-007 — code-only fallback (enumerated detail unavailable).
         UserFacingErrorCode.RegulatoryDataStale =>
             FundingPlatform.Application.Regulatory.RegulatoryFreshnessCopy.BlockHeading,
+
+        // Spec 044 / FR-008 — code-only fallback (instant detail unavailable).
+        UserFacingErrorCode.ReceptionWindowClosed =>
+            "La recepción de solicitudes no está abierta en este momento.",
 
         _ => "La operación no se pudo completar. Inténtelo nuevamente o contacte al soporte.",
     };

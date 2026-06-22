@@ -60,7 +60,9 @@ public class SubmitGuardTests
         _handler = new SubmitApplicationHandler(
             _ctx,
             _clock,
-            new FundingPlatform.Infrastructure.Notifications.Persistence.NotificationOutboxWriter(_ctx));
+            new FundingPlatform.Infrastructure.Notifications.Persistence.NotificationOutboxWriter(_ctx),
+            // Spec 044 — no reception windows seeded ⇒ Unrestricted ⇒ submission allowed.
+            new FundingPlatform.Infrastructure.Services.ReceptionWindowQuery(_ctx));
     }
 
     [TearDown]

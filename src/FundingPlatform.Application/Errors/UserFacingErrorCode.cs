@@ -126,4 +126,11 @@ public enum UserFacingErrorCode
     /// regulatory field. The Detail carries the full es-CR enumerated block message
     /// (provider + field + last-reviewed), surfaced verbatim (data, not domain English).</summary>
     RegulatoryDataStale,
+
+    // Spec 044 — reception-window submission gate (FR-008).
+    /// <summary>Spec 044 / FR-008 — submission refused because the current instant is
+    /// not inside an active reception window. The Detail carries the typed es-CR
+    /// message (open/close instant in Costa Rica time), surfaced verbatim (data, not
+    /// domain English) — mirrors <see cref="RegulatoryDataStale"/>.</summary>
+    ReceptionWindowClosed,
 }
