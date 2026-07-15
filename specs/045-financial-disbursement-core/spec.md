@@ -100,6 +100,7 @@ Only a **Financial Operator** (scoped to their groups) can record and validate d
 - **Partial disbursements summing exactly to the total**: allocation is fully consumed; Available reads ₡0; no discrepancy.
 - **Cancelling a pending disbursement**: it disappears from Paid/Pending immediately and leaves nothing in the append-only ledger (it never posted).
 - **Concurrent edits** to the same disbursement: the second writer is prevented from silently overwriting the first (optimistic concurrency).
+- **Concurrent partial payments across two disbursements**: two operators each record a disbursement that individually fits under the remaining allocation but together exceed it; because single-row concurrency cannot catch this cross-row case, the over-disbursement check is re-run at validation, and the second disbursement to validate is refused (the money already moved, so `Available` reads negative until resolved).
 - **Both amounts differ**: if bank receipt and invoice both differ from the disbursement, both comparisons are reported so the operator sees every source of difference, not just the first.
 - **Replacing a file before validation**: overwrites the prior file (no version history in this slice); after validation, replacement is refused.
 - **Over-disbursement makes Available negative**: when a recorded disbursement pushes the participant's total past the allocation, `Available` reads negative (e.g. −₡100,000) rather than clamping to ₡0, so the over-disbursement is visible in the balance, not just on the blocked disbursement.
@@ -113,7 +114,7 @@ Only a **Financial Operator** (scoped to their groups) can record and validate d
 - **FR-002**: The system MUST allow **many** Disbursements per agreement (partial payments) and MUST bind each Disbursement to exactly **one** participant/agreement (no cross-participant disbursements).
 - **FR-003**: The system MUST reject a Disbursement, bank receipt, or invoice amount that is zero or negative.
 - **FR-004**: The system MUST reject any amount denominated in a currency other than CRC in this slice.
-- **FR-005**: The sum of a participant's non-cancelled Disbursements MUST NOT exceed the executed agreement total; an attempt to exceed it MUST raise a blocking over-disbursement discrepancy. Under-disbursement MUST NOT be treated as a discrepancy.
+- **FR-005**: The sum of a participant's non-cancelled Disbursements MUST NOT exceed the executed agreement total; an attempt to exceed it MUST raise a blocking over-disbursement discrepancy. Under-disbursement MUST NOT be treated as a discrepancy. The over-disbursement check MUST be re-evaluated at validation against the current committed total, so that two disbursements recorded concurrently — each individually within the ceiling — cannot both reach `Validated` and breach it (the second to validate is refused).
 
 **Evidence**
 - **FR-006**: Each Disbursement MUST require exactly one **bank receipt** and exactly one **invoice**, each carrying a file, an amount, a currency, a document reference number, and a document date.

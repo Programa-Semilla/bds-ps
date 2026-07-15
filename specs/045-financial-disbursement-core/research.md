@@ -6,11 +6,15 @@ All decisions are grounded in shipped code (seams mapped from FundingAgreement /
 
 ## R1 — Allocation amount source (the "approved total")
 
-**Decision:** The allocation (participant's approved ceiling) is **computed as Σ `Quotation.ConvertedCrcAmount`** over the executed application's selected line-item quotations, in CRC. It is **snapshotted into a single immutable `Allocation` ledger entry** the first time a disbursement is recorded for that application.
+**Decision:** The allocation (participant's approved ceiling) is the executed application's CRC rollup, obtained by **reusing the existing single-source-of-truth `ApplicationCurrencyTotal.Compute(application).Total`** (`src/FundingPlatform.Application/Services/ApplicationCurrencyTotal.cs`) — NOT a hand-rolled join. It is **snapshotted into a single immutable `Allocation` ledger entry** the first time a disbursement is recorded.
 
-**Rationale:** `FundingAgreement` carries **no monetary total** — it is a PDF-artifact aggregate (file metadata + signing lifecycle). Money lives on `Quotation.Price` / `Quotation.ConvertedCrcAmount` (`decimal(18,2)`; `ConvertedCrcAmount == Price` for CRC quotes). Post-execution the application's quotations are immutable, so the computed sum is stable — snapshot and live-compute are identical, which lets the balance view read `Allocated` before any disbursement exists (compute) and from the ledger afterward (snapshot) without drift.
+**Rationale:** `FundingAgreement` carries **no monetary total** — it is a PDF-artifact aggregate. Selection is a **supplier** FK (`Item.SelectedSupplierId`, spec 038/043), not a quotation FK; the selected quote is `item.Quotations.FirstOrDefault(q => q.SupplierId == item.SelectedSupplierId)`, unique per approved item (`UX_Quotations_ItemId_SupplierId`). `Quotation.ConvertedCrcAmount` is **nullable** (`decimal(18,2)`) — a legacy/unconverted non-CRC quote leaves it null with `LegacyNeedsReview = true`. `ApplicationCurrencyTotal.Compute` already encodes exactly the right semantics: skip items with no `SelectedSupplierId`, skip `LegacyNeedsReview`, sum `ConvertedCrcAmount` — returning `(decimal? Total, bool HasNonCrc)`. Reusing it (already the rollup behind `ApplicantDashboardProjection` / `ReviewerQueueProjection`) avoids reinventing the join and guarantees the disbursement allocation equals the number shown elsewhere.
 
-**Alternatives rejected:** (a) a stored total on `FundingAgreement` — doesn't exist and would duplicate quotation data; (b) eager Allocation-entry creation for every already-executed application via a backfill — unnecessary write amplification, and the compute-fallback covers the pre-first-disbursement read.
+**Execution-time completeness:** there is no domain invariant that every selected non-CRC quote is converted, BUT funding-agreement PDF generation runs a pre-flight that throws `MissingConversionMetadataException` and refuses the document for any unconverted non-CRC line (spec 015). Since `AgreementExecuted` requires a generated+signed agreement, every selected non-CRC quote **was** converted by execution, and post-execution quotations are immutable — so `Compute.Total` is complete and stable for an executed application. `Compute.Total` being null (no selected supplier at all) cannot occur on a validly executed application.
+
+**Load requirement:** `Compute` needs the aggregate loaded with `Items → Quotations (→ Supplier)`. `RecordAsync` and the balance projection's pre-first-disbursement fallback must Include these; once the `Allocation` entry is snapshotted, the projection reads the ledger (no heavy load).
+
+**Alternatives rejected:** (a) hand-rolled `Σ ConvertedCrcAmount` — duplicates and risks drifting from `ApplicationCurrencyTotal` (the canonical rollup) and mishandles the nullable/legacy cases it already encodes; (b) a stored total on `FundingAgreement` — doesn't exist; (c) eager Allocation-entry backfill for all executed apps — unnecessary; the compute-fallback covers the pre-first-disbursement read. For SQL-side reporting over many apps, `ReportQueryService.ApplicationsApprovedTotalsAsync` is the per-currency equivalent (not needed in P1's per-application path).
 
 ## R2 — Disbursement as a standalone aggregate, not an Application child
 
@@ -47,7 +51,9 @@ The balance projection reads **both** sources and never double-counts: `Allocate
 
 **Rationale:** Deterministic and local to the write; matches the spec Assumption. `Available` legibly goes **negative** (FR-020) — the projection counts the blocked pending disbursement toward `Paid` because the money left the bank.
 
-**Alternatives rejected:** a separate agreement-scoped discrepancy record — deferred to P4's discrepancy aggregate; over-engineered for P1.
+**Concurrency (race resolution):** comparison (3) at write time is only an *early signal* — two operators recording partial payments concurrently could each read a Σ that individually fits under the ceiling (neither seeing the other), so both persist as `Recorded`, and single-row `RowVersion` optimistic concurrency cannot catch a *cross-row* invariant. The **authoritative over-disbursement gate is re-run inside `ValidateAsync`** against the freshly-read committed Σ (ledger Validated entries + non-cancelled pending): the second disbursement to validate sees the breach and is refused. This is lock-free and consistent with the append-only + all-blocking design — and it must be lock-free, because `AddSqlServerDbContext`'s retrying execution strategy forbids a user-initiated serializing transaction. A validation-time re-check is cheap (one aggregate query) and closes the race deterministically.
+
+**Alternatives rejected:** a separate agreement-scoped discrepancy record — deferred to P4's discrepancy aggregate; over-engineered for P1. A serializable transaction / app-lock around the Σ check — forbidden by the retrying execution strategy and heavier than the validation-time re-check.
 
 ## R6 — Financial Operator role: group-scoped, consistent
 
@@ -87,7 +93,9 @@ The balance projection reads **both** sources and never double-counts: `Allocate
 
 **Rationale:** Reuses the exact reviewer/auditor scoping and 404-no-disclosure patterns; the financial-surface-only scope is the spec's Open-Question default.
 
-**Alternatives rejected:** embedding into the reviewer application detail — leaks the full application to the operator and entangles with review UI.
+**Secure-by-default sequencing:** group-overlap scoping + the executed-state gate + no-disclosure 404 are built into the controller in **US1** (not deferred), so the surface is never reachable out-of-group even at the US1 checkpoint. US5 then adds only the Auditor **read-only write-guard** (403 on POST) and the edge-case tests (applicant refusal, read-only vs write). This removes the window where an in-development US1 build could expose out-of-group agreements.
+
+**Alternatives rejected:** embedding into the reviewer application detail — leaks the full application to the operator and entangles with review UI. Deferring all scoping to US5 — leaves US1 insecure if demoed/deployed alone.
 
 ## Resolved unknowns
 

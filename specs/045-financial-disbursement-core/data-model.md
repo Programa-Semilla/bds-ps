@@ -114,7 +114,7 @@ Rules: zero tolerance; a difference (`|a − b| >= 0.01`, i.e. ≥ 1 colón) yie
 ## Balance projection
 
 `ParticipantBalance` computed by `IParticipantBalanceProjection` (Application) / EF impl (Infrastructure):
-- `Allocated` = ledger Allocation entry amount **if present**, else Σ `Quotation.ConvertedCrcAmount` of the executed application's selected line-item quotations.
+- `Allocated` = ledger Allocation entry amount **if present**, else **`ApplicationCurrencyTotal.Compute(app).Total`** (the canonical CRC rollup — reused, not hand-rolled; needs `Items → Quotations → Supplier` loaded). Complete & stable for an executed application (the funding-agreement PDF gate guarantees non-CRC lines were converted by execution).
 - `Validated` = Σ ledger Disbursement-entry amounts for the application.
 - `PendingValidation` = Σ `Disbursements.Amount` where `State ∈ {Recorded, Inconsistent}`.
 - `Paid` = `Validated + PendingValidation`.
