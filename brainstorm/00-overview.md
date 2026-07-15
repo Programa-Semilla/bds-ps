@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-06-21 (session #39)
+Last updated: 2026-06-21 (session #40)
 
 ## Sessions
 
@@ -45,7 +45,8 @@ Last updated: 2026-06-21 (session #39)
 | 37 | 2026-06-18 | auditor-workflow-stage | shipped (PR #72) | 040 |
 | 37 | 2026-06-19 | email-brand-lift | shipped (PR #73) | 041 |
 | 38 | 2026-06-19 | evidence-inbox | shipped (PR #72) | 041 |
-| 39 | 2026-06-21 | regulatory-freshness-hacienda-sync | spec-created | 043 |
+| 39 | 2026-06-21 | regulatory-freshness-hacienda-sync | shipped (PR #75) | 043 |
+| 40 | 2026-06-21 | process-reception-windows | spec-created | 044 |
 
 > Note: feature number **041** was used twice by parallel sessions —
 > `041-email-brand-lift` (this session #37) and `041-evidence-inbox` (#38, shipped
@@ -57,7 +58,8 @@ Last updated: 2026-06-21 (session #39)
 - Session bug fixed outside any spec: the reviewer queue (`ReviewerQueueProjection`) did not surface `ReturnedFromAudit` applications, so auditor-returned apps never reappeared in the reviewer worklist; fixed + unit/E2E covered. (from #38)
 - Spec-041 (email-brand-lift) OQ-1 resolved: the "Nueva empresa para revisión" email was withdrawn as a duplication of spec 038's supplier→auditor notification (`IProviderCreatedNotifier`); no auditor group-scoping. (from #37)
 
-- Feedback-3: A/B/C shipped; **D (regulatory freshness + Hacienda API) spec-created (#39 → spec 043)**. Slices **E** (fund process windows + applicant timing), **F** (per-user funding limit), **G** (applicant timeline + % progress), **H** (UX grab-bag) remain unspecified and are independent (no foundation dependency). Master doc + slice map: `seeds/feedback-3/` (from #35, #36, #37, #39)
+- Feedback-3: A/B/C/D shipped (A #69, B #70, C #72, D #75); **E (fund process reception windows + applicant timing) spec-created (#40 → spec 044)** — also resolves the round's §28.11 (window inclusivity) and §28.12 (timezone). Slices **F** (per-user funding limit, §4), **G** (applicant timeline + % progress, §20), **H** (UX grab-bag) remain unspecified and are independent (no foundation dependency). Master doc + slice map: `seeds/feedback-3/` (from #35, #36, #37, #39, #40)
+- Spec-044 (reception-windows) plan-time threads: confirm no residual reader of `SolicitudWindowDays` before dropping the column; decide client-tick vs server-rendered countdown (data pinned by FR-011/012); future slice for informational/deadline/milestone `ProcessEvent` *behavior* (schema ready, behavior deferred). (from #40)
 - Spec-043 (regulatory-freshness-hacienda-sync) plan-time: (1) confirm the Hacienda→`HaciendaStatus` mapping for less-common `estado` (Desinscrito variants) + `omiso = SI` (not moroso) against the real value vocabulary, ideally by sampling live ids; (2) pin the exact "selected quotation" semantics for the referenced-provider set the freshness gate checks; (3) notification cadence — daily digest (proposed) vs once-on-threshold-crossing; (4) whether the per-provider last-sync metadata is columns on `dbo.Suppliers` vs a small related record (dacpac). (from #39)
 - Spec-040 plan-time: seeded default checklist template's `appliesToStage` (recommend `both`); whom the agreement records as generating actor now that the auditor generates it; cross-cutting E2E ripple from removing the reviewer's direct generate-agreement path (existing funding-agreement/signing tests route through audit) (from #37)
 - Spec-040 plan-time: where the two new application states (`PendingAudit`/`ReturnedFromAudit`) slot in the domain state machine + dacpac, and the new `ChecklistTemplate`/`ChecklistTemplateItem`/`ApplicationChecklistResponse` tables (§22.9–22.11) — greenfield, no backfill (from #37)

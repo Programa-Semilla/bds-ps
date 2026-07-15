@@ -42,7 +42,7 @@ public sealed record ProcessDetail(
     ProcessStatus Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset? ClosedAt,
-    int? SolicitudWindowDays,
+    // Spec 044 — SolicitudWindowDays removed (reception windows replace it).
     int? RevisionWindowDays,
     int? FacturacionWindowDays,
     ProcessPlantillaSnapshotDto? Plantilla,

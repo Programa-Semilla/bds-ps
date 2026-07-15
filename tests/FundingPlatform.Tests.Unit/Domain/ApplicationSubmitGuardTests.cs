@@ -1,21 +1,24 @@
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
-using FundingPlatform.Domain.Exceptions;
 using FundingPlatform.Domain.ValueObjects;
 using AppEntity = FundingPlatform.Domain.Entities.Application;
 
 namespace FundingPlatform.Tests.Unit.Domain;
 
 /// <summary>
-/// Spec 021 / FR-006 / FR-017 — submit-guard predicate matrix for the
-/// stage-aware <see cref="AppEntity.Submit(int, StageKind, DateTimeOffset, DateTimeOffset)"/>
-/// overload (plus the legacy <see cref="AppEntity.Submit(int)"/> for back-compat).
+/// Spec 021 / FR-006 — submit-guard predicate matrix for <see cref="AppEntity.Submit(int)"/>.
+///
+/// Spec 044 — the stage-window (Solicitud duration) guard was removed from
+/// <c>Submit</c>; submission timing is now gated by reception windows, evaluated
+/// in the handler. Boundary semantics live in
+/// <see cref="ReceptionWindowEvaluationTests"/>. These tests cover the remaining
+/// item/quotation/impact validation chain.
 /// </summary>
 [TestFixture]
 public class ApplicationSubmitGuardTests
 {
     private static AppEntity NewApp(string companyName = "Sazón Vegetariano")
-        => new AppEntity(applicantId: 1, 1, null,companyName: companyName);
+        => new AppEntity(applicantId: 1, 1, null, companyName: companyName);
 
     private static Item NewItem(int id = 1, string productName = "Producto A")
     {
@@ -70,10 +73,8 @@ public class ApplicationSubmitGuardTests
         item.SetImpactJustification("apoya el empleo");
     }
 
-    // ----- Legacy Submit(int) overload -----------------------------------------------
-
     [Test]
-    public void LegacySubmit_NoItems_Throws()
+    public void Submit_NoItems_Throws()
     {
         var app = NewApp();
 
@@ -82,7 +83,7 @@ public class ApplicationSubmitGuardTests
     }
 
     [Test]
-    public void LegacySubmit_InsufficientQuotations_Throws()
+    public void Submit_InsufficientQuotations_Throws()
     {
         var app = NewApp();
         var item = NewItem(1);
@@ -94,104 +95,32 @@ public class ApplicationSubmitGuardTests
     }
 
     [Test]
-    public void LegacySubmit_WithItemAndQuotations_Succeeds()
-    {
-        var app = NewApp();
-        var item = NewItem(1);
-        StuffQuotation(item);
-        AttachImpact(app, item);
-        app.AddItem(item);
-
-        app.Submit(minQuotations: 1);
-
-        Assert.That(app.State, Is.EqualTo(ApplicationState.Submitted));
-        Assert.That(app.SubmittedAt, Is.Not.Null);
-    }
-
-    // ----- Stage-aware Submit(int, StageKind, DateTimeOffset, DateTimeOffset) -----
-
-    [Test]
-    public void StageSubmit_NoItems_Throws()
-    {
-        var app = NewApp();
-        var stageClosesAt = DateTimeOffset.UtcNow.AddDays(7);
-
-        var ex = Assert.Throws<InvalidOperationException>(
-            () => app.Submit(
-                minQuotations: 1,
-                currentStage: StageKind.Solicitud,
-                stageClosesAt: stageClosesAt,
-                now: DateTimeOffset.UtcNow));
-
-        Assert.That(ex!.Message, Does.Contain("at least one item"));
-    }
-
-    [Test]
-    public void StageSubmit_WithoutImpact_Throws()
+    public void Submit_WithoutImpact_Throws()
     {
         var app = NewApp();
         var item = NewItem(1);
         StuffQuotation(item);
         app.AddItem(item);
-        var stageClosesAt = DateTimeOffset.UtcNow.AddDays(7);
 
-        var ex = Assert.Throws<InvalidOperationException>(
-            () => app.Submit(
-                minQuotations: 1,
-                currentStage: StageKind.Solicitud,
-                stageClosesAt: stageClosesAt,
-                now: DateTimeOffset.UtcNow));
-
+        var ex = Assert.Throws<InvalidOperationException>(() => app.Submit(minQuotations: 1));
         Assert.That(ex!.Message, Does.Contain("impact"));
     }
 
     [Test]
-    public void StageSubmit_WhenWindowClosed_ThrowsStageWindowClosedException()
+    public void Submit_QuotationShortfall_Throws()
     {
         var app = NewApp();
         var item = NewItem(1);
-        StuffQuotation(item);
+        // No quotations stuffed — fails minQuotations=2.
         AttachImpact(app, item);
         app.AddItem(item);
 
-        var now = DateTimeOffset.UtcNow;
-        var stageClosesAt = now.AddHours(-1); // already closed
-
-        var ex = Assert.Throws<StageWindowClosedException>(
-            () => app.Submit(
-                minQuotations: 1,
-                currentStage: StageKind.Solicitud,
-                stageClosesAt: stageClosesAt,
-                now: now));
-
-        Assert.That(ex!.Stage, Is.EqualTo(StageKind.Solicitud));
-        Assert.That(ex.ClosedAt, Is.EqualTo(stageClosesAt));
-        Assert.That(ex.ErrorCode, Is.EqualTo("STAGE_WINDOW_CLOSED"));
+        var ex = Assert.Throws<InvalidOperationException>(() => app.Submit(minQuotations: 2));
+        Assert.That(ex!.Message, Does.Contain("quotation"));
     }
 
     [Test]
-    public void StageSubmit_WhenNowExactlyEqualsClosesAt_ThrowsStageWindowClosedException()
-    {
-        // Boundary: now == stageClosesAt. Implementation uses `now >= stageClosesAt`,
-        // so the closing instant itself rejects the submit.
-        var app = NewApp();
-        var item = NewItem(1);
-        StuffQuotation(item);
-        AttachImpact(app, item);
-        app.AddItem(item);
-
-        var now = DateTimeOffset.UtcNow;
-
-        Assert.Throws<StageWindowClosedException>(
-            () => app.Submit(
-                minQuotations: 1,
-                currentStage: StageKind.Revision,
-                stageClosesAt: now,
-                now: now));
-    }
-
-    [Test]
-    public void StageSubmit_HappyPath_TransitionsAndResetsStageState()
+    public void Submit_HappyPath_TransitionsAndResetsStageState()
     {
         var app = NewApp();
         var item = NewItem(1);
@@ -202,15 +131,9 @@ public class ApplicationSubmitGuardTests
         app.MarkReminderSent(0x1);
         Assert.That(app.RemindersSentMask, Is.EqualTo(0x1));
 
-        var now = DateTimeOffset.UtcNow;
-        var stageClosesAt = now.AddDays(7);
-        var before = now.AddSeconds(-1);
+        var before = DateTimeOffset.UtcNow.AddSeconds(-1);
 
-        app.Submit(
-            minQuotations: 1,
-            currentStage: StageKind.Solicitud,
-            stageClosesAt: stageClosesAt,
-            now: now);
+        app.Submit(minQuotations: 1);
 
         var after = DateTimeOffset.UtcNow.AddSeconds(1);
         Assert.That(app.State, Is.EqualTo(ApplicationState.Submitted));
@@ -218,27 +141,5 @@ public class ApplicationSubmitGuardTests
         // ResetStageState wipes the reminder mask + stamps StageEnteredAt.
         Assert.That(app.RemindersSentMask, Is.EqualTo(0));
         Assert.That(app.StageEnteredAt, Is.InRange(before, after));
-    }
-
-    [Test]
-    public void StageSubmit_QuotationShortfall_Throws()
-    {
-        var app = NewApp();
-        var item = NewItem(1);
-        // No quotations stuffed — fails minQuotations=2.
-        AttachImpact(app, item);
-        app.AddItem(item);
-
-        var now = DateTimeOffset.UtcNow;
-        var stageClosesAt = now.AddDays(7);
-
-        var ex = Assert.Throws<InvalidOperationException>(
-            () => app.Submit(
-                minQuotations: 2,
-                currentStage: StageKind.Solicitud,
-                stageClosesAt: stageClosesAt,
-                now: now));
-
-        Assert.That(ex!.Message, Does.Contain("quotation"));
     }
 }

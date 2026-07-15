@@ -32,6 +32,9 @@ public class ApplicationController : Controller
     private readonly IStageExpiryEvaluator _stageExpiry;
     private readonly IStageExpiryClock _stageExpiryClock;
     private readonly ICategoryRepository _categoryRepository;
+    // Spec 044 — reception-window gating + applicant timing notice.
+    private readonly Application.Processes.ReceptionWindows.IReceptionWindowQuery _receptionWindows;
+    private readonly Application.Time.IBusinessTimeZone _businessTime;
 
     public ApplicationController(
         ApplicationService applicationService,
@@ -44,7 +47,9 @@ public class ApplicationController : Controller
         ICreateSupplierBranchHandler createBranchHandler,
         IStageExpiryEvaluator stageExpiry,
         IStageExpiryClock stageExpiryClock,
-        ICategoryRepository categoryRepository)
+        ICategoryRepository categoryRepository,
+        Application.Processes.ReceptionWindows.IReceptionWindowQuery receptionWindows,
+        Application.Time.IBusinessTimeZone businessTime)
     {
         _applicationService = applicationService;
         _dbContext = dbContext;
@@ -57,6 +62,33 @@ public class ApplicationController : Controller
         _stageExpiry = stageExpiry;
         _stageExpiryClock = stageExpiryClock;
         _categoryRepository = categoryRepository;
+        _receptionWindows = receptionWindows;
+        _businessTime = businessTime;
+    }
+
+    /// <summary>Spec 044 / US3 — stashes a <c>ReceptionWindowNoticeViewModel</c> in
+    /// <c>ViewData["ReceptionNotice"]</c> for the chosen Group's Process (null group
+    /// ⇒ no notice). Pure-render: instant + remaining are server-computed here.</summary>
+    private async Task PopulateReceptionNoticeForGroupAsync(int? groupId)
+    {
+        if (groupId is not int gid)
+        {
+            ViewData["ReceptionNotice"] = null;
+            return;
+        }
+        var now = _stageExpiryClock.UtcNow;
+        var availability = await _receptionWindows.GetAvailabilityForGroupAsync(gid, now, default);
+        ViewData["ReceptionNotice"] =
+            ViewModels.ReceptionWindowNoticeViewModel.FromAvailability(availability, _businessTime, now);
+    }
+
+    /// <summary>Spec 044 / US3 — reception notice for an existing draft (Application → Process).</summary>
+    private async Task PopulateReceptionNoticeForApplicationAsync(int applicationId)
+    {
+        var now = _stageExpiryClock.UtcNow;
+        var availability = await _receptionWindows.GetAvailabilityForApplicationAsync(applicationId, now, default);
+        ViewData["ReceptionNotice"] =
+            ViewModels.ReceptionWindowNoticeViewModel.FromAvailability(availability, _businessTime, now);
     }
 
     [HttpGet]
@@ -97,9 +129,14 @@ public class ApplicationController : Controller
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var applicantId = await GetCurrentApplicantIdAsync();
         var model = new CreateApplicationViewModel();
-        await PopulateEligibleGroupsAsync(model, userId);
+        var eligible = await ResolveEligibleGroupsAsync(userId);
+        PopulateEligibleGroupsFrom(model, eligible);
         // Spec 037 / FR-002 — populate the company selector (0/1/many rules).
         PopulateActiveCompaniesFrom(model, await ResolveActiveCompaniesAsync(applicantId));
+        // Spec 044 / US3 — when there is a single eligible Process, show its timing
+        // notice up front. With several, the notice appears after a selection (POST).
+        await PopulateReceptionNoticeForGroupAsync(
+            eligible.Count == 1 ? eligible[0].GroupId : (int?)null);
         return View(model);
     }
 
@@ -122,6 +159,7 @@ public class ApplicationController : Controller
         {
             PopulateEligibleGroupsFrom(model, eligible);
             PopulateActiveCompaniesFrom(model, companies);
+            await PopulateReceptionNoticeForGroupAsync(model.GroupId);
             return View(model);
         }
         if (model.GroupId is null || eligible.All(g => g.GroupId != model.GroupId.Value))
@@ -137,10 +175,33 @@ public class ApplicationController : Controller
                 "Debe seleccionar una empresa válida.");
         }
 
+        // Spec 044 / FR-014 — block STARTING a new draft when the chosen Process has
+        // closed all its reception windows (a dead-end: it could never be submitted).
+        // Unrestricted/Open/Upcoming/Between all permit creation (a future window
+        // still gives a submission chance). Existing-draft editing is never gated.
+        if (model.GroupId is int chosenGroup && eligible.Any(g => g.GroupId == chosenGroup))
+        {
+            var availability = await _receptionWindows.GetAvailabilityForGroupAsync(
+                chosenGroup, _stageExpiryClock.UtcNow, default);
+            if (!availability.CanCreateDraft)
+            {
+                var closedInstant = availability.LastClosedWindow is { } lc
+                    ? _businessTime.ToBusinessLocal(lc.EndUtc).ToString("dd/MM/yyyy HH:mm")
+                    : null;
+                // Model-level (empty key) so the refusal shows in the ModelOnly summary
+                // for both single-group (hidden input, no field span) and multi-group layouts.
+                ModelState.AddModelError(string.Empty,
+                    closedInstant is null
+                        ? Resources.ReceptionWindowResources.RefusalGeneric
+                        : Resources.ReceptionWindowResources.RefusalAllClosed(closedInstant));
+            }
+        }
+
         if (!ModelState.IsValid)
         {
             PopulateEligibleGroupsFrom(model, eligible);
             PopulateActiveCompaniesFrom(model, companies);
+            await PopulateReceptionNoticeForGroupAsync(model.GroupId);
             return View(model);
         }
 
@@ -153,6 +214,7 @@ public class ApplicationController : Controller
                 _errorTranslator.Translate(result.Error));
             PopulateEligibleGroupsFrom(model, eligible);
             PopulateActiveCompaniesFrom(model, companies);
+            await PopulateReceptionNoticeForGroupAsync(model.GroupId);
             return View(model);
         }
 
@@ -196,10 +258,9 @@ public class ApplicationController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        // Spec 021 / T119 / FR-024 — populate ViewData with the stage countdown
-        // banner ViewModel so the partial in Edit.cshtml can render the live
-        // window (or the "Vencido" red state when closed).
-        await PopulateStageBannerAsync(id);
+        // Spec 044 / US3 — the Solicitud stage countdown banner is replaced by the
+        // reception-window timing notice (the Solicitud duration gate was removed).
+        await PopulateReceptionNoticeForApplicationAsync(id);
         await PopulateRegulationLinkAsync(id);
 
         var viewModel = MapToViewModel(application);
@@ -337,10 +398,25 @@ public class ApplicationController : Controller
         {
             return NotFound();
         }
-        // Spec 021 / T119 / FR-024 — surface the stage countdown banner on the
-        // /review surface so the applicant sees the live remaining-time before
-        // pressing "Confirmar y enviar".
-        await PopulateStageBannerAsync(review.Id);
+        // Spec 044 / US3 / FR-013 — the /review surface is where the applicant
+        // actually submits ("Confirmar y enviar"), so the reception-window notice
+        // and the timing-disabled state MUST be here too. For a Draft we show the
+        // reception notice (and stash CanSubmit so the view can disable + explain);
+        // the legacy Solicitud stage banner is suppressed for Drafts (it would
+        // mislabel a Draft as "Revisión" now that the Solicitud arm is gone). For
+        // non-Draft (read view) the Revisión/Facturación stage banner still applies.
+        if (review.State == FundingPlatform.Domain.Enums.ApplicationState.Draft)
+        {
+            var now = _stageExpiryClock.UtcNow;
+            var availability = await _receptionWindows.GetAvailabilityForApplicationAsync(review.Id, now, default);
+            ViewData["ReceptionNotice"] =
+                ViewModels.ReceptionWindowNoticeViewModel.FromAvailability(availability, _businessTime, now);
+            ViewData["ReceptionCanSubmit"] = availability.CanSubmit;
+        }
+        else
+        {
+            await PopulateStageBannerAsync(review.Id);
+        }
         return View(review);
     }
 
@@ -370,6 +446,23 @@ public class ApplicationController : Controller
             // mapped to 422 by the global DomainExceptionFilter).
             await _submitHandler.SubmitAsync(new SubmitApplicationCommand(id));
             TempData["SuccessMessage"] = "Solicitud enviada con éxito.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (FundingPlatform.Domain.Exceptions.ReceptionWindowClosedException ex)
+        {
+            // Spec 044 / FR-009 — the navigational submit POST must surface a friendly
+            // es-CR explanation, not the raw 422 ProblemDetails the global filter
+            // emits for fetch callers. (The Review submit button is also disabled when
+            // the window isn't open; this catch covers a crafted/raced POST.)
+            var instant = ex.BoundaryUtc is { } b
+                ? _businessTime.ToBusinessLocal(b).ToString("dd/MM/yyyy HH:mm")
+                : null;
+            var message = instant is null
+                ? Resources.ReceptionWindowResources.RefusalGeneric
+                : ex.Status == FundingPlatform.Domain.ReceptionWindows.SubmissionAvailabilityStatus.AllWindowsClosed
+                    ? Resources.ReceptionWindowResources.RefusalAllClosed(instant)
+                    : Resources.ReceptionWindowResources.RefusalBeforeOpen(instant);
+            TempData["ValidationErrors"] = System.Text.Json.JsonSerializer.Serialize(new List<string> { message });
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (InvalidOperationException ex)

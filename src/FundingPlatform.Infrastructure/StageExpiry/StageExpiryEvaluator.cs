@@ -87,23 +87,24 @@ public sealed class StageExpiryEvaluator : IStageExpiryEvaluator
     }
 
     /// <summary>
-    /// Spec 021 — maps Application state machine onto the FR-006 stage-window axis.
-    /// Draft/SendBack-to-Draft and AppealOpen are treated as the *Solicitud* stage
-    /// (applicant editing window). Submitted/UnderReview is *Revision* (reviewer
+    /// Spec 021 / 044 — maps Application state machine onto the reviewer/signing
+    /// stage-window axis. Submitted/UnderReview/Resolved is *Revision* (reviewer
     /// working window). ResponseFinalized is *Facturacion* (signing/payout window).
-    /// AgreementExecuted has no live window — clamped to Facturacion as a no-op
-    /// fallthrough so the bucket math doesn't go negative.
+    ///
+    /// Spec 044 — Draft/AppealOpen no longer map to a stage window: the Solicitud
+    /// duration gate was removed (reception windows gate submission, not draft
+    /// editing), so these applicant-editing states are excluded from stage-expiry
+    /// reminders by the worker query. They fall through to Revision here only as a
+    /// non-negative default; the worker never passes them in.
     /// </summary>
     public static StageKind ResolveStageKind(ApplicationState state) => state switch
     {
-        ApplicationState.Draft => StageKind.Solicitud,
-        ApplicationState.AppealOpen => StageKind.Solicitud,
         ApplicationState.Submitted => StageKind.Revision,
         ApplicationState.UnderReview => StageKind.Revision,
         ApplicationState.Resolved => StageKind.Revision,
         ApplicationState.ResponseFinalized => StageKind.Facturacion,
         ApplicationState.AgreementExecuted => StageKind.Facturacion,
-        _ => StageKind.Solicitud,
+        _ => StageKind.Revision,
     };
 
     private async Task<int> ResolveWindowDaysAsync(AppEntity application, StageKind stage, CancellationToken ct)
@@ -128,7 +129,7 @@ public sealed class StageExpiryEvaluator : IStageExpiryEvaluator
                 join p in _db.Processes on g.ProcessId equals p.Id
                 select new
                 {
-                    p.SolicitudWindowDays,
+                    // Spec 044 — SolicitudWindowDays removed.
                     p.RevisionWindowDays,
                     p.FacturacionWindowDays,
                 }).FirstOrDefaultAsync(ct).ConfigureAwait(false);
@@ -137,7 +138,6 @@ public sealed class StageExpiryEvaluator : IStageExpiryEvaluator
             {
                 overrideDays = stage switch
                 {
-                    StageKind.Solicitud => processOverrides.SolicitudWindowDays,
                     StageKind.Revision => processOverrides.RevisionWindowDays,
                     StageKind.Facturacion => processOverrides.FacturacionWindowDays,
                     _ => null,
@@ -164,10 +164,9 @@ public sealed class StageExpiryEvaluator : IStageExpiryEvaluator
         // don't take down the reminder service.
         return stage switch
         {
-            StageKind.Solicitud => 14,
             StageKind.Revision => 10,
             StageKind.Facturacion => 30,
-            _ => 14,
+            _ => 10,
         };
     }
 }

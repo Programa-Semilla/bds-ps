@@ -26,7 +26,7 @@ public class ProcessConfiguration : IEntityTypeConfiguration<Process>
 
         builder.Property(p => p.Status).IsRequired().HasConversion<byte>();
 
-        builder.Property(p => p.SolicitudWindowDays);
+        // Spec 044 — SolicitudWindowDays removed (reception windows replace it).
         builder.Property(p => p.RevisionWindowDays);
         builder.Property(p => p.FacturacionWindowDays);
 
@@ -54,6 +54,12 @@ public class ProcessConfiguration : IEntityTypeConfiguration<Process>
 
         builder.Metadata
             .FindNavigation(nameof(Process.Groups))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        // Spec 044 — Process → ProcessEvents (the relationship + FK are configured
+        // on the dependent side in ProcessEventConfiguration).
+        builder.Metadata
+            .FindNavigation(nameof(Process.Events))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }

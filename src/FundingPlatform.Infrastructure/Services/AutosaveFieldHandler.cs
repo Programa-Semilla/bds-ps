@@ -53,15 +53,10 @@ public sealed class AutosaveFieldHandler : IAutosaveFieldHandler
                 "Caller does not own the application identified by the supplied PublicCode.");
         }
 
-        // R-5 — stage-window guard. The stage-closed exception bubbles to the
-        // global DomainExceptionFilter which maps it to HTTP 422 with the
-        // es-CR ProblemDetails copy.
-        var stageClosesAt = await ResolveSolicitudCloseInstantAsync(application, ct);
-        var now = _clock.UtcNow;
-        if (now >= stageClosesAt)
-        {
-            throw new StageWindowClosedException(StageKind.Solicitud, stageClosesAt);
-        }
+        // Spec 044 / FR-015 — existing-draft editing is ALWAYS allowed. The legacy
+        // Solicitud duration window that gated autosave was removed (reception
+        // windows gate submission + new-draft creation, not draft editing). Only
+        // the optimistic-concurrency (ETag) path remains below.
 
         // ETag check — Application.RowVersion is the optimistic-concurrency
         // token. We compare the supplied base64 string against the stored bytes.
@@ -115,15 +110,4 @@ public sealed class AutosaveFieldHandler : IAutosaveFieldHandler
         }
     }
 
-    private async Task<DateTimeOffset> ResolveSolicitudCloseInstantAsync(AppEntity application, CancellationToken ct)
-    {
-        var config = await _db.SystemConfigurations
-            .FirstOrDefaultAsync(c => c.Key == "Stage.Solicitud.WindowDays", ct);
-        var days = 14;
-        if (config is not null && int.TryParse(config.Value, out var parsed) && parsed > 0)
-        {
-            days = parsed;
-        }
-        return application.StageEnteredAt.AddDays(days);
-    }
 }

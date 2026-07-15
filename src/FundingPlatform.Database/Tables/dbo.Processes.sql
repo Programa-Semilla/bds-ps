@@ -11,7 +11,9 @@ CREATE TABLE [dbo].[Processes]
     -- column NOT NULL with an inline FK (no default) would fail the publish on
     -- any table that already has rows, rolling back the whole deployment.
     [FundId]                 INT            NOT NULL CONSTRAINT [DF_Processes_FundId] DEFAULT (0),
-    [SolicitudWindowDays]    INT            NULL,
+    -- Spec 044 — SolicitudWindowDays dropped; reception windows (dbo.ProcessEvents)
+    -- replace the Solicitud duration submission gate. Dropped on populated DBs by
+    -- PostDeployment/09_DropSolicitudWindowDays.sql.
     [RevisionWindowDays]     INT            NULL,
     [FacturacionWindowDays]  INT            NULL,
     [CreatedAt]              DATETIMEOFFSET(0)   NOT NULL CONSTRAINT [DF_Processes_CreatedAt] DEFAULT (SYSUTCDATETIME()),

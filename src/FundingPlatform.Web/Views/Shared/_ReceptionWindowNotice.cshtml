@@ -1,0 +1,64 @@
+@*
+    Spec 044 / US3 — applicant reception-window timing notice. Pure render:
+    the controller server-computes the instant (CR local) + remaining time.
+    Unrestricted (no windows) renders nothing.
+*@
+@using FundingPlatform.Domain.ReceptionWindows
+@using RW = FundingPlatform.Web.Resources.ReceptionWindowResources
+@model FundingPlatform.Web.ViewModels.ReceptionWindowNoticeViewModel
+
+@if (Model is not null && Model.ShouldRender)
+{
+    string Instant() => Model.BoundaryLocal?.ToString("dd/MM/yyyy HH:mm") ?? "";
+    string Remaining()
+    {
+        if (Model.Remaining is not { } r || r <= TimeSpan.Zero) return "";
+        var days = (int)r.TotalDays;
+        return days >= 1 ? $"{days} día(s) {r.Hours} h" : $"{r.Hours} h {r.Minutes} min";
+    }
+
+    @switch (Model.Status)
+    {
+        case SubmissionAvailabilityStatus.Open:
+            <div class="alert alert-success" role="alert" data-testid="reception-notice"
+                 data-reception-state="open">
+                <h4 class="alert-title">@RW.OpenHeading</h4>
+                <div class="text-secondary">@RW.OpenBody(Instant())</div>
+                @if (!string.IsNullOrEmpty(Remaining()))
+                {
+                    <div class="mt-1" data-testid="reception-countdown">@RW.OpenCountdown(Remaining())</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.ApplicantMessage))
+                {
+                    <div class="mt-1 fst-italic">@Model.ApplicantMessage</div>
+                }
+            </div>
+            break;
+
+        case SubmissionAvailabilityStatus.BeforeFirstWindow:
+        case SubmissionAvailabilityStatus.BetweenWindows:
+            <div class="alert alert-info" role="alert" data-testid="reception-notice"
+                 data-reception-state="upcoming">
+                <h4 class="alert-title">@RW.UpcomingHeading</h4>
+                <div class="text-secondary">@RW.UpcomingBody(Instant())</div>
+                @if (!string.IsNullOrWhiteSpace(Model.ApplicantMessage))
+                {
+                    <div class="mt-1 fst-italic">@Model.ApplicantMessage</div>
+                }
+            </div>
+            break;
+
+        case SubmissionAvailabilityStatus.AllWindowsClosed:
+            <div class="alert alert-warning" role="alert" data-testid="reception-notice"
+                 data-reception-state="closed">
+                <h4 class="alert-title">@RW.ClosedHeading</h4>
+                <div class="text-secondary">@RW.ClosedBody(Instant())</div>
+            </div>
+            break;
+    }
+
+    @if (!Model.CanSubmit)
+    {
+        <p class="text-muted small" data-testid="reception-submit-disabled-note">@RW.SubmitDisabledOpen</p>
+    }
+}

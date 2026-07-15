@@ -193,6 +193,13 @@ public static class DependencyInjection
         // Spec 029 / US1 — Fund (Fondo) admin CRUD + lifecycle + regulation storage.
         services.AddScoped<Application.Funds.IFundService, Services.FundService>();
 
+        // Spec 044 — reception windows: business timezone (CR), admin CRUD, read/gating.
+        services.AddSingleton<Application.Time.IBusinessTimeZone, Time.BusinessTimeZone>();
+        services.AddScoped<Application.Processes.ReceptionWindows.IReceptionWindowService,
+            Services.ReceptionWindowService>();
+        services.AddScoped<Application.Processes.ReceptionWindows.IReceptionWindowQuery,
+            Services.ReceptionWindowQuery>();
+
         // Spec 040 — auditor workflow orchestration (send-to-audit, audit, release, return).
         services.AddScoped<Application.Audit.IAuditWorkflowService, Services.AuditWorkflowService>();
         // Spec 040 / US4 — admin checklist-template CRUD.

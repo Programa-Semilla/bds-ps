@@ -24,7 +24,7 @@ public class ProcessTests
         Assert.That(process.Status, Is.EqualTo(ProcessStatus.Active));
         Assert.That(process.CreatedAt, Is.InRange(before, after));
         Assert.That(process.ClosedAt, Is.Null);
-        Assert.That(process.SolicitudWindowDays, Is.Null);
+        // Spec 044 — SolicitudWindowDays removed.
         Assert.That(process.RevisionWindowDays, Is.Null);
         Assert.That(process.FacturacionWindowDays, Is.Null);
     }
@@ -77,14 +77,16 @@ public class ProcessTests
     }
 
     [Test]
-    public void OverrideStageWindow_Solicitud_SetsField()
+    public void OverrideStageWindow_Solicitud_IsNoLongerOverridable()
     {
+        // Spec 044 — the Solicitud duration window was removed; reception windows
+        // gate submission timing. Solicitud is rejected by the stage switch.
         var process = Process.Create("Crocus 2025", 1);
 
-        process.OverrideStageWindow(StageKind.Solicitud, 14);
-
-        Assert.That(process.SolicitudWindowDays, Is.EqualTo(14));
-        Assert.That(process.OverrideForStage(StageKind.Solicitud), Is.EqualTo(14));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => process.OverrideStageWindow(StageKind.Solicitud, 14));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => process.OverrideForStage(StageKind.Solicitud));
     }
 
     [Test]
@@ -113,12 +115,12 @@ public class ProcessTests
     public void OverrideStageWindow_Null_RevertsToDefault()
     {
         var process = Process.Create("Crocus 2025", 1);
-        process.OverrideStageWindow(StageKind.Solicitud, 14);
+        process.OverrideStageWindow(StageKind.Revision, 14);
 
-        process.OverrideStageWindow(StageKind.Solicitud, null);
+        process.OverrideStageWindow(StageKind.Revision, null);
 
-        Assert.That(process.SolicitudWindowDays, Is.Null);
-        Assert.That(process.OverrideForStage(StageKind.Solicitud), Is.Null);
+        Assert.That(process.RevisionWindowDays, Is.Null);
+        Assert.That(process.OverrideForStage(StageKind.Revision), Is.Null);
     }
 
     [TestCase(0)]
@@ -129,7 +131,7 @@ public class ProcessTests
         var process = Process.Create("Crocus 2025", 1);
 
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => process.OverrideStageWindow(StageKind.Solicitud, days));
+            () => process.OverrideStageWindow(StageKind.Revision, days));
     }
 
     [Test]
@@ -139,7 +141,7 @@ public class ProcessTests
         process.Close();
 
         Assert.Throws<ProcessClosedException>(
-            () => process.OverrideStageWindow(StageKind.Solicitud, 14));
+            () => process.OverrideStageWindow(StageKind.Revision, 14));
     }
 
     [Test]
@@ -147,7 +149,6 @@ public class ProcessTests
     {
         var process = Process.Create("Crocus 2025", 1);
 
-        Assert.That(process.OverrideForStage(StageKind.Solicitud), Is.Null);
         Assert.That(process.OverrideForStage(StageKind.Revision), Is.Null);
         Assert.That(process.OverrideForStage(StageKind.Facturacion), Is.Null);
     }

@@ -25,20 +25,16 @@
    via the TempData→toast bridge (_NotificationToasts), so this view renders none of
    them inline. *@
 
-@* Spec 021 / T119 / FR-024 — stage countdown banner. *@
+@* Spec 044 / US3 — reception-window timing notice (replaces the Solicitud stage
+   countdown banner; the Solicitud duration gate was removed). Renders nothing when
+   the Process has no reception windows (unrestricted). *@
 @{
-    var stageBanner = ViewData["StageBanner"] as FundingPlatform.Web.ViewModels.StageCountdownBannerViewModel;
+    var receptionNotice = ViewData["ReceptionNotice"]
+        as FundingPlatform.Web.ViewModels.ReceptionWindowNoticeViewModel;
 }
-@if (stageBanner is not null)
+@if (receptionNotice is not null)
 {
-    @await Html.PartialAsync("_StageCountdownBanner", stageBanner)
-}
-else
-{
-    <div class="alert alert-info mb-3" data-testid="stage-countdown-banner-slot">
-        <i class="ti ti-clock me-2" aria-hidden="true"></i>
-        <span class="fl-stage-countdown-text">Su solicitud está en etapa <strong>Solicitud</strong>.</span>
-    </div>
+    @await Html.PartialAsync("_ReceptionWindowNotice", receptionNotice)
 }
 
 @* Spec 029 / FR-013 — regulation download when the governing Fund is Active + present. *@

@@ -63,6 +63,15 @@ public class AdminAuditEvent
     /// in <c>AdminAuditEventWriter</c>.</summary>
     public const string ProcessRenamed = "process.renamed";
 
+    // ---------- Spec 044 — admin reception-window CRUD. ----------
+    // The `process.` prefix routes these through the existing Process target type
+    // in AdminAuditEventWriter (no new target type). Payload: { processId, windowId, ... }.
+    public const string ReceptionWindowCreated = "process.reception_window.created";
+    public const string ReceptionWindowUpdated = "process.reception_window.updated";
+    public const string ReceptionWindowActivated = "process.reception_window.activated";
+    public const string ReceptionWindowDeactivated = "process.reception_window.deactivated";
+    public const string ReceptionWindowDeleted = "process.reception_window.deleted";
+
     // ---------- Spec 036 — funds-usage evidence mutations. ----------
     /// <summary>Spec 036 / FR-003 — reviewer/admin uploaded an evidence file.</summary>
     public const string FundsEvidenceUploaded = "funds_evidence.uploaded";

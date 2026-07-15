@@ -382,6 +382,8 @@ GO
 -- Sample suppliers with specific regulatory profiles (recommendation + CCSS-block testing).
 -- Idempotent by LegalId; requires the province/cantón/distrito catalog (seeded above).
 :r .\08_SeedSuppliers.sql
+-- Spec 044 — drop the legacy SolicitudWindowDays column + its config row.
+:r .\09_DropSolicitudWindowDays.sql
 
 -- =============================================================================
 -- Spec 021 / data-model.md — SystemConfiguration rows for stage windows and the
@@ -389,12 +391,9 @@ GO
 -- surface; the keys land NULL initially and the public landing renders the
 -- "Próximamente" placeholder until populated).
 -- =============================================================================
-IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'Stage.Solicitud.WindowDays')
-    INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])
-    VALUES (N'Stage.Solicitud.WindowDays', N'14',
-            N'Spec 021 — default Solicitud stage window in days; per-Process override on Processes.SolicitudWindowDays.',
-            SYSUTCDATETIME());
-
+-- Spec 044 — Stage.Solicitud.WindowDays removed (reception windows replace the
+-- Solicitud duration submission gate). Any existing row is deleted by
+-- 09_DropSolicitudWindowDays.sql above.
 IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'Stage.Revision.WindowDays')
     INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])
     VALUES (N'Stage.Revision.WindowDays', N'10',

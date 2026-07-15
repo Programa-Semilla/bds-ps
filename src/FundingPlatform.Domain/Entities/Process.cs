@@ -20,6 +20,7 @@ public class Process
     public const int MaxNameLength = 120;
 
     private readonly List<Group> _groups = [];
+    private readonly List<ProcessEvent> _events = [];
 
     public int Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
@@ -29,7 +30,9 @@ public class Process
     public int FundId { get; private set; }
     public Fund? Fund { get; private set; }
 
-    public int? SolicitudWindowDays { get; private set; }
+    // Spec 044 — the legacy Solicitud duration override was removed; reception
+    // windows (Process.Events) now gate submission timing. Revisión/Facturación
+    // stage windows are unchanged.
     public int? RevisionWindowDays { get; private set; }
     public int? FacturacionWindowDays { get; private set; }
 
@@ -40,6 +43,9 @@ public class Process
 
     public ProcessPlantilla? Plantilla { get; internal set; }
     public IReadOnlyCollection<Group> Groups => _groups.AsReadOnly();
+
+    // Spec 044 — general per-Process calendar items; reception windows gate submission.
+    public IReadOnlyCollection<ProcessEvent> Events => _events.AsReadOnly();
 
     private Process() { }
 
@@ -126,9 +132,8 @@ public class Process
 
         switch (stage)
         {
-            case StageKind.Solicitud:
-                SolicitudWindowDays = days;
-                break;
+            // Spec 044 — StageKind.Solicitud is no longer overridable; reception
+            // windows replace the Solicitud duration gate.
             case StageKind.Revision:
                 RevisionWindowDays = days;
                 break;
@@ -147,7 +152,7 @@ public class Process
     /// </summary>
     public int? OverrideForStage(StageKind stage) => stage switch
     {
-        StageKind.Solicitud => SolicitudWindowDays,
+        // Spec 044 — Solicitud is no longer a per-Process duration window.
         StageKind.Revision => RevisionWindowDays,
         StageKind.Facturacion => FacturacionWindowDays,
         _ => throw new ArgumentOutOfRangeException(nameof(stage), stage, "Unknown stage."),
