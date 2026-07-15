@@ -170,7 +170,7 @@ _Older entries condensed to one line each — see `specs/NNN-slug/` for full det
 - 015-multi-currency-quotes: Multi-currency supplier quotations (CRC base + USD), buy-rate snapshotting, agreement PDF conversion notes.
 
 <!-- SPECKIT START -->
-**Active plan: none** — feedback-3 slices A–E all shipped.
+**Active plan: `specs/045-financial-disbursement-core/plan.md`** — P1 (slice 1 of 9) of the financial-execution program (`brainstorm/41-financial-disbursement-platform.md`): dedicated `Disbursement` + append-only ledger + five-dimension participant balance + zero-colón reconciliation, downstream of an executed funding agreement. New group-scoped `Financial Operator` role; additive dacpac-only schema; no new managed deps. Spec + plan/research/data-model/contracts/quickstart written; next `/speckit-tasks`. Multi-agency + Mentori parked.
 
 **Last shipped: 044-process-reception-windows** (PR #77) — full detail in Recent Changes above. **feedback-3 slices A–E shipped:** slice A `038-auditor-provider-compliance` (PR #69), slice B `039-supplier-recommendation` (PR #70), slice C `040-auditor-workflow-stage` (co-shipped in PR #72), slice D `043` (PR #75), slice E `044` (PR #77).
 
