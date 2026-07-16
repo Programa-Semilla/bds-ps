@@ -21,9 +21,9 @@ namespace FundingPlatform.Web.Controllers;
 
 /// <summary>
 /// Spec 045 — the per-application financial disbursement surface, mounted per application
-/// (mirrors <c>FundsUsageEvidenceController</c>). Financial Operator + Admin can write;
-/// Auditor gets read-only (write POSTs → 403). Every action enforces the role gate
-/// (attribute), the group-overlap + <see cref="ApplicationState.AgreementExecuted"/> gate
+/// (mirrors <c>FundsUsageEvidenceController</c>). Only the Financial Operator writes; Auditor
+/// AND Admin get read-only (write POSTs → 403), per FR-025. Every action enforces the role
+/// gate (attribute), the group-overlap + <see cref="ApplicationState.AgreementExecuted"/> gate
 /// (flat 404, no disclosure), and a cross-application disbursement-id guard.
 /// </summary>
 [Authorize(Roles = "Financial Operator,Admin,Auditor")]
@@ -282,7 +282,7 @@ public sealed class DisbursementController : Controller
 
     /// <summary>Write authorization for every mutating POST. Order matters: the access gate
     /// runs first (out-of-group/not-executed → flat 404, no disclosure), THEN the read-only
-    /// write-guard (an in-scope Auditor → 403). Returns null when the caller may write.</summary>
+    /// write-guard (an in-scope Auditor/Admin → 403). Returns null when the caller may write.</summary>
     private async Task<IActionResult?> GuardWriteAsync(int applicationId, CancellationToken ct)
     {
         if (!await IsAccessibleAsync(applicationId, ct))
@@ -291,7 +291,7 @@ public sealed class DisbursementController : Controller
         }
         if (!CanWrite())
         {
-            return Forbid(); // in-scope Auditor: read-only (FR-025)
+            return Forbid(); // in-scope Auditor/Admin: read-only (FR-025)
         }
         return null;
     }
@@ -301,7 +301,11 @@ public sealed class DisbursementController : Controller
         => await _db.Disbursements.AsNoTracking()
             .AnyAsync(d => d.Id == disbursementId && d.ApplicationId == applicationId, ct);
 
-    private bool CanWrite() => User.IsInRole("Financial Operator") || User.IsInRole("Admin");
+    // Spec 045 / FR-025 — only the Financial Operator may write; Auditor AND Admin are
+    // read-only on the financial surface (money movement is the operator's segregated duty).
+    // Note: this narrows the plan's R10 "Financial Operator, Admin" write set to match the
+    // explicit spec requirement (see REVIEW-CODE.md).
+    private bool CanWrite() => User.IsInRole("Financial Operator");
 
     private IActionResult Flash(Result result, string successMessage, int applicationId, int? _)
     {
