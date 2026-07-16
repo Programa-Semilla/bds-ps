@@ -88,6 +88,16 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<AppEntity>
             .HasForeignKey(i => i.ApplicationId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Spec 046 — per-application tranches (funding phases), backing field _tranches. Restrict:
+        // applications are soft-deleted, and the DB FK is NO ACTION (dbo.Tranches.sql).
+        builder.HasMany(a => a.Tranches)
+            .WithOne()
+            .HasForeignKey(t => t.ApplicationId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Metadata
+            .FindNavigation(nameof(AppEntity.Tranches))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
         builder.HasMany(a => a.VersionHistory)
             .WithOne(v => v.Application)
             .HasForeignKey(v => v.ApplicationId)

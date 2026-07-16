@@ -119,6 +119,20 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
         {
             return (AdminAuditEvent.TargetTypeChecklist, "0");
         }
+        // Spec 046 — tranche mutations (tranche.created/renamed/deleted/item_assigned/…).
+        // Like disbursement.*, the real tranche id is parsed from the payload's `trancheId`
+        // so the trail is queryable per tranche. tranche.item_unassigned carries no tranche
+        // id and falls back to the "0" sentinel.
+        if (eventKind.StartsWith("tranche.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeTranche, ExtractIntId(payloadJson, "trancheId"));
+        }
+        // Spec 046 — budget-line commit mutations (line.committed/uncommitted). Target the
+        // line Item; the real item id is parsed from the payload's `itemId`.
+        if (eventKind.StartsWith("line.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeItem, ExtractIntId(payloadJson, "itemId"));
+        }
         return ("system", "0");
     }
 

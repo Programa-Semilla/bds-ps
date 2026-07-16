@@ -11,6 +11,7 @@ public class Application
     private readonly List<VersionHistory> _versionHistory = [];
     private readonly List<ApplicantResponse> _applicantResponses = [];
     private readonly List<Appeal> _appeals = [];
+    private readonly List<Tranche> _tranches = []; // Spec 046 — per-application funding phases.
     private FundingAgreement? _fundingAgreement;
 
     public int Id { get; private set; }
@@ -105,6 +106,9 @@ public class Application
     public Applicant Applicant { get; private set; } = null!;
 
     public IReadOnlyList<Item> Items => _items.AsReadOnly();
+    /// <summary>Spec 046 — the reviewer-defined funding phases. Unassigned lines
+    /// (<see cref="Item.TrancheId"/> == null) fall into a virtual default tranche with no row.</summary>
+    public IReadOnlyList<Tranche> Tranches => _tranches.AsReadOnly();
     public IReadOnlyList<VersionHistory> VersionHistory => _versionHistory.AsReadOnly();
     public IReadOnlyList<ApplicantResponse> ApplicantResponses => _applicantResponses.AsReadOnly();
     public IReadOnlyList<Appeal> Appeals => _appeals.AsReadOnly();
@@ -367,6 +371,117 @@ public class Application
 
         item.AssignLineCode(trimmed);
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ---------- Spec 046 — tranche (funding-phase) structure, reviewer-owned, frozen at execution. ----------
+
+    /// <summary>
+    /// Spec 046 / FR-002 (research D4) — the tranche structure (create/rename/delete/assign) is
+    /// frozen once the agreement executes. Mutations after <see cref="ApplicationState.AgreementExecuted"/>
+    /// throw. There is no execution-time hook (<see cref="ExecuteAgreement"/> is a pure state flip) —
+    /// the freeze is enforced by this guard at every tranche mutation entry point.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown once the application is executed.</exception>
+    private void EnsureTranchesEditable()
+    {
+        if (State == ApplicationState.AgreementExecuted)
+        {
+            var ex = new InvalidOperationException(
+                "Tranche structure is frozen: the funding agreement has been executed.");
+            ex.Data[TrancheFrozenKey] = true;
+            throw ex;
+        }
+    }
+
+    /// <summary>Spec 046 — discriminator on <see cref="System.Exception.Data"/> so the service layer
+    /// can map the freeze throw to the es-CR <c>TrancheFrozen</c> reason without message-string matching.</summary>
+    public const string TrancheFrozenKey = "FundingPlatform.TrancheFrozen";
+
+    /// <summary>
+    /// Spec 046 / FR-001 — creates a funding phase with the next display ordinal. Rejects a
+    /// duplicate name within this application (case-insensitive; the service adds accent-insensitivity
+    /// and the DB unique index backstops races). Frozen after execution.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Frozen, or a sibling tranche already has the name.</exception>
+    /// <exception cref="ArgumentException">Via <see cref="Tranche.Create"/> when the name is empty/too long.</exception>
+    public Tranche CreateTranche(string name)
+    {
+        EnsureTranchesEditable();
+        var trimmed = (name ?? string.Empty).Trim();
+        EnsureTrancheNameAvailable(trimmed, excludeTrancheId: null);
+
+        var nextOrdinal = _tranches.Count == 0 ? 1 : _tranches.Max(t => t.Ordinal) + 1;
+        var tranche = Tranche.Create(Id, trimmed, nextOrdinal);
+        _tranches.Add(tranche);
+        UpdatedAt = DateTime.UtcNow;
+        return tranche;
+    }
+
+    /// <summary>Spec 046 / FR-001 — renames a funding phase. Rejects a duplicate sibling name.
+    /// Frozen after execution.</summary>
+    public void RenameTranche(int trancheId, string name)
+    {
+        EnsureTranchesEditable();
+        var tranche = _tranches.FirstOrDefault(t => t.Id == trancheId)
+            ?? throw new InvalidOperationException($"Tranche {trancheId} is not part of this application.");
+
+        var trimmed = (name ?? string.Empty).Trim();
+        EnsureTrancheNameAvailable(trimmed, excludeTrancheId: trancheId);
+
+        tranche.Rename(trimmed);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Spec 046 / FR-001 — deletes a funding phase, re-parenting its member lines to the
+    /// synthetic default tranche (<see cref="Item.TrancheId"/> = null). Frozen after execution.</summary>
+    public void DeleteTranche(int trancheId)
+    {
+        EnsureTranchesEditable();
+        var tranche = _tranches.FirstOrDefault(t => t.Id == trancheId)
+            ?? throw new InvalidOperationException($"Tranche {trancheId} is not part of this application.");
+
+        foreach (var item in _items.Where(i => i.TrancheId == trancheId))
+        {
+            item.AssignTranche(null);
+        }
+        _tranches.Remove(tranche);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 046 / FR-001 — assigns a line to a tranche (or, with <paramref name="trancheId"/> null,
+    /// unassigns it → synthetic default). Both the item and the target tranche must belong to this
+    /// application. Frozen after execution.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Frozen, or the item / tranche is not part of this application.</exception>
+    public void AssignItemToTranche(int itemId, int? trancheId)
+    {
+        EnsureTranchesEditable();
+        var item = _items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException($"Item {itemId} is not part of this application.");
+
+        if (trancheId is { } tid && _tranches.All(t => t.Id != tid))
+        {
+            throw new InvalidOperationException($"Tranche {tid} is not part of this application.");
+        }
+
+        item.AssignTranche(trancheId);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    private void EnsureTrancheNameAvailable(string trimmedName, int? excludeTrancheId)
+    {
+        if (trimmedName.Length == 0)
+        {
+            return; // Tranche.Create/Rename raises the required-name error.
+        }
+        var collision = _tranches
+            .Where(t => excludeTrancheId is null || t.Id != excludeTrancheId)
+            .Any(t => string.Equals(t.Name, trimmedName, StringComparison.OrdinalIgnoreCase));
+        if (collision)
+        {
+            throw new InvalidOperationException($"A tranche named '{trimmedName}' already exists in this application.");
+        }
     }
 
     /// <summary>

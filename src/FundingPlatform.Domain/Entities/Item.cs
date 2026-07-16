@@ -35,6 +35,24 @@ public class Item
     public string? ReviewComment { get; private set; }
     public int? SelectedSupplierId { get; private set; }
     public bool IsNotTechnicallyEquivalent { get; private set; }
+
+    /// <summary>
+    /// Spec 046 — the tranche (funding phase) this budget-line belongs to, or <c>null</c>
+    /// when it falls into the application's virtual default ("General") tranche. Assigned by
+    /// the reviewer pre-execution via <see cref="Application.AssignItemToTranche"/>; mutated
+    /// only through <see cref="AssignTranche"/> so the aggregate root is the single entry point.
+    /// </summary>
+    public int? TrancheId { get; private set; }
+
+    /// <summary>
+    /// Spec 046 / FR-009 (research D1/D2) — the Financial Operator's off-ledger commit status.
+    /// Default <see cref="ItemCommitState.Uncommitted"/>. A line must be committed before a
+    /// payment can be attributed to it; reversible until the first payment lands (the "no
+    /// recorded payment" guard is enforced by the disbursement service, which can see
+    /// attributions, not by this entity).
+    /// </summary>
+    public ItemCommitState CommitState { get; private set; } = ItemCommitState.Uncommitted;
+
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -410,6 +428,49 @@ public class Item
         }
 
         LineCode = trimmed;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 046 — sets (or clears, when <paramref name="trancheId"/> is null) the budget-line's
+    /// tranche membership. <c>internal</c> so the aggregate root
+    /// (<see cref="Application.AssignItemToTranche"/>) is the single entry point, which validates
+    /// the tranche belongs to the same application and enforces the execution freeze.
+    /// </summary>
+    internal void AssignTranche(int? trancheId)
+    {
+        TrancheId = trancheId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 046 / FR-009 — obligates the budget-line (Uncommitted → Committed). Idempotent: a
+    /// repeat on an already-committed line is a no-op. Commit is post-execution and operator-owned,
+    /// driven by the disbursement service (which owns the "no payment" un-commit guard), so it is
+    /// <c>internal</c> rather than aggregate-root-frozen.
+    /// </summary>
+    internal void Commit()
+    {
+        if (CommitState == ItemCommitState.Committed)
+        {
+            return;
+        }
+        CommitState = ItemCommitState.Committed;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 046 / FR-007 — reverses a commitment (→ Uncommitted). The "no recorded payment" guard
+    /// is enforced by the service (it queries <see cref="DisbursementLineAllocation"/>); the entity
+    /// cannot see attributions. Idempotent.
+    /// </summary>
+    internal void Uncommit()
+    {
+        if (CommitState == ItemCommitState.Uncommitted)
+        {
+            return;
+        }
+        CommitState = ItemCommitState.Uncommitted;
         UpdatedAt = DateTime.UtcNow;
     }
 

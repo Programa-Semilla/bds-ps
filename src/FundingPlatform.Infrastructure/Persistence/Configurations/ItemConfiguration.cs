@@ -38,6 +38,25 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.Property(i => i.SelectedSupplierId);
         builder.Property(i => i.IsNotTechnicallyEquivalent).IsRequired().HasDefaultValue(false);
 
+        // Spec 046 — off-ledger commit status. HasConversion<byte>() is MANDATORY (035/040/045
+        // Byte→Int32 lesson: EF-InMemory hides it, real SQL throws on materialization).
+        builder.Property(i => i.CommitState)
+            .HasConversion<byte>()
+            .IsRequired()
+            .HasDefaultValue(Domain.Enums.ItemCommitState.Uncommitted);
+
+        // Spec 046 — tranche membership (null = synthetic default). FK Restrict: deleting a tranche
+        // re-parents its lines to null in the domain first (Application.DeleteTranche), so EF never
+        // cascades here. Filtered index mirrors the dacpac IX_Items_TrancheId.
+        builder.Property(i => i.TrancheId);
+        builder.HasOne<Tranche>()
+            .WithMany()
+            .HasForeignKey(i => i.TrancheId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(i => i.TrancheId)
+            .HasFilter("[TrancheId] IS NOT NULL")
+            .HasDatabaseName("IX_Items_TrancheId");
+
         builder.Property(i => i.CreatedAt).IsRequired();
         builder.Property(i => i.UpdatedAt).IsRequired();
 
