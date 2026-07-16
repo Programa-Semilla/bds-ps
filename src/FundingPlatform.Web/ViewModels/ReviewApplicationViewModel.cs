@@ -48,6 +48,10 @@ public class ReviewApplicationViewModel
 
     /// <summary>Spec 040 / US3 — the auditor's per-item non-compliance findings.</summary>
     public List<AuditFindingViewModel> AuditFindings { get; set; } = [];
+
+    /// <summary>Spec 046 / US1 — the tranche (funding-phase) editor, populated only pre-audit
+    /// (<see cref="ShowReviewerChecklist"/>). Null when tranches are not editable on this surface.</summary>
+    public ViewModels.Tranches.TrancheEditorViewModel? TrancheEditor { get; set; }
 }
 
 /// <summary>Spec 040 — one reviewer-stage checklist line on the Review surface.</summary>

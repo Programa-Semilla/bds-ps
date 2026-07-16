@@ -35,6 +35,8 @@ public class ReviewController : Controller
     private readonly IDecisionSummaryProjection _decisionSummary;
     // Spec 040 — reviewer send-to-audit / re-send + reviewer-checklist projection.
     private readonly Application.Audit.IAuditWorkflowService _auditWorkflow;
+    // Spec 046 — reviewer tranche (funding-phase) editor data on the pre-audit surface.
+    private readonly Application.Tranches.ITrancheService _trancheService;
     // Spec 027 / US5 — reviewer/admin write surface for the applicant's CodigoPersonal.
     private readonly Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> _userManager;
     private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
@@ -52,11 +54,13 @@ public class ReviewController : Controller
         IComparisonOrchestrator comparisonOrchestrator,
         IDecisionSummaryProjection decisionSummary,
         Application.Audit.IAuditWorkflowService auditWorkflow,
+        Application.Tranches.ITrancheService trancheService,
         Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> userManager,
         Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _reviewService = reviewService;
         _auditWorkflow = auditWorkflow;
+        _trancheService = trancheService;
         _signedUploadService = signedUploadService;
         _queueProjection = queueProjection;
         _errorTranslator = errorTranslator;
@@ -308,6 +312,18 @@ public class ReviewController : Controller
         else if (dto.State == Domain.Enums.ApplicationState.ReturnedFromAudit)
         {
             viewModel.ShowReturnedFromAudit = true;
+        }
+
+        // Spec 046 / US1 — the tranche editor is available on the pre-audit surface (ResponseFinalized,
+        // no agreement). After execution the structure is frozen (the service also enforces this).
+        if (viewModel.ShowReviewerChecklist)
+        {
+            viewModel.TrancheEditor = new ViewModels.Tranches.TrancheEditorViewModel
+            {
+                ApplicationId = id,
+                Tranches = await _trancheService.GetForApplicationAsync(id, ct),
+                Lines = await _trancheService.GetEditorLinesAsync(id, ct),
+            };
         }
 
         if (viewModel.ShowReviewerChecklist || viewModel.ShowReturnedFromAudit)

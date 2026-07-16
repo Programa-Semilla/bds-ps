@@ -54,17 +54,17 @@ description: "Task list for Tranches & Budget-Lines (Financial Execution P2)"
 
 ### Tests for US1
 
-- [ ] T015 [P] [US1] Unit tests in `tests/FundingPlatform.Tests.Unit/` — `Application` tranche methods (create/rename/delete/assign, duplicate-name reject, `AgreementExecuted` freeze throw, delete re-parents to synthetic) + `Tranche` guard invariants.
-- [ ] T016 [P] [US1] Integration tests (real SQL) in `tests/FundingPlatform.Tests.Integration/` — `TrancheService` CRUD + assignment; `UX_Tranches_ApplicationId_Name` duplicate race → `TrancheNameInUse`; derived Σ tranche amount == `DisbursementAllocation.ResolveAsync` snapshot (SC-001); synthetic tranche present iff a line has null `TrancheId`.
-- [ ] T017 [P] [US1] E2E `TrancheAdminTests` in `tests/FundingPlatform.Tests.E2E/` — reviewer defines tranches on `Review/{id}`, assigns lines, sees Σ=allocation + synthetic "General"; after execution tranche edits are refused (frozen).
+- [X] T015 [P] [US1] Unit tests in `tests/FundingPlatform.Tests.Unit/` — `Application` tranche methods (create/rename/delete/assign, duplicate-name reject, `AgreementExecuted` freeze throw, delete re-parents to synthetic) + `Tranche` guard invariants.
+- [X] T016 [P] [US1] Integration tests (real SQL) in `tests/FundingPlatform.Tests.Integration/` — `TrancheService` CRUD + assignment; `UX_Tranches_ApplicationId_Name` duplicate race → `TrancheNameInUse`; derived Σ tranche amount == `DisbursementAllocation.ResolveAsync` snapshot (SC-001); synthetic tranche present iff a line has null `TrancheId`.
+- [X] T017 [P] [US1] E2E `TrancheAdminTests` in `tests/FundingPlatform.Tests.E2E/` — reviewer defines tranches on `Review/{id}`, assigns lines, sees Σ=allocation + synthetic "General"; after execution tranche edits are refused (frozen).
 
 ### Implementation for US1
 
-- [ ] T018 [US1] `ITrancheService` + `TrancheDtos` in `src/FundingPlatform.Application/Tranches/` (per contracts §1).
-- [ ] T019 [US1] `TrancheService` in `src/FundingPlatform.Infrastructure/Services/TrancheService.cs` — CRUD+assign via `Application` aggregate, two-SaveChanges `tranche.*` audit, accent/case dup pre-check (`CompanyNameNormalizer`) + index backstop, `TrancheFrozen` on post-execution edit; register in `DependencyInjection.cs`.
-- [ ] T020 [US1] `TrancheController` in `src/FundingPlatform.Web/Controllers/TrancheController.cs` — `[Authorize(Roles="Reviewer,Admin")]`, `[Route("Review/{applicationId:int}/Tranches")]`, group-overlap `Forbid`, antiforgery POSTs (Create/Rename/Delete/Assign).
-- [ ] T021 [US1] `_TrancheEditor.cshtml` + `TrancheEditorViewModel` in `src/FundingPlatform.Web/` — assign items→tranches (`data-searchable`, spec 031); render on `Views/Review/Review.cshtml` when `ShowReviewerChecklist == true`; es-CR copy in `TrancheResources`.
-- [ ] T022 [US1] Composed projection (partial) in `src/FundingPlatform.Infrastructure/Services/ParticipantBalanceProjection.cs` — `GetComposedForApplicationAsync` returning tranche/line tree with **Allocated** per line (`LineBudget`) → tranche → participant, synthetic "General" for null `TrancheId`; wire DI.
+- [X] T018 [US1] `ITrancheService` + `TrancheDtos` in `src/FundingPlatform.Application/Tranches/` (per contracts §1).
+- [X] T019 [US1] `TrancheService` in `src/FundingPlatform.Infrastructure/Services/TrancheService.cs` — CRUD+assign via `Application` aggregate, two-SaveChanges `tranche.*` audit, accent/case dup pre-check (`CompanyNameNormalizer`) + index backstop, `TrancheFrozen` on post-execution edit; register in `DependencyInjection.cs`.
+- [X] T020 [US1] `TrancheController` in `src/FundingPlatform.Web/Controllers/TrancheController.cs` — `[Authorize(Roles="Reviewer,Admin")]`, `[Route("Review/{applicationId:int}/Tranches")]`, group-overlap `Forbid`, antiforgery POSTs (Create/Rename/Delete/Assign).
+- [X] T021 [US1] `_TrancheEditor.cshtml` + `TrancheEditorViewModel` in `src/FundingPlatform.Web/` — assign items→tranches (`data-searchable`, spec 031); render on `Views/Review/Review.cshtml` when `ShowReviewerChecklist == true`; es-CR copy in `TrancheResources`.
+- [X] T022 [US1] Composed projection (partial) in `src/FundingPlatform.Infrastructure/Services/ParticipantBalanceProjection.cs` — `GetComposedForApplicationAsync` returning tranche/line tree with **Allocated** per line (`LineBudget`) → tranche → participant, synthetic "General" for null `TrancheId`; wire DI.
 
 **Checkpoint**: US1 independently testable — tranche structure + Allocated composition work end to end.
 

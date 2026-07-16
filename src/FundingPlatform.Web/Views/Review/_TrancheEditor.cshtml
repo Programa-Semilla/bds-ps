@@ -1,0 +1,144 @@
+@using System.Globalization
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Tranches.TrancheEditorViewModel
+@{
+    var crc = new CultureInfo("es-CR");
+    string Money(decimal v) => v.ToString("C2", crc);
+}
+
+<div class="card mb-3" id="tranche-editor" data-testid="tranche-editor">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">@TrancheResources.Editor_Title</h3>
+            <p class="text-secondary small mb-0">@TrancheResources.Editor_Subtitle</p>
+        </div>
+    </div>
+    <div class="card-body">
+        @* Create a new tranche *@
+        <form asp-controller="Tranche" asp-action="Create" asp-route-applicationId="@Model.ApplicationId"
+              method="post" class="row g-2 align-items-end mb-4" data-testid="tranche-create-form">
+            <div class="col-auto flex-grow-1">
+                <label class="form-label">@TrancheResources.Field_TrancheName</label>
+                <input type="text" name="name" class="form-control" maxlength="60"
+                       data-testid="tranche-name-input" required />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary" data-testid="tranche-create-submit">
+                    <i class="ti ti-plus" aria-hidden="true"></i> @TrancheResources.Action_CreateTranche
+                </button>
+            </div>
+        </form>
+
+        @* Existing tranches with derived amounts *@
+        <div class="table-responsive mb-4">
+            <table class="table table-vcenter">
+                <thead>
+                    <tr>
+                        <th>@TrancheResources.Assign_Tranche</th>
+                        <th class="text-end">@TrancheResources.DerivedAmount</th>
+                        <th class="w-1"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.Tranches)
+                    {
+                        <tr data-testid="tranche-row" data-tranche-id="@t.Id">
+                            <td>
+                                <form asp-controller="Tranche" asp-action="Rename" asp-route-applicationId="@Model.ApplicationId"
+                                      asp-route-trancheId="@t.Id" method="post" class="d-flex gap-2 align-items-center">
+                                    <input type="text" name="name" value="@t.Name" maxlength="60"
+                                           class="form-control form-control-sm" data-testid="tranche-name" style="max-width: 16rem;" />
+                                    <button type="submit" class="btn btn-sm btn-ghost-secondary" title="@TrancheResources.Action_RenameTranche">
+                                        <i class="ti ti-device-floppy" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            <td class="text-end fw-bold" data-testid="tranche-derived-amount">@Money(t.DerivedAmount)</td>
+                            <td>
+                                <form asp-controller="Tranche" asp-action="Delete" asp-route-applicationId="@Model.ApplicationId"
+                                      asp-route-trancheId="@t.Id" method="post"
+                                      data-confirm-title="@TrancheResources.Confirm_DeleteTrancheTitle"
+                                      data-confirm-body="@TrancheResources.Confirm_DeleteTrancheBody"
+                                      data-confirm-label="@TrancheResources.Confirm_DeleteTrancheLabel">
+                                    <button type="submit" class="btn btn-sm btn-ghost-danger" data-testid="tranche-delete"
+                                            title="@TrancheResources.Action_DeleteTranche">
+                                        <i class="ti ti-trash" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.UnassignedLines.Count > 0)
+                    {
+                        <tr data-testid="tranche-synthetic" class="text-secondary">
+                            <td><i class="ti ti-inbox me-1" aria-hidden="true"></i>@TrancheResources.SyntheticTrancheName</td>
+                            <td class="text-end fw-bold" data-testid="tranche-synthetic-amount">@Money(Model.SyntheticAmount)</td>
+                            <td></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th>@TrancheResources.TrancheAllocationTotal</th>
+                        <th class="text-end" data-testid="tranche-allocation-total">@Money(Model.AllocationTotal)</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        @* Assign each line to a tranche *@
+        <h4 class="mb-2">@TrancheResources.Assign_Heading</h4>
+        <div class="table-responsive">
+            <table class="table table-vcenter">
+                <thead>
+                    <tr>
+                        <th>@TrancheResources.Assign_Line</th>
+                        <th class="text-end">@TrancheResources.Assign_Budget</th>
+                        <th>@TrancheResources.Assign_Tranche</th>
+                        <th class="w-1"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var line in Model.Lines)
+                    {
+                        <tr data-testid="line-assign-row" data-item-id="@line.ItemId">
+                            <td>
+                                @if (!string.IsNullOrEmpty(line.LineCode))
+                                {
+                                    <span class="badge bg-secondary-lt me-1">@line.LineCode</span>
+                                }
+                                @line.ProductName
+                            </td>
+                            <td class="text-end">@Money(line.Budget)</td>
+                            <td colspan="2">
+                                <form asp-controller="Tranche" asp-action="Assign" asp-route-applicationId="@Model.ApplicationId"
+                                      method="post" class="d-flex gap-2 align-items-center">
+                                    <input type="hidden" name="itemId" value="@line.ItemId" />
+                                    <select name="trancheId" class="form-select form-select-sm" data-searchable
+                                            data-testid="line-assign-select" style="max-width: 18rem;">
+                                        <option value="">@TrancheResources.Assign_Unassigned</option>
+                                        @foreach (var t in Model.Tranches)
+                                        {
+                                            if (line.TrancheId == t.Id)
+                                            {
+                                                <option value="@t.Id" selected>@t.Name</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@t.Id">@t.Name</option>
+                                            }
+                                        }
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary" data-testid="line-assign-submit">
+                                        @TrancheResources.Action_Assign
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
