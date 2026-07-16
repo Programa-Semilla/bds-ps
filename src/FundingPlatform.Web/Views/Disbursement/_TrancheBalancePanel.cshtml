@@ -1,0 +1,69 @@
+@using System.Globalization
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Disbursements.DisbursementIndexViewModel
+@{
+    var crc = new CultureInfo("es-CR");
+    string Money(decimal v) => v.ToString("C2", crc);
+    var composed = Model.Composed;
+}
+
+<div class="card mb-3" data-testid="tranche-balance-panel">
+    <div class="card-header">
+        <h3 class="card-title">@TrancheResources.Panel_Title</h3>
+    </div>
+    <div class="card-body">
+        @await Html.PartialAsync("_BudgetLineFilterToolbar", Model)
+
+        @if (composed is null || composed.Tranches.Count == 0)
+        {
+            <p class="text-secondary mb-0" data-testid="budget-line-empty">@TrancheResources.Panel_Empty</p>
+        }
+        else
+        {
+            foreach (var t in composed.Tranches)
+            {
+                <div class="mb-4" data-testid="tranche-panel"
+                     data-tranche-id="@(t.TrancheId?.ToString() ?? "synthetic")">
+                    <div class="d-flex justify-content-between align-items-baseline mb-2">
+                        <h4 class="mb-0" data-testid="tranche-panel-name">@t.Name</h4>
+                        <div class="text-secondary small">
+                            @TrancheResources.Panel_Col_Committed: <span data-testid="tranche-panel-committed">@Money(t.Balance.Committed)</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-vcenter">
+                            <thead>
+                                <tr>
+                                    <th>@TrancheResources.Panel_Col_Line</th>
+                                    <th>@TrancheResources.Panel_Col_Supplier</th>
+                                    <th class="text-end">@TrancheResources.Panel_Col_Allocated</th>
+                                    <th class="text-end">@TrancheResources.Panel_Col_Committed</th>
+                                    <th class="text-end">@TrancheResources.Panel_Col_Paid</th>
+                                    <th class="text-end">@TrancheResources.Panel_Col_Available</th>
+                                    <th>@TrancheResources.Panel_Col_Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var line in t.Lines)
+                                {
+                                    <partial name="_BudgetLineRow" model="@((Model.ApplicationId, line, Model.CanWrite))" />
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="fw-bold">
+                                    <td colspan="2">@t.Name</td>
+                                    <td class="text-end">@Money(t.Balance.Allocated)</td>
+                                    <td class="text-end">@Money(t.Balance.Committed)</td>
+                                    <td class="text-end">@Money(t.Balance.Paid)</td>
+                                    <td class="text-end @(t.Balance.Available < 0 ? "text-danger" : "")">@Money(t.Balance.Available)</td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>

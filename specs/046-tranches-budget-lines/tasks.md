@@ -77,16 +77,16 @@ description: "Task list for Tranches & Budget-Lines (Financial Execution P2)"
 
 ### Tests for US2
 
-- [ ] T023 [P] [US2] Unit tests in `tests/FundingPlatform.Tests.Unit/` — `Item.Commit`/`Uncommit` invariants; Committed = Σ committed line budgets.
-- [ ] T024 [P] [US2] Integration tests (real SQL) — `CommitLineAsync`/`UncommitLineAsync`; un-commit refused with an attributed payment → `LineHasPayment` (FR-007); Committed dimension populated in the projection; `CommitState` `HasConversion<byte>()` materializes on real SQL.
-- [ ] T025 [P] [US2] E2E `BudgetLineCommitTests` — Financial Operator commits/un-commits; Committed rises/falls at line/tranche/participant; Auditor/Admin see read-only (FR-021); un-commit-with-payment refused.
+- [X] T023 [P] [US2] Unit tests in `tests/FundingPlatform.Tests.Unit/` — `Item.Commit`/`Uncommit` invariants; Committed = Σ committed line budgets.
+- [X] T024 [P] [US2] Integration tests (real SQL) — `CommitLineAsync`/`UncommitLineAsync`; un-commit refused with an attributed payment → `LineHasPayment` (FR-007); Committed dimension populated in the projection; `CommitState` `HasConversion<byte>()` materializes on real SQL.
+- [X] T025 [P] [US2] E2E `BudgetLineCommitTests` — Financial Operator commits/un-commits; Committed rises/falls at line/tranche/participant; Auditor/Admin see read-only (FR-021); un-commit-with-payment refused.
 
 ### Implementation for US2
 
-- [ ] T026 [US2] `IDisbursementService.CommitLineAsync`/`UncommitLineAsync` + impl in `src/FundingPlatform.Infrastructure/Services/DisbursementService.cs` (`Item.Commit`/`Uncommit`; un-commit guard queries `DisbursementLineAllocation` for non-cancelled payments; `line.committed`/`line.uncommitted` audit).
-- [ ] T027 [US2] `DisbursementController` Commit/Uncommit routes (`POST "Lines/{itemId:int}/Commit"` / `/Uncommit`) in `src/FundingPlatform.Web/Controllers/DisbursementController.cs` — `GuardWriteAsync` (executed+group 404 → role 403).
-- [ ] T028 [US2] Projection: add **Committed** to line/tranche/participant balances in `ParticipantBalanceProjection.cs`; update flat `GetForApplicationAsync` to 6-dim; update `Views/Disbursement/_BalanceCard.cshtml`.
-- [ ] T029 [US2] `_BudgetLineRow.cshtml` (commit/un-commit buttons + `CommitState`) + `_TrancheBalancePanel.cshtml`; render on `Views/Disbursement/Index.cshtml` from the composed model.
+- [X] T026 [US2] `IDisbursementService.CommitLineAsync`/`UncommitLineAsync` + impl in `src/FundingPlatform.Infrastructure/Services/DisbursementService.cs` (`Item.Commit`/`Uncommit`; un-commit guard queries `DisbursementLineAllocation` for non-cancelled payments; `line.committed`/`line.uncommitted` audit).
+- [X] T027 [US2] `DisbursementController` Commit/Uncommit routes (`POST "Lines/{itemId:int}/Commit"` / `/Uncommit`) in `src/FundingPlatform.Web/Controllers/DisbursementController.cs` — `GuardWriteAsync` (executed+group 404 → role 403).
+- [X] T028 [US2] Projection: add **Committed** to line/tranche/participant balances in `ParticipantBalanceProjection.cs`; update flat `GetForApplicationAsync` to 6-dim; update `Views/Disbursement/_BalanceCard.cshtml`.
+- [X] T029 [US2] `_BudgetLineRow.cshtml` (commit/un-commit buttons + `CommitState`) + `_TrancheBalancePanel.cshtml`; render on `Views/Disbursement/Index.cshtml` from the composed model.
 
 **Checkpoint**: US1 + US2 both work independently; Committed dimension live.
 

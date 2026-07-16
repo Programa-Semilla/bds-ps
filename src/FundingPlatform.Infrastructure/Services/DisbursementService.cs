@@ -463,6 +463,77 @@ public sealed class DisbursementService : IDisbursementService
         return await CommitAsync(ct);
     }
 
+    // ---------------------------------------------------------------- commit (spec 046)
+
+    public async Task<Result> CommitLineAsync(int applicationId, int itemId, string actorUserId, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
+
+        var app = await _db.Applications.Include(a => a.Items)
+            .FirstOrDefaultAsync(a => a.Id == applicationId, ct);
+        if (app is null)
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.NotFound, null, DisbursementReasons.NotFound));
+        }
+        if (app.State != ApplicationState.AgreementExecuted)
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.NotExecuted, null, DisbursementReasons.NotExecuted));
+        }
+        if (app.Items.All(i => i.Id != itemId))
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.LineNotFound, null, DisbursementReasons.LineNotFound));
+        }
+
+        app.CommitLine(itemId); // idempotent
+        await _db.SaveChangesAsync(ct);
+
+        await _audit.WriteAsync(
+            AdminAuditEvent.LineCommitted, actorUserId,
+            JsonSerializer.Serialize(new { itemId, applicationId }), ct);
+        await _db.SaveChangesAsync(ct);
+
+        return Result.Success();
+    }
+
+    public async Task<Result> UncommitLineAsync(int applicationId, int itemId, string actorUserId, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
+
+        var app = await _db.Applications.Include(a => a.Items)
+            .FirstOrDefaultAsync(a => a.Id == applicationId, ct);
+        if (app is null)
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.NotFound, null, DisbursementReasons.NotFound));
+        }
+        if (app.State != ApplicationState.AgreementExecuted)
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.NotExecuted, null, DisbursementReasons.NotExecuted));
+        }
+        if (app.Items.All(i => i.Id != itemId))
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.LineNotFound, null, DisbursementReasons.LineNotFound));
+        }
+
+        // FR-007 — a line with any non-cancelled attributed payment cannot be un-committed.
+        var hasPayment = await _db.DisbursementLineAllocations.AsNoTracking()
+            .AnyAsync(a => a.ItemId == itemId
+                && _db.Disbursements.Any(d => d.Id == a.DisbursementId && d.State != DisbursementState.Cancelled), ct);
+        if (hasPayment)
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.LineHasPayment, null, DisbursementReasons.LineHasPayment));
+        }
+
+        app.UncommitLine(itemId); // idempotent
+        await _db.SaveChangesAsync(ct);
+
+        await _audit.WriteAsync(
+            AdminAuditEvent.LineUncommitted, actorUserId,
+            JsonSerializer.Serialize(new { itemId, applicationId }), ct);
+        await _db.SaveChangesAsync(ct);
+
+        return Result.Success();
+    }
+
     // ---------------------------------------------------------------- download
 
     public async Task<DisbursementEvidenceDownload?> OpenEvidenceForDownloadAsync(

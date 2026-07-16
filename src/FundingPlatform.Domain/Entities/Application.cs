@@ -469,6 +469,33 @@ public class Application
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Spec 046 / FR-009 — obligates a budget-line (Financial Operator). Post-execution and
+    /// operator-owned, so it is deliberately NOT subject to the tranche-structure freeze; the
+    /// disbursement service enforces the executed-state gate. Idempotent.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The item is not part of this application.</exception>
+    public void CommitLine(int itemId)
+    {
+        var item = _items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException($"Item {itemId} is not part of this application.");
+        item.Commit();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 046 / FR-007 — reverses a commitment. The "no recorded payment" guard is enforced by the
+    /// disbursement service (it can see attributions); the aggregate just flips the state. Idempotent.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The item is not part of this application.</exception>
+    public void UncommitLine(int itemId)
+    {
+        var item = _items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException($"Item {itemId} is not part of this application.");
+        item.Uncommit();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     private void EnsureTrancheNameAvailable(string trimmedName, int? excludeTrancheId)
     {
         if (trimmedName.Length == 0)

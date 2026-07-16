@@ -43,4 +43,13 @@ public interface IDisbursementService
     /// <summary>Resolves a BackendStream serving handle for a stored evidence document, or null.</summary>
     Task<DisbursementEvidenceDownload?> OpenEvidenceForDownloadAsync(
         int applicationId, int disbursementId, EvidenceKind kind, CancellationToken ct);
+
+    /// <summary>Spec 046 / FR-009 — obligate a budget-line before paying it. Executed-gate + item ∈
+    /// application; sets <c>CommitState = Committed</c>. Idempotent. Audit <c>line.committed</c>.</summary>
+    Task<Result> CommitLineAsync(int applicationId, int itemId, string actorUserId, CancellationToken ct);
+
+    /// <summary>Spec 046 / FR-007 — reverse a commitment. Refused (<c>LineHasPayment</c>) if any
+    /// non-cancelled attribution references the line; else <c>CommitState = Uncommitted</c>. Audit
+    /// <c>line.uncommitted</c>.</summary>
+    Task<Result> UncommitLineAsync(int applicationId, int itemId, string actorUserId, CancellationToken ct);
 }

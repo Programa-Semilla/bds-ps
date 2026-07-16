@@ -15,6 +15,9 @@
     <div class="container-xl" data-testid="disbursement-surface">
         <partial name="_BalanceCard" model="Model.Balance" />
 
+        @* Spec 046 — composed tranche → budget-line panel with per-line commit + filtering. *@
+        <partial name="_TrancheBalancePanel" model="Model" />
+
         @if (Model.CanWrite)
         {
             <div class="card mb-3">

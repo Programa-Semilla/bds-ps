@@ -51,15 +51,33 @@ public sealed class DisbursementController : Controller
     }
 
     [HttpGet("")]
-    public async Task<IActionResult> Index(int applicationId, CancellationToken ct)
+    public async Task<IActionResult> Index(
+        int applicationId,
+        int? trancheId, bool synthetic, string? status, int? supplierId,
+        string? validationState, string? dateFrom, string? dateTo,
+        CancellationToken ct)
     {
         if (!await IsAccessibleAsync(applicationId, ct))
         {
             return NotFound();
         }
 
+        var filterForm = new BudgetLineFilterForm
+        {
+            TrancheId = trancheId,
+            Synthetic = synthetic,
+            Status = status,
+            SupplierId = supplierId,
+            ValidationState = validationState,
+            DateFrom = ParseDateOrNull(dateFrom),
+            DateTo = ParseDateOrNull(dateTo),
+        };
+
         var items = await _service.ListAsync(applicationId, ct);
         var balance = await _balance.GetForApplicationAsync(applicationId, ct);
+        var composed = await _balance.GetComposedForApplicationAsync(applicationId, BuildFilter(filterForm), ct);
+        var supplierOptions = await SupplierOptionsAsync(applicationId, ct);
+        var trancheOptions = await TrancheOptionsAsync(applicationId, ct);
 
         return View(new DisbursementIndexViewModel
         {
@@ -67,8 +85,50 @@ public sealed class DisbursementController : Controller
             Balance = balance,
             Items = items,
             CanWrite = CanWrite(),
+            Composed = composed,
+            Filter = filterForm,
+            SupplierOptions = supplierOptions,
+            TrancheOptions = trancheOptions,
         });
     }
+
+    /// <summary>Translate the raw filter form into the projection's typed filter (null when no facets set).</summary>
+    private static BudgetLineFilter? BuildFilter(BudgetLineFilterForm f)
+    {
+        if (!f.IsActive)
+        {
+            return null;
+        }
+        BudgetLineStatus? status = Enum.TryParse<BudgetLineStatus>(f.Status, ignoreCase: true, out var s) ? s : null;
+        BudgetLineValidationState? vs = Enum.TryParse<BudgetLineValidationState>(f.ValidationState, ignoreCase: true, out var v) ? v : null;
+        return new BudgetLineFilter(
+            TrancheId: f.TrancheId,
+            IncludeSyntheticTranche: f.Synthetic,
+            Status: status,
+            SupplierId: f.SupplierId,
+            ValidationState: vs,
+            PaymentDateFrom: f.DateFrom,
+            PaymentDateTo: f.DateTo);
+    }
+
+    private async Task<IReadOnlyList<(int Id, string Name)>> SupplierOptionsAsync(int applicationId, CancellationToken ct)
+        => await _db.Items.AsNoTracking()
+            .Where(i => i.ApplicationId == applicationId && i.SelectedSupplierId != null && i.SelectedSupplier != null)
+            .Select(i => new { Id = i.SelectedSupplierId!.Value, Name = i.SelectedSupplier!.Name })
+            .Distinct()
+            .OrderBy(x => x.Name)
+            .Select(x => new ValueTuple<int, string>(x.Id, x.Name))
+            .ToListAsync(ct);
+
+    private async Task<IReadOnlyList<(int Id, string Name)>> TrancheOptionsAsync(int applicationId, CancellationToken ct)
+        => await _db.Tranches.AsNoTracking()
+            .Where(t => t.ApplicationId == applicationId)
+            .OrderBy(t => t.Ordinal).ThenBy(t => t.Id)
+            .Select(t => new ValueTuple<int, string>(t.Id, t.Name))
+            .ToListAsync(ct);
+
+    private static DateOnly? ParseDateOrNull(string? raw)
+        => DateOnly.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
 
     [HttpGet("{disbursementId:int}")]
     public async Task<IActionResult> Detail(int applicationId, int disbursementId, CancellationToken ct)
@@ -237,6 +297,34 @@ public sealed class DisbursementController : Controller
         var result = await _service.CancelAsync(applicationId, disbursementId, GetUserId(), ct);
         // Cancel returns to the list (the disbursement is terminal).
         return Flash(result, DisbursementResources.Flash_Cancelled, applicationId);
+    }
+
+    // Spec 046 / US2 — per-line commit / un-commit (Financial Operator only).
+
+    [HttpPost("Lines/{itemId:int}/Commit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Commit(int applicationId, int itemId, CancellationToken ct)
+    {
+        var guard = await GuardWriteAsync(applicationId, ct);
+        if (guard is not null)
+        {
+            return guard;
+        }
+        var result = await _service.CommitLineAsync(applicationId, itemId, GetUserId(), ct);
+        return Flash(result, DisbursementResources.Flash_LineCommitted, applicationId);
+    }
+
+    [HttpPost("Lines/{itemId:int}/Uncommit")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Uncommit(int applicationId, int itemId, CancellationToken ct)
+    {
+        var guard = await GuardWriteAsync(applicationId, ct);
+        if (guard is not null)
+        {
+            return guard;
+        }
+        var result = await _service.UncommitLineAsync(applicationId, itemId, GetUserId(), ct);
+        return Flash(result, DisbursementResources.Flash_LineUncommitted, applicationId);
     }
 
     [HttpGet("{disbursementId:int}/Evidence/{kind}/Download")]

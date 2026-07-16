@@ -233,36 +233,39 @@ public class ApplicationTrancheTests
         }
     }
 
-    // ---------- Item commit invariants ----------
+    // ---------- Item commit invariants (via the aggregate; commit is NOT frozen post-execution) ----------
 
     [Test]
-    public void ItemCommit_IsIdempotent()
+    public void CommitLine_IsIdempotent()
     {
         var app = BuildAppWithItems(1);
-        var item = app.Items[0];
 
-        // Commit is internal; drive it through the aggregate's items via reflection-free path:
-        // it is exercised end-to-end by the disbursement service, but the entity guard is asserted here.
-        typeof(Item).GetMethod("Commit", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .Invoke(item, null);
-        Assert.That(item.CommitState, Is.EqualTo(ItemCommitState.Committed));
+        app.CommitLine(1);
+        Assert.That(app.Items[0].CommitState, Is.EqualTo(ItemCommitState.Committed));
 
-        typeof(Item).GetMethod("Commit", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
-            .Invoke(item, null);
-        Assert.That(item.CommitState, Is.EqualTo(ItemCommitState.Committed));
+        app.CommitLine(1);
+        Assert.That(app.Items[0].CommitState, Is.EqualTo(ItemCommitState.Committed));
     }
 
     [Test]
-    public void ItemUncommit_ResetsToUncommitted()
+    public void UncommitLine_ResetsToUncommitted()
     {
         var app = BuildAppWithItems(1);
-        var item = app.Items[0];
-        var commit = typeof(Item).GetMethod("Commit", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        var uncommit = typeof(Item).GetMethod("Uncommit", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+        app.CommitLine(1);
 
-        commit.Invoke(item, null);
-        uncommit.Invoke(item, null);
+        app.UncommitLine(1);
 
-        Assert.That(item.CommitState, Is.EqualTo(ItemCommitState.Uncommitted));
+        Assert.That(app.Items[0].CommitState, Is.EqualTo(ItemCommitState.Uncommitted));
+    }
+
+    [Test]
+    public void CommitLine_NotFrozenAfterExecution()
+    {
+        var app = BuildAppWithItems(1);
+        ApplicationResponseTransitionsTests.SetState(app, ApplicationState.AgreementExecuted);
+
+        // Commit is post-execution operator work — deliberately allowed while the tranche structure is frozen.
+        Assert.That(() => app.CommitLine(1), Throws.Nothing);
+        Assert.That(app.Items[0].CommitState, Is.EqualTo(ItemCommitState.Committed));
     }
 }
