@@ -126,13 +126,13 @@ description: "Task list for Tranches & Budget-Lines (Financial Execution P2)"
 
 ### Tests for US4
 
-- [ ] T038 [P] [US4] Integration tests (real SQL) — filter budget-lines by tranche, status (`Uncommitted/Committed/PartiallyPaid/Paid/Validated`, D3), supplier, validation state.
+- [ ] T038 [P] [US4] Integration tests (real SQL) — filter budget-lines by tranche, status (`Uncommitted/Committed/PartiallyPaid/Paid/Validated`, D3), supplier, validation state, and date (FR-020; participant is inherent on the per-application surface).
 - [ ] T039 [P] [US4] E2E `BudgetLineFilterTests` — apply each filter, list narrows correctly (SC-005).
 
 ### Implementation for US4
 
 - [ ] T040 [US4] `BudgetLineStatus` derivation (D3) in `ParticipantBalanceProjection.cs` (computed in-query, not stored).
-- [ ] T041 [US4] Filter parameters on the composed projection + filter toolbar on `Views/Disbursement/Index.cshtml` (`data-searchable`, es-CR labels in `TrancheResources`).
+- [ ] T041 [US4] Filter parameters on the composed projection (tranche, status, supplier, validation state, date — FR-020) + filter toolbar on `Views/Disbursement/Index.cshtml` (`data-searchable`, es-CR labels in `TrancheResources`).
 
 **Checkpoint**: all four stories independently functional.
 
