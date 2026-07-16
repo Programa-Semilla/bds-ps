@@ -314,9 +314,10 @@ public class ReviewController : Controller
             viewModel.ShowReturnedFromAudit = true;
         }
 
-        // Spec 046 / US1 — the tranche editor is available on the pre-audit surface (ResponseFinalized,
-        // no agreement). After execution the structure is frozen (the service also enforces this).
-        if (viewModel.ShowReviewerChecklist)
+        // Spec 046 / US1 / FR-021 — the tranche editor is available on the pre-audit surface
+        // (ResponseFinalized, no agreement) and ONLY to reviewers (Admins are read-only for tranche
+        // definition — they don't get the write editor). After execution the structure is frozen.
+        if (viewModel.ShowReviewerChecklist && User.IsInRole("Reviewer"))
         {
             viewModel.TrancheEditor = new ViewModels.Tranches.TrancheEditorViewModel
             {

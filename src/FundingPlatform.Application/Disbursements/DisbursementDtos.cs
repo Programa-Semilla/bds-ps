@@ -20,8 +20,10 @@ public sealed record RecordDisbursementCommand(
     IReadOnlyList<LineAllocationInput>? Lines = null);
 
 /// <summary>Spec 045 / FR-028 — edit a pre-validation disbursement's details.
-/// Spec 046: <paramref name="Lines"/> null ⇒ leave the existing attribution untouched; non-null ⇒
-/// replace-all the split (empty clears it).</summary>
+/// Spec 046: <paramref name="Lines"/> null ⇒ leave the existing attribution untouched (but the
+/// service re-checks that any existing split still sums to the new amount, FR-013); non-null ⇒
+/// replace-all the split, which must satisfy split integrity (so a non-null split can never be empty
+/// while a positive amount stands).</summary>
 public sealed record EditDisbursementCommand(
     int ApplicationId,
     int DisbursementId,

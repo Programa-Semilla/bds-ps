@@ -274,7 +274,7 @@ public sealed class TrancheService : ITrancheService
         => _audit.WriteAsync(action, actorUserId, JsonSerializer.Serialize(payload), ct);
 
     private static DomainError NotFound()
-        => new(DisbursementReasons.Codes.NotFound, null, "No se encontró la solicitud.");
+        => new(DisbursementReasons.Codes.ApplicationNotFound, null, DisbursementReasons.ApplicationNotFound);
     private static DomainError NameInUse()
         => new(DisbursementReasons.Codes.TrancheNameInUse, "name", DisbursementReasons.TrancheNameInUse);
     private static DomainError TrancheNotFound()

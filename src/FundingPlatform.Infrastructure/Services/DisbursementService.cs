@@ -257,6 +257,17 @@ public sealed class DisbursementService : IDisbursementService
                 return Result.Failure(lineError);
             }
         }
+        else
+        {
+            // Spec 046 / FR-013 — the caller left the split untouched (e.g. changed only the amount).
+            // If an existing split no longer sums to the new amount, refuse the edit rather than
+            // persist a stale, inconsistent split (which would otherwise slip through to Validar).
+            var staleSplit = await EvaluateSplitIntegrityAsync(cmd.DisbursementId, cmd.Amount, ct);
+            if (staleSplit is not null)
+            {
+                return Result.Failure(staleSplit);
+            }
+        }
 
         var before = new { amount = d.Amount, paymentDate = d.PaymentDate.ToString("O"), bankTxn = d.BankTransactionReference, bankAcct = d.BankAccountReference };
 
@@ -423,6 +434,17 @@ public sealed class DisbursementService : IDisbursementService
             return Result.Failure(new DomainError(DisbursementReasons.Codes.MissingEvidence, null, reason));
         }
 
+        // Spec 046 / FR-013 — defense-in-depth split-integrity re-check at Validar. If this
+        // disbursement carries a per-line split, its Σ line-allocations MUST still equal the amount.
+        // This closes the "Edit changed the amount but left the split stale" hole (a split summing to
+        // the OLD amount) AND the Record two-SaveChanges partial-failure case (a committed disbursement
+        // whose split rows never persisted) — neither can ever validate into the ledger.
+        var splitError = await EvaluateSplitIntegrityAsync(disbursementId, d.Amount, ct);
+        if (splitError is not null)
+        {
+            return Result.Failure(splitError);
+        }
+
         // Authoritative reconciliation against the freshly-read committed Σ. Comparison (c)
         // here closes the concurrent-partial-payment race single-row concurrency cannot catch
         // (research R5): a disbursement whose own amounts match but whose validation would push
@@ -518,7 +540,7 @@ public sealed class DisbursementService : IDisbursementService
             .FirstOrDefaultAsync(a => a.Id == applicationId, ct);
         if (app is null)
         {
-            return Result.Failure(new DomainError(DisbursementReasons.Codes.NotFound, null, DisbursementReasons.NotFound));
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.ApplicationNotFound, null, DisbursementReasons.ApplicationNotFound));
         }
         if (app.State != ApplicationState.AgreementExecuted)
         {
@@ -548,7 +570,7 @@ public sealed class DisbursementService : IDisbursementService
             .FirstOrDefaultAsync(a => a.Id == applicationId, ct);
         if (app is null)
         {
-            return Result.Failure(new DomainError(DisbursementReasons.Codes.NotFound, null, DisbursementReasons.NotFound));
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.ApplicationNotFound, null, DisbursementReasons.ApplicationNotFound));
         }
         if (app.State != ApplicationState.AgreementExecuted)
         {
@@ -664,6 +686,26 @@ public sealed class DisbursementService : IDisbursementService
         {
             _db.DisbursementLineAllocations.Add(DisbursementLineAllocation.For(disbursementId, l.ItemId, l.Amount));
         }
+    }
+
+    /// <summary>Spec 046 / FR-013 — re-check that a disbursement's existing per-line split still sums to
+    /// <paramref name="amount"/>. Returns a <c>SplitMismatch</c> error when the disbursement has
+    /// attribution rows whose Σ ≠ amount, else null (a flat/unattributed disbursement passes — no split
+    /// to check).</summary>
+    private async Task<DomainError?> EvaluateSplitIntegrityAsync(int disbursementId, decimal amount, CancellationToken ct)
+    {
+        var lines = await _db.DisbursementLineAllocations.AsNoTracking()
+            .Where(a => a.DisbursementId == disbursementId)
+            .Select(a => new ValueTuple<int, decimal>(a.ItemId, a.Amount))
+            .ToListAsync(ct);
+        if (lines.Count == 0)
+        {
+            return null;
+        }
+        var split = DisbursementLineReconciliation.EvaluateSplit(amount, lines);
+        return split.Count > 0
+            ? new DomainError(DisbursementReasons.Codes.SplitMismatch, null, DisbursementReasons.SplitMismatch)
+            : null;
     }
 
     /// <summary>Spec 046 / FR-019 — the per-line over-payment gate. For every line this disbursement

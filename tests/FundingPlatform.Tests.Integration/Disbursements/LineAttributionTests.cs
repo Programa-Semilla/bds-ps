@@ -134,5 +134,28 @@ public class LineAttributionTests
             .Where(a => a.DisbursementId == rec.Value).ToListAsync();
         Assert.That(allocations, Has.Count.EqualTo(2));
         Assert.That(allocations.Sum(a => a.Amount), Is.EqualTo(90_000m));
+        // Per-line replacement (not just the aggregate): each line carries its exact replaced amount.
+        Assert.That(allocations.Single(a => a.ItemId == items[0]).Amount, Is.EqualTo(50_000m));
+        Assert.That(allocations.Single(a => a.ItemId == items[1]).Amount, Is.EqualTo(40_000m));
+    }
+
+    [Test]
+    public async Task Edit_AmountOnly_LeavingStaleSplit_IsRefused()
+    {
+        // Deep-review C-FINDING-1: changing the amount without re-supplying the split must NOT persist a
+        // split that no longer sums to the amount (which would otherwise validate + lock).
+        using var ctx = CreateContext($"attr-{Guid.NewGuid():N}");
+        var (appId, items) = await SeedAppWithPricedItemsAsync(ctx, [100_000m], ApplicationState.AgreementExecuted);
+        var svc = DisbursementTestFactory.NewService(ctx, new AiComparison.InMemoryObjectStorage());
+        await svc.CommitLineAsync(appId, items[0], Actor, CancellationToken.None);
+        var rec = await svc.RecordAsync(new RecordDisbursementCommand(appId, Today, 90_000m, "TX-1", null,
+            [new LineAllocationInput(items[0], 90_000m)]), Actor, CancellationToken.None);
+
+        // Edit the amount to 100k, Lines == null (operator didn't re-type the split). Refused.
+        var edit = await svc.EditAsync(new EditDisbursementCommand(appId, rec.Value, Today, 100_000m, "TX-1", null),
+            Actor, CancellationToken.None);
+
+        Assert.That(edit.Succeeded, Is.False);
+        Assert.That(edit.Errors[0].Code, Is.EqualTo(DisbursementReasons.Codes.SplitMismatch));
     }
 }

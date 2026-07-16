@@ -13,14 +13,16 @@ using Microsoft.AspNetCore.Mvc;
 namespace FundingPlatform.Web.Controllers;
 
 /// <summary>
-/// Spec 046 / US1 — reviewer tranche (funding-phase) setup, mounted on the review surface.
-/// Reviewer OR Admin, gated by group overlap with the applicant (mirrors <c>ReviewController</c>).
-/// The execution freeze (tranche edits refused once the agreement executes) is enforced by
-/// <see cref="ITrancheService"/> and surfaced as a flash; the tranche editor itself renders only
-/// pre-audit (<c>ShowReviewerChecklist</c>). All POSTs are antiforgery-guarded and redirect back
+/// Spec 046 / US1 / FR-021 — reviewer tranche (funding-phase) setup, mounted on the review surface.
+/// <b>Reviewer-only</b>: FR-021 requires that only reviewers define tranches and assign lines, with
+/// Auditors AND Admins read-only for these actions (the sibling <c>DisbursementController</c> applies
+/// the same segregation to money movement — write = Financial Operator only). Gated by group overlap
+/// with the applicant. The execution freeze (edits refused once the agreement executes) is enforced
+/// by <see cref="ITrancheService"/> and surfaced as a flash; the editor renders only pre-audit and
+/// only for reviewers (<c>ReviewController</c>). All POSTs are antiforgery-guarded and redirect back
 /// to the review page.
 /// </summary>
-[Authorize(Roles = "Reviewer,Admin")]
+[Authorize(Roles = "Reviewer")]
 [Route("Review/{applicationId:int}/Tranches")]
 public sealed class TrancheController : Controller
 {

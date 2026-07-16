@@ -87,13 +87,14 @@ public sealed class ParticipantBalanceProjection : IParticipantBalanceProjection
             })
             .ToListAsync(ct);
 
-        // 2) Per-line non-cancelled attributions joined to their disbursement state + date.
-        var allocRows = await _db.DisbursementLineAllocations.AsNoTracking()
-            .Where(a => _db.Items.Any(i => i.Id == a.ItemId && i.ApplicationId == applicationId))
-            .Join(_db.Disbursements.AsNoTracking(),
-                a => a.DisbursementId, d => d.Id,
-                (a, d) => new { a.ItemId, a.Amount, d.State, d.PaymentDate })
-            .Where(x => x.State != DisbursementState.Cancelled)
+        // 2) Per-line non-cancelled attributions. Drive from Disbursements scoped by the indexed
+        //    ApplicationId (highly selective) and join allocations by DisbursementId — keeps the work
+        //    proportional to one application rather than scanning the global allocation table.
+        var allocRows = await _db.Disbursements.AsNoTracking()
+            .Where(d => d.ApplicationId == applicationId && d.State != DisbursementState.Cancelled)
+            .Join(_db.DisbursementLineAllocations.AsNoTracking(),
+                d => d.Id, a => a.DisbursementId,
+                (d, a) => new { a.ItemId, a.Amount, d.State, d.PaymentDate })
             .ToListAsync(ct);
 
         var allocsByItem = allocRows

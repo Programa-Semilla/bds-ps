@@ -1,12 +1,12 @@
 namespace FundingPlatform.Application.Disbursements;
 
 /// <summary>
-/// Spec 045 — es-CR refusal/validation strings produced by the Infrastructure
-/// <c>DisbursementService</c>. Kept in the Application layer (not <c>Web.Resources</c>)
-/// because the service that produces them lives in Infrastructure and must not depend
-/// on Web — the spec-034 <c>BatchUserRowReasons</c> / spec-043 <c>RegulatoryFreshnessCopy</c>
-/// cross-layer precedent. Each is paired with a stable <see cref="Codes"/> value so the
-/// Web layer can also branch programmatically if needed.
+/// Spec 045/046 — es-CR refusal/validation strings for the financial-execution surface, produced by
+/// the Infrastructure <c>DisbursementService</c> AND (spec 046) <c>TrancheService</c> (the tranche/
+/// line reason constants below). Kept in the Application layer (not <c>Web.Resources</c>) because the
+/// services that produce them live in Infrastructure and must not depend on Web — the spec-034
+/// <c>BatchUserRowReasons</c> / spec-043 <c>RegulatoryFreshnessCopy</c> cross-layer precedent. Each is
+/// paired with a stable <see cref="Codes"/> value so the Web layer can also branch programmatically.
 /// </summary>
 public static class DisbursementReasons
 {
@@ -34,6 +34,7 @@ public static class DisbursementReasons
         public const string TrancheNameInUse = "TRANCHE_NAME_IN_USE";
         public const string TrancheNotFound = "TRANCHE_NOT_FOUND";
         public const string LineNotFound = "LINE_NOT_FOUND";
+        public const string ApplicationNotFound = "APPLICATION_NOT_FOUND";
     }
 
     public const string NotFound = "No se encontró el desembolso.";
@@ -64,9 +65,11 @@ public static class DisbursementReasons
     public const string TrancheNameInUse = "Ya existe un tramo con ese nombre en esta solicitud.";
     public const string TrancheNotFound = "No se encontró el tramo.";
     public const string LineNotFound = "No se encontró la línea presupuestaria en esta solicitud.";
+    public const string ApplicationNotFound = "No se encontró la solicitud.";
 
     /// <summary>Spec 046 / FR-019 — the per-line over-payment refusal names the line whose Σ payments
-    /// exceed its committed budget. <paramref name="lineLabel"/> is <c>LineCode ?? APP-line fallback</c>.</summary>
+    /// exceed its committed budget. <paramref name="lineLabel"/> is the line's <c>LineCode</c>, or an
+    /// <c>L-{itemId}</c> fallback when the line has no reviewer-assigned code.</summary>
     public static string LineOverpayment(string lineLabel) =>
         $"El pago de la línea «{lineLabel}» excede su presupuesto comprometido.";
 }

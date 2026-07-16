@@ -11,7 +11,7 @@ namespace FundingPlatform.Domain.ValueObjects;
 /// instance is <see cref="DiscrepancySeverity.Blocking"/>.
 /// </summary>
 /// <param name="ItemId">The budget-line whose payments over-run.</param>
-/// <param name="LineLabel">es-CR line label (<c>LineCode ?? APP-line fallback</c>) for the message.</param>
+/// <param name="LineLabel">Line label for the message: the reviewer-assigned <c>LineCode</c>, or an <c>L-{itemId}</c> fallback.</param>
 /// <param name="Committed">The line's committed budget (the ceiling).</param>
 /// <param name="Paid">Σ non-cancelled payments attributed to the line.</param>
 /// <param name="Overage">Signed <c>Paid − Committed</c> (kept for display).</param>
