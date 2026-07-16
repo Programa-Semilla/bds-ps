@@ -64,3 +64,33 @@ Anchor for the whole program: **allocation = executed FundingAgreement total** (
 - **P6 ledger vocabulary:** the P1 two-entry-type ledger grows here (refund/reversal/credit-note/interest/fee); confirm reversal semantics preserve the immutability boundary. (from #41)
 - **Over-disbursement discrepancy shape:** attached-to-latest-disbursement vs. a distinct agreement-scoped record — deferred to spec 045's `/speckit-plan`. (from #41)
 - **P5 depends on spec 015** multi-currency buy-rate snapshotting; confirm reuse vs. extend when brainstorming P5. (from #41)
+
+---
+
+## Revisit: 2026-07-16 — Slice P2 brainstormed → spec 046
+
+**Status:** P2 spec-created (`specs/046-tranches-budget-lines/`, branch `046-tranches-budget-lines`, commit `ce367ed`). P1 remains shipped (PR #78, spec 045). P3–P9 still parked for resume.
+
+### P2 anchor decisions (ratified this session)
+
+1. **Budget-line = the existing application line `Item`** (resolves the P2 anchor open thread from #41). No new line entity. A line's budget = its selected-quote CRC amount (the per-line component of `ApplicationCurrencyTotal.Compute`). The `Item.LineCode` convention already used a `"T1-1"` (tranche-1, line-1) example — reuse was the latent intent.
+2. **`Tranche` = new entity keyed by `ApplicationId`**, a named funding phase ("Tramo N"). Each `Item` assigned to **exactly one** tranche.
+3. **Tranche amount is *derived*** = Σ its assigned lines' budgets ⇒ **Σ tranche amounts = allocation by construction** (the partition is structural, never a runtime reconciliation). Chosen over independently-set tranche amounts (rejected: the extra flexibility of reserving unassigned tranche money isn't needed when lines are already priced at execution).
+4. **Tranches defined by the reviewer during the funding-agreement stage** (spec 040); default to a **single tranche holding all lines** if none defined; **frozen at execution** alongside the allocation snapshot.
+5. **`Committed` = a distinct, explicit obligation act** by the Financial Operator (obligate-then-pay), not an auto-derived synonym for Allocated. Per-line lifecycle: **Uncommitted → Committed → (paid) → Validated**. Commit is **reversible until the first payment lands on the line**; a disbursement may only attribute to **Committed** lines. Kept off the append-only ledger (commitment isn't settled cash — FR-009).
+6. **Per-line payment attribution (M:N)** via disbursement→line allocation rows `(DisbursementId, ItemId, Amount)`. One payment → many lines; one line → many payments. **A disbursement MAY span tranches** (user call — each allocation row rolls into its own line's tranche).
+7. **Balance dimensions 5 → 6**: adds **Committed** (Allocated / Committed / Paid / Validated / Pending / Available), exposed per **participant, tranche, and line**. **`Available = Allocated − Paid` unchanged** from P1 (official available drops at payment, not commitment; may go negative, never clamped). Committed is display-only, does not alter Available.
+8. **Reconciliation = P1's three + two line-level, all zero-colón blocking**: (kept) disbursement↔bank-receipt, disbursement↔invoice, participant Σ↔allocation; (new) **Σ of a disbursement's line-allocations = disbursement amount** (split integrity); (new) **per-line Σ payments ≤ line committed budget**, blocking at `Validar`, re-checked against the freshly-read committed Σ (symmetric with P1's participant-level over-disbursement gate).
+
+### P2 scope boundaries (confirmed deferrals)
+- **Evidence stays 1:1 at the disbursement level** (P1's one bank receipt + one invoice); evidence↔line M:N allocation, doc version history, required-doc rules, completeness/closure gates → **P3**.
+- Non-blocking warnings / discrepancy lifecycle / reconciliation dashboard → **P4**. Currency → **P5**. Interest/fees/refunds/reversals → **P6**. Reporting → **P7**. Segregation → **P8**. Import → **P9**.
+- Tranches are a **money partition, not a time/milestone release gate**.
+- **No new managed deps; additive dacpac-only schema** (new `Tranches` + disbursement↔line allocation join; `Item` gains nullable tranche membership + commit state).
+
+### Updated open threads (carry into `/speckit-plan` for spec 046)
+- Does a line **commit** get its own ledger entry type, or stay a mutable off-ledger status? (leaning off-ledger — FR-009).
+- Concrete per-line **commit-state representation** (enum on `Item` vs. a separate row).
+- Exact set of budget-line **"status" filter values** for FR-020 (uncommitted/committed/paid/validated + validation state).
+- **P4 balance-recognition revisit still stands**: if the *official/reportable* available should key off validation instead of payment, that's a P7 reporting choice — the ledger carries both. P2 keeps payment-based Available.
+- Spec review (`REVIEW-SPEC.md`): **SOUND**, 0 critical / 0 important.
