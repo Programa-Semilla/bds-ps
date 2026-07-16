@@ -1,7 +1,7 @@
 # Brainstorm: Financial Disbursement Control Platform (program roadmap + slice P1)
 
 **Date:** 2026-07-15
-**Status:** P1 shipped (PR #78) — P2–P9 documented below for resume
+**Status:** P1 shipped (PR #78), **P2 shipped (PR #79)** — P3–P9 documented below for resume
 **Spec:** specs/045-financial-disbursement-core/ (slice P1 only)
 **Seed:** brainstorm/seeds/financial_disbursement_requirements_brainstorming.md (July 15 2026 requirements meeting — Danny Pérez, Pao Rodríguez Marín, Vivian Arias)
 

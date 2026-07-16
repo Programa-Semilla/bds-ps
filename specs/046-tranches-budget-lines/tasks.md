@@ -143,7 +143,7 @@ description: "Task list for Tranches & Budget-Lines (Financial Execution P2)"
 - [X] T042 [P] P1 regression + SC-006: integration + E2E — a pre-P2 executed application (no tranche rows, `CommitState` default 0) yields P1 balances unchanged and one synthetic tranche; existing `Disbursement*` E2E green.
 - [X] T043 [P] Composed-projection performance sanity: no N+1 on an application with many lines/tranches (bounded correlated queries, `AsNoTracking`).
 - [X] T044 Run `quickstart.md` walkthrough end to end; execute the **filtered** E2E set (`Tranche*`, `BudgetLine*`, `LineAttribution*` + `Disbursement*` regression) and confirm green (delivery gate).
-- [ ] T045 On completion: update CLAUDE.md Recent Changes + `brainstorm/41-financial-disbursement-platform.md` (P2 shipped) — deferred to ship/PR.
+- [X] T045 On completion: update CLAUDE.md Recent Changes + `brainstorm/41-financial-disbursement-platform.md` (P2 shipped) — deferred to ship/PR.
 
 ---
 
