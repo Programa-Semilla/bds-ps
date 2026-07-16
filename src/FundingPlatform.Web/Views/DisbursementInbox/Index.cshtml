@@ -1,0 +1,63 @@
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Disbursements.DisbursementInboxViewModel
+@{
+    ViewData["Title"] = DisbursementResources.Nav;
+}
+
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <h2 class="page-title">@DisbursementResources.Nav</h2>
+        <div class="text-secondary">@DisbursementResources.InboxSubtitle</div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table card-table table-vcenter" data-testid="disbursement-inbox-table">
+                    <thead>
+                        <tr>
+                            <th>@DisbursementResources.Inbox_Col_Number</th>
+                            <th>@DisbursementResources.Inbox_Col_Applicant</th>
+                            <th>@DisbursementResources.Inbox_Col_Fund</th>
+                            <th>@DisbursementResources.Inbox_Col_Process</th>
+                            <th>@DisbursementResources.Inbox_Col_Executed</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Rows.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="text-secondary" data-testid="disbursement-inbox-empty">
+                                    @DisbursementResources.Inbox_Empty
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var row in Model.Rows)
+                        {
+                            <tr data-testid="disbursement-inbox-row"
+                                data-application-id="@row.ApplicationId"
+                                data-application-number="@row.ApplicationNumber">
+                                <td>@row.ApplicationNumber</td>
+                                <td>@row.ApplicantName</td>
+                                <td>@row.FundName</td>
+                                <td>@row.ProcessName</td>
+                                <td>@row.ExecutedAtUtc.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-primary"
+                                       asp-controller="Disbursement" asp-action="Index"
+                                       asp-route-applicationId="@row.ApplicationId"
+                                       data-testid="disbursement-inbox-open">
+                                        @DisbursementResources.Action_Open
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

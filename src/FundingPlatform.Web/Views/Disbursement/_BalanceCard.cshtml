@@ -1,0 +1,41 @@
+@using System.Globalization
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Domain.ValueObjects.ParticipantBalance
+@{
+    var crc = new CultureInfo("es-CR");
+    string Money(decimal v) => v.ToString("C2", crc);
+}
+<div class="card mb-3" data-testid="disbursement-balance">
+    <div class="card-body">
+        <h3 class="card-title">@DisbursementResources.Balance_Title</h3>
+        <div class="row g-3">
+            <div class="col-6 col-md">
+                <div class="text-secondary small">@DisbursementResources.Balance_Allocated</div>
+                <div class="fw-bold" data-testid="balance-allocated">@Money(Model.Allocated)</div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="text-secondary small">@DisbursementResources.Balance_Paid</div>
+                <div class="fw-bold" data-testid="balance-paid">@Money(Model.Paid)</div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="text-secondary small">@DisbursementResources.Balance_Validated</div>
+                <div class="fw-bold" data-testid="balance-validated">@Money(Model.Validated)</div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="text-secondary small">@DisbursementResources.Balance_Pending</div>
+                <div class="fw-bold" data-testid="balance-pending">@Money(Model.PendingValidation)</div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="text-secondary small">@DisbursementResources.Balance_Available</div>
+                <div class="fw-bold @(Model.Available < 0 ? "text-danger" : "")" data-testid="balance-available">@Money(Model.Available)</div>
+            </div>
+        </div>
+        @if (Model.Available < 0)
+        {
+            <div class="alert alert-danger mt-3 mb-0 d-flex align-items-center" role="alert" data-testid="balance-over-disbursed">
+                <i class="ti ti-alert-triangle me-2" aria-hidden="true"></i>
+                <span>@DisbursementResources.Balance_OverDisbursed</span>
+            </div>
+        }
+    </div>
+</div>

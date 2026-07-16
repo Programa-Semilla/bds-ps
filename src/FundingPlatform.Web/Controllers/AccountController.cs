@@ -428,10 +428,11 @@ public class AccountController : Controller
             "Admin" => "Administrador",
             "Reviewer" => "Revisor",
             "Auditor" => "Auditor",
+            "Financial Operator" => "Operador financiero",
             "Applicant" => "Solicitante",
             _ => r,
         };
-        var rolePriority = new[] { "Admin", "Reviewer", "Auditor", "Applicant" };
+        var rolePriority = new[] { "Admin", "Reviewer", "Auditor", "Financial Operator", "Applicant" };
         var roleLabel = rolePriority.FirstOrDefault(roles.Contains);
 
         // Pull groups via the same query that AdminUsersController uses.
@@ -529,7 +530,9 @@ public class AccountController : Controller
         // Spec 021 / US3 / T103 — E2E provisioning supports the new
         // SupplierAdmin role so US3 can drive a real "role assigned" path
         // through the admin UI it would normally use in prod.
-        string[] allowedRoles = ["Admin", "Reviewer", "Auditor"];
+        // Spec 045 — Financial Operator added so disbursement E2E can drive the real
+        // "role assigned" path (group-scoped, like Auditor).
+        string[] allowedRoles = ["Admin", "Reviewer", "Auditor", "Financial Operator"];
         if (!allowedRoles.Contains(role))
         {
             return BadRequest("Invalid role.");

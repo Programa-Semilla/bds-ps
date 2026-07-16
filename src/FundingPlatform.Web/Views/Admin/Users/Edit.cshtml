@@ -7,12 +7,14 @@
     ViewData["Title"] = "Editar usuario";
     // Spec 021 / FR-007 — SupplierAdmin role exposed for assignment + editing
     // (matches the Create form). Label matches the profile-screen copy.
-    var roles = new[] { "Applicant", "Reviewer", "Auditor", "Admin" };
+    // Spec 045 — Financial Operator (group-scoped; group selector shown, isGroupless=Admin only).
+    var roles = new[] { "Applicant", "Reviewer", "Auditor", "Financial Operator", "Admin" };
     string RoleLabel(string r) => r switch
     {
         "Applicant" => "Solicitante",
         "Reviewer" => "Revisor",
         "Auditor" => "Auditor",
+        "Financial Operator" => "Operador financiero",
         "Admin" => "Administrador",
         _ => r,
     };

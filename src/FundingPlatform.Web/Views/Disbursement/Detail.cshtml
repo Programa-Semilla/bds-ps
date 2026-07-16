@@ -1,0 +1,211 @@
+@using System.Globalization
+@using FundingPlatform.Web.Resources
+@using FundingPlatform.Domain.Enums
+@model FundingPlatform.Web.ViewModels.Disbursements.DisbursementDetailViewModel
+@{
+    ViewData["Title"] = DisbursementResources.Detail_Title;
+    var crc = new CultureInfo("es-CR");
+    var d = Model.Detail;
+    var isPreValidation = d.State is DisbursementState.Recorded or DisbursementState.Inconsistent;
+    var canEdit = Model.CanWrite && isPreValidation;
+
+    FundingPlatform.Application.Disbursements.DisbursementEvidenceSummary? EvidenceFor(EvidenceKind kind)
+        => d.Evidence.FirstOrDefault(e => e.Kind == kind);
+}
+
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row align-items-center">
+            <div class="col">
+                <h2 class="page-title">@DisbursementResources.Detail_Title</h2>
+            </div>
+            <div class="col-auto">
+                <a class="btn btn-link" asp-controller="Disbursement" asp-action="Index"
+                   asp-route-applicationId="@Model.ApplicationId" data-testid="disbursement-detail-back">
+                    @DisbursementResources.Detail_Back
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl" data-testid="disbursement-detail">
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge @DisbursementResources.StateBadgeClass(d.State) me-2" data-testid="disbursement-detail-state">
+                        @DisbursementResources.StateLabel(d.State)
+                    </span>
+                    @if (!isPreValidation && d.State == DisbursementState.Validated)
+                    {
+                        <span class="text-secondary small" data-testid="disbursement-locked-notice">
+                            <i class="ti ti-lock me-1" aria-hidden="true"></i>@DisbursementResources.Validated_Locked
+                        </span>
+                    }
+                </div>
+
+                <dl class="row mb-0">
+                    <dt class="col-4 col-md-3">@DisbursementResources.Field_PaymentDate</dt>
+                    <dd class="col-8 col-md-9">@d.PaymentDate.ToString("dd/MM/yyyy", crc)</dd>
+                    <dt class="col-4 col-md-3">@DisbursementResources.Field_Amount</dt>
+                    <dd class="col-8 col-md-9" data-testid="disbursement-detail-amount">@d.Amount.ToString("C2", crc)</dd>
+                    <dt class="col-4 col-md-3">@DisbursementResources.Field_BankTransaction</dt>
+                    <dd class="col-8 col-md-9">@d.BankTransactionReference</dd>
+                    @if (!string.IsNullOrWhiteSpace(d.BankAccountReference))
+                    {
+                        <dt class="col-4 col-md-3">@DisbursementResources.Field_BankAccount</dt>
+                        <dd class="col-8 col-md-9">@d.BankAccountReference</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        @if (canEdit)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h3 class="card-title">@DisbursementResources.Edit_Heading</h3>
+                    <form asp-controller="Disbursement" asp-action="Edit"
+                          asp-route-applicationId="@Model.ApplicationId" asp-route-disbursementId="@d.Id"
+                          method="post" data-testid="disbursement-edit-form">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label">@DisbursementResources.Field_PaymentDate</label>
+                                <input type="date" name="paymentDate" class="form-control" required
+                                       value="@d.PaymentDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)"
+                                       data-testid="disbursement-edit-payment-date" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">@DisbursementResources.Field_Amount</label>
+                                <input type="number" name="amount" class="form-control" min="0.01" step="0.01" required
+                                       value="@d.Amount.ToString(CultureInfo.InvariantCulture)"
+                                       data-testid="disbursement-edit-amount" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">@DisbursementResources.Field_BankTransaction</label>
+                                <input type="text" name="bankTransactionReference" class="form-control" maxlength="100" required
+                                       value="@d.BankTransactionReference" data-testid="disbursement-edit-bank-txn" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">@DisbursementResources.Field_BankAccount</label>
+                                <input type="text" name="bankAccountReference" class="form-control" maxlength="100"
+                                       value="@d.BankAccountReference" data-testid="disbursement-edit-bank-acct" />
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-outline-primary" data-testid="disbursement-edit-submit">
+                                @DisbursementResources.Action_Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3 class="card-title">@DisbursementResources.Detail_Evidence</h3>
+                <div class="row g-3">
+                    @foreach (var kind in new[] { EvidenceKind.BankReceipt, EvidenceKind.Invoice })
+                    {
+                        var existing = EvidenceFor(kind);
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 h-100" data-testid="disbursement-evidence-@kind" data-kind="@kind">
+                                <div class="fw-bold mb-2">@DisbursementResources.EvidenceKindLabel(kind)</div>
+                                @if (existing is not null)
+                                {
+                                    <dl class="row mb-2 small">
+                                        <dt class="col-5">@DisbursementResources.Field_Evidence_Amount</dt>
+                                        <dd class="col-7" data-testid="disbursement-evidence-existing-amount">@existing.Amount.ToString("C2", crc)</dd>
+                                        <dt class="col-5">@DisbursementResources.Field_Evidence_Reference</dt>
+                                        <dd class="col-7">@existing.DocumentReferenceNumber</dd>
+                                        <dt class="col-5">@DisbursementResources.Field_Evidence_Date</dt>
+                                        <dd class="col-7">@existing.DocumentDate.ToString("dd/MM/yyyy", crc)</dd>
+                                    </dl>
+                                    <a class="btn btn-sm btn-outline-secondary mb-2"
+                                       asp-controller="Disbursement" asp-action="Download"
+                                       asp-route-applicationId="@Model.ApplicationId" asp-route-disbursementId="@d.Id" asp-route-kind="@kind"
+                                       data-testid="disbursement-evidence-download-@kind">
+                                        <i class="ti ti-download me-1" aria-hidden="true"></i>@DisbursementResources.Action_Download
+                                    </a>
+                                }
+                                else
+                                {
+                                    <div class="text-secondary small mb-2" data-testid="disbursement-evidence-missing-@kind">
+                                        <i class="ti ti-file-off me-1" aria-hidden="true"></i>@DisbursementResources.Evidence_Missing
+                                    </div>
+                                }
+
+                                @if (canEdit)
+                                {
+                                    <form asp-controller="Disbursement" asp-action="Evidence"
+                                          asp-route-applicationId="@Model.ApplicationId" asp-route-disbursementId="@d.Id"
+                                          method="post" enctype="multipart/form-data" data-testid="disbursement-evidence-form-@kind">
+                                        <input type="hidden" name="kind" value="@kind" />
+                                        <div class="mb-2">
+                                            <label class="form-label small">@DisbursementResources.Field_Evidence_Amount</label>
+                                            <input type="number" name="amount" class="form-control form-control-sm" min="0.01" step="0.01" required
+                                                   data-testid="disbursement-evidence-amount-@kind" />
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">@DisbursementResources.Field_Evidence_Reference</label>
+                                            <input type="text" name="documentReferenceNumber" class="form-control form-control-sm" maxlength="100" required
+                                                   data-testid="disbursement-evidence-ref-@kind" />
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">@DisbursementResources.Field_Evidence_Date</label>
+                                            <input type="date" name="documentDate" class="form-control form-control-sm" required
+                                                   data-testid="disbursement-evidence-date-@kind" />
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">@DisbursementResources.Field_Evidence_File</label>
+                                            <input type="file" name="file" class="form-control form-control-sm" accept="@Model.AcceptExtensions" required
+                                                   data-testid="disbursement-evidence-file-@kind" />
+                                        </div>
+                                        <button type="submit" class="btn btn-sm btn-primary" data-testid="disbursement-evidence-submit-@kind">
+                                            @(existing is null ? DisbursementResources.Action_AttachEvidence : DisbursementResources.Action_ReplaceEvidence)
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3 class="card-title">@DisbursementResources.Detail_Discrepancies</h3>
+                <partial name="_DiscrepancyList" model="d.Discrepancies" />
+            </div>
+        </div>
+
+        @if (Model.CanWrite && isPreValidation)
+        {
+            <div class="d-flex gap-2">
+                <form asp-controller="Disbursement" asp-action="Validate"
+                      asp-route-applicationId="@Model.ApplicationId" asp-route-disbursementId="@d.Id" method="post">
+                    <button type="submit" class="btn btn-success" data-testid="disbursement-validate"
+                            disabled="@(!d.IsValidatable)">
+                        <i class="ti ti-circle-check me-1" aria-hidden="true"></i>@DisbursementResources.Action_Validate
+                    </button>
+                </form>
+                <form asp-controller="Disbursement" asp-action="Cancel"
+                      asp-route-applicationId="@Model.ApplicationId" asp-route-disbursementId="@d.Id" method="post">
+                    <button type="submit" class="btn btn-outline-danger"
+                            data-testid="disbursement-cancel"
+                            data-confirm
+                            data-confirm-variant="destructive"
+                            data-confirm-title="@DisbursementResources.Confirm_CancelTitle"
+                            data-confirm-body="@DisbursementResources.Confirm_CancelBody"
+                            data-confirm-label="@DisbursementResources.Confirm_CancelLabel">
+                        @DisbursementResources.Action_Cancel
+                    </button>
+                </form>
+            </div>
+        }
+    </div>
+</div>

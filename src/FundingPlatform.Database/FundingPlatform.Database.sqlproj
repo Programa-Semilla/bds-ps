@@ -27,6 +27,8 @@
     <Build Remove="PostDeployment\07_SeedChecklistTemplates.sql" />
     <!-- Sample suppliers with specific regulatory profiles, :r-included from SeedData.sql. -->
     <Build Remove="PostDeployment\08_SeedSuppliers.sql" />
+    <!-- Spec 045 — group-scoped Financial Operator role seed, :r-included from SeedData.sql. -->
+    <Build Remove="PostDeployment\10_SeedFinancialOperatorRole.sql" />
     <None Include="PostDeployment\01_SeedProvincesCantons.sql" />
     <None Include="PostDeployment\02_SeedMigracionInicialProcess.sql" />
     <None Include="PostDeployment\03_SeedSupplierAdminRole.sql" />
@@ -34,6 +36,7 @@
     <None Include="PostDeployment\06_DropLegacySupplierComplianceColumns.sql" />
     <None Include="PostDeployment\07_SeedChecklistTemplates.sql" />
     <None Include="PostDeployment\08_SeedSuppliers.sql" />
+    <None Include="PostDeployment\10_SeedFinancialOperatorRole.sql" />
   </ItemGroup>
   <ItemGroup>
     <SqlCmdVariable Include="DefaultCurrency">

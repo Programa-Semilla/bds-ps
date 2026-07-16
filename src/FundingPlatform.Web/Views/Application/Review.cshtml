@@ -119,7 +119,12 @@
                             </td>
                             <td>@item.CategoryName</td>
                             <td>
-                                <span class="badge bg-secondary">@item.Quotations.Count</span>
+                                @* Solid secondary badge (contrast now restored globally in tokens.css)
+                                   with a quote icon + a native tooltip so the "N cotizaciones" meaning
+                                   is clear without relying on the column header. *@
+                                <span class="badge bg-secondary" title="Cantidad de cotizaciones">
+                                    <i class="ti ti-file-invoice me-1" aria-hidden="true"></i>@item.Quotations.Count
+                                </span>
                                 @if (item.Quotations.Count > 0)
                                 {
                                     <ul class="list-unstyled mb-0 mt-2 small">

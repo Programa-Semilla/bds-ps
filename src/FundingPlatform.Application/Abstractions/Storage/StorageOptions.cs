@@ -106,6 +106,15 @@ public sealed class StorageCategoriesOptions
         ServingMode = ServingMode.BackendStream,
     };
 
+    // Spec 045 / FR-006, FR-008 — disbursement evidence (bank receipt + invoice).
+    // 20 MiB cap; served via BackendStream (no time-limited URL), mirroring
+    // FundsUsageEvidence, so UrlExpirySeconds is irrelevant.
+    public StorageCategoryOptions DisbursementEvidence { get; set; } = new()
+    {
+        MaxSizeBytes = StorageOptions.DefaultMaxSizeBytes20Mib,
+        ServingMode = ServingMode.BackendStream,
+    };
+
     public StorageCategoryOptions For(FileCategory category) => category switch
     {
         FileCategory.SignedFundingAgreement => SignedFundingAgreement,
@@ -115,6 +124,7 @@ public sealed class StorageCategoriesOptions
         FileCategory.PublicLandingFile => PublicLandingFile,
         FileCategory.FundRegulation => FundRegulation,
         FileCategory.FundsUsageEvidence => FundsUsageEvidence,
+        FileCategory.DisbursementEvidence => DisbursementEvidence,
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
     };
 }
