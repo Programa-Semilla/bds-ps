@@ -1,7 +1,7 @@
 # Brainstorm: Financial Disbursement Control Platform (program roadmap + slice P1)
 
 **Date:** 2026-07-15
-**Status:** spec-created
+**Status:** P1 shipped (PR #78) — P2–P9 documented below for resume
 **Spec:** specs/045-financial-disbursement-core/ (slice P1 only)
 **Seed:** brainstorm/seeds/financial_disbursement_requirements_brainstorming.md (July 15 2026 requirements meeting — Danny Pérez, Pao Rodríguez Marín, Vivian Arias)
 
@@ -44,7 +44,7 @@ Anchor for the whole program: **allocation = executed FundingAgreement total** (
 
 | Slice | Title | Core scope | Depends on | Seed FR / AC anchors |
 |-------|-------|-----------|-----------|----------------------|
-| **P1** ✅ | Financial Disbursement Core | Disbursement + append-only ledger + 5-dim balance + zero-colón reconciliation (3 comparisons, all blocking); Financial Operator role; freely-correct-until-validated | — | FR-022/023/024/025/026/027, FR-051/052(subset)/055/057/060/062, FR-081/082/083, FR-124(subset)/164/165/168/169; AC-001, AC-005 | **→ spec 045** |
+| **P1** ✅ shipped (PR #78) | Financial Disbursement Core | Disbursement + append-only ledger + 5-dim balance + zero-colón reconciliation (3 comparisons, all blocking); Financial Operator role; freely-correct-until-validated | — | FR-022/023/024/025/026/027, FR-051/052(subset)/055/057/060/062, FR-081/082/083, FR-124(subset)/164/165/168/169; AC-001, AC-005 | **→ spec 045** |
 | **P2** | Tranches & budget-lines | Subdivide the allocation into tranches + budget-lines; per-line attribution; **Committed** dimension; many-to-many payment↔line; balance composition by tranche/line | P1 | FR-011/012/013/014/016/017/018; §10.9 official-vs-provisional; AC-002/AC-003 (line side) |
 | **P3** | Evidence graph & required-doc rules | Typed evidence (12 doc types), M:N linking + **allocation across lines**, document **version history**, configurable required-document rules, completeness matrix, "can't close with missing evidence" | P1 (P2 for line allocation) | FR-037–050; §10.8 completeness matrix; AC-002/AC-003 (evidence side) |
 | **P4** | Full reconciliation engine | Multi-level reconciliation (doc→payment→line→participant→tranche→bank), **non-blocking warnings**, severity model, **discrepancy lifecycle** (open→assigned→under-correction→resolved→approved→waived), reconciliation dashboard | P1–P3 | FR-051–067 (full); §10.10 reconciliation scope |
