@@ -101,17 +101,17 @@ description: "Task list for Tranches & Budget-Lines (Financial Execution P2)"
 
 ### Tests for US3
 
-- [ ] T030 [P] [US3] Unit tests in `tests/FundingPlatform.Tests.Unit/` — `DisbursementLineReconciliation.EvaluateSplit` (mismatch → blocking) + `EvaluateLineOverpayments` (Paid−Committed ≥ 0.01 → blocking).
-- [ ] T031 [P] [US3] Integration tests (real SQL) — `RecordAsync`/`EditAsync` persist/replace splits; `SplitMismatch` + `LineNotCommitted` rejects; `ValidateAsync` blocks `LineOverpayment` re-checked against **fresh** sums (concurrent-attribution race); per-line Paid/Validated/Pending compose (SC-002/SC-003/SC-004).
-- [ ] T032 [P] [US3] E2E `LineAttributionTests` — record a disbursement split across lines spanning tranches; mismatch rejected; over-payment blocks Validar; negative Available visible, never clamped.
+- [X] T030 [P] [US3] Unit tests in `tests/FundingPlatform.Tests.Unit/` — `DisbursementLineReconciliation.EvaluateSplit` (mismatch → blocking) + `EvaluateLineOverpayments` (Paid−Committed ≥ 0.01 → blocking).
+- [X] T031 [P] [US3] Integration tests (real SQL) — `RecordAsync`/`EditAsync` persist/replace splits; `SplitMismatch` + `LineNotCommitted` rejects; `ValidateAsync` blocks `LineOverpayment` re-checked against **fresh** sums (concurrent-attribution race); per-line Paid/Validated/Pending compose (SC-002/SC-003/SC-004).
+- [X] T032 [P] [US3] E2E `LineAttributionTests` — record a disbursement split across lines spanning tranches; mismatch rejected; over-payment blocks Validar; negative Available visible, never clamped.
 
 ### Implementation for US3
 
-- [ ] T033 [US3] Pure `src/FundingPlatform.Domain/Services/DisbursementLineReconciliation.cs` (`EvaluateSplit` + `EvaluateLineOverpayments`, `MinDetectableDifference = 0.01`, all Blocking).
-- [ ] T034 [US3] `RecordDisbursementCommand`/`EditDisbursementCommand` gain `IReadOnlyList<LineAllocationInput> Lines`; `DisbursementService.RecordAsync`/`EditAsync` validate committed+split (blocking reasons) and persist the `DisbursementLineAllocation` set replace-all; audit payload gains `lines`.
-- [ ] T035 [US3] `DisbursementService.ValidateAsync` per-line over-payment gate after P1's evidence/participant checks — fresh per-line committed budgets + non-cancelled sums → `EvaluateLineOverpayments` → block `LineOverpayment` (no ledger post).
-- [ ] T036 [US3] Projection: per-line **Paid/Validated/Pending/Available** from `DisbursementLineAllocation` in `ParticipantBalanceProjection.cs` (completes the composed tree; participant `Allocated` cross-checks the ledger snapshot).
-- [ ] T037 [US3] Record/Edit split-editor UI in `Views/Disbursement/Index.cshtml`/`Detail.cshtml` + `DisbursementViewModels.cs` binding (per-line amount inputs summing to amount) + es-CR copy.
+- [X] T033 [US3] Pure `src/FundingPlatform.Domain/Services/DisbursementLineReconciliation.cs` (`EvaluateSplit` + `EvaluateLineOverpayments`, `MinDetectableDifference = 0.01`, all Blocking).
+- [X] T034 [US3] `RecordDisbursementCommand`/`EditDisbursementCommand` gain `IReadOnlyList<LineAllocationInput> Lines`; `DisbursementService.RecordAsync`/`EditAsync` validate committed+split (blocking reasons) and persist the `DisbursementLineAllocation` set replace-all; audit payload gains `lines`.
+- [X] T035 [US3] `DisbursementService.ValidateAsync` per-line over-payment gate after P1's evidence/participant checks — fresh per-line committed budgets + non-cancelled sums → `EvaluateLineOverpayments` → block `LineOverpayment` (no ledger post).
+- [X] T036 [US3] Projection: per-line **Paid/Validated/Pending/Available** from `DisbursementLineAllocation` in `ParticipantBalanceProjection.cs` (completes the composed tree; participant `Allocated` cross-checks the ledger snapshot).
+- [X] T037 [US3] Record/Edit split-editor UI in `Views/Disbursement/Index.cshtml`/`Detail.cshtml` + `DisbursementViewModels.cs` binding (per-line amount inputs summing to amount) + es-CR copy.
 
 **Checkpoint**: US1–US3 work; full six-dimension composed balances + reconciliation live.
 

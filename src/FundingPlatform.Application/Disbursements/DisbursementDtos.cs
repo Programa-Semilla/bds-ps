@@ -3,22 +3,33 @@ using FundingPlatform.Domain.ValueObjects;
 
 namespace FundingPlatform.Application.Disbursements;
 
-/// <summary>Spec 045 / FR-001 — record a disbursement against an executed agreement.</summary>
+/// <summary>Spec 046 — one line of a disbursement's per-line split: a portion attributed to a
+/// committed budget-line (<see cref="Item"/>).</summary>
+public sealed record LineAllocationInput(int ItemId, decimal Amount);
+
+/// <summary>Spec 045 / FR-001 — record a disbursement against an executed agreement.
+/// Spec 046: <paramref name="Lines"/> optionally attributes the amount across committed budget-lines
+/// (null ⇒ a flat, unattributed disbursement — the P1 behavior; non-empty ⇒ split-integrity + committed
+/// checks apply and the allocation rows are persisted).</summary>
 public sealed record RecordDisbursementCommand(
     int ApplicationId,
     DateOnly PaymentDate,
     decimal Amount,
     string BankTransactionReference,
-    string? BankAccountReference);
+    string? BankAccountReference,
+    IReadOnlyList<LineAllocationInput>? Lines = null);
 
-/// <summary>Spec 045 / FR-028 — edit a pre-validation disbursement's details.</summary>
+/// <summary>Spec 045 / FR-028 — edit a pre-validation disbursement's details.
+/// Spec 046: <paramref name="Lines"/> null ⇒ leave the existing attribution untouched; non-null ⇒
+/// replace-all the split (empty clears it).</summary>
 public sealed record EditDisbursementCommand(
     int ApplicationId,
     int DisbursementId,
     DateOnly PaymentDate,
     decimal Amount,
     string BankTransactionReference,
-    string? BankAccountReference);
+    string? BankAccountReference,
+    IReadOnlyList<LineAllocationInput>? Lines = null);
 
 /// <summary>Spec 045 / FR-006/FR-010 — attach or replace one typed evidence document.
 /// The content stream is already type-validated + size-bounded at the controller boundary.</summary>

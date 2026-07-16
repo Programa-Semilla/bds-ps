@@ -147,12 +147,20 @@ public sealed class DisbursementController : Controller
             return NotFound();
         }
 
+        // Spec 046 / US3 — committed budget-lines for the Edit split editor.
+        var composed = await _balance.GetComposedForApplicationAsync(applicationId, null, ct);
+        var committedLines = composed.Tranches
+            .SelectMany(t => t.Lines)
+            .Where(l => l.CommitState == FundingPlatform.Domain.Enums.ItemCommitState.Committed)
+            .ToList();
+
         return View(new DisbursementDetailViewModel
         {
             ApplicationId = applicationId,
             Detail = detail,
             CanWrite = CanWrite(),
             AcceptExtensions = string.Join(",", EvidenceFileTypePolicy.AllowedExtensions),
+            CommittedLines = committedLines,
         });
     }
 
@@ -160,7 +168,8 @@ public sealed class DisbursementController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Record(
         int applicationId, string? paymentDate, string? amount,
-        string? bankTransactionReference, string? bankAccountReference, CancellationToken ct)
+        string? bankTransactionReference, string? bankAccountReference,
+        int[]? lineItemId, string[]? lineAmount, CancellationToken ct)
     {
         var guard = await GuardWriteAsync(applicationId, ct);
         if (guard is not null)
@@ -170,17 +179,40 @@ public sealed class DisbursementController : Controller
 
         var cmd = new RecordDisbursementCommand(
             applicationId, ParseDate(paymentDate), ParseAmount(amount),
-            bankTransactionReference ?? string.Empty, bankAccountReference);
+            bankTransactionReference ?? string.Empty, bankAccountReference,
+            BuildLines(lineItemId, lineAmount));
 
         var result = await _service.RecordAsync(cmd, GetUserId(), ct);
         return Flash(result, DisbursementResources.Flash_Recorded, applicationId);
+    }
+
+    /// <summary>Zip the parallel <c>lineItemId[]</c>/<c>lineAmount[]</c> form arrays into the split,
+    /// dropping rows with a blank/zero amount. Returns null when no non-zero row was posted (a flat
+    /// disbursement — no attribution).</summary>
+    private static IReadOnlyList<LineAllocationInput>? BuildLines(int[]? itemIds, string[]? amounts)
+    {
+        if (itemIds is null || amounts is null)
+        {
+            return null;
+        }
+        var lines = new List<LineAllocationInput>();
+        for (var i = 0; i < itemIds.Length && i < amounts.Length; i++)
+        {
+            var amt = ParseAmount(amounts[i]);
+            if (amt > 0m)
+            {
+                lines.Add(new LineAllocationInput(itemIds[i], amt));
+            }
+        }
+        return lines.Count > 0 ? lines : null;
     }
 
     [HttpPost("{disbursementId:int}/Edit")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(
         int applicationId, int disbursementId, string? paymentDate, string? amount,
-        string? bankTransactionReference, string? bankAccountReference, CancellationToken ct)
+        string? bankTransactionReference, string? bankAccountReference,
+        int[]? lineItemId, string[]? lineAmount, CancellationToken ct)
     {
         var guard = await GuardWriteAsync(applicationId, ct);
         if (guard is not null)
@@ -194,7 +226,8 @@ public sealed class DisbursementController : Controller
 
         var cmd = new EditDisbursementCommand(
             applicationId, disbursementId, ParseDate(paymentDate), ParseAmount(amount),
-            bankTransactionReference ?? string.Empty, bankAccountReference);
+            bankTransactionReference ?? string.Empty, bankAccountReference,
+            BuildLines(lineItemId, lineAmount));
 
         var result = await _service.EditAsync(cmd, GetUserId(), ct);
         return FlashToDetail(result, DisbursementResources.Flash_Edited, applicationId, disbursementId);

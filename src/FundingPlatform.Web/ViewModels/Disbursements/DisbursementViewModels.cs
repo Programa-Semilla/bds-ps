@@ -52,6 +52,9 @@ public sealed class DisbursementDetailViewModel
     public required DisbursementDetail Detail { get; init; }
     public required bool CanWrite { get; init; }
     public required string AcceptExtensions { get; init; }
+
+    /// <summary>Spec 046 / US3 — committed budget-lines available for the Edit split editor.</summary>
+    public IReadOnlyList<BudgetLineBalance> CommittedLines { get; init; } = [];
 }
 
 /// <summary>Spec 045 — the group-scoped disbursement inbox (executed applications in

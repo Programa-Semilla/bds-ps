@@ -94,6 +94,8 @@
                                        value="@d.BankAccountReference" data-testid="disbursement-edit-bank-acct" />
                             </div>
                         </div>
+                        @* Spec 046 / US3 — re-split across committed lines (leave blank to keep the current split). *@
+                        <partial name="_SplitEditor" model="Model.CommittedLines" />
                         <div class="mt-3">
                             <button type="submit" class="btn btn-outline-primary" data-testid="disbursement-edit-submit">
                                 @DisbursementResources.Action_Save
