@@ -39,16 +39,42 @@ public static class ApplicationCurrencyTotal
                 }
             }
 
-            if (item.SelectedSupplierId is null) continue;
-            var chosen = item.Quotations.FirstOrDefault(qq => qq.SupplierId == item.SelectedSupplierId);
-            if (chosen is null) continue;
-            if (chosen.LegacyNeedsReview) continue;
-            if (chosen.ConvertedCrcAmount.HasValue)
+            // Spec 046 / D5 — the per-line budget is exactly the selected quote's converted CRC
+            // amount. Only a contributing line (selected, non-legacy, with a converted amount) bumps
+            // the total off null, preserving the pre-046 "no supplier selected yet ⇒ null" semantics.
+            var chosen = SelectedQuotation(item);
+            if (chosen?.ConvertedCrcAmount is { } amt)
             {
-                total = (total ?? 0m) + chosen.ConvertedCrcAmount.Value;
+                total = (total ?? 0m) + amt;
             }
         }
         return (total, hasNonCrc);
+    }
+
+    /// <summary>
+    /// Spec 046 / D5 — the per-budget-line CRC budget: the selected quotation's
+    /// <c>ConvertedCrcAmount</c>, or <c>0</c> when the line has no selected supplier, no matching
+    /// quotation, a legacy-needs-review quote, or no converted amount. Shared by the tranche/line
+    /// composition and the per-line over-payment check so they never drift from
+    /// <see cref="Compute"/>'s allocation rollup. The composed EF projection replicates this exact
+    /// selection in LINQ (correlated on <c>SelectedSupplierId</c> + <c>!LegacyNeedsReview</c>).
+    /// </summary>
+    public static decimal LineBudget(FundingPlatform.Domain.Entities.Item item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        return SelectedQuotation(item)?.ConvertedCrcAmount ?? 0m;
+    }
+
+    /// <summary>The line's chosen quotation (matching <c>SelectedSupplierId</c>, non-legacy), or null.</summary>
+    private static FundingPlatform.Domain.Entities.Quotation? SelectedQuotation(
+        FundingPlatform.Domain.Entities.Item item)
+    {
+        if (item.SelectedSupplierId is null)
+        {
+            return null;
+        }
+        var chosen = item.Quotations.FirstOrDefault(qq => qq.SupplierId == item.SelectedSupplierId);
+        return chosen is { LegacyNeedsReview: false } ? chosen : null;
     }
 
     /// <summary>

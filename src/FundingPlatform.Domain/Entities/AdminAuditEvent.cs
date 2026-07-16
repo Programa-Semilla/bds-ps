@@ -153,6 +153,34 @@ public class AdminAuditEvent
     /// the trail is queryable per disbursement via <c>IX_AdminAuditEvents_Target</c>.</summary>
     public const string TargetTypeDisbursement = "disbursement";
 
+    // ---------- Spec 046 — tranche + budget-line commit mutations. ----------
+    /// <summary>Spec 046 / FR-022 — reviewer created a tranche (payload: {trancheId, applicationId, name}).</summary>
+    public const string TrancheCreated = "tranche.created";
+    /// <summary>Spec 046 / FR-022 — reviewer renamed a tranche (payload: {trancheId, applicationId, oldName, newName}).</summary>
+    public const string TrancheRenamed = "tranche.renamed";
+    /// <summary>Spec 046 / FR-022 — reviewer deleted a tranche; member lines re-parented to the synthetic default
+    /// (payload: {trancheId, applicationId, name}).</summary>
+    public const string TrancheDeleted = "tranche.deleted";
+    /// <summary>Spec 046 / FR-022 — reviewer assigned a line to a tranche (payload: {trancheId, applicationId, itemId}).</summary>
+    public const string TrancheItemAssigned = "tranche.item_assigned";
+    /// <summary>Spec 046 / FR-022 — reviewer unassigned a line (→ synthetic default) (payload: {applicationId, itemId}).</summary>
+    public const string TrancheItemUnassigned = "tranche.item_unassigned";
+
+    /// <summary>Spec 046 / FR-022 — Financial Operator committed a budget-line (payload: {itemId, applicationId}).</summary>
+    public const string LineCommitted = "line.committed";
+    /// <summary>Spec 046 / FR-022 — Financial Operator un-committed a budget-line (payload: {itemId, applicationId}).</summary>
+    public const string LineUncommitted = "line.uncommitted";
+
+    /// <summary>Spec 046 — target-type discriminator for tranche mutations. The <c>tranche.</c>
+    /// prefix routes here in <c>AdminAuditEventWriter</c> and sets <c>TargetId = trancheId</c>
+    /// (parsed from the payload) so the trail is queryable per tranche. The <c>tranche.item_unassigned</c>
+    /// event has no tranche id and falls back to the "0" sentinel.</summary>
+    public const string TargetTypeTranche = "tranche";
+
+    /// <summary>Spec 046 — target-type discriminator for the <c>line.*</c> commit mutations,
+    /// which target the budget-line <see cref="Item"/> (<c>TargetId = itemId</c> from the payload).</summary>
+    public const string TargetTypeItem = "item";
+
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string ActorUserId { get; private set; } = string.Empty;

@@ -1,12 +1,12 @@
 namespace FundingPlatform.Application.Disbursements;
 
 /// <summary>
-/// Spec 045 — es-CR refusal/validation strings produced by the Infrastructure
-/// <c>DisbursementService</c>. Kept in the Application layer (not <c>Web.Resources</c>)
-/// because the service that produces them lives in Infrastructure and must not depend
-/// on Web — the spec-034 <c>BatchUserRowReasons</c> / spec-043 <c>RegulatoryFreshnessCopy</c>
-/// cross-layer precedent. Each is paired with a stable <see cref="Codes"/> value so the
-/// Web layer can also branch programmatically if needed.
+/// Spec 045/046 — es-CR refusal/validation strings for the financial-execution surface, produced by
+/// the Infrastructure <c>DisbursementService</c> AND (spec 046) <c>TrancheService</c> (the tranche/
+/// line reason constants below). Kept in the Application layer (not <c>Web.Resources</c>) because the
+/// services that produce them live in Infrastructure and must not depend on Web — the spec-034
+/// <c>BatchUserRowReasons</c> / spec-043 <c>RegulatoryFreshnessCopy</c> cross-layer precedent. Each is
+/// paired with a stable <see cref="Codes"/> value so the Web layer can also branch programmatically.
 /// </summary>
 public static class DisbursementReasons
 {
@@ -24,6 +24,17 @@ public static class DisbursementReasons
         public const string OverAllocation = "OVER_ALLOCATION";
         public const string Concurrency = "CONCURRENCY";
         public const string EvidenceFailed = "EVIDENCE_FAILED";
+
+        // Spec 046 — tranches & budget-line commit/attribution (contracts §5).
+        public const string SplitMismatch = "SPLIT_MISMATCH";
+        public const string LineNotCommitted = "LINE_NOT_COMMITTED";
+        public const string LineOverpayment = "LINE_OVERPAYMENT";
+        public const string LineHasPayment = "LINE_HAS_PAYMENT";
+        public const string TrancheFrozen = "TRANCHE_FROZEN";
+        public const string TrancheNameInUse = "TRANCHE_NAME_IN_USE";
+        public const string TrancheNotFound = "TRANCHE_NOT_FOUND";
+        public const string LineNotFound = "LINE_NOT_FOUND";
+        public const string ApplicationNotFound = "APPLICATION_NOT_FOUND";
     }
 
     public const string NotFound = "No se encontró el desembolso.";
@@ -44,4 +55,21 @@ public static class DisbursementReasons
     public const string EvidenceFailed = "No se pudo adjuntar el documento. Intente de nuevo.";
     public const string Concurrency =
         "El desembolso fue modificado por otra persona. Vuelva a cargar la página e intente de nuevo.";
+
+    // Spec 046 — tranches & budget-line commit/attribution (contracts §5). Line labels use
+    // LineCode ?? APP-line fallback, interpolated by the producing service.
+    public const string SplitMismatch = "La suma de las líneas no coincide con el monto del desembolso.";
+    public const string LineNotCommitted = "La línea debe comprometerse antes de asignarle un pago.";
+    public const string LineHasPayment = "No se puede descomprometer una línea con pagos registrados.";
+    public const string TrancheFrozen = "La estructura de tramos quedó congelada al ejecutarse el convenio.";
+    public const string TrancheNameInUse = "Ya existe un tramo con ese nombre en esta solicitud.";
+    public const string TrancheNotFound = "No se encontró el tramo.";
+    public const string LineNotFound = "No se encontró la línea presupuestaria en esta solicitud.";
+    public const string ApplicationNotFound = "No se encontró la solicitud.";
+
+    /// <summary>Spec 046 / FR-019 — the per-line over-payment refusal names the line whose Σ payments
+    /// exceed its committed budget. <paramref name="lineLabel"/> is the line's <c>LineCode</c>, or an
+    /// <c>L-{itemId}</c> fallback when the line has no reviewer-assigned code.</summary>
+    public static string LineOverpayment(string lineLabel) =>
+        $"El pago de la línea «{lineLabel}» excede su presupuesto comprometido.";
 }

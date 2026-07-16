@@ -1,0 +1,52 @@
+@using System.Globalization
+@using FundingPlatform.Application.Disbursements
+@using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.Resources
+@model IReadOnlyList<BudgetLineBalance>
+@{
+    var crc = new CultureInfo("es-CR");
+    string Money(decimal v) => v.ToString("C2", crc);
+    var committed = Model.Where(l => l.CommitState == ItemCommitState.Committed).ToList();
+}
+
+<div class="mt-3" data-testid="split-editor">
+    <h4 class="mb-1">@DisbursementResources.Split_Heading</h4>
+    @if (committed.Count == 0)
+    {
+        <p class="text-secondary small mb-0" data-testid="split-none-committed">@DisbursementResources.Split_MustCommitFirst</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-vcenter">
+                <thead>
+                    <tr>
+                        <th>@DisbursementResources.Split_Line</th>
+                        <th class="text-end">@DisbursementResources.Split_Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var line in committed)
+                    {
+                        <tr data-testid="split-row" data-item-id="@line.ItemId">
+                            <td>
+                                @if (!string.IsNullOrEmpty(line.LineCode))
+                                {
+                                    <span class="badge bg-secondary-lt me-1">@line.LineCode</span>
+                                }
+                                @line.ProductName
+                                <span class="text-secondary small">(@Money(line.Balance.Allocated))</span>
+                            </td>
+                            <td class="text-end">
+                                <input type="hidden" name="lineItemId" value="@line.ItemId" />
+                                <input type="number" name="lineAmount" class="form-control form-control-sm text-end"
+                                       min="0" step="0.01" style="max-width: 10rem; display: inline-block;"
+                                       data-testid="split-amount" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

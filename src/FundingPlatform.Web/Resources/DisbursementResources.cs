@@ -131,6 +131,24 @@ public static class DisbursementResources
         ReconciliationComparison.DisbursementVsBankReceipt => "Desembolso vs. comprobante bancario",
         ReconciliationComparison.DisbursementVsInvoice => "Desembolso vs. factura",
         ReconciliationComparison.TotalVsAllocation => "Total desembolsado vs. monto aprobado",
+        ReconciliationComparison.DisbursementSplitVsTotal => "Suma de líneas vs. monto del desembolso",
+        ReconciliationComparison.LinePaymentVsBudget => "Pago de la línea vs. presupuesto comprometido",
         _ => comparison.ToString(),
     };
+
+    // Spec 046 — Committed dimension (6th balance figure) + per-line commit actions.
+    public const string Balance_Committed = "Comprometido";
+    public const string Line_Commit = "Comprometer";
+    public const string Line_Uncommit = "Descomprometer";
+    public const string Line_CommitState_Committed = "Comprometida";
+    public const string Line_CommitState_Uncommitted = "Sin comprometer";
+    public const string Flash_LineCommitted = "Línea comprometida.";
+    public const string Flash_LineUncommitted = "Línea descomprometida.";
+
+    // Spec 046 / US3 — per-line split editor on the disbursement Record/Edit form.
+    public const string Split_Heading = "Distribución por línea";
+    public const string Split_Line = "Línea";
+    public const string Split_Amount = "Monto (CRC)";
+    public const string Split_Total = "Total distribuido";
+    public const string Split_MustCommitFirst = "Solo se pueden asignar pagos a líneas comprometidas.";
 }

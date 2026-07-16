@@ -88,6 +88,18 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<AppEntity>
             .HasForeignKey(i => i.ApplicationId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Spec 046 — per-application tranches (funding phases), backing field _tranches.
+        // ClientCascade: DeleteTranche removes the child from the aggregate collection, so EF must
+        // DELETE the orphan (not sever the required FK). The DB FK stays NO ACTION (dbo.Tranches.sql —
+        // applications are soft-deleted, so the DB never cascades), mirroring the ItemImpact reasoning.
+        builder.HasMany(a => a.Tranches)
+            .WithOne()
+            .HasForeignKey(t => t.ApplicationId)
+            .OnDelete(DeleteBehavior.ClientCascade);
+        builder.Metadata
+            .FindNavigation(nameof(AppEntity.Tranches))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
         builder.HasMany(a => a.VersionHistory)
             .WithOne(v => v.Application)
             .HasForeignKey(v => v.ApplicationId)

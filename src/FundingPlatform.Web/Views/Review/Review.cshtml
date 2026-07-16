@@ -31,6 +31,12 @@
     @await Html.PartialAsync("_ReviewerChecklist", Model)
 }
 
+@* Spec 046 / US1 — tranche (funding-phase) editor, pre-audit only. *@
+@if (Model.TrancheEditor is not null)
+{
+    @await Html.PartialAsync("_TrancheEditor", Model.TrancheEditor)
+}
+
 @if (Model.RejectedSupplierCount > 0)
 {
     <div class="alert alert-danger" role="alert" data-testid="rejected-suppliers-banner">

@@ -1,0 +1,83 @@
+@using FundingPlatform.Application.Disbursements
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Disbursements.DisbursementIndexViewModel
+@{
+    var f = Model.Filter;
+}
+
+<form method="get" asp-controller="Disbursement" asp-action="Index" asp-route-applicationId="@Model.ApplicationId"
+      class="row g-2 align-items-end mb-3" data-testid="budget-line-filter">
+    <div class="col-auto">
+        <label class="form-label">@TrancheResources.Filter_Tranche</label>
+        <select name="trancheId" class="form-select form-select-sm" data-searchable data-testid="filter-tranche">
+            <option value="">@TrancheResources.Filter_All</option>
+            @foreach (var t in Model.TrancheOptions)
+            {
+                if (f.TrancheId == t.Id)
+                {
+                    <option value="@t.Id" selected>@t.Name</option>
+                }
+                else
+                {
+                    <option value="@t.Id">@t.Name</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label">@TrancheResources.Filter_Status</label>
+        <select name="status" class="form-select form-select-sm" data-testid="filter-status">
+            <option value="">@TrancheResources.Filter_All</option>
+            @foreach (var s in Enum.GetValues<BudgetLineStatus>())
+            {
+                if (string.Equals(f.Status, s.ToString(), StringComparison.OrdinalIgnoreCase))
+                {
+                    <option value="@s" selected>@TrancheResources.StatusLabel(s)</option>
+                }
+                else
+                {
+                    <option value="@s">@TrancheResources.StatusLabel(s)</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label">@TrancheResources.Filter_Supplier</label>
+        <select name="supplierId" class="form-select form-select-sm" data-searchable data-testid="filter-supplier">
+            <option value="">@TrancheResources.Filter_All</option>
+            @foreach (var s in Model.SupplierOptions)
+            {
+                if (f.SupplierId == s.Id)
+                {
+                    <option value="@s.Id" selected>@s.Name</option>
+                }
+                else
+                {
+                    <option value="@s.Id">@s.Name</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label">@TrancheResources.Filter_ValidationState</label>
+        <select name="validationState" class="form-select form-select-sm" data-testid="filter-validation">
+            <option value="">@TrancheResources.Filter_All</option>
+            <option value="@nameof(BudgetLineValidationState.HasPending)"
+                    selected="@(string.Equals(f.ValidationState, nameof(BudgetLineValidationState.HasPending), StringComparison.OrdinalIgnoreCase))">
+                @TrancheResources.ValidationState_HasPending
+            </option>
+            <option value="@nameof(BudgetLineValidationState.FullyValidated)"
+                    selected="@(string.Equals(f.ValidationState, nameof(BudgetLineValidationState.FullyValidated), StringComparison.OrdinalIgnoreCase))">
+                @TrancheResources.ValidationState_FullyValidated
+            </option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-primary" data-testid="filter-apply">@TrancheResources.Filter_Apply</button>
+        @if (f.IsActive)
+        {
+            <a asp-controller="Disbursement" asp-action="Index" asp-route-applicationId="@Model.ApplicationId"
+               class="btn btn-sm btn-link" data-testid="filter-clear">@TrancheResources.Filter_Clear</a>
+        }
+    </div>
+</form>

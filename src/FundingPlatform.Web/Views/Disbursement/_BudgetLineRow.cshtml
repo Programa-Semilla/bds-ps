@@ -1,0 +1,53 @@
+@using System.Globalization
+@using FundingPlatform.Application.Disbursements
+@using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.Resources
+@model (int ApplicationId, BudgetLineBalance Line, bool CanWrite)
+@{
+    var crc = new CultureInfo("es-CR");
+    string Money(decimal v) => v.ToString("C2", crc);
+    var line = Model.Line;
+    var isCommitted = line.CommitState == ItemCommitState.Committed;
+}
+<tr data-testid="budget-line-row" data-item-id="@line.ItemId" data-status="@line.Status">
+    <td>
+        @if (!string.IsNullOrEmpty(line.LineCode))
+        {
+            <span class="badge bg-secondary-lt me-1">@line.LineCode</span>
+        }
+        @line.ProductName
+    </td>
+    <td class="text-secondary">@(line.SupplierName ?? "—")</td>
+    <td class="text-end" data-testid="line-allocated">@Money(line.Balance.Allocated)</td>
+    <td class="text-end" data-testid="line-committed">@Money(line.Balance.Committed)</td>
+    <td class="text-end" data-testid="line-paid">@Money(line.Balance.Paid)</td>
+    <td class="text-end @(line.Balance.Available < 0 ? "text-danger" : "")" data-testid="line-available">@Money(line.Balance.Available)</td>
+    <td>
+        <span class="badge @TrancheResources.StatusBadgeClass(line.Status)" data-testid="line-status">
+            @TrancheResources.StatusLabel(line.Status)
+        </span>
+    </td>
+    <td class="text-end">
+        @if (Model.CanWrite)
+        {
+            if (!isCommitted)
+            {
+                <form asp-controller="Disbursement" asp-action="Commit" asp-route-applicationId="@Model.ApplicationId"
+                      asp-route-itemId="@line.ItemId" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-primary" data-testid="line-commit-btn">
+                        @DisbursementResources.Line_Commit
+                    </button>
+                </form>
+            }
+            else
+            {
+                <form asp-controller="Disbursement" asp-action="Uncommit" asp-route-applicationId="@Model.ApplicationId"
+                      asp-route-itemId="@line.ItemId" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-ghost-secondary" data-testid="line-uncommit-btn">
+                        @DisbursementResources.Line_Uncommit
+                    </button>
+                </form>
+            }
+        }
+    </td>
+</tr>

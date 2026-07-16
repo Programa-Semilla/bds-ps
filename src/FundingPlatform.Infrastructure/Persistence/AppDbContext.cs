@@ -64,6 +64,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<DisbursementEvidence> DisbursementEvidence => Set<DisbursementEvidence>();
     public DbSet<DisbursementLedgerEntry> DisbursementLedgerEntries => Set<DisbursementLedgerEntry>();
 
+    // Spec 046 — tranches (funding phases) + per-line payment attribution join.
+    public DbSet<Tranche> Tranches => Set<Tranche>();
+    public DbSet<DisbursementLineAllocation> DisbursementLineAllocations => Set<DisbursementLineAllocation>();
+
     // Spec 037 — admin-managed companies (Empresas) owned by applicants.
     public DbSet<Company> Companies => Set<Company>();
 

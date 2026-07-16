@@ -144,6 +144,17 @@ public sealed class DisbursementService : IDisbursementService
             return Result<int>.Failure(errors);
         }
 
+        // Spec 046 — when a per-line split is supplied, every target line must be committed and the
+        // split must sum to the amount (split integrity, FR-013). Skipped for a flat P1 disbursement.
+        if (cmd.Lines is { Count: > 0 })
+        {
+            var lineError = await ValidateLinesAsync(cmd.ApplicationId, cmd.Amount, cmd.Lines, ct);
+            if (lineError is not null)
+            {
+                return Result<int>.Failure(lineError);
+            }
+        }
+
         // Ensure the one-time Allocation snapshot exists (idempotent — filtered-unique
         // index backstops the race). Reuse the canonical CRC rollup (research R1).
         var allocationExists = await _db.DisbursementLedgerEntries
@@ -175,7 +186,7 @@ public sealed class DisbursementService : IDisbursementService
 
         try
         {
-            await _db.SaveChangesAsync(ct); // assigns disbursement.Id for the audit payload
+            await _db.SaveChangesAsync(ct); // assigns disbursement.Id for the audit payload + splits
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -190,6 +201,12 @@ public sealed class DisbursementService : IDisbursementService
             return Result<int>.Failure(new DomainError(DisbursementReasons.Codes.Concurrency, null, DisbursementReasons.Concurrency));
         }
 
+        // Spec 046 — persist the per-line split now that the disbursement id exists.
+        if (cmd.Lines is { Count: > 0 })
+        {
+            await ReplaceSplitAsync(disbursement.Id, cmd.Lines, ct);
+        }
+
         await _audit.WriteAsync(
             AdminAuditEvent.DisbursementRecorded, actorUserId,
             JsonSerializer.Serialize(new
@@ -197,6 +214,7 @@ public sealed class DisbursementService : IDisbursementService
                 disbursementId = disbursement.Id,
                 applicationId = cmd.ApplicationId,
                 after = new { amount = cmd.Amount, paymentDate = cmd.PaymentDate.ToString("O"), state = disbursement.State.ToString() },
+                lines = cmd.Lines?.Select(l => new { l.ItemId, l.Amount }),
             }),
             ct);
         await _db.SaveChangesAsync(ct);
@@ -230,10 +248,37 @@ public sealed class DisbursementService : IDisbursementService
             return Result.Failure(new DomainError(DisbursementReasons.Codes.InvalidInput, nameof(cmd.BankTransactionReference), DisbursementReasons.BankTransactionRequired));
         }
 
+        // Spec 046 — validate the new split (if the caller manages lines) against the new amount.
+        if (cmd.Lines is not null)
+        {
+            var lineError = await ValidateLinesAsync(cmd.ApplicationId, cmd.Amount, cmd.Lines, ct);
+            if (lineError is not null)
+            {
+                return Result.Failure(lineError);
+            }
+        }
+        else
+        {
+            // Spec 046 / FR-013 — the caller left the split untouched (e.g. changed only the amount).
+            // If an existing split no longer sums to the new amount, refuse the edit rather than
+            // persist a stale, inconsistent split (which would otherwise slip through to Validar).
+            var staleSplit = await EvaluateSplitIntegrityAsync(cmd.DisbursementId, cmd.Amount, ct);
+            if (staleSplit is not null)
+            {
+                return Result.Failure(staleSplit);
+            }
+        }
+
         var before = new { amount = d.Amount, paymentDate = d.PaymentDate.ToString("O"), bankTxn = d.BankTransactionReference, bankAcct = d.BankAccountReference };
 
         d.EditDetails(cmd.PaymentDate, cmd.Amount, cmd.BankTransactionReference, cmd.BankAccountReference);
         await ReconcileAsync(d, currentAmount: cmd.Amount, ct);
+
+        // Spec 046 — null Lines leaves the existing attribution untouched; non-null replaces it.
+        if (cmd.Lines is not null)
+        {
+            await ReplaceSplitAsync(d.Id, cmd.Lines, ct);
+        }
 
         await _audit.WriteAsync(
             AdminAuditEvent.DisbursementEdited, actorUserId,
@@ -243,6 +288,7 @@ public sealed class DisbursementService : IDisbursementService
                 applicationId = d.ApplicationId,
                 before,
                 after = new { amount = cmd.Amount, paymentDate = cmd.PaymentDate.ToString("O"), bankTxn = cmd.BankTransactionReference, bankAcct = cmd.BankAccountReference },
+                lines = cmd.Lines?.Select(l => new { l.ItemId, l.Amount }),
             }),
             ct);
 
@@ -388,6 +434,17 @@ public sealed class DisbursementService : IDisbursementService
             return Result.Failure(new DomainError(DisbursementReasons.Codes.MissingEvidence, null, reason));
         }
 
+        // Spec 046 / FR-013 — defense-in-depth split-integrity re-check at Validar. If this
+        // disbursement carries a per-line split, its Σ line-allocations MUST still equal the amount.
+        // This closes the "Edit changed the amount but left the split stale" hole (a split summing to
+        // the OLD amount) AND the Record two-SaveChanges partial-failure case (a committed disbursement
+        // whose split rows never persisted) — neither can ever validate into the ledger.
+        var splitError = await EvaluateSplitIntegrityAsync(disbursementId, d.Amount, ct);
+        if (splitError is not null)
+        {
+            return Result.Failure(splitError);
+        }
+
         // Authoritative reconciliation against the freshly-read committed Σ. Comparison (c)
         // here closes the concurrent-partial-payment race single-row concurrency cannot catch
         // (research R5): a disbursement whose own amounts match but whose validation would push
@@ -402,6 +459,16 @@ public sealed class DisbursementService : IDisbursementService
             return Result.Failure(overAllocation
                 ? new DomainError(DisbursementReasons.Codes.OverAllocation, null, DisbursementReasons.WouldExceedAllocation)
                 : new DomainError(DisbursementReasons.Codes.HasDiscrepancy, null, DisbursementReasons.HasDiscrepancy));
+        }
+
+        // Spec 046 / FR-019 — per-line over-payment gate, re-checked against FRESHLY-READ committed
+        // budgets + non-cancelled payment sums for the lines this disbursement touches (this
+        // disbursement is still non-cancelled, so its allocations count). Symmetric with P1's
+        // participant-level over-disbursement gate; closes the concurrent-partial-payment race.
+        var lineOverpayment = await EvaluateLineOverpaymentsAsync(disbursementId, ct);
+        if (lineOverpayment is not null)
+        {
+            return Result.Failure(lineOverpayment);
         }
 
         d.Validate(actorUserId, bothEvidencePresent: true, zeroDiscrepancies: true);
@@ -463,6 +530,77 @@ public sealed class DisbursementService : IDisbursementService
         return await CommitAsync(ct);
     }
 
+    // ---------------------------------------------------------------- commit (spec 046)
+
+    public async Task<Result> CommitLineAsync(int applicationId, int itemId, string actorUserId, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
+
+        var app = await _db.Applications.Include(a => a.Items)
+            .FirstOrDefaultAsync(a => a.Id == applicationId, ct);
+        if (app is null)
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.ApplicationNotFound, null, DisbursementReasons.ApplicationNotFound));
+        }
+        if (app.State != ApplicationState.AgreementExecuted)
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.NotExecuted, null, DisbursementReasons.NotExecuted));
+        }
+        if (app.Items.All(i => i.Id != itemId))
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.LineNotFound, null, DisbursementReasons.LineNotFound));
+        }
+
+        app.CommitLine(itemId); // idempotent
+        await _db.SaveChangesAsync(ct);
+
+        await _audit.WriteAsync(
+            AdminAuditEvent.LineCommitted, actorUserId,
+            JsonSerializer.Serialize(new { itemId, applicationId }), ct);
+        await _db.SaveChangesAsync(ct);
+
+        return Result.Success();
+    }
+
+    public async Task<Result> UncommitLineAsync(int applicationId, int itemId, string actorUserId, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
+
+        var app = await _db.Applications.Include(a => a.Items)
+            .FirstOrDefaultAsync(a => a.Id == applicationId, ct);
+        if (app is null)
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.ApplicationNotFound, null, DisbursementReasons.ApplicationNotFound));
+        }
+        if (app.State != ApplicationState.AgreementExecuted)
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.NotExecuted, null, DisbursementReasons.NotExecuted));
+        }
+        if (app.Items.All(i => i.Id != itemId))
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.LineNotFound, null, DisbursementReasons.LineNotFound));
+        }
+
+        // FR-007 — a line with any non-cancelled attributed payment cannot be un-committed.
+        var hasPayment = await _db.DisbursementLineAllocations.AsNoTracking()
+            .AnyAsync(a => a.ItemId == itemId
+                && _db.Disbursements.Any(d => d.Id == a.DisbursementId && d.State != DisbursementState.Cancelled), ct);
+        if (hasPayment)
+        {
+            return Result.Failure(new DomainError(DisbursementReasons.Codes.LineHasPayment, null, DisbursementReasons.LineHasPayment));
+        }
+
+        app.UncommitLine(itemId); // idempotent
+        await _db.SaveChangesAsync(ct);
+
+        await _audit.WriteAsync(
+            AdminAuditEvent.LineUncommitted, actorUserId,
+            JsonSerializer.Serialize(new { itemId, applicationId }), ct);
+        await _db.SaveChangesAsync(ct);
+
+        return Result.Success();
+    }
+
     // ---------------------------------------------------------------- download
 
     public async Task<DisbursementEvidenceDownload?> OpenEvidenceForDownloadAsync(
@@ -504,6 +642,120 @@ public sealed class DisbursementService : IDisbursementService
             _logger.LogWarning("Disbursement evidence (disbursement {DisbursementId}, kind {Kind}) row exists but its blob is missing.", disbursementId, kind);
             return null;
         }
+    }
+
+    // ---------------------------------------------------------------- spec 046 line-split helpers
+
+    /// <summary>Spec 046 — validate a per-line split: every target line belongs to the application and
+    /// is committed (FR-009), and the split sums to the amount (FR-013). Returns the first error, or null.</summary>
+    private async Task<DomainError?> ValidateLinesAsync(
+        int applicationId, decimal amount, IReadOnlyList<LineAllocationInput> lines, CancellationToken ct)
+    {
+        if (lines.Any(l => l.Amount <= 0m))
+        {
+            return new DomainError(DisbursementReasons.Codes.SplitMismatch, null, DisbursementReasons.SplitMismatch);
+        }
+
+        var ids = lines.Select(l => l.ItemId).Distinct().ToList();
+        var found = await _db.Items.AsNoTracking()
+            .Where(i => i.ApplicationId == applicationId && ids.Contains(i.Id))
+            .Select(i => new { i.Id, i.CommitState })
+            .ToListAsync(ct);
+
+        // Every provided line must belong to the application and be committed.
+        if (found.Count != ids.Count || found.Any(i => i.CommitState != ItemCommitState.Committed))
+        {
+            return new DomainError(DisbursementReasons.Codes.LineNotCommitted, null, DisbursementReasons.LineNotCommitted);
+        }
+
+        var split = DisbursementLineReconciliation.EvaluateSplit(
+            amount, lines.Select(l => (l.ItemId, l.Amount)).ToList());
+        return split.Count > 0
+            ? new DomainError(DisbursementReasons.Codes.SplitMismatch, null, DisbursementReasons.SplitMismatch)
+            : null;
+    }
+
+    /// <summary>Spec 046 — replace-all the disbursement's line allocation rows (mirrors how evidence is
+    /// Replaced, not patched). The caller commits.</summary>
+    private async Task ReplaceSplitAsync(int disbursementId, IReadOnlyList<LineAllocationInput> lines, CancellationToken ct)
+    {
+        var existing = await _db.DisbursementLineAllocations
+            .Where(a => a.DisbursementId == disbursementId).ToListAsync(ct);
+        _db.DisbursementLineAllocations.RemoveRange(existing);
+        foreach (var l in lines)
+        {
+            _db.DisbursementLineAllocations.Add(DisbursementLineAllocation.For(disbursementId, l.ItemId, l.Amount));
+        }
+    }
+
+    /// <summary>Spec 046 / FR-013 — re-check that a disbursement's existing per-line split still sums to
+    /// <paramref name="amount"/>. Returns a <c>SplitMismatch</c> error when the disbursement has
+    /// attribution rows whose Σ ≠ amount, else null (a flat/unattributed disbursement passes — no split
+    /// to check).</summary>
+    private async Task<DomainError?> EvaluateSplitIntegrityAsync(int disbursementId, decimal amount, CancellationToken ct)
+    {
+        var lines = await _db.DisbursementLineAllocations.AsNoTracking()
+            .Where(a => a.DisbursementId == disbursementId)
+            .Select(a => new ValueTuple<int, decimal>(a.ItemId, a.Amount))
+            .ToListAsync(ct);
+        if (lines.Count == 0)
+        {
+            return null;
+        }
+        var split = DisbursementLineReconciliation.EvaluateSplit(amount, lines);
+        return split.Count > 0
+            ? new DomainError(DisbursementReasons.Codes.SplitMismatch, null, DisbursementReasons.SplitMismatch)
+            : null;
+    }
+
+    /// <summary>Spec 046 / FR-019 — the per-line over-payment gate. For every line this disbursement
+    /// attributes to, read the fresh committed budget + Σ non-cancelled payments to the line and run
+    /// the pure evaluator. Returns the first blocking over-payment as a <c>LineOverpayment</c> error
+    /// (naming the line), or null when clean / the disbursement is flat (no attributions).</summary>
+    private async Task<DomainError?> EvaluateLineOverpaymentsAsync(int disbursementId, CancellationToken ct)
+    {
+        var touchedItemIds = await _db.DisbursementLineAllocations.AsNoTracking()
+            .Where(a => a.DisbursementId == disbursementId)
+            .Select(a => a.ItemId)
+            .Distinct()
+            .ToListAsync(ct);
+        if (touchedItemIds.Count == 0)
+        {
+            return null; // flat disbursement — no line dimension to check
+        }
+
+        // Fresh committed budgets (LineBudget LINQ twin) for the touched lines.
+        var budgets = await _db.Items.AsNoTracking()
+            .Where(i => touchedItemIds.Contains(i.Id))
+            .Select(i => new
+            {
+                i.Id,
+                i.LineCode,
+                Budget = i.Quotations
+                    .Where(q => q.SupplierId == i.SelectedSupplierId && !q.LegacyNeedsReview && q.ConvertedCrcAmount != null)
+                    .Select(q => (decimal?)q.ConvertedCrcAmount)
+                    .FirstOrDefault() ?? 0m,
+            })
+            .ToListAsync(ct);
+
+        // Fresh Σ non-cancelled payments per touched line (includes THIS still-non-cancelled disbursement).
+        var paidByLine = await _db.DisbursementLineAllocations.AsNoTracking()
+            .Where(a => touchedItemIds.Contains(a.ItemId)
+                && _db.Disbursements.Any(dd => dd.Id == a.DisbursementId && dd.State != DisbursementState.Cancelled))
+            .GroupBy(a => a.ItemId)
+            .Select(g => new { ItemId = g.Key, Paid = g.Sum(x => x.Amount) })
+            .ToListAsync(ct);
+
+        var checks = budgets.Select(b => new LinePaymentVsBudget(
+            b.Id,
+            b.LineCode ?? $"L-{b.Id}",
+            b.Budget,
+            paidByLine.FirstOrDefault(p => p.ItemId == b.Id)?.Paid ?? 0m)).ToList();
+
+        var overpays = DisbursementLineReconciliation.EvaluateLineOverpayments(checks);
+        return overpays.Count > 0
+            ? new DomainError(DisbursementReasons.Codes.LineOverpayment, null, DisbursementReasons.LineOverpayment(overpays[0].LineLabel))
+            : null;
     }
 
     // ---------------------------------------------------------------- helpers

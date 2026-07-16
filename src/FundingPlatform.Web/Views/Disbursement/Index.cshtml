@@ -2,6 +2,11 @@
 @model FundingPlatform.Web.ViewModels.Disbursements.DisbursementIndexViewModel
 @{
     ViewData["Title"] = DisbursementResources.Title;
+    var committedLines = Model.Composed is null
+        ? new List<FundingPlatform.Application.Disbursements.BudgetLineBalance>()
+        : Model.Composed.Tranches.SelectMany(t => t.Lines)
+            .Where(l => l.CommitState == FundingPlatform.Domain.Enums.ItemCommitState.Committed)
+            .ToList();
 }
 
 <div class="page-header d-print-none">
@@ -14,6 +19,9 @@
 <div class="page-body">
     <div class="container-xl" data-testid="disbursement-surface">
         <partial name="_BalanceCard" model="Model.Balance" />
+
+        @* Spec 046 — composed tranche → budget-line panel with per-line commit + filtering. *@
+        <partial name="_TrancheBalancePanel" model="Model" />
 
         @if (Model.CanWrite)
         {
@@ -44,6 +52,8 @@
                                        data-testid="disbursement-bank-acct" />
                             </div>
                         </div>
+                        @* Spec 046 / US3 — optional per-line split across committed budget-lines. *@
+                        <partial name="_SplitEditor" model="committedLines" />
                         <div class="mt-3">
                             <button type="submit" class="btn btn-primary" data-testid="disbursement-record-submit">
                                 @DisbursementResources.Action_Record

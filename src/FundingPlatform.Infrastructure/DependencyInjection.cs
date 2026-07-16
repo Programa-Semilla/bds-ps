@@ -218,6 +218,9 @@ public static class DependencyInjection
         services.AddScoped<Application.Disbursements.IParticipantBalanceProjection,
             Services.ParticipantBalanceProjection>();
 
+        // Spec 046 — reviewer tranche (funding-phase) setup.
+        services.AddScoped<Application.Tranches.ITrancheService, Services.TrancheService>();
+
         // Spec 043 — regulatory freshness gating + Hacienda API sync.
         services.AddRegulatoryFreshness(configuration);
 
