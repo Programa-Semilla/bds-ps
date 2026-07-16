@@ -9,9 +9,12 @@ namespace FundingPlatform.Tests.Integration.Disbursements;
 
 /// <summary>
 /// Spec 045 / T032 — append-only ledger invariants: validation posts exactly one immutable
-/// Disbursement entry; a re-validation attempt is refused (no double-post at the logic level;
-/// the filtered-unique index backstop is exercised by E2E); the Allocation snapshot equals
-/// <see cref="ApplicationCurrencyTotal.Compute"/>.
+/// Disbursement entry, and a re-validation attempt is refused by the domain state guard
+/// (already Validated → locked) so no second entry can be posted at the logic level. The
+/// schema-level filtered-unique indexes (<c>UX_DisbursementLedger_Disbursement/_Allocation</c>)
+/// are a defense-in-depth backstop against a true concurrent double-post; they are not asserted
+/// here (that requires real concurrency) — the deterministic guard is what this test covers. The
+/// Allocation snapshot equals <see cref="ApplicationCurrencyTotal.Compute"/>.
 /// </summary>
 [TestFixture]
 public class DisbursementLedgerTests

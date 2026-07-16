@@ -18,11 +18,11 @@
                 <table class="table card-table table-vcenter" data-testid="disbursement-inbox-table">
                     <thead>
                         <tr>
-                            <th>Número</th>
-                            <th>Solicitante</th>
-                            <th>Fondo</th>
-                            <th>Proceso</th>
-                            <th>Ejecutado</th>
+                            <th>@DisbursementResources.Inbox_Col_Number</th>
+                            <th>@DisbursementResources.Inbox_Col_Applicant</th>
+                            <th>@DisbursementResources.Inbox_Col_Fund</th>
+                            <th>@DisbursementResources.Inbox_Col_Process</th>
+                            <th>@DisbursementResources.Inbox_Col_Executed</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -31,7 +31,7 @@
                         {
                             <tr>
                                 <td colspan="6" class="text-secondary" data-testid="disbursement-inbox-empty">
-                                    No hay convenios ejecutados en procesos activos.
+                                    @DisbursementResources.Inbox_Empty
                                 </td>
                             </tr>
                         }

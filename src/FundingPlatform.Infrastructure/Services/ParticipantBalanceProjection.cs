@@ -1,7 +1,6 @@
 // Spec 045 — see specs/045-financial-disbursement-core/data-model.md (Balance projection) and research R3.
 
 using FundingPlatform.Application.Disbursements;
-using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.ValueObjects;
 using FundingPlatform.Infrastructure.Persistence;
@@ -27,25 +26,10 @@ public sealed class ParticipantBalanceProjection : IParticipantBalanceProjection
 
     public async Task<ParticipantBalance> GetForApplicationAsync(int applicationId, CancellationToken ct)
     {
-        // Allocated: the ledger Allocation snapshot if present, else the canonical CRC
-        // rollup (research R1) as a pre-first-disbursement fallback.
-        var allocationEntry = await _db.DisbursementLedgerEntries.AsNoTracking()
-            .Where(l => l.ApplicationId == applicationId && l.EntryType == LedgerEntryType.Allocation)
-            .Select(l => (decimal?)l.Amount)
-            .FirstOrDefaultAsync(ct);
-
-        decimal allocated;
-        if (allocationEntry is { } snap)
-        {
-            allocated = snap;
-        }
-        else
-        {
-            var app = await _db.Applications.AsNoTracking()
-                .Include(a => a.Items).ThenInclude(i => i.Quotations)
-                .FirstOrDefaultAsync(a => a.Id == applicationId, ct);
-            allocated = app is null ? 0m : ApplicationCurrencyTotal.Compute(app).Total ?? 0m;
-        }
+        // Allocated: the ledger Allocation snapshot if present, else the canonical CRC rollup
+        // (research R1). Shared with DisbursementService via DisbursementAllocation so the figure
+        // the user reads can never drift from the ceiling reconciliation enforces.
+        var allocated = await DisbursementAllocation.ResolveAsync(_db, applicationId, ct);
 
         // Validated: Σ ledger Disbursement entries.
         var validated = await _db.DisbursementLedgerEntries.AsNoTracking()

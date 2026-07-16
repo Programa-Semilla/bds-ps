@@ -6,15 +6,16 @@ namespace FundingPlatform.Domain.Services;
 /// <summary>
 /// Spec 045 / FR-011/FR-012 — the pure, deterministic reconciliation evaluator
 /// (NFR-020). Runs the three comparisons at a <b>zero-colón tolerance</b>: any
-/// difference of one colón or more (<c>|a − b| ≥ 0.01</c>) yields a blocking
-/// discrepancy (FR-015). Discrepancies are computed, never persisted (research R4);
-/// only the derived <see cref="DisbursementState"/> is stored, so re-running the
-/// evaluator on read never drifts.
+/// non-zero difference (down to a single céntimo, <c>|a − b| ≥ 0.01</c>) yields a
+/// blocking discrepancy (FR-015) — so a one-colón difference is always caught.
+/// Discrepancies are computed, never persisted (research R4); only the derived
+/// <see cref="DisbursementState"/> is stored, so re-running the evaluator on read never drifts.
 /// </summary>
 public static class DisbursementReconciliation
 {
-    /// <summary>Zero tolerance — the smallest detectable difference is one colón.</summary>
-    private const decimal OneColon = 0.01m;
+    /// <summary>Zero tolerance — the smallest detectable difference is one céntimo (0.01),
+    /// so any difference of one colón or more is always flagged.</summary>
+    private const decimal MinDetectableDifference = 0.01m;
 
     // es-CR source-document labels (FR-013/FR-014 — status is by text, not colour alone).
     public const string SourceBankReceipt = "comprobante bancario";
@@ -39,7 +40,7 @@ public static class DisbursementReconciliation
         var discrepancies = new List<ReconciliationDiscrepancy>(3);
 
         // (a) Disbursement vs bank receipt — only when the receipt exists.
-        if (bankReceiptAmount is { } receipt && Math.Abs(receipt - disbursementAmount) >= OneColon)
+        if (bankReceiptAmount is { } receipt && Math.Abs(receipt - disbursementAmount) >= MinDetectableDifference)
         {
             discrepancies.Add(new ReconciliationDiscrepancy(
                 ReconciliationComparison.DisbursementVsBankReceipt,
@@ -51,7 +52,7 @@ public static class DisbursementReconciliation
         }
 
         // (b) Disbursement vs invoice — only when the invoice exists.
-        if (invoiceAmount is { } invoice && Math.Abs(invoice - disbursementAmount) >= OneColon)
+        if (invoiceAmount is { } invoice && Math.Abs(invoice - disbursementAmount) >= MinDetectableDifference)
         {
             discrepancies.Add(new ReconciliationDiscrepancy(
                 ReconciliationComparison.DisbursementVsInvoice,
@@ -64,7 +65,7 @@ public static class DisbursementReconciliation
 
         // (c) Sum of disbursements vs allocation — always. Over-disbursement only
         // (under-disbursement is never a discrepancy, FR-005).
-        if (sumOfNonCancelledIncludingThis - allocation >= OneColon)
+        if (sumOfNonCancelledIncludingThis - allocation >= MinDetectableDifference)
         {
             discrepancies.Add(new ReconciliationDiscrepancy(
                 ReconciliationComparison.TotalVsAllocation,

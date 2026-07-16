@@ -35,15 +35,17 @@ public sealed record AttachDisbursementEvidenceCommand(
     string ContentType,
     long FileSize);
 
-/// <summary>Spec 045 — flat read projection for the disbursement list.</summary>
+/// <summary>Spec 045 — flat read projection for the disbursement list. Validatability is a
+/// per-disbursement concern (needs the live discrepancy check) surfaced only on the detail
+/// projection (<see cref="DisbursementDetail.IsValidatable"/>); the list shows state + evidence
+/// presence badges, so it deliberately carries no validatable flag.</summary>
 public sealed record DisbursementListItem(
     int Id,
     DateOnly PaymentDate,
     decimal Amount,
     DisbursementState State,
     bool HasBankReceipt,
-    bool HasInvoice,
-    bool IsValidatable);
+    bool HasInvoice);
 
 /// <summary>Spec 045 — a stored evidence document summary shown on the detail surface.</summary>
 public sealed record DisbursementEvidenceSummary(

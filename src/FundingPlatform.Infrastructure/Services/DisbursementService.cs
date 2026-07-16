@@ -68,10 +68,7 @@ public sealed class DisbursementService : IDisbursementService
 
         return rows
             .Select(r => new DisbursementListItem(
-                r.Id, r.PaymentDate, r.Amount, r.State,
-                r.HasBankReceipt, r.HasInvoice,
-                IsValidatable: r.State is not (DisbursementState.Validated or DisbursementState.Cancelled)
-                               && r.HasBankReceipt && r.HasInvoice))
+                r.Id, r.PaymentDate, r.Amount, r.State, r.HasBankReceipt, r.HasInvoice))
             .ToList();
     }
 
@@ -120,8 +117,9 @@ public sealed class DisbursementService : IDisbursementService
         ArgumentNullException.ThrowIfNull(cmd);
         ArgumentException.ThrowIfNullOrWhiteSpace(actorUserId);
 
+        // Light load for the gate + factory (Record reads only State/Id). The heavy
+        // Items→Quotations graph is loaded below only when the allocation must be computed.
         var app = await _db.Applications.AsNoTracking()
-            .Include(a => a.Items).ThenInclude(i => i.Quotations)
             .FirstOrDefaultAsync(a => a.Id == cmd.ApplicationId, ct);
         if (app is null)
         {
@@ -152,7 +150,12 @@ public sealed class DisbursementService : IDisbursementService
             .AnyAsync(l => l.ApplicationId == cmd.ApplicationId && l.EntryType == LedgerEntryType.Allocation, ct);
         if (!allocationExists)
         {
-            var allocationAmount = ApplicationCurrencyTotal.Compute(app).Total ?? 0m;
+            // Only the first disbursement needs the heavy Items→Quotations graph to snapshot
+            // the canonical CRC rollup; later records short-circuit on the ledger entry (P2 perf).
+            var appForTotal = await _db.Applications.AsNoTracking()
+                .Include(a => a.Items).ThenInclude(i => i.Quotations)
+                .FirstOrDefaultAsync(a => a.Id == cmd.ApplicationId, ct);
+            var allocationAmount = appForTotal is null ? 0m : ApplicationCurrencyTotal.Compute(appForTotal).Total ?? 0m;
             _db.DisbursementLedgerEntries.Add(
                 DisbursementLedgerEntry.Allocation(cmd.ApplicationId, allocationAmount, actorUserId));
         }
@@ -176,6 +179,14 @@ public sealed class DisbursementService : IDisbursementService
         }
         catch (DbUpdateConcurrencyException)
         {
+            return Result<int>.Failure(new DomainError(DisbursementReasons.Codes.Concurrency, null, DisbursementReasons.Concurrency));
+        }
+        catch (DbUpdateException)
+        {
+            // Two operators recording the very first disbursement concurrently both try to insert
+            // the one-and-only Allocation entry; the filtered-unique UX_DisbursementLedger_Allocation
+            // rejects the loser as a DbUpdateException (not a concurrency exception). Surface it as a
+            // retryable concurrency error rather than a 500 — the retry finds the entry present.
             return Result<int>.Failure(new DomainError(DisbursementReasons.Codes.Concurrency, null, DisbursementReasons.Concurrency));
         }
 
@@ -259,7 +270,7 @@ public sealed class DisbursementService : IDisbursementService
         {
             return Result<int>.Failure(new DomainError(DisbursementReasons.Codes.AmountInvalid, nameof(cmd.Amount), DisbursementReasons.AmountNotPositive));
         }
-        if (!string.Equals(cmd.Currency?.Trim(), EvidenceEntity.RequiredCurrency, StringComparison.OrdinalIgnoreCase))
+        if (cmd.Currency is null || !string.Equals(cmd.Currency.Trim(), EvidenceEntity.RequiredCurrency, StringComparison.OrdinalIgnoreCase))
         {
             return Result<int>.Failure(new DomainError(DisbursementReasons.Codes.NonCrc, nameof(cmd.Currency), DisbursementReasons.NonCrcCurrency));
         }
@@ -272,6 +283,15 @@ public sealed class DisbursementService : IDisbursementService
             .FirstOrDefaultAsync(e => e.DisbursementId == cmd.DisbursementId && e.Kind == cmd.Kind, ct);
         var isReplace = existing is not null;
         var oldBlobKey = existing?.BlobKey;
+        // FR-030 — capture the replaced document's prior values before Replace() overwrites them,
+        // so the evidence_replaced audit carries before/after (the attach path has no before).
+        object? beforeSnapshot = existing is null ? null : new
+        {
+            amount = existing.Amount,
+            currency = existing.Currency,
+            reference = existing.DocumentReferenceNumber,
+            date = existing.DocumentDate.ToString("O"),
+        };
 
         var ext = Path.GetExtension(cmd.FileName);
         var key = ObjectKey.Build(
@@ -307,6 +327,14 @@ public sealed class DisbursementService : IDisbursementService
             throw;
         }
 
+        // The evidence row now durably points at the new blob (SaveChanges #1). Delete the
+        // superseded blob here — before SaveChanges #2 — so a failure persisting the derived
+        // state/audit cannot leak the old blob (P3).
+        if (isReplace && !string.IsNullOrEmpty(oldBlobKey) && oldBlobKey != key.Value)
+        {
+            await DeleteBlobBestEffortAsync(oldBlobKey!, ct);
+        }
+
         // Re-run reconciliation now that the evidence amount is committed (FR-016), then
         // persist the derived state + audit in the second SaveChanges.
         await ReconcileAsync(d, currentAmount: d.Amount, ct);
@@ -320,16 +348,11 @@ public sealed class DisbursementService : IDisbursementService
                 applicationId = d.ApplicationId,
                 evidenceId = evidence.Id,
                 kind = cmd.Kind.ToString(),
-                after = new { amount = cmd.Amount, currency = cmd.Currency, reference = cmd.DocumentReferenceNumber },
+                before = beforeSnapshot,
+                after = new { amount = cmd.Amount, currency = cmd.Currency, reference = cmd.DocumentReferenceNumber, date = cmd.DocumentDate.ToString("O") },
             }),
             ct);
         await _db.SaveChangesAsync(ct);
-
-        // On a successful replace, delete the superseded blob (best effort).
-        if (isReplace && !string.IsNullOrEmpty(oldBlobKey) && oldBlobKey != key.Value)
-        {
-            await DeleteBlobBestEffortAsync(oldBlobKey!, ct);
-        }
 
         return Result<int>.Success(evidence.Id);
     }
@@ -519,22 +542,8 @@ public sealed class DisbursementService : IDisbursementService
         return await q.SumAsync(d => (decimal?)d.Amount, ct) ?? 0m;
     }
 
-    private async Task<decimal> GetOrComputeAllocationAsync(int applicationId, CancellationToken ct)
-    {
-        var ledger = await _db.DisbursementLedgerEntries.AsNoTracking()
-            .Where(l => l.ApplicationId == applicationId && l.EntryType == LedgerEntryType.Allocation)
-            .Select(l => (decimal?)l.Amount)
-            .FirstOrDefaultAsync(ct);
-        if (ledger is { } a)
-        {
-            return a;
-        }
-
-        var app = await _db.Applications.AsNoTracking()
-            .Include(x => x.Items).ThenInclude(i => i.Quotations)
-            .FirstOrDefaultAsync(x => x.Id == applicationId, ct);
-        return app is null ? 0m : ApplicationCurrencyTotal.Compute(app).Total ?? 0m;
-    }
+    private Task<decimal> GetOrComputeAllocationAsync(int applicationId, CancellationToken ct)
+        => DisbursementAllocation.ResolveAsync(_db, applicationId, ct);
 
     private async Task<Result> CommitAsync(CancellationToken ct)
     {

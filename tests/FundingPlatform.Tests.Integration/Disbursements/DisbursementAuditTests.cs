@@ -42,7 +42,9 @@ public class DisbursementAuditTests
             .Where(e => e.TargetType == AdminAuditEvent.TargetTypeDisbursement)
             .ToListAsync();
 
-        var actionsForDisb1 = rows.Where(r => r.TargetId == disbId.ToString()).Select(r => r.Action).ToList();
+        var disb1Rows = rows.Where(r => r.TargetId == disbId.ToString()).ToList();
+        var actionsForDisb1 = disb1Rows.Select(r => r.Action).ToList();
+        var editedRow = disb1Rows.Single(r => r.Action == AdminAuditEvent.DisbursementEdited);
         Assert.Multiple(() =>
         {
             Assert.That(actionsForDisb1, Does.Contain(AdminAuditEvent.DisbursementRecorded));
@@ -52,8 +54,12 @@ public class DisbursementAuditTests
             Assert.That(rows.Where(r => r.TargetId == rec2.Value.ToString()).Select(r => r.Action),
                 Does.Contain(AdminAuditEvent.DisbursementCancelled));
             Assert.That(rows.All(r => r.ActorUserId == Actor), Is.True, "every row carries the actor");
-            Assert.That(rows.Where(r => r.TargetId == disbId.ToString())
-                .All(r => (r.PayloadJson ?? string.Empty).Contains("after")), Is.True, "payloads carry before/after");
+            // SC-007 / FR-030 — the edit payload carries BOTH before and after (not just after),
+            // and the before block holds the prior value that changed.
+            Assert.That(editedRow.PayloadJson, Does.Contain("before"));
+            Assert.That(editedRow.PayloadJson, Does.Contain("after"));
+            // Exact prior value (with closing quote) — distinguishes before "TX-1" from after "TX-1b".
+            Assert.That(editedRow.PayloadJson, Does.Contain("\"bankTxn\":\"TX-1\""), "before-value of the changed bank reference");
         });
     }
 

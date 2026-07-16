@@ -124,6 +124,53 @@ public class DisbursementRoleScopingTests : AuthenticatedTestBase
         Assert.That(await disb.GotoStatusAsync(BaseUrl, appId), Is.EqualTo(200));
         await Expect(disb.Surface).ToBeVisibleAsync();
         await Expect(disb.RecordForm).ToHaveCountAsync(0);
+
+        // SC-008 server boundary: a crafted Record POST as the auditor is REFUSED server-side
+        // (GuardWriteAsync → Forbid), not merely UI-hidden. Replays the POST with the auditor's
+        // real session + antiforgery cookies and a valid anti-forgery token from the rendered page.
+        var token = await Page.Locator("input[name='__RequestVerificationToken']").First.InputValueAsync();
+        var cookies = await Page.Context.CookiesAsync();
+        var cookieHeader = string.Join("; ", cookies.Select(c => $"{c.Name}={c.Value}"));
+        using (var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
+            UseCookies = false,
+            AllowAutoRedirect = false,
+        })
+        using (var client = new HttpClient(handler) { BaseAddress = new Uri(BaseUrl) })
+        {
+            HttpRequestMessage Build(string url)
+            {
+                var m = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = new FormUrlEncodedContent(new Dictionary<string, string>
+                    {
+                        ["__RequestVerificationToken"] = token,
+                        ["paymentDate"] = "2026-07-15",
+                        ["amount"] = "1000",
+                        ["bankTransactionReference"] = "TX-AUD",
+                    }),
+                };
+                m.Headers.Add("Cookie", cookieHeader);
+                return m;
+            }
+
+            var resp = await client.SendAsync(Build($"/Applications/{appId}/Disbursements/Record"));
+            // Follow the infrastructure http→https upgrade (307/308 preserve the POST body).
+            if ((int)resp.StatusCode is 307 or 308 && resp.Headers.Location is { } upgrade)
+            {
+                resp = await client.SendAsync(Build(upgrade.ToString()));
+            }
+
+            var location = resp.Headers.Location?.ToString() ?? string.Empty;
+            var auditorRefused = resp.StatusCode == System.Net.HttpStatusCode.Forbidden
+                || ((int)resp.StatusCode == 302 && location.Contains("AccessDenied", StringComparison.OrdinalIgnoreCase));
+            Assert.That(auditorRefused, Is.True,
+                $"Auditor write POST must be refused server-side. Status={(int)resp.StatusCode}, Location={location}");
+        }
+        // No disbursement was created by the refused write.
+        await disb.GotoAsync(BaseUrl, appId);
+        await Expect(disb.Rows).ToHaveCountAsync(0);
         await Logout();
 
         // Applicant: refused by the role attribute (403 / AccessDenied).

@@ -10,7 +10,7 @@
 - Edge cases (zero/negative, non-CRC, amount-edited rerun, exact-total, cancel-leaves-no-ledger, concurrent edits, concurrent partial-payment race, both-differ, replace-before-validation, negative-Available): compliant.
 - One deviation from [plan.md](plan.md) was **resolved toward the spec**, not away from it — see "Deviations" below (FR-025 Admin read-only).
 
-Delivery gate: Unit 10/0, Integration 6/0, filtered E2E 10/0 (real SQL).
+Delivery gate: Unit 10/0, Integration 11/0, filtered E2E 10/0 (real SQL).
 
 ---
 
@@ -52,3 +52,50 @@ This section guides a code reviewer through the implementation, focusing on high
 - **FR-025 Admin read-only** (`DisbursementController.CanWrite`, [FR-025](spec.md)): [plan.md R10](research.md#r10--routing--read-surface) / [contracts](contracts/interfaces.md) specified writes for "Financial Operator, Admin". The spec is explicit that **Auditor and Admin are read-only**, and for a money-movement surface that's the domain-correct segregation. I narrowed `CanWrite` to Financial Operator only (Admin now 403s on writes, matching FR-025). No E2E exercised Admin-writing-a-disbursement, so nothing regressed. Question: **is Admin-read-only the intended behavior, or did the plan mean Admin to retain super-user write here?** (If the latter, revert `CanWrite` to include Admin and evolve FR-025.)
 - **es-CR copy is a static class, not `.resx`** ([`DisbursementResources.cs`](../../src/FundingPlatform.Web/Resources/DisbursementResources.cs)): [T031](tasks.md) named a `.resx`, but every existing resource in the codebase is a static class; I followed the codebase convention. Question: acceptable?
 - **Views under `Views/Disbursement/` (singular)**, not the `Views/Disbursements/` [T030](tasks.md) wrote — MVC resolves views by controller name (`DisbursementController` → `Disbursement`). Cosmetic path deviation only.
+
+---
+
+## Deep Review Report
+
+> Automated multi-perspective code review results (5 agents + fix loop).
+
+**Date:** 2026-07-15 | **Rounds:** 1/3 | **Gate:** PASS
+
+### Review Agents
+
+| Agent | Findings | Status |
+|-------|----------|--------|
+| Correctness | 2 | completed |
+| Architecture & Idioms | 6 | completed |
+| Security | 1 | completed |
+| Production Readiness | 3 | completed |
+| Test Quality | 8 | completed |
+| CodeRabbit (external) | — | skipped (not installed) |
+| Copilot (external) | — | skipped (not installed) |
+
+### Findings Summary
+
+| Severity | Found | Fixed | Remaining |
+|----------|-------|-------|-----------|
+| Critical | 0 | 0 | 0 |
+| Important | 9 | 9 | 0 |
+| Minor | 9 | 9 | 0 |
+
+(18 raw findings → 18 after dedup; the `RecordAsync` unique-index race was reported by two agents and merged.)
+
+### What was fixed automatically
+
+- **One real bug:** `RecordAsync` now catches the unique-index `DbUpdateException` on the concurrent first-`Allocation` race (previously an unhandled 500) — mirrors `ValidateAsync`.
+- **Two design fixes:** extracted a single `DisbursementAllocation.ResolveAsync` so the reconciliation ceiling and the user-facing `Allocated` figure can't drift; captured `before` values in the evidence-**replace** audit payload (FR-030).
+- **Six code cleanups:** removed the dead/divergent `DisbursementListItem.IsValidatable`, renamed the misleading `OneColon` epsilon, centralized the inbox/discrepancy es-CR literals, dropped the dead `Flash` param, added the `Detail` cross-app guard (defense-in-depth), light-loaded the Application in `RecordAsync` (heavy graph only on first record), and closed an old-blob leak window on evidence replace.
+- **Seven test gaps closed:** non-CRC rejection, zero/negative amounts, the validation-time over-disbursement re-check (FR-005's race-proof gate), cancel-leaves-no-ledger, audit `before`/`after` (was asserting only `after`), the auditor server-side write-refusal (crafted POST → Forbid), and the missing-bank-receipt refusal reason. Plus a corrected coverage-illusion comment.
+
+### What still needs human attention
+
+No unresolved findings. The automated review covered correctness, architecture, security, production readiness, and test quality across the changed source files. The security agent independently confirmed the authorization surface (FR-008/024/025/029) is correct and complete.
+
+One item for the human reviewer's judgment carries over from the compliance review, not the deep review: **FR-025 Admin read-only** — confirm that narrowing writes to Financial Operator only (Admin now 403s) matches intent, versus the plan's original "Financial Operator, Admin" write set.
+
+### Recommendation
+
+All findings addressed. Verified green after the fix loop: **Unit 10/10, Integration 11/11, filtered E2E 10/10** (real SQL). Code is ready for human review with no known blockers.

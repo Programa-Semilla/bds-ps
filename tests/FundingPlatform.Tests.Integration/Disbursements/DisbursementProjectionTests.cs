@@ -1,6 +1,7 @@
 using FundingPlatform.Application.Disbursements;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Tests.Integration.AiComparison;
+using Microsoft.EntityFrameworkCore;
 using static FundingPlatform.Tests.Integration.Disbursements.DisbursementTestFactory;
 
 namespace FundingPlatform.Tests.Integration.Disbursements;
@@ -73,6 +74,39 @@ public class DisbursementProjectionTests
         var b = await proj.GetForApplicationAsync(appId, CancellationToken.None);
         Assert.That(b.Paid, Is.EqualTo(1_100_000m));
         Assert.That(b.Available, Is.EqualTo(-100_000m));
+    }
+
+    [Test]
+    public async Task Cancelled_ContributesNothing_AndLeavesNoLedgerEntry()
+    {
+        var db = $"disb-proj-cancel-{Guid.NewGuid():N}";
+        var storage = new InMemoryObjectStorage();
+
+        using var ctx = CreateContext(db);
+        var appId = await SeedExecutedAppAsync(ctx);
+        await SeedAllocationAsync(ctx, appId, 1_000_000m);
+        var svc = NewService(ctx, storage);
+        var proj = NewProjection(ctx);
+
+        var keep = await svc.RecordAsync(new RecordDisbursementCommand(appId, Today, 300_000m, "TX-1", null), Actor, CancellationToken.None);
+        var drop = await svc.RecordAsync(new RecordDisbursementCommand(appId, Today, 200_000m, "TX-2", null), Actor, CancellationToken.None);
+
+        var cancelled = await svc.CancelAsync(appId, drop.Value, Actor, CancellationToken.None);
+        Assert.That(cancelled.Succeeded, Is.True);
+
+        var b = await proj.GetForApplicationAsync(appId, CancellationToken.None);
+        Assert.Multiple(() =>
+        {
+            // Only the surviving ₡300,000 counts; the cancelled ₡200,000 vanishes from Paid/Pending.
+            Assert.That(b.PendingValidation, Is.EqualTo(300_000m));
+            Assert.That(b.Paid, Is.EqualTo(300_000m));
+            Assert.That(b.Available, Is.EqualTo(700_000m));
+        });
+
+        // A cancelled disbursement never posted a ledger entry.
+        var ledgerForCancelled = await ctx.DisbursementLedgerEntries
+            .CountAsync(l => l.DisbursementId == drop.Value);
+        Assert.That(ledgerForCancelled, Is.EqualTo(0));
     }
 
     private static AttachDisbursementEvidenceCommand EvidenceCmd(int appId, int disbId, EvidenceKind kind, decimal amount)

@@ -1,17 +1,9 @@
 @using System.Globalization
 @using FundingPlatform.Web.Resources
-@using FundingPlatform.Domain.Enums
 @model IReadOnlyList<FundingPlatform.Domain.ValueObjects.ReconciliationDiscrepancy>
 @{
     var crc = new CultureInfo("es-CR");
     string Money(decimal v) => v.ToString("C2", crc);
-    string ComparisonLabel(ReconciliationComparison c) => c switch
-    {
-        ReconciliationComparison.DisbursementVsBankReceipt => "Desembolso vs. comprobante bancario",
-        ReconciliationComparison.DisbursementVsInvoice => "Desembolso vs. factura",
-        ReconciliationComparison.TotalVsAllocation => "Total desembolsado vs. monto aprobado",
-        _ => c.ToString(),
-    };
 }
 @if (Model.Count == 0)
 {
@@ -28,10 +20,11 @@ else
             <li class="list-group-item d-flex align-items-start" data-testid="disbursement-discrepancy">
                 <i class="ti ti-alert-triangle text-red me-2 mt-1" aria-hidden="true"></i>
                 <div>
-                    <div class="fw-bold">@ComparisonLabel(d.Comparison) — @d.SourceDocument</div>
+                    <div class="fw-bold">@DisbursementResources.ComparisonLabel(d.Comparison) — @d.SourceDocument</div>
                     <div class="text-secondary small">
-                        Esperado @Money(d.Expected) · Registrado @Money(d.Actual) ·
-                        Diferencia <span class="fw-bold text-red">@Money(Math.Abs(d.Difference))</span>
+                        @DisbursementResources.Discrepancy_Expected @Money(d.Expected) ·
+                        @DisbursementResources.Discrepancy_Actual @Money(d.Actual) ·
+                        @DisbursementResources.Discrepancy_Difference <span class="fw-bold text-red">@Money(Math.Abs(d.Difference))</span>
                     </div>
                 </div>
             </li>

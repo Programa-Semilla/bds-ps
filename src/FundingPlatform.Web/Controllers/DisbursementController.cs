@@ -73,7 +73,10 @@ public sealed class DisbursementController : Controller
     [HttpGet("{disbursementId:int}")]
     public async Task<IActionResult> Detail(int applicationId, int disbursementId, CancellationToken ct)
     {
-        if (!await IsAccessibleAsync(applicationId, ct))
+        // Layered defense: the cross-application id guard mirrors every per-disbursement action
+        // (the service already filters by ApplicationId, but this keeps Detail consistent).
+        if (!await IsAccessibleAsync(applicationId, ct)
+            || !await DisbursementBelongsAsync(applicationId, disbursementId, ct))
         {
             return NotFound();
         }
@@ -110,7 +113,7 @@ public sealed class DisbursementController : Controller
             bankTransactionReference ?? string.Empty, bankAccountReference);
 
         var result = await _service.RecordAsync(cmd, GetUserId(), ct);
-        return Flash(result, DisbursementResources.Flash_Recorded, applicationId, result.Succeeded ? result.Value : null);
+        return Flash(result, DisbursementResources.Flash_Recorded, applicationId);
     }
 
     [HttpPost("{disbursementId:int}/Edit")]
@@ -233,7 +236,7 @@ public sealed class DisbursementController : Controller
 
         var result = await _service.CancelAsync(applicationId, disbursementId, GetUserId(), ct);
         // Cancel returns to the list (the disbursement is terminal).
-        return Flash(result, DisbursementResources.Flash_Cancelled, applicationId, null);
+        return Flash(result, DisbursementResources.Flash_Cancelled, applicationId);
     }
 
     [HttpGet("{disbursementId:int}/Evidence/{kind}/Download")]
@@ -307,7 +310,7 @@ public sealed class DisbursementController : Controller
     // explicit spec requirement (see REVIEW-CODE.md).
     private bool CanWrite() => User.IsInRole("Financial Operator");
 
-    private IActionResult Flash(Result result, string successMessage, int applicationId, int? _)
+    private IActionResult Flash(Result result, string successMessage, int applicationId)
     {
         if (result.Succeeded)
         {

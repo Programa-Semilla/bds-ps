@@ -17,6 +17,19 @@ public static class DisbursementResources
     public const string Subtitle = "Registre y valide los desembolsos del convenio ejecutado.";
     public const string InboxSubtitle = "Convenios ejecutados en procesos activos. Abra uno para registrar sus desembolsos.";
 
+    // Inbox table (mirrors EvidenceInboxResources — no English/hardcoded literals in the view)
+    public const string Inbox_Col_Number = "Número";
+    public const string Inbox_Col_Applicant = "Solicitante";
+    public const string Inbox_Col_Fund = "Fondo";
+    public const string Inbox_Col_Process = "Proceso";
+    public const string Inbox_Col_Executed = "Ejecutado";
+    public const string Inbox_Empty = "No hay convenios ejecutados en procesos activos.";
+
+    // Discrepancy list labels
+    public const string Discrepancy_Expected = "Esperado";
+    public const string Discrepancy_Actual = "Registrado";
+    public const string Discrepancy_Difference = "Diferencia";
+
     // Balance card
     public const string Balance_Title = "Balance del participante";
     public const string Balance_Allocated = "Asignado";
@@ -111,5 +124,13 @@ public static class DisbursementResources
         EvidenceKind.BankReceipt => "Comprobante bancario",
         EvidenceKind.Invoice => "Factura",
         _ => kind.ToString(),
+    };
+
+    public static string ComparisonLabel(ReconciliationComparison comparison) => comparison switch
+    {
+        ReconciliationComparison.DisbursementVsBankReceipt => "Desembolso vs. comprobante bancario",
+        ReconciliationComparison.DisbursementVsInvoice => "Desembolso vs. factura",
+        ReconciliationComparison.TotalVsAllocation => "Total desembolsado vs. monto aprobado",
+        _ => comparison.ToString(),
     };
 }
