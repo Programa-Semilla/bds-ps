@@ -197,6 +197,19 @@
 }
 
 /* ============================================================
+   BADGE CONTRAST FIX (solid secondary)
+   Tabler defaults a badge's text colour to --tblr-secondary AND
+   the solid `.bg-secondary` utility paints the background with
+   --tblr-secondary — so a solid secondary badge draws its text
+   the SAME colour as its background: an invisible label inside a
+   gray pill (e.g. the quotation count on /Applications/{code}/Review).
+   Restore a legible foreground for every solid secondary badge,
+   matching Tabler's own `.text-bg-secondary`. The `-lt` tint
+   variants already have contrast and are untouched.
+   ============================================================ */
+.badge.bg-secondary { --tblr-badge-color: #f9fafb; }
+
+/* ============================================================
    GLOBAL TYPE BASELINE
    ============================================================ */
 
