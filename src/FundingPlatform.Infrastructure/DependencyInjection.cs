@@ -213,6 +213,11 @@ public static class DependencyInjection
         services.AddScoped<Application.FundsUsageEvidence.IFundsUsageEvidenceService,
             Services.FundsUsageEvidenceService>();
 
+        // Spec 045 — financial disbursement core: record/reconcile/validate + balance projection.
+        services.AddScoped<Application.Disbursements.IDisbursementService, Services.DisbursementService>();
+        services.AddScoped<Application.Disbursements.IParticipantBalanceProjection,
+            Services.ParticipantBalanceProjection>();
+
         // Spec 043 — regulatory freshness gating + Hacienda API sync.
         services.AddRegulatoryFreshness(configuration);
 

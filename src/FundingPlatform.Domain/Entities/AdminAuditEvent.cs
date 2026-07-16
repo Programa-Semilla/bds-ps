@@ -133,6 +133,26 @@ public class AdminAuditEvent
     /// sentinel) so the trail is queryable per provider.</summary>
     public const string TargetTypeSupplier = "supplier";
 
+    // ---------- Spec 045 — financial disbursement lifecycle mutations. ----------
+    /// <summary>Spec 045 / FR-030 — a Financial Operator recorded a disbursement.</summary>
+    public const string DisbursementRecorded = "disbursement.recorded";
+    /// <summary>Spec 045 / FR-030 — pre-validation edit of a disbursement's details (payload: before/after).</summary>
+    public const string DisbursementEdited = "disbursement.edited";
+    /// <summary>Spec 045 / FR-030 — a bank receipt or invoice was attached (payload: kind).</summary>
+    public const string DisbursementEvidenceAttached = "disbursement.evidence_attached";
+    /// <summary>Spec 045 / FR-030 — a bank receipt or invoice was replaced (payload: kind, before/after).</summary>
+    public const string DisbursementEvidenceReplaced = "disbursement.evidence_replaced";
+    /// <summary>Spec 045 / FR-030 — a disbursement was validated (ledger entry posted).</summary>
+    public const string DisbursementValidated = "disbursement.validated";
+    /// <summary>Spec 045 / FR-030 — a pre-validation disbursement was cancelled.</summary>
+    public const string DisbursementCancelled = "disbursement.cancelled";
+
+    /// <summary>Spec 045 — target-type discriminator for disbursement mutations. The
+    /// <c>disbursement.</c> prefix routes here in <c>AdminAuditEventWriter</c> and, like
+    /// <c>supplier.</c>, sets <c>TargetId = disbursementId</c> (parsed from the payload) so
+    /// the trail is queryable per disbursement via <c>IX_AdminAuditEvents_Target</c>.</summary>
+    public const string TargetTypeDisbursement = "disbursement";
+
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string ActorUserId { get; private set; } = string.Empty;

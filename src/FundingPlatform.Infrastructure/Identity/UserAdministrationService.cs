@@ -23,9 +23,12 @@ public class UserAdministrationService : IUserAdministrationService
     // assignable from the standard admin Users form (parity with Admin in terms of
     // group handling — see RoleRequiresGroups + NormalizeGroupIdsForRole below).
     private const string SupplierAdminRole = "Auditor";
+    // Spec 045 — group-scoped financial-execution operator (kept groups like Reviewer/Auditor
+    // via NormalizeGroupIdsForRole; only Admin remains groupless).
+    private const string FinancialOperatorRole = "Financial Operator";
     private const string AdminRole = "Admin";
 
-    private static readonly string[] AllowedRoles = [ApplicantRole, ReviewerRole, SupplierAdminRole, AdminRole];
+    private static readonly string[] AllowedRoles = [ApplicantRole, ReviewerRole, SupplierAdminRole, FinancialOperatorRole, AdminRole];
 
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
@@ -947,7 +950,7 @@ public class UserAdministrationService : IUserAdministrationService
         var errors = new List<DomainError>();
         if (string.IsNullOrWhiteSpace(role) || !AllowedRoles.Contains(role))
         {
-            errors.Add(new DomainError("INVALID_INPUT", "Role", "Role must be Applicant, Reviewer, Auditor, or Admin."));
+            errors.Add(new DomainError("INVALID_INPUT", "Role", "Role must be Applicant, Reviewer, Auditor, Financial Operator, or Admin."));
             return errors;
         }
         if (string.Equals(role, ApplicantRole, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(legalId))
@@ -994,6 +997,7 @@ public class UserAdministrationService : IUserAdministrationService
         if (set.Contains(AdminRole)) return AdminRole;
         if (set.Contains(ReviewerRole)) return ReviewerRole;
         if (set.Contains(SupplierAdminRole)) return SupplierAdminRole;
+        if (set.Contains(FinancialOperatorRole)) return FinancialOperatorRole;
         if (set.Contains(ApplicantRole)) return ApplicantRole;
         return set.FirstOrDefault() ?? "";
     }

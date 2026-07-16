@@ -59,6 +59,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     // Spec 036 — funds-usage evidence files on AgreementExecuted applications.
     public DbSet<FundsUsageEvidence> FundsUsageEvidence => Set<FundsUsageEvidence>();
 
+    // Spec 045 — financial disbursement core: disbursements, typed evidence, append-only ledger.
+    public DbSet<Disbursement> Disbursements => Set<Disbursement>();
+    public DbSet<DisbursementEvidence> DisbursementEvidence => Set<DisbursementEvidence>();
+    public DbSet<DisbursementLedgerEntry> DisbursementLedgerEntries => Set<DisbursementLedgerEntry>();
+
     // Spec 037 — admin-managed companies (Empresas) owned by applicants.
     public DbSet<Company> Companies => Set<Company>();
 

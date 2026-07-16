@@ -24,7 +24,10 @@ public static class IdentityConfiguration
         // rename-or-create in deployed envs; this C# branch covers paths that bypass
         // the dacpac (in-memory tests, fresh demos) so the role row is always present
         // when seed users try to enrol into it.
-        string[] roles = ["Applicant", "Admin", "Reviewer", "Auditor"];
+        // Spec 045 — Financial Operator (group-scoped, like Reviewer/Auditor). The dacpac
+        // post-deployment `10_SeedFinancialOperatorRole.sql` is canonical in deployed envs;
+        // this C# branch covers dacpac-bypass paths (in-memory tests, fresh demos).
+        string[] roles = ["Applicant", "Admin", "Reviewer", "Auditor", "Financial Operator"];
 
         foreach (var role in roles)
         {

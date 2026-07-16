@@ -36,6 +36,12 @@ public enum FileCategory
     // reviewers/admins on an AgreementExecuted application. Own container.
     [Description("funds-usage-evidence")]
     FundsUsageEvidence,
+
+    // Spec 045 / FR-006, FR-008 — typed disbursement evidence (bank receipt +
+    // invoice) uploaded by a Financial Operator against an executed agreement.
+    // Own container; reuses the spec-036 storage/upload stack (20 MiB, BackendStream).
+    [Description("disbursement-evidence")]
+    DisbursementEvidence,
 }
 
 public static class FileCategoryExtensions
@@ -49,6 +55,7 @@ public static class FileCategoryExtensions
         FileCategory.PublicLandingFile => "public-landing-files",
         FileCategory.FundRegulation => "fund-regulations",
         FileCategory.FundsUsageEvidence => "funds-usage-evidence",
+        FileCategory.DisbursementEvidence => "disbursement-evidence",
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
     };
 
@@ -63,5 +70,6 @@ public static class FileCategoryExtensions
         "public-landing-files",
         "fund-regulations",
         "funds-usage-evidence",
+        "disbursement-evidence",
     ];
 }

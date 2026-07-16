@@ -38,6 +38,8 @@
         new("evidence-inbox", FundingPlatform.Web.Resources.EvidenceInboxResources.Nav, Url.Action("Index", "EvidenceInbox") ?? "/Evidence", "ti ti-folder", new[] { "Reviewer", "Admin" }),
         // Spec 040 / US1 — group-scoped auditor inbox.
         new("audit-inbox", "Auditoría", Url.Action("Index", "Audit") ?? "/Audit", "ti ti-shield-check", new[] { "Auditor", "Admin" }),
+        // Spec 045 / US1 — group-scoped financial-operator disbursement inbox.
+        new("disbursement-inbox", "Desembolsos", Url.Action("Index", "DisbursementInbox") ?? "/Disbursements", "ti ti-cash-banknote", new[] { "Financial Operator", "Admin" }),
     };
 
     // "Operativo" is a grouping-only header (no landing page of its own); like

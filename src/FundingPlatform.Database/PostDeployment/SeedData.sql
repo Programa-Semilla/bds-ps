@@ -384,6 +384,8 @@ GO
 :r .\08_SeedSuppliers.sql
 -- Spec 044 — drop the legacy SolicitudWindowDays column + its config row.
 :r .\09_DropSolicitudWindowDays.sql
+-- Spec 045 — seed the group-scoped Financial Operator role.
+:r .\10_SeedFinancialOperatorRole.sql
 
 -- =============================================================================
 -- Spec 021 / data-model.md — SystemConfiguration rows for stage windows and the

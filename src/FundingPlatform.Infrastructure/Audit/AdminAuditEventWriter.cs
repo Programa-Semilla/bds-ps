@@ -63,7 +63,14 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
         // IX_AdminAuditEvents_Target. Falls back to "0" if the payload omits it.
         if (eventKind.StartsWith("supplier.", StringComparison.Ordinal))
         {
-            return (AdminAuditEvent.TargetTypeSupplier, ExtractSupplierId(payloadJson));
+            return (AdminAuditEvent.TargetTypeSupplier, ExtractIntId(payloadJson, "supplierId"));
+        }
+        // Spec 045 — disbursement lifecycle mutations (disbursement.recorded/edited/…).
+        // Like supplier.*, the real disbursement id is set as TargetId (parsed from the
+        // payload's `disbursementId`) so the trail is queryable per disbursement.
+        if (eventKind.StartsWith("disbursement.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeDisbursement, ExtractIntId(payloadJson, "disbursementId"));
         }
         if (eventKind.StartsWith("process.", StringComparison.Ordinal))
         {
@@ -115,16 +122,16 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
         return ("system", "0");
     }
 
-    /// <summary>Spec 038 — pull the integer <c>supplierId</c> out of the payload JSON
-    /// for the per-provider target id; "0" sentinel when absent/unparseable.</summary>
-    private static string ExtractSupplierId(string? payloadJson)
+    /// <summary>Spec 038/045 — pull an integer id property out of the payload JSON for the
+    /// per-target id; "0" sentinel when absent/unparseable.</summary>
+    private static string ExtractIntId(string? payloadJson, string propertyName)
     {
         if (string.IsNullOrWhiteSpace(payloadJson))
             return "0";
         try
         {
             using var doc = System.Text.Json.JsonDocument.Parse(payloadJson);
-            if (doc.RootElement.TryGetProperty("supplierId", out var prop))
+            if (doc.RootElement.TryGetProperty(propertyName, out var prop))
             {
                 if (prop.ValueKind == System.Text.Json.JsonValueKind.Number && prop.TryGetInt32(out var id))
                     return id.ToString(System.Globalization.CultureInfo.InvariantCulture);

@@ -1,0 +1,31 @@
+@using System.Globalization
+@using FundingPlatform.Web.Resources
+@model (int ApplicationId, FundingPlatform.Application.Disbursements.DisbursementListItem Item)
+@{
+    var crc = new CultureInfo("es-CR");
+    var item = Model.Item;
+}
+<tr data-testid="disbursement-row" data-disbursement-id="@item.Id">
+    <td>@item.PaymentDate.ToString("dd/MM/yyyy", crc)</td>
+    <td>@item.Amount.ToString("C2", crc)</td>
+    <td>
+        <span class="badge @DisbursementResources.StateBadgeClass(item.State)" data-testid="disbursement-state">
+            @DisbursementResources.StateLabel(item.State)
+        </span>
+    </td>
+    <td class="text-secondary small">
+        <i class="ti @(item.HasBankReceipt ? "ti-check text-green" : "ti-x text-red")" aria-hidden="true"></i>
+        @DisbursementResources.EvidenceKindLabel(FundingPlatform.Domain.Enums.EvidenceKind.BankReceipt)
+        &nbsp;·&nbsp;
+        <i class="ti @(item.HasInvoice ? "ti-check text-green" : "ti-x text-red")" aria-hidden="true"></i>
+        @DisbursementResources.EvidenceKindLabel(FundingPlatform.Domain.Enums.EvidenceKind.Invoice)
+    </td>
+    <td class="text-end">
+        <a class="btn btn-sm btn-primary"
+           asp-controller="Disbursement" asp-action="Detail"
+           asp-route-applicationId="@Model.ApplicationId" asp-route-disbursementId="@item.Id"
+           data-testid="disbursement-open">
+            @DisbursementResources.Action_Open
+        </a>
+    </td>
+</tr>
