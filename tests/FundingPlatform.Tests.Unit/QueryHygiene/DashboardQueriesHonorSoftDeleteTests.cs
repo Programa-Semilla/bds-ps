@@ -144,6 +144,18 @@ public class DashboardQueriesHonorSoftDeleteTests
             // executed-state gate). Not a dashboard list source. (Same 036 omission as above.)
             ["src/FundingPlatform.Web/Controllers/FundsUsageEvidenceController.cs"] =
                 "Spec 036 — single-row by-Id state read for the evidence-stage gate; not a dashboard surface.",
+
+            // Spec 045 — the disbursement surface reads the owning application only by Id:
+            // (a) the controller's executed-state + group gate, (b) the service's one-time
+            // allocation snapshot (CRC rollup over Items→Quotations). Write-side operational
+            // reads gated on AgreementExecuted + group scope, not dashboard list sources
+            // (mirrors the FundsUsageEvidence exemptions above).
+            ["src/FundingPlatform.Infrastructure/Services/DisbursementService.cs"] =
+                "Spec 045 — single-row by-Id application load for the allocation snapshot; not a dashboard surface.",
+            ["src/FundingPlatform.Infrastructure/Services/DisbursementAllocation.cs"] =
+                "Spec 045 — single-row by-Id application load to resolve the allocation ceiling; not a dashboard surface.",
+            ["src/FundingPlatform.Web/Controllers/DisbursementController.cs"] =
+                "Spec 045 — single-row by-Id state read for the disbursement-surface executed-state gate; not a dashboard surface.",
         };
 
     /// <summary>
