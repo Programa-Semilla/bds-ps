@@ -34,16 +34,12 @@ new resources), 3 dacpac `.sql`, plus unit/integration/E2E tests.
 
 ### Key decisions that need your eyes (12 min)
 
-**Admin can write tranches** ([`TrancheController.cs:24`](../../src/FundingPlatform.Web/Controllers/TrancheController.cs), relates to [FR-021](spec.md#functional-requirements))
-The controller is `[Authorize(Roles="Reviewer,Admin")]` and does not restrict Admin from POSTing,
-mirroring [research D8](research.md#d8--roles-placement-audit-reuse-no-new-role) and the shipping
-`ReviewController`. FR-021 literally says "Admins MUST be read-only" for tranche definition.
-Financial actions (commit/record/attribute/validate) **do** correctly keep Admin read-only
-(`DisbursementController.CanWrite = FinOp only`).
-- Question: is admin-as-reviewer for tranche *definition* acceptable (consistent with spec 016
-  FR-015 and the way spec 045 narrowed Admin only for money movement), or should the tranche
-  write endpoints be reviewer-only to match FR-021 literally? This is the one real
-  spec-vs-plan tension in the slice.
+**Admin can write tranches** — ✅ RESOLVED by the deep review (was `[Authorize(Roles="Reviewer,Admin")]`).
+The deep-review security agent confirmed this was an FR-021 authorization gap (Admin could write
+tranches cross-group, inconsistent with the sibling `DisbursementController`). Now
+`TrancheController` is `[Authorize(Roles="Reviewer")]` and the editor renders only for reviewers, so
+Admin is read-only for tranche definition per [FR-021](spec.md#functional-requirements). No open
+question remains.
 
 **`Lines` is optional on Record/Edit** ([`DisbursementDtos.cs`](../../src/FundingPlatform.Application/Disbursements/DisbursementDtos.cs), relates to [FR-010](spec.md#functional-requirements)/[SC-006](spec.md#success-criteria))
 Attribution is opt-in: `Lines == null` ⇒ a flat P1-style disbursement (no split check); non-empty ⇒
@@ -98,3 +94,71 @@ try to null the FK (error). `ClientCascade` makes EF delete the orphan while the
   integration test like `DisbursementEnumMaterializationTests`?
 - **No E2E spans two tranches in one split** (FR-012) — the shared seed builds a single line item, so
   cross-tranche attribution is proven only by the integration composition test, not E2E.
+
+---
+
+## Deep Review Report
+
+> Automated multi-perspective code review results (5 internal agents; external tools disabled).
+
+**Date:** 2026-07-16 | **Rounds:** 1/3 | **Gate:** PASS
+
+### Review Agents
+
+| Agent | Findings | Status |
+|-------|----------|--------|
+| Correctness | 2 (1 Critical, 1 Important) | completed |
+| Architecture & Idioms | 7 (1 Important, 6 Minor) | completed |
+| Security | 1 (Important) | completed |
+| Production Readiness | 3 (2 Important, 1 Minor) | completed |
+| Test Quality | 9 (3 Important, 6 Minor) | completed |
+| CodeRabbit (external) | — | skipped (`--no-external`) |
+| Copilot (external) | — | skipped (`--no-external`) |
+
+### Findings Summary
+
+| Severity | Found | Fixed | Documented (accepted) |
+|----------|-------|-------|-----------------------|
+| Critical | 1 | 1 | 0 |
+| Important | 8 | 6 | 2 |
+| Minor | 11 | 8 | 3 |
+
+### What was fixed automatically
+
+- **Correctness/money-integrity:** `ValidateAsync` now re-checks split integrity so a stale or
+  partially-persisted split can never validate into the ledger; `EditAsync` refuses an amount-only
+  edit that would strand a stale split. This one fix also neutralises the `Record` two-SaveChanges
+  atomicity concern (money cannot move on a broken split).
+- **Authorization:** `TrancheController` is reviewer-only (FR-021); the editor is reviewer-gated.
+- **Reconciliation coverage:** new `BudgetLineReconciliationTests` lock the six-dimension
+  participant == Σ tranches == Σ lines invariant, composed == flat `Allocated` (which also
+  drift-guards the duplicated LineBudget LINQ), cross-tranche split (FR-012), the three
+  payment-derived status buckets, and negative Available at line + tranche levels.
+- **Cleanups:** composed projection scoped through the indexed `Disbursements.ApplicationId`;
+  `APPLICATION_NOT_FOUND` reason code; class/DTO/label doc accuracy.
+
+### What still needs human attention
+
+Two Important findings were consciously **documented as accepted** rather than auto-fixed, both with
+zero financial-integrity impact (see [review-findings.md](review-findings.md) FINDING-4 and FINDING-6):
+
+- **Item `CommitState` has no concurrency token.** A rare same-line, two-operator race can leave a
+  stale `Committed` dimension. The money-movement gate at `Validar` re-reads fresh sums and is
+  **unaffected**. The only robust fix (RowVersion on the central `dbo.Items`) risks unhandled
+  concurrency exceptions in existing item flows — judged a disproportionate trade for a display-only
+  edge. Question: accept as a documented limitation, or schedule the `Item.RowVersion` sweep as a
+  follow-up?
+- **Composed tree = line-attributed view; flat card = total.** They reconcile exactly when the
+  operator attributes every disbursement (the intended P2 flow, now tested); they diverge only for
+  unattributed/legacy disbursements (grandfathered for SC-006). Question: is the two-view semantic
+  acceptable, or should unattributed amounts surface as a residual line in the synthetic tranche?
+
+Three Minor test-coverage follow-ups remain (2-supplier filter narrowing, date/FullyValidated filter
+facets, Auditor read-only assertion) — non-blocking.
+
+### Recommendation
+
+All Critical and high-impact Important findings are addressed; the two remaining Important items are
+documented accepted limitations with no financial-integrity impact and clear rationale. Code is ready
+for human review with no known blockers. The two documented questions above are the highest-value
+items for a reviewer's judgment.
