@@ -156,6 +156,14 @@ public class DashboardQueriesHonorSoftDeleteTests
                 "Spec 045 — single-row by-Id application load to resolve the allocation ceiling; not a dashboard surface.",
             ["src/FundingPlatform.Web/Controllers/DisbursementController.cs"] =
                 "Spec 045 — single-row by-Id state read for the disbursement-surface executed-state gate; not a dashboard surface.",
+
+            // Spec 046 — TrancheService reads the owning application only by Id: the tranche
+            // editor's read projection (GetForApplicationAsync/GetEditorLinesAsync) and the
+            // aggregate-mediated CRUD load (LoadForMutationAsync). Reviewer-scoped write-side +
+            // editor reads gated at the controller, not a dashboard list source (mirrors the
+            // spec-045 DisbursementService exemption above).
+            ["src/FundingPlatform.Infrastructure/Services/TrancheService.cs"] =
+                "Spec 046 — single-row by-Id application loads for the tranche editor + aggregate CRUD; not a dashboard surface.",
         };
 
     /// <summary>

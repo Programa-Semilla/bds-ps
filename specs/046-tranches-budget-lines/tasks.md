@@ -126,13 +126,13 @@ description: "Task list for Tranches & Budget-Lines (Financial Execution P2)"
 
 ### Tests for US4
 
-- [ ] T038 [P] [US4] Integration tests (real SQL) — filter budget-lines by tranche, status (`Uncommitted/Committed/PartiallyPaid/Paid/Validated`, D3), supplier, validation state, and date (FR-020; participant is inherent on the per-application surface).
-- [ ] T039 [P] [US4] E2E `BudgetLineFilterTests` — apply each filter, list narrows correctly (SC-005).
+- [X] T038 [P] [US4] Integration tests (real SQL) — filter budget-lines by tranche, status (`Uncommitted/Committed/PartiallyPaid/Paid/Validated`, D3), supplier, validation state, and date (FR-020; participant is inherent on the per-application surface).
+- [X] T039 [P] [US4] E2E `BudgetLineFilterTests` — apply each filter, list narrows correctly (SC-005).
 
 ### Implementation for US4
 
-- [ ] T040 [US4] `BudgetLineStatus` derivation (D3) in `ParticipantBalanceProjection.cs` (computed in-query, not stored).
-- [ ] T041 [US4] Filter parameters on the composed projection (tranche, status, supplier, validation state, date — FR-020) + filter toolbar on `Views/Disbursement/Index.cshtml` (`data-searchable`, es-CR labels in `TrancheResources`).
+- [X] T040 [US4] `BudgetLineStatus` derivation (D3) in `ParticipantBalanceProjection.cs` (computed in-query, not stored).
+- [X] T041 [US4] Filter parameters on the composed projection (tranche, status, supplier, validation state, date — FR-020) + filter toolbar on `Views/Disbursement/Index.cshtml` (`data-searchable`, es-CR labels in `TrancheResources`).
 
 **Checkpoint**: all four stories independently functional.
 
@@ -140,9 +140,9 @@ description: "Task list for Tranches & Budget-Lines (Financial Execution P2)"
 
 ## Phase 7: Polish & Cross-Cutting
 
-- [ ] T042 [P] P1 regression + SC-006: integration + E2E — a pre-P2 executed application (no tranche rows, `CommitState` default 0) yields P1 balances unchanged and one synthetic tranche; existing `Disbursement*` E2E green.
-- [ ] T043 [P] Composed-projection performance sanity: no N+1 on an application with many lines/tranches (bounded correlated queries, `AsNoTracking`).
-- [ ] T044 Run `quickstart.md` walkthrough end to end; execute the **filtered** E2E set (`Tranche*`, `BudgetLine*`, `LineAttribution*` + `Disbursement*` regression) and confirm green (delivery gate).
+- [X] T042 [P] P1 regression + SC-006: integration + E2E — a pre-P2 executed application (no tranche rows, `CommitState` default 0) yields P1 balances unchanged and one synthetic tranche; existing `Disbursement*` E2E green.
+- [X] T043 [P] Composed-projection performance sanity: no N+1 on an application with many lines/tranches (bounded correlated queries, `AsNoTracking`).
+- [X] T044 Run `quickstart.md` walkthrough end to end; execute the **filtered** E2E set (`Tranche*`, `BudgetLine*`, `LineAttribution*` + `Disbursement*` regression) and confirm green (delivery gate).
 - [ ] T045 On completion: update CLAUDE.md Recent Changes + `brainstorm/41-financial-disbursement-platform.md` (P2 shipped) — deferred to ship/PR.
 
 ---
