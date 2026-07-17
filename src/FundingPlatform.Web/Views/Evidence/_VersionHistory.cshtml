@@ -3,8 +3,8 @@
 @model IReadOnlyList<FundingPlatform.Application.Evidence.EvidenceVersionRow>
 @{
     var esCr = System.Globalization.CultureInfo.GetCultureInfo("es-CR");
-    var applicationId = (int)ViewContext.RouteData.Values["applicationId"]!;
-    var evidenceId = (int)ViewContext.RouteData.Values["evidenceId"]!;
+    var applicationId = Convert.ToInt32(ViewContext.RouteData.Values["applicationId"], System.Globalization.CultureInfo.InvariantCulture);
+    var evidenceId = Convert.ToInt32(ViewContext.RouteData.Values["evidenceId"], System.Globalization.CultureInfo.InvariantCulture);
 }
 
 <div class="card" data-testid="evidence-versions">

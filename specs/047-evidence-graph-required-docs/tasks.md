@@ -55,7 +55,7 @@
 - [X] T021 [US1] Views `Views/Evidence/Index.cshtml`, `Detail.cshtml`, `_EvidenceRow.cshtml`, `_AllocationEditor.cshtml` (attach form + per-line allocation inputs; `data-testid` hooks) in `src/FundingPlatform.Web/Views/Evidence/`
 - [X] T022 [P] [US1] Unit `EvidenceAllocationTests` (allocation-integrity: Σ ≤ amount; orphan guard) in `tests/FundingPlatform.Tests.Unit/`
 - [X] T023 [P] [US1] Integration `EvidenceGraphTests` (real SQL: attach, M:N both directions, over-allocation refused, cascade delete of versions/allocations) in `tests/FundingPlatform.Tests.Integration/`
-- [ ] T024 [US1] E2E `EvidenceGraphAllocationTests` (AC-002 one-invoice-4-lines, AC-003 five-invoices-one-line, over-allocation refused, orphan refused, acceptance-without-payment; **+ SC-007 cross-cutting**: out-of-group Financial Operator → flat 404 on every `/Evidence` route, Auditor/Admin read-only → 403 on write, >20 MiB / bad magic bytes rejected) in `tests/FundingPlatform.Tests.E2E/`
+- [X] T024 [US1] E2E `EvidenceGraphAllocationTests` (AC-002 one-invoice-4-lines, AC-003 five-invoices-one-line, over-allocation refused, orphan refused, acceptance-without-payment; **+ SC-007 cross-cutting**: out-of-group Financial Operator → flat 404 on every `/Evidence` route, Auditor/Admin read-only → 403 on write, >20 MiB / bad magic bytes rejected) in `tests/FundingPlatform.Tests.E2E/`
 
 **Checkpoint US1**: evidence graph + allocation delivered and independently testable (AC-002/AC-003). Commit + push.
 
@@ -84,7 +84,7 @@
 - [X] T039 [US2] `_CompletenessMatrix.cshtml` partial + wire into `Views/Evidence/Index.cshtml` and the `Disbursement` `Index` line rows (present/missing per required type, `EvidenceIncomplete` badge)
 - [X] T040 [P] [US2] Unit `DocumentRuleResolutionTests` (category → set → global fallback → empty; `MissingRequiredDocuments`) in `tests/FundingPlatform.Tests.Unit/`
 - [X] T041 [P] [US2] Integration `DocumentRuleMatrixTests` (real SQL: one-per-category, full-replace, both-source completeness incl. disbursement invoice) in `tests/FundingPlatform.Tests.Integration/`
-- [ ] T042 [US2] E2E `RequiredDocMatrixCompletenessTests` (admin marks required; line shows missing AC-005; disbursement invoice counts present; global-default fallback) in `tests/FundingPlatform.Tests.E2E/`
+- [X] T042 [US2] E2E `RequiredDocMatrixCompletenessTests` (admin marks required; line shows missing AC-005; disbursement invoice counts present; global-default fallback) in `tests/FundingPlatform.Tests.E2E/`
 
 **Checkpoint US2**: configurable required docs + live completeness delivered. Commit + push.
 
@@ -108,7 +108,7 @@
 - [X] T052 [US3] `DisbursementController` (or `EvidenceController`) `POST Lines/{itemId}/Close` + `POST Lines/{itemId}/Reopen` (reason required; reuse `IsAccessibleAsync`/`GuardWriteAsync`) + Closed/EvidenceIncomplete status badges in the line rows in `src/FundingPlatform.Web/Controllers/`
 - [X] T053 [P] [US3] Unit `LineEqualityReconciliationTests` + `ItemClosureTests` (Close/Reopen idempotency, stamp/clear) in `tests/FundingPlatform.Tests.Unit/`
 - [X] T054 [P] [US3] Integration `ClosureGateTests` (real SQL: each block reason; reopen clears + no balance change) in `tests/FundingPlatform.Tests.Integration/`
-- [ ] T055 [US3] E2E `BudgetLineClosureTests` (happy close; ₡72 mismatch block; missing-doc block; unvalidated-payment block; evidence-locked-when-closed; reopen unlocks, balances identical) in `tests/FundingPlatform.Tests.E2E/`
+- [X] T055 [US3] E2E `BudgetLineClosureTests` (happy close; ₡72 mismatch block; missing-doc block; unvalidated-payment block; evidence-locked-when-closed; reopen unlocks, balances identical) in `tests/FundingPlatform.Tests.E2E/`
 
 **Checkpoint US3**: closure gate delivered. **Run P1/P2 `Disbursement*` regression — must be green (SC-006).** Commit + push.
 
@@ -123,8 +123,8 @@
 - [X] T056 [US4] `EvidenceService.ReplaceAsync` — new-version append (mirror `FundingAgreement.ReplacePendingUpload`: supersede current, add current), require `Reason`, recompute SHA-256 `FileHash`, `evidence.replaced` audit; trigger on file replace OR reconciliation-critical field edit in `src/FundingPlatform.Infrastructure/Services/EvidenceService.cs`
 - [X] T057 [US4] `IEvidenceService.ReplaceAsync` + `GetVersionsAsync` + version-aware `OpenForDownloadAsync(?versionNumber)` in `src/FundingPlatform.Application/Evidence/IEvidenceService.cs`
 - [X] T058 [US4] Web: `EvidenceController` `POST {id}/Replace` + `GET {id}/Download?v=` + `_VersionHistory.cshtml` partial on `Detail.cshtml` (version list with actor/timestamp/reason/hash + per-version download) in `src/FundingPlatform.Web/`
-- [ ] T059 [P] [US4] Unit `EvidenceVersionTests` (append/supersede, one-current invariant, reason-required) in `tests/FundingPlatform.Tests.Unit/`
-- [ ] T060 [US4] E2E `EvidenceVersionHistoryTests` (replace+reason → both viewable; download v1/v2; amount-edit versions; no-reason refused) in `tests/FundingPlatform.Tests.E2E/`
+- [X] T059 [P] [US4] Unit `EvidenceVersionTests` (append/supersede, one-current invariant, reason-required) in `tests/FundingPlatform.Tests.Unit/`
+- [X] T060 [US4] E2E `EvidenceVersionHistoryTests` (replace+reason → both viewable; download v1/v2; amount-edit versions; no-reason refused) in `tests/FundingPlatform.Tests.E2E/`
 
 **Checkpoint US4**: version history delivered. Commit + push.
 
@@ -132,9 +132,9 @@
 
 ## Phase 7: Polish & Cross-Cutting
 
-- [ ] T061 [P] Batch the per-line completeness resolve on the disbursement/evidence `Index` (avoid N+1 across lines) in `ParticipantBalanceProjection`
-- [ ] T062 [P] es-CR copy sweep (no English-only strings) across new views/resources; confirm sidebar `DocumentRules` admin entry + evidence link on the disbursement panel
-- [ ] T063 Run the filtered E2E suite (`EvidenceGraphAllocation|RequiredDocMatrixCompleteness|BudgetLineClosure|EvidenceVersionHistory`) + P1/P2 `Disbursement*` regression; capture green results (delivery bar)
+- [X] T061 [P] Batch the per-line completeness resolve on the disbursement/evidence `Index` (avoid N+1 across lines) in `ParticipantBalanceProjection`
+- [X] T062 [P] es-CR copy sweep (no English-only strings) across new views/resources; confirm sidebar `DocumentRules` admin entry + evidence link on the disbursement panel
+- [X] T063 Run the filtered E2E suite (`EvidenceGraphAllocation|RequiredDocMatrixCompleteness|BudgetLineClosure|EvidenceVersionHistory`) + P1/P2 `Disbursement*` regression; capture green results (delivery bar)
 - [ ] T064 Deep review (`/speckit-spex-deep-review` or the plan-review gate follow-through); apply Critical/Important fixes; write `specs/047-evidence-graph-required-docs/review-findings.md`
 - [ ] T065 Post-merge: flip CLAUDE.md active-plan → shipped + PR#, add a Recent Changes entry, and update `brainstorm/41-financial-disbursement-platform.md` (P3 → shipped)
 

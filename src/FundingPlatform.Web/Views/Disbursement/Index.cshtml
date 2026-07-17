@@ -11,8 +11,19 @@
 
 <div class="page-header d-print-none">
     <div class="container-xl">
-        <h2 class="page-title">@DisbursementResources.Title</h2>
-        <div class="text-secondary">@DisbursementResources.Subtitle</div>
+        <div class="row align-items-center">
+            <div class="col">
+                <h2 class="page-title">@DisbursementResources.Title</h2>
+                <div class="text-secondary">@DisbursementResources.Subtitle</div>
+            </div>
+            <div class="col-auto">
+                @* Spec 047 — link to the evidence-graph surface for this application. *@
+                <a asp-controller="Evidence" asp-action="Index" asp-route-applicationId="@Model.ApplicationId"
+                   class="btn btn-outline-secondary" data-testid="evidence-graph-link">
+                    <i class="ti ti-files"></i> @FundingPlatform.Web.Resources.EvidenceResources.Title
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 

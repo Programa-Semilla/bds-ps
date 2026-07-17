@@ -27,7 +27,9 @@ namespace FundingPlatform.Web.Controllers;
 /// and a cross-application evidence-id guard.
 /// </summary>
 [Authorize(Roles = "Financial Operator,Admin,Auditor")]
-[Route("Applications/{applicationId:int}/Evidence")]
+// Route is /EvidenceGraph (NOT /Evidence): spec 036 FundsUsageEvidenceController already owns
+// /Applications/{id}/Evidence. The spec-047 evidence GRAPH is the financial-execution surface.
+[Route("Applications/{applicationId:int}/EvidenceGraph")]
 public sealed class EvidenceController : Controller
 {
     private const string EvidenceCurrency = "CRC";

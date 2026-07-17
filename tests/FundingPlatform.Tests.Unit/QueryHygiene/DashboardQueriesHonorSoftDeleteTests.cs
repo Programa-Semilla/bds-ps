@@ -164,6 +164,17 @@ public class DashboardQueriesHonorSoftDeleteTests
             // spec-045 DisbursementService exemption above).
             ["src/FundingPlatform.Infrastructure/Services/TrancheService.cs"] =
                 "Spec 046 — single-row by-Id application loads for the tranche editor + aggregate CRUD; not a dashboard surface.",
+
+            // Spec 047 — evidence-graph + closure surface. Single-row by-Id application reads:
+            // EvidenceService gates attach on AgreementExecuted; BudgetLineClosureService loads the
+            // owning application aggregate for the off-ledger Close/Reopen; EvidenceController runs the
+            // executed-state + group-scope gate. Write-side/operational reads, not dashboard sources.
+            ["src/FundingPlatform.Infrastructure/Services/EvidenceService.cs"] =
+                "Spec 047 — single-row by-Id application load for the evidence-attach executed-state gate; not a dashboard surface.",
+            ["src/FundingPlatform.Infrastructure/Services/BudgetLineClosureService.cs"] =
+                "Spec 047 — aggregate-mediated by-Id application load for the off-ledger Close/Reopen; not a dashboard surface.",
+            ["src/FundingPlatform.Web/Controllers/EvidenceController.cs"] =
+                "Spec 047 — single-row by-Id state read for the evidence-surface executed-state gate; not a dashboard surface.",
         };
 
     /// <summary>
