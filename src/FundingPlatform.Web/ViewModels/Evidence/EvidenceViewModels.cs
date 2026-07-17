@@ -1,7 +1,20 @@
 using FundingPlatform.Application.DocRules;
 using FundingPlatform.Application.Evidence;
+using FundingPlatform.Domain.Enums;
 
 namespace FundingPlatform.Web.ViewModels.Evidence;
+
+/// <summary>Spec 047 — the application identity shown atop every evidence surface so the operator
+/// keeps context (which application / participant / fund) and can navigate back.</summary>
+public sealed record EvidenceApplicationContext(
+    int ApplicationId,
+    string ApplicationNumber,
+    string ApplicantName,
+    string? CompanyName,
+    string FundName,
+    string ProcessName,
+    string GroupName,
+    ApplicationState State);
 
 /// <summary>Spec 047 — one budget-line's required-document completeness (+ closure state) for the matrix partial.</summary>
 public sealed record CompletenessRowViewModel(
@@ -31,6 +44,7 @@ public sealed class EvidenceIndexViewModel
     public required string AcceptExtensions { get; init; }
     public required IReadOnlyList<EvidenceLineOption> Lines { get; init; }
     public required IReadOnlyList<CompletenessRowViewModel> Completeness { get; init; }
+    public required EvidenceApplicationContext Context { get; init; }
 }
 
 /// <summary>Spec 047 — one evidence list row.</summary>
@@ -49,4 +63,5 @@ public sealed class EvidenceDetailViewModel
     public required bool CanWrite { get; init; }
     public required string AcceptExtensions { get; init; }
     public required IReadOnlyList<EvidenceLineOption> Lines { get; init; }
+    public required EvidenceApplicationContext Context { get; init; }
 }

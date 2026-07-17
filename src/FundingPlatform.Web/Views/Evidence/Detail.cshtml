@@ -11,13 +11,24 @@
 <div data-testid="evidence-detail" data-evidence-id="@d.Id">
     @await Html.PartialAsync("Components/_PageHeader",
         new PageHeaderViewModel(
-            Title: EvidenceResources.TypeLabel(d.Type),
-            Subtitle: d.DocumentReferenceNumber,
+            Title: $"{EvidenceResources.TypeLabel(d.Type)} · {d.DocumentReferenceNumber}",
+            Subtitle: $"{Model.Context.ApplicationNumber} — {Model.Context.ApplicantName}",
             Breadcrumbs: new[]
             {
-                new BreadcrumbItem(EvidenceResources.Title, Url.Action("Index", "Evidence", new { applicationId = Model.ApplicationId })),
+                new BreadcrumbItem("Inicio", Url.Action("Index", "Home")),
+                new BreadcrumbItem(EvidenceResources.Nav_ViewDisbursements, Url.Action("Index", "Disbursement", new { applicationId = Model.ApplicationId })),
+                new BreadcrumbItem($"{EvidenceResources.Title} · {Model.Context.ApplicationNumber}", Url.Action("Index", "Evidence", new { applicationId = Model.ApplicationId })),
                 new BreadcrumbItem(EvidenceResources.TypeLabel(d.Type)),
             }))
+
+    @await Html.PartialAsync("_AppContextHeader", Model.Context)
+
+    <div class="mb-3">
+        <a asp-controller="Evidence" asp-action="Index" asp-route-applicationId="@Model.ApplicationId"
+           class="btn btn-outline-secondary" data-testid="evidence-back">
+            <i class="ti ti-arrow-left"></i> @EvidenceResources.Nav_BackToEvidence
+        </a>
+    </div>
 
     <div class="row">
         <div class="col-lg-5">

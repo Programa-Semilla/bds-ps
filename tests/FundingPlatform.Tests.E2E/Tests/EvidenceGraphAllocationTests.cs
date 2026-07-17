@@ -69,6 +69,10 @@ public class EvidenceGraphAllocationTests : AuthenticatedTestBase
         await page.GotoAsync(BaseUrl, appId);
         await Expect(page.Surface).ToBeVisibleAsync();
 
+        // The application context header keeps the operator oriented (which application / participant).
+        await Expect(page.AppContextNumber).ToHaveTextAsync(new System.Text.RegularExpressions.Regex($"APP-0*{appId}"));
+        await Expect(page.AppContextApplicant).ToContainTextAsync("Seed Applicant");
+
         // Attach an Invoice allocated to the single seed line → success, one row.
         await page.AttachAsync("Invoice", 100_000m, "F-001", Today, _pdf, 100_000m);
         await Expect(page.SuccessToast).ToBeVisibleAsync();

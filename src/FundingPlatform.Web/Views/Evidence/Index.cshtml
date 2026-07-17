@@ -9,13 +9,16 @@
 <div data-testid="evidence-graph">
     @await Html.PartialAsync("Components/_PageHeader",
         new PageHeaderViewModel(
-            Title: EvidenceResources.Title,
+            Title: $"{EvidenceResources.Title} · {Model.Context.ApplicationNumber}",
             Subtitle: EvidenceResources.Subtitle,
             Breadcrumbs: new[]
             {
                 new BreadcrumbItem("Inicio", Url.Action("Index", "Home")),
-                new BreadcrumbItem(EvidenceResources.Title),
+                new BreadcrumbItem(EvidenceResources.Nav_ViewDisbursements, Url.Action("Index", "Disbursement", new { applicationId = Model.ApplicationId })),
+                new BreadcrumbItem($"{EvidenceResources.Title} · {Model.Context.ApplicationNumber}"),
             }))
+
+    @await Html.PartialAsync("_AppContextHeader", Model.Context)
 
     @if (Model.CanWrite)
     {

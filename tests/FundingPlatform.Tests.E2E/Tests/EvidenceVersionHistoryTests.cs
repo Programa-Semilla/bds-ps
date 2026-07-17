@@ -71,6 +71,9 @@ public class EvidenceVersionHistoryTests : AuthenticatedTestBase
 
         await page.OpenFirstAsync();
         await Expect(page.Detail).ToBeVisibleAsync();
+        // The detail page keeps application context and offers a way back to the evidence list.
+        await Expect(page.AppContextHeader).ToBeVisibleAsync();
+        await Expect(page.BackToEvidence).ToBeVisibleAsync();
         await Expect(page.VersionRows).ToHaveCountAsync(1);
 
         // Replace with a corrected file + a lower (but still ≥ allocated) amount + a reason → v2 appends.

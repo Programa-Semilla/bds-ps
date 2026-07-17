@@ -86,6 +86,7 @@ public sealed class EvidenceController : Controller
             AcceptExtensions = string.Join(",", EvidenceFileTypePolicy.AllowedExtensions),
             Lines = lines,
             Completeness = completenessRows,
+            Context = await LoadAppContextAsync(applicationId, ct),
         });
     }
 
@@ -110,6 +111,7 @@ public sealed class EvidenceController : Controller
             CanWrite = CanWrite(),
             AcceptExtensions = string.Join(",", EvidenceFileTypePolicy.AllowedExtensions),
             Lines = await LineOptionsAsync(applicationId, ct),
+            Context = await LoadAppContextAsync(applicationId, ct),
         });
     }
 
@@ -321,6 +323,37 @@ public sealed class EvidenceController : Controller
     }
 
     // ---------------------------------------------------------------------
+
+    /// <summary>Loads the application identity (number / applicant / company / fund→process→group /
+    /// state) shown in the context header so the operator keeps context and can navigate.</summary>
+    private async Task<EvidenceApplicationContext> LoadAppContextAsync(int applicationId, CancellationToken ct)
+    {
+        var row = await _db.Applications.AsNoTracking()
+            .Where(a => a.Id == applicationId)
+            .Select(a => new
+            {
+                a.Id,
+                a.State,
+                a.CompanyName,
+                a.Applicant.FirstName,
+                a.Applicant.LastName,
+                GroupName = a.Group != null ? a.Group.Name : null,
+                ProcessName = a.Group != null && a.Group.Process != null ? a.Group.Process.Name : null,
+                FundName = a.Group != null && a.Group.Process != null && a.Group.Process.Fund != null ? a.Group.Process.Fund.Name : null,
+            })
+            .FirstOrDefaultAsync(ct);
+
+        var applicant = $"{row?.FirstName} {row?.LastName}".Trim();
+        return new EvidenceApplicationContext(
+            ApplicationId: applicationId,
+            ApplicationNumber: $"APP-{applicationId:D5}",
+            ApplicantName: string.IsNullOrWhiteSpace(applicant) ? EvidenceResources.Context_Applicant : applicant,
+            CompanyName: string.IsNullOrWhiteSpace(row?.CompanyName) ? null : row!.CompanyName,
+            FundName: row?.FundName ?? "—",
+            ProcessName: row?.ProcessName ?? "—",
+            GroupName: row?.GroupName ?? "—",
+            State: row?.State ?? ApplicationState.AgreementExecuted);
+    }
 
     private async Task<IReadOnlyList<EvidenceLineOption>> LineOptionsAsync(int applicationId, CancellationToken ct)
     {

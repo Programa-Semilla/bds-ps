@@ -13,6 +13,17 @@ namespace FundingPlatform.Web.Resources;
 /// </summary>
 public static class EvidenceResources
 {
+    // Application context header + back navigation
+    public const string Context_Application = "Solicitud";
+    public const string Context_Applicant = "Solicitante";
+    public const string Context_Company = "Empresa";
+    public const string Context_Fund = "Fondo";
+    public const string Context_Process = "Proceso";
+    public const string Context_Group = "Grupo";
+    public const string Nav_BackToDisbursements = "Volver a desembolsos";
+    public const string Nav_BackToEvidence = "Volver a la evidencia";
+    public const string Nav_ViewDisbursements = "Ver desembolsos";
+
     // Evidence list + detail
     public const string Title = "Evidencia";
     public const string Subtitle =

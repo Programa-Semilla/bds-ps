@@ -17,6 +17,10 @@ public sealed class EvidencePage : BasePage
     public ILocator Empty => Page.Locator("[data-testid=evidence-empty]");
     public ILocator CompletenessMatrix => Page.Locator("[data-testid=completeness-matrix]");
     public ILocator CompletenessRows => Page.Locator("[data-testid=completeness-row]");
+    public ILocator AppContextHeader => Page.Locator("[data-testid=evidence-app-context]");
+    public ILocator AppContextNumber => Page.Locator("[data-testid=evidence-app-number]");
+    public ILocator AppContextApplicant => Page.Locator("[data-testid=evidence-app-applicant]");
+    public ILocator BackToEvidence => Page.Locator("[data-testid=evidence-back]");
 
     public async Task GotoAsync(string baseUrl, int applicationId)
         => await Page.GotoAsync($"{baseUrl}/Applications/{applicationId}/EvidenceGraph");

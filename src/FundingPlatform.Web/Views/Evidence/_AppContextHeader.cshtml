@@ -1,0 +1,36 @@
+@using FundingPlatform.Web.Resources
+@using FundingPlatform.Web.Helpers
+@model FundingPlatform.Web.ViewModels.Evidence.EvidenceApplicationContext
+@{
+    var status = StatusVisualMap.For(Model.State);
+}
+
+<div class="card mb-3" data-testid="evidence-app-context" data-application-id="@Model.ApplicationId">
+    <div class="card-body py-2">
+        <div class="row align-items-center g-2">
+            <div class="col-auto">
+                <span class="fw-bold fs-3" data-testid="evidence-app-number">@Model.ApplicationNumber</span>
+                <span class="badge @status.Color ms-1"><i class="@status.Icon"></i> @status.DisplayLabel</span>
+            </div>
+            <div class="col">
+                <div class="text-secondary small">
+                    <span class="me-3"><i class="ti ti-user"></i> @EvidenceResources.Context_Applicant: <strong data-testid="evidence-app-applicant">@Model.ApplicantName</strong></span>
+                    @if (!string.IsNullOrWhiteSpace(Model.CompanyName))
+                    {
+                        <span class="me-3"><i class="ti ti-building"></i> @EvidenceResources.Context_Company: <strong>@Model.CompanyName</strong></span>
+                    }
+                </div>
+                <div class="text-secondary small mt-1">
+                    <i class="ti ti-hierarchy-2"></i>
+                    @Model.FundName <span class="mx-1">›</span> @Model.ProcessName <span class="mx-1">›</span> @Model.GroupName
+                </div>
+            </div>
+            <div class="col-auto">
+                <a asp-controller="Disbursement" asp-action="Index" asp-route-applicationId="@Model.ApplicationId"
+                   class="btn btn-sm btn-outline-secondary" data-testid="evidence-view-disbursements">
+                    <i class="ti ti-cash"></i> @EvidenceResources.Nav_ViewDisbursements
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
