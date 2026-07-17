@@ -221,6 +221,9 @@ public static class DependencyInjection
         // Spec 046 — reviewer tranche (funding-phase) setup.
         services.AddScoped<Application.Tranches.ITrancheService, Services.TrancheService>();
 
+        // Spec 047 — evidence graph (attach/replace/allocate/download).
+        services.AddScoped<Application.Evidence.IEvidenceService, Services.EvidenceService>();
+
         // Spec 043 — regulatory freshness gating + Hacienda API sync.
         services.AddRegulatoryFreshness(configuration);
 

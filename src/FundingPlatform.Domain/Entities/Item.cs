@@ -53,6 +53,20 @@ public class Item
     /// </summary>
     public ItemCommitState CommitState { get; private set; } = ItemCommitState.Uncommitted;
 
+    /// <summary>
+    /// Spec 047 / FR-015 (research D3) — the Financial Operator's off-ledger closure status.
+    /// Default <see cref="ItemClosureState.Open"/>. A line is <see cref="ItemClosureState.Closed"/>
+    /// only when its closure gate is satisfied; closing writes no ledger entry (off-ledger, FR-018)
+    /// and is reversible with a reason. The gate ("required docs + payments validated + equality
+    /// chain + fully allocated") is enforced by the closure service, which can see attributions/
+    /// evidence; the entity cannot (the <see cref="Item"/> convention, mirrors <see cref="Commit"/>).
+    /// </summary>
+    public ItemClosureState ClosureState { get; private set; } = ItemClosureState.Open;
+    public string? ClosedByUserId { get; private set; }
+    public DateTime? ClosedAtUtc { get; private set; }
+    public string? ClosureReason { get; private set; }
+    public string? ReopenReason { get; private set; }
+
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -471,6 +485,46 @@ public class Item
             return;
         }
         CommitState = ItemCommitState.Uncommitted;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 047 / FR-016 — closes the budget-line (Open → Closed), stamping the actor + timestamp and
+    /// an optional note (mirrors <see cref="Commit"/> + <c>Disbursement.Validate</c> stamping).
+    /// Idempotent: a repeat on an already-closed line is a no-op. The gate is enforced by the closure
+    /// service (it can see attributions/evidence); this method only records the decision. Clears any
+    /// prior reopen note.
+    /// </summary>
+    internal void Close(string userId, string? reason)
+    {
+        if (ClosureState == ItemClosureState.Closed)
+        {
+            return;
+        }
+        ClosureState = ItemClosureState.Closed;
+        ClosedByUserId = userId;
+        ClosedAtUtc = DateTime.UtcNow;
+        ClosureReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        ReopenReason = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 047 / FR-017 — reopens a closed budget-line (Closed → Open) with a required reason,
+    /// clearing the closed-by/at stamp. Off-ledger — no balance change. Idempotent on an already-open
+    /// line.
+    /// </summary>
+    internal void Reopen(string userId, string reason)
+    {
+        if (ClosureState == ItemClosureState.Open)
+        {
+            return;
+        }
+        ClosureState = ItemClosureState.Open;
+        ClosedByUserId = null;
+        ClosedAtUtc = null;
+        ClosureReason = null;
+        ReopenReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
         UpdatedAt = DateTime.UtcNow;
     }
 

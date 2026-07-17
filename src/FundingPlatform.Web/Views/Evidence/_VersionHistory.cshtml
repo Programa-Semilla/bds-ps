@@ -1,0 +1,53 @@
+@using FundingPlatform.Web.Resources
+@using FundingPlatform.Application.Evidence
+@model IReadOnlyList<FundingPlatform.Application.Evidence.EvidenceVersionRow>
+@{
+    var esCr = System.Globalization.CultureInfo.GetCultureInfo("es-CR");
+    var applicationId = (int)ViewContext.RouteData.Values["applicationId"]!;
+    var evidenceId = (int)ViewContext.RouteData.Values["evidenceId"]!;
+}
+
+<div class="card" data-testid="evidence-versions">
+    <div class="card-header"><h3 class="card-title">@EvidenceResources.History_Title</h3></div>
+    <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+            <thead>
+                <tr>
+                    <th>@EvidenceResources.Col_Version</th>
+                    <th>@EvidenceResources.Col_Amount</th>
+                    <th>@EvidenceResources.History_By</th>
+                    <th>@EvidenceResources.History_Reason</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var v in Model)
+                {
+                    <tr data-testid="evidence-version-row" data-version="@v.VersionNumber">
+                        <td>
+                            v@v.VersionNumber
+                            @if (v.IsCurrent)
+                            {
+                                <span class="badge bg-green-lt">@EvidenceResources.History_Current</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary-lt">@EvidenceResources.History_Superseded</span>
+                            }
+                        </td>
+                        <td>@v.Amount.ToString("N2", esCr) @v.Currency</td>
+                        <td>@v.CreatedByDisplayName<br /><span class="text-muted small">@v.CreatedAtUtc.ToString("dd/MM/yyyy HH:mm")</span></td>
+                        <td>@(v.Reason ?? "—")</td>
+                        <td class="text-end">
+                            <a asp-controller="Evidence" asp-action="Download"
+                               asp-route-applicationId="@applicationId" asp-route-evidenceId="@evidenceId" asp-route-v="@v.VersionNumber"
+                               class="btn btn-sm btn-outline-secondary" data-testid="evidence-version-download">
+                                <i class="ti ti-download"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

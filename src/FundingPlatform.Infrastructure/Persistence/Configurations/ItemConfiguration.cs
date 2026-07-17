@@ -45,6 +45,18 @@ public class ItemConfiguration : IEntityTypeConfiguration<Item>
             .IsRequired()
             .HasDefaultValue(Domain.Enums.ItemCommitState.Uncommitted);
 
+        // Spec 047 — off-ledger closure status + metadata. HasConversion<byte>() is MANDATORY
+        // (035/040/045/046 Byte→Int32 lesson). Nullable-safe inline add, no backfill; the
+        // ClosedByUserId FK → AspNetUsers is NO ACTION (defined in the dacpac, no EF navigation).
+        builder.Property(i => i.ClosureState)
+            .HasConversion<byte>()
+            .IsRequired()
+            .HasDefaultValue(Domain.Enums.ItemClosureState.Open);
+        builder.Property(i => i.ClosedByUserId).HasMaxLength(450);
+        builder.Property(i => i.ClosedAtUtc);
+        builder.Property(i => i.ClosureReason).HasMaxLength(500);
+        builder.Property(i => i.ReopenReason).HasMaxLength(500);
+
         // Spec 046 — tranche membership (null = synthetic default). FK Restrict: deleting a tranche
         // re-parents its lines to null in the domain first (Application.DeleteTranche), so EF never
         // cascades here. Filtered index mirrors the dacpac IX_Items_TrancheId.

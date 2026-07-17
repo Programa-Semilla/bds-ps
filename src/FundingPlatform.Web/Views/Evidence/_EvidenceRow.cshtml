@@ -1,0 +1,32 @@
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Evidence.EvidenceRowViewModel
+@{
+    var item = Model.Item;
+}
+
+<tr data-testid="evidence-row" data-evidence-id="@item.Id" data-evidence-type="@item.Type">
+    <td>
+        <span class="badge @EvidenceResources.TypeBadgeClass(item.Type)">@EvidenceResources.TypeLabel(item.Type)</span>
+    </td>
+    <td>@item.DocumentReferenceNumber</td>
+    <td class="text-end" data-testid="evidence-amount-cell">
+        @item.Amount.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-CR")) @item.Currency
+    </td>
+    <td data-testid="evidence-allocated-cell">
+        @item.AllocatedLineCount ·
+        @item.AllocatedTotal.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-CR"))
+    </td>
+    <td>v@item.VersionCount</td>
+    <td class="text-end">
+        <a asp-controller="Evidence" asp-action="Detail"
+           asp-route-applicationId="@Model.ApplicationId" asp-route-evidenceId="@item.Id"
+           class="btn btn-sm btn-outline-secondary" data-testid="evidence-open">
+            @EvidenceResources.Action_Detail
+        </a>
+        <a asp-controller="Evidence" asp-action="Download"
+           asp-route-applicationId="@Model.ApplicationId" asp-route-evidenceId="@item.Id"
+           class="btn btn-sm btn-outline-secondary" data-testid="evidence-download">
+            <i class="ti ti-download"></i>
+        </a>
+    </td>
+</tr>

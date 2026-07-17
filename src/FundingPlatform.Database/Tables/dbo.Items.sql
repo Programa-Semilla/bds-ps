@@ -18,6 +18,13 @@ CREATE TABLE [dbo].[Items]
     -- TrancheId NULL = the virtual default tranche; CommitState default 0 = Uncommitted.
     [TrancheId]                   INT            NULL,
     [CommitState]                 TINYINT        NOT NULL CONSTRAINT [DF_Items_CommitState] DEFAULT (0),
+    -- Spec 047 — off-ledger budget-line closure status + metadata. Nullable-safe inline adds
+    -- (no post-deploy backfill — spec 032/037/046 precedent): ClosureState default 0 = Open.
+    [ClosureState]                TINYINT        NOT NULL CONSTRAINT [DF_Items_ClosureState] DEFAULT (0),
+    [ClosedByUserId]              NVARCHAR(450)  NULL,
+    [ClosedAtUtc]                 DATETIME2      NULL,
+    [ClosureReason]               NVARCHAR(500)  NULL,
+    [ReopenReason]                NVARCHAR(500)  NULL,
     [CreatedAt]                   DATETIME2      NOT NULL CONSTRAINT [DF_Items_CreatedAt] DEFAULT (GETUTCDATE()),
     [UpdatedAt]                   DATETIME2      NOT NULL,
 
@@ -25,6 +32,8 @@ CREATE TABLE [dbo].[Items]
     CONSTRAINT [FK_Items_Applications] FOREIGN KEY ([ApplicationId]) REFERENCES [dbo].[Applications] ([Id]) ON DELETE CASCADE,
     CONSTRAINT [FK_Items_Categories] FOREIGN KEY ([CategoryId]) REFERENCES [dbo].[Categories] ([Id]) ON DELETE NO ACTION,
     CONSTRAINT [FK_Items_Suppliers_SelectedSupplierId] FOREIGN KEY ([SelectedSupplierId]) REFERENCES [dbo].[Suppliers] ([Id]),
+    -- Spec 047 — closed-by actor. NO ACTION (AspNetUsers are never hard-deleted in this flow).
+    CONSTRAINT [FK_Items_AspNetUsers_ClosedBy] FOREIGN KEY ([ClosedByUserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE NO ACTION,
     -- NO ACTION: deleting a tranche re-parents its member lines to TrancheId=NULL in the
     -- domain (Application.DeleteTranche) first, so the DB never needs to cascade here.
     CONSTRAINT [FK_Items_Tranches] FOREIGN KEY ([TrancheId]) REFERENCES [dbo].[Tranches] ([Id]) ON DELETE NO ACTION

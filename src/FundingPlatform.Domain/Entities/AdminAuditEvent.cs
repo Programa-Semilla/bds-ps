@@ -181,6 +181,46 @@ public class AdminAuditEvent
     /// which target the budget-line <see cref="Item"/> (<c>TargetId = itemId</c> from the payload).</summary>
     public const string TargetTypeItem = "item";
 
+    // ---------- Spec 047 — evidence graph, required-doc rules, budget-line closure. ----------
+    /// <summary>Spec 047 / FR-032 — a Financial Operator attached a graph evidence document
+    /// (payload: {evidenceId, applicationId, type}).</summary>
+    public const string EvidenceAttached = "evidence.attached";
+    /// <summary>Spec 047 / FR-032 — a new evidence version was appended (file/critical-field replace)
+    /// (payload: {evidenceId, applicationId, type}).</summary>
+    public const string EvidenceReplaced = "evidence.replaced";
+    /// <summary>Spec 047 / FR-032 — the evidence's per-line allocation was replaced
+    /// (payload: {evidenceId, applicationId, type}).</summary>
+    public const string EvidenceAllocated = "evidence.allocated";
+    /// <summary>Spec 047 / FR-032 — a graph evidence document was deleted (pre-close)
+    /// (payload: {evidenceId, applicationId, type}).</summary>
+    public const string EvidenceDeleted = "evidence.deleted";
+
+    /// <summary>Spec 047 — target-type discriminator for evidence-graph mutations. The
+    /// <c>evidence.</c> prefix routes here in <c>AdminAuditEventWriter</c> and, like
+    /// <c>disbursement.</c>, sets <c>TargetId = evidenceId</c> (parsed from the payload) so the
+    /// trail is queryable per evidence node.</summary>
+    public const string TargetTypeEvidence = "evidence";
+
+    /// <summary>Spec 047 / FR-016 — a Financial Operator closed a budget-line
+    /// (payload: {itemId, applicationId, reason}).</summary>
+    public const string ClosureLineClosed = "closure.line_closed";
+    /// <summary>Spec 047 / FR-017 — a Financial Operator reopened a closed budget-line with a reason
+    /// (payload: {itemId, applicationId, reason}).</summary>
+    public const string ClosureLineReopened = "closure.line_reopened";
+
+    /// <summary>Spec 047 — target-type discriminator for the <c>closure.*</c> mutations, which target
+    /// the budget-line <see cref="Item"/> (<c>TargetId = itemId</c> from the payload).</summary>
+    public const string TargetTypeClosure = "closure";
+
+    /// <summary>Spec 047 / FR-028 — admin upserted a required-document rule set
+    /// (payload: {categoryId} — null → global default).</summary>
+    public const string DocRuleUpserted = "docrule.upserted";
+
+    /// <summary>Spec 047 — target-type discriminator for required-document rule mutations. The
+    /// <c>docrule.</c> prefix routes here; <c>TargetId = categoryId</c> (parsed from the payload,
+    /// "0" for the global-default set).</summary>
+    public const string TargetTypeDocRule = "docrule";
+
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string ActorUserId { get; private set; } = string.Empty;

@@ -68,6 +68,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Tranche> Tranches => Set<Tranche>();
     public DbSet<DisbursementLineAllocation> DisbursementLineAllocations => Set<DisbursementLineAllocation>();
 
+    // Spec 047 — evidence graph (versioned nodes + M:N line allocation).
+    public DbSet<Evidence> Evidence => Set<Evidence>();
+    public DbSet<EvidenceVersion> EvidenceVersions => Set<EvidenceVersion>();
+    public DbSet<EvidenceLineAllocation> EvidenceLineAllocations => Set<EvidenceLineAllocation>();
+
     // Spec 037 — admin-managed companies (Empresas) owned by applicants.
     public DbSet<Company> Companies => Set<Company>();
 

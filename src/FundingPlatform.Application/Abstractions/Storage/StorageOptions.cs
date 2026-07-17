@@ -115,6 +115,14 @@ public sealed class StorageCategoriesOptions
         ServingMode = ServingMode.BackendStream,
     };
 
+    // Spec 047 / FR-002, FR-049 — evidence-graph files. 20 MiB cap; served via
+    // BackendStream (no time-limited URL), mirroring DisbursementEvidence.
+    public StorageCategoryOptions Evidence { get; set; } = new()
+    {
+        MaxSizeBytes = StorageOptions.DefaultMaxSizeBytes20Mib,
+        ServingMode = ServingMode.BackendStream,
+    };
+
     public StorageCategoryOptions For(FileCategory category) => category switch
     {
         FileCategory.SignedFundingAgreement => SignedFundingAgreement,
@@ -125,6 +133,7 @@ public sealed class StorageCategoriesOptions
         FileCategory.FundRegulation => FundRegulation,
         FileCategory.FundsUsageEvidence => FundsUsageEvidence,
         FileCategory.DisbursementEvidence => DisbursementEvidence,
+        FileCategory.Evidence => Evidence,
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
     };
 }
