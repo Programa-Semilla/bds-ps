@@ -94,3 +94,37 @@ Anchor for the whole program: **allocation = executed FundingAgreement total** (
 - Exact set of budget-line **"status" filter values** for FR-020 (uncommitted/committed/paid/validated + validation state).
 - **P4 balance-recognition revisit still stands**: if the *official/reportable* available should key off validation instead of payment, that's a P7 reporting choice — the ledger carries both. P2 keeps payment-based Available.
 - Spec review (`REVIEW-SPEC.md`): **SOUND**, 0 critical / 0 important.
+
+---
+
+## Revisit: 2026-07-16 — Slice P3 brainstormed → spec 047
+
+**Status:** P3 spec-created (`specs/047-evidence-graph-required-docs/`, branch `047-evidence-graph-required-docs`). P1 (045, PR #78) + P2 (046, PR #79) remain shipped. P4–P9 still parked.
+
+### P3 scope confirmed (ratified this session)
+
+User chose **all four** capabilities (A+B+C+D) in one slice — the program's largest:
+- **A** — expand evidence **types** + add the **signed-acceptance** reconciliation leg P1 deferred.
+- **B** — **configurable required-document rules** + live completeness matrix + closure gate.
+- **C** — document **version history** (replace preserves prior).
+- **D** — evidence→line **M:N with per-line amount allocation** (AC-002/AC-003).
+
+### P3 anchor decisions (5 decisions, all ratified)
+
+1. **Type set trimmed to six** (kept P3 focused): Bank Receipt, Invoice, Signed Acceptance, Credit Note, Refund Receipt, Other. **Bank Statement + Exchange-Rate Adjustment deferred to P5/P6** (their reconciliation legs aren't built yet).
+2. **Evidence = first-class Application-scoped node**, optional Disbursement link + **M:N to budget-lines with per-line allocation**; acceptance/credit-note/refund/other attach to lines **without a payment**. P1's disbursement receipt+invoice reconciliation stays untouched.
+3. **Required-doc rules scoped to per-`Category` + single global default** (§10.8 matrix = spec-035 Category rows); other five FR-033 axes (payment/supplier type, amount threshold, currency, agency) documented as **future seams, not built**. Reuses spec-040 ChecklistTemplate one-active pattern + spec-035 `CategoryField` live-completeness pattern.
+4. **Closure = per-budget-line, off-ledger operational milestone** by the **Financial Operator** (not a new approver — segregation deferred to P8). Blocked unless: required docs present + payments Validated + per-line equality chain to the colón + required docs fully allocated. **Audited reopen-with-reason** allowed (mirrors P2 commit reversibility). Derived line status gains **Closed** terminal + **EvidenceIncomplete** indicator.
+5. **Version history = append-only chain** (file + reconciliation-critical fields; reason + actor + hash per version); **no accept/reject review workflow** (deferred to P4/P8). **All P3 reconciliation stays zero-colón blocking** — no warnings/severity/lifecycle (P4). **Credit Note & Refund Receipt are evidence-only** in P3 (requirable/versioned, no reconciliation leg, no balance effect — money semantics are P6).
+
+### P3 scope boundaries (confirmed deferrals)
+- Warnings / severity / discrepancy lifecycle / reconciliation dashboard → **P4**. Currency + bank-statement + FX-adjustment evidence → **P5**. Reversals + credit-note/refund money semantics → **P6**. Reporting/statements → **P7**. Segregation-of-duties / approver role → **P8**. Import → **P9**. Multi-agency, participant self-upload, OCR → parked.
+- **No new managed deps; additive dacpac-only schema** (new evidence graph + version chain + evidence↔line allocation + required-doc matrix + per-line Closed state).
+
+### Open threads (carry into `/speckit-plan` for spec 047)
+- **OQ-1:** generalize the existing `DisbursementEvidence` table into the new Application-scoped evidence entity, vs. add a new table alongside (migration shape).
+- **OQ-2:** exact **Closed** representation on `Item` (stored state/flag vs. extending the derived status) + closure metadata.
+- **OQ-3:** version chain as an evidence child table vs. a generic document-version table.
+- **Plan note (from REVIEW-SPEC):** the completeness check must read **both** disbursement-anchored (P1 receipt/invoice) and line-linked evidence, so a disbursement's invoice counts toward its paid lines' completeness.
+- **Watch (from REVIEW-SPEC):** largest slice yet — keep the P1/P2 regression (SC-006) green at each story checkpoint; consider landing US4 (version history) as an independent checkpoint.
+- Spec review (`REVIEW-SPEC.md`): **SOUND**, 0 critical / 0 important.
