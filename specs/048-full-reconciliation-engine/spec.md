@@ -27,7 +27,7 @@ As a **Financial Operator**, when I record or edit a disbursement, allocate a li
 1. **Given** a disbursement whose invoice amount is 72 CRC less than the paid amount, **When** the operator saves it, **Then** a persisted Blocking discrepancy (comparison = paid-vs-invoice) is recorded with expected, actual, and a −72 difference, and any attempt to validate is refused.
 2. **Given** an application with no mismatches, **When** reconciliation runs, **Then** no open discrepancies exist and validation/closure proceed.
 3. **Given** two disbursements to the same supplier for the same amount on the same date, **When** reconciliation runs, **Then** a persisted **Warning** discrepancy (possible duplicate payment) is recorded and validation is **not** blocked by it.
-4. **Given** a requested amount that differs from the approved amount, **When** reconciliation runs, **Then** a non-blocking **Warning** (requested-vs-approved variance) is recorded.
+4. **Given** an invoice dated after the payment it supports, **When** reconciliation runs, **Then** a non-blocking **Warning** (evidence date anomaly) is recorded.
 5. **Given** a validated payment on a budget-line whose independently-allocated graph invoice differs, **When** reconciliation runs, **Then** a **Warning** (graph-invoice allocation drift) is recorded rather than the mismatch passing silently (absorbs spec 047 FINDING-13).
 
 ---
@@ -114,7 +114,7 @@ As a **Financial Operator**, when a discrepancy is **assigned to me**, I receive
 - **FR-007**: Every reconciliation rule MUST have a **fixed severity**, either **Blocking** or **Warning**; severity is not user-configurable in this slice.
 - **FR-008**: The following comparisons MUST be **Blocking**: paid-vs-bank-receipt, paid-vs-invoice, invoice-vs-signed-acceptance, Σ line-allocations-vs-disbursement, Σ per-line-payments-vs-committed-budget, participant Σ-vs-allocation, and the P3 completeness/closure equality legs.
 - **FR-009**: A record MUST be prevented from reaching a validated or closed state while any **Blocking** discrepancy in its scope is unresolved. **Warning** discrepancies MUST never block validation or closure.
-- **FR-010**: The system MUST detect and record the following **Warning** conditions (the P4 starter set): (a) requested-vs-approved amount variance (see OQ-5 for the concrete pair of stored amounts compared); (b) evidence date anomalies — evidence dated **after its related payment date**, or dated **before the funding-agreement execution date** (both concrete, already-stored anchors); (c) possible duplicate payment (same supplier + amount + date across disbursements); (d) graph-invoice allocation drift (a line with a validated payment whose independently-allocated graph invoice differs).
+- **FR-010**: The system MUST detect and record the following **Warning** conditions (the P4 starter set): (a) evidence date anomalies — evidence dated **after its related payment date**, or dated **before the funding-agreement execution date** (both concrete, already-stored anchors); (b) possible duplicate payment (same supplier + amount + date across disbursements); (c) graph-invoice allocation drift (a line with a validated payment whose independently-allocated graph invoice differs). *(A fourth candidate — requested-vs-approved variance — was **dropped** during planning: research confirmed the platform stores no "requested" amount distinct from the executed allocation, so the rule is not computable. See research.md D4 / resolved OQ-5.)*
 
 **Lifecycle & history**
 
@@ -143,7 +143,7 @@ As a **Financial Operator**, when a discrepancy is **assigned to me**, I receive
 
 **Notifications**
 
-- **FR-027**: When a discrepancy is **assigned** to a responsible user, the system MUST notify that user via the existing email outbox. The system MUST NOT notify on mere detection.
+- **FR-027**: When a discrepancy is **assigned** to a responsible user, the system MUST notify that user by email (best-effort — a delivery failure MUST NOT block the assignment). The system MUST NOT notify on mere detection. *(Delivery mechanism is a plan decision — see research.md D6: a direct-send factory, not the stage-group outbox.)*
 
 ### Key Entities
 
@@ -194,10 +194,10 @@ Deferred to later program slices (roadmap `brainstorm/41-financial-disbursement-
 
 ## Open Questions
 
-*(to resolve during `/speckit-plan`)*
+*All resolved during `/speckit-plan` — see `research.md` (D1–D6) and `plan.md`.*
 
-- **OQ-1**: Concrete `Discrepancy` entity shape + scope-type enum + how a single row references heterogeneous scopes (payment / line / participant / tranche / document) — a polymorphic (scope-type, scope-entity-id) key vs. nullable typed FKs.
-- **OQ-2**: Whether the existing pure on-read evaluators are refactored to **emit** persisted discrepancy rows, or a new materializer service **wraps** them and diffs the computed set against the persisted set to apply the FR-003 upsert/auto-resolve/insert rules.
-- **OQ-3**: Dashboard placement and whether to reuse/extend the existing per-application `_DiscrepancyList` surface vs. a dedicated dashboard controller/view.
-- **OQ-4**: Optimistic-concurrency mechanism for lifecycle edits (FR-018) given the standing platform note that `dbo.Items` lacks a RowVersion — the new `Discrepancy` table should carry its own RowVersion; confirm no interaction with the deferred Items-RowVersion debt.
-- **OQ-5**: FR-010(a) requested-vs-approved variance — confirm the platform stores a distinct "requested" amount (e.g. the applicant's original quoted total) separate from the executed/approved allocation at a scope that survives to the execution phase. If only one amount is retained post-execution, this warning is not computable and MUST be dropped from the P4 starter set (or its comparison redefined) rather than shipped hollow.
+- **OQ-1** ✅ (research D2): polymorphic `(ScopeType, ScopeEntityId)` scope key + owned append-only `DiscrepancyEvent` child (copy spec-047 `Evidence`/`EvidenceVersion`); stable identity = unique index `(ApplicationId, ScopeType, ScopeEntityId, Comparison)`.
+- **OQ-2** ✅ (research D1): a **wrapping** `IReconciliationMaterializer` — the pure evaluators and the money gates stay unchanged; materialization is additive for visibility.
+- **OQ-3** ✅ (research D5): new group-scoped `IReconciliationDashboardProjection` + `Reconciliation` controller (inbox-style); extend the per-application `_DiscrepancyList` to read persisted rows.
+- **OQ-4** ✅ (research D2): `Discrepancy.RowVersion` optimistic concurrency; independent of the deferred `dbo.Items`-RowVersion debt (different table).
+- **OQ-5** ✅ (research D4): **no stored "requested" amount exists** → FR-010(a) **dropped**; warning set is the three conditions in FR-010. A redefinition (cheapest-estimate vs allocation) is documented for a future slice, not built in P4.
