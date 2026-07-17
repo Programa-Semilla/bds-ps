@@ -55,7 +55,7 @@
 - [ ] T021 [US1] Views `Views/Evidence/Index.cshtml`, `Detail.cshtml`, `_EvidenceRow.cshtml`, `_AllocationEditor.cshtml` (attach form + per-line allocation inputs; `data-testid` hooks) in `src/FundingPlatform.Web/Views/Evidence/`
 - [ ] T022 [P] [US1] Unit `EvidenceAllocationTests` (allocation-integrity: Σ ≤ amount; orphan guard) in `tests/FundingPlatform.Tests.Unit/`
 - [ ] T023 [P] [US1] Integration `EvidenceGraphTests` (real SQL: attach, M:N both directions, over-allocation refused, cascade delete of versions/allocations) in `tests/FundingPlatform.Tests.Integration/`
-- [ ] T024 [US1] E2E `EvidenceGraphAllocationTests` (AC-002 one-invoice-4-lines, AC-003 five-invoices-one-line, over-allocation refused, orphan refused, acceptance-without-payment) in `tests/FundingPlatform.Tests.E2E/`
+- [ ] T024 [US1] E2E `EvidenceGraphAllocationTests` (AC-002 one-invoice-4-lines, AC-003 five-invoices-one-line, over-allocation refused, orphan refused, acceptance-without-payment; **+ SC-007 cross-cutting**: out-of-group Financial Operator → flat 404 on every `/Evidence` route, Auditor/Admin read-only → 403 on write, >20 MiB / bad magic bytes rejected) in `tests/FundingPlatform.Tests.E2E/`
 
 **Checkpoint US1**: evidence graph + allocation delivered and independently testable (AC-002/AC-003). Commit + push.
 
@@ -72,7 +72,7 @@
 - [ ] T027 [US2] `Item.MissingRequiredDocuments(requiredTypes, presentTypes)` pure helper (mirror `MissingRequiredCategoryFields`) in `src/FundingPlatform.Domain/Entities/Item.cs`
 - [ ] T028 [US2] EF configs `DocumentRuleSetConfiguration.cs` + `DocumentRuleItemConfiguration.cs` (`HasConversion<byte>()` on EvidenceType; `UNIQUE (CategoryId)`; `UNIQUE (DocumentRuleSetId, EvidenceType)`; item FK CASCADE, Category FK NO ACTION) in `src/FundingPlatform.Infrastructure/Persistence/Configurations/`
 - [ ] T029 [US2] Dacpac tables `dbo.DocumentRuleSets.sql` + `dbo.DocumentRuleItems.sql` in `src/FundingPlatform.Database/Tables/`
-- [ ] T030 [US2] Post-deploy seed `src/FundingPlatform.Database/PostDeployment/NN_SeedDocumentRules.sql` — global-default set (BankReceipt+Invoice+SignedAcceptance = Required); idempotent (`IF NOT EXISTS`)
+- [ ] T030 [US2] Post-deploy seed `src/FundingPlatform.Database/PostDeployment/NN_SeedDocumentRules.sql` (`NN` = next number in the existing `PostDeployment/` sequence) — global-default set (BankReceipt+Invoice+SignedAcceptance = Required); idempotent (`IF NOT EXISTS`)
 - [ ] T031 [US2] Register `DocumentRuleSets`, `DocumentRuleItems` DbSets in `AppDbContext.cs`
 - [ ] T032 [US2] `IDocumentRuleService` + DTOs (`ListAsync`, `GetAsync`, `UpsertAsync`, `ResolveRequiredTypes`) in `src/FundingPlatform.Application/DocRules/IDocumentRuleService.cs`
 - [ ] T033 [US2] `DocumentRuleService` impl (one-set-per-Category enforcement, full-replace items, `docrule.upserted` two-SaveChanges audit) in `src/FundingPlatform.Infrastructure/Services/DocumentRuleService.cs`
