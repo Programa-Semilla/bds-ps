@@ -109,6 +109,30 @@ public class EvidenceGraphTests
     }
 
     [Test]
+    public async Task Replace_AmountBelowAllocatedTotal_Refused()
+    {
+        // Deep-review C1 / FR-005 — a reconciliation-critical edit may not shrink the amount below
+        // the already-allocated total (that would strand an over-allocation).
+        await using var ctx = EvidenceTestFactory.CreateContext(Db());
+        var storage = new InMemoryObjectStorage();
+        var svc = EvidenceTestFactory.NewService(ctx, storage);
+        var (appId, items) = await EvidenceTestFactory.SeedExecutedAppWithLinesAsync(ctx, 1);
+
+        var attach = await svc.AttachAsync(
+            EvidenceTestFactory.AttachInvoice(appId, 100_000m, new[] { (items[0], 100_000m) }),
+            EvidenceTestFactory.Actor, CancellationToken.None);
+        Assert.That(attach.Succeeded, Is.True);
+
+        var replace = await svc.ReplaceAsync(
+            new ReplaceEvidenceCommand(appId, attach.Value, "reducir monto", 50_000m, "CRC", "F-001",
+                new DateOnly(2026, 7, 16), Content: null, FileName: null, ContentType: null, FileSize: null),
+            EvidenceTestFactory.Actor, CancellationToken.None);
+
+        Assert.That(replace.Succeeded, Is.False);
+        Assert.That(replace.Errors[0].Code, Is.EqualTo(EvidenceReasons.Codes.AllocationExceedsAmount));
+    }
+
+    [Test]
     public async Task Delete_CascadesVersionsAndAllocations()
     {
         await using var ctx = EvidenceTestFactory.CreateContext(Db());

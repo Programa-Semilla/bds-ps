@@ -12,13 +12,11 @@ public static class DocRuleReasons
     {
         public const string CategoryNotFound = "CATEGORY_NOT_FOUND";
         public const string DuplicateCategory = "DUPLICATE_CATEGORY";
-        public const string InvalidInput = "INVALID_INPUT";
         public const string Concurrency = "CONCURRENCY";
     }
 
     public const string CategoryNotFound = "No se encontró la categoría.";
     public const string DuplicateCategory = "Ya existe una regla de documentos para esta categoría.";
-    public const string InvalidInput = "Revise los datos ingresados.";
     public const string Concurrency =
         "La regla fue modificada por otra persona. Vuelva a cargar la página e intente de nuevo.";
 }

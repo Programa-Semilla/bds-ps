@@ -213,6 +213,17 @@ public class Item
     }
 
     /// <summary>
+    /// Spec 047 — the canonical short label for a budget-line in service messages/reconciliation:
+    /// the reviewer-assigned <see cref="LineCode"/>, else the product name, else an <c>L-{id}</c>
+    /// fallback. Single source so the evidence/closure/reconciliation surfaces label a line
+    /// identically.
+    /// </summary>
+    public static string FormatLabel(string? lineCode, string? productName, int itemId)
+        => !string.IsNullOrWhiteSpace(lineCode) ? lineCode!
+            : !string.IsNullOrWhiteSpace(productName) ? productName!
+            : $"L-{itemId.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+
+    /// <summary>
     /// Spec 047 / FR-013 — the required evidence types (from the line's resolved
     /// <see cref="DocumentRuleSet"/>) that are NOT present for this line. Pure — the caller supplies
     /// the resolved required set and the set of present types (union of disbursement-anchored

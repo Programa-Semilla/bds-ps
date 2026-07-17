@@ -64,14 +64,16 @@ public class EvidenceVersionHistoryTests : AuthenticatedTestBase
         var page = new EvidencePage(Page);
 
         await page.GotoAsync(BaseUrl, appId);
-        await page.AttachAsync("Invoice", 400_000m, "F-001", Today, _pdfV1, 400_000m);
+        // Allocate 300k of the 400k invoice, so a later amount-reduction to 350k still satisfies
+        // Σ allocations ≤ amount (FR-005 — the reconciliation-critical edit guard).
+        await page.AttachAsync("Invoice", 400_000m, "F-001", Today, _pdfV1, 300_000m);
         await Expect(page.SuccessToast).ToBeVisibleAsync();
 
         await page.OpenFirstAsync();
         await Expect(page.Detail).ToBeVisibleAsync();
         await Expect(page.VersionRows).ToHaveCountAsync(1);
 
-        // Replace with a corrected file + a lower amount + a reason → a second version appends.
+        // Replace with a corrected file + a lower (but still ≥ allocated) amount + a reason → v2 appends.
         await page.ReplaceAsync(350_000m, "F-001-B", Today, "monto corregido", _pdfV2);
         await Expect(page.SuccessToast).ToBeVisibleAsync();
         await Expect(page.VersionRows).ToHaveCountAsync(2);

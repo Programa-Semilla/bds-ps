@@ -19,7 +19,6 @@ public static class EvidenceReasons
         public const string AmountInvalid = "AMOUNT_INVALID";
         public const string NonCrc = "NON_CRC";
         public const string Concurrency = "CONCURRENCY";
-        public const string UploadFailed = "UPLOAD_FAILED";
         public const string LineNotFound = "LINE_NOT_FOUND";
 
         // US1 — evidence graph + allocation.
@@ -31,6 +30,7 @@ public static class EvidenceReasons
         public const string MissingRequiredDocuments = "MISSING_REQUIRED_DOCUMENTS";
         public const string PaymentNotValidated = "PAYMENT_NOT_VALIDATED";
         public const string LineEqualityMismatch = "LINE_EQUALITY_MISMATCH";
+        public const string NoPaymentToClose = "NO_PAYMENT_TO_CLOSE";
         public const string RequiredEvidenceNotFullyAllocated = "REQUIRED_EVIDENCE_NOT_FULLY_ALLOCATED";
         public const string AlreadyClosed = "ALREADY_CLOSED";
         public const string NotClosed = "NOT_CLOSED";
@@ -66,6 +66,8 @@ public static class EvidenceReasons
         "No se puede cerrar la línea: hay pagos atribuidos que aún no han sido validados.";
     public const string LineEqualityMismatch =
         "No se puede cerrar la línea: el monto pagado no coincide con el monto aceptado.";
+    public const string NoPaymentToClose =
+        "No se puede cerrar una línea sin pagos validados. Registre y valide el pago antes de cerrarla.";
     public const string RequiredEvidenceNotFullyAllocated =
         "No se puede cerrar la línea: cada documento requerido debe estar totalmente asignado a la línea.";
     public const string AlreadyClosed = "La línea ya está cerrada.";

@@ -99,7 +99,7 @@ public sealed class EvidenceService : IEvidenceService
             .ToListAsync(ct);
 
         var allocationRows = allocations
-            .Select(a => new EvidenceLineAllocationRow(a.ItemId, LineLabel(a.LineCode, a.ProductName, a.ItemId), a.Amount))
+            .Select(a => new EvidenceLineAllocationRow(a.ItemId, Item.FormatLabel(a.LineCode, a.ProductName, a.ItemId), a.Amount))
             .ToList();
 
         var versions = await VersionRowsAsync(evidenceId, ct);
@@ -109,13 +109,6 @@ public sealed class EvidenceService : IEvidenceService
             e.Id, e.ApplicationId, e.Type, e.DisbursementId, e.Amount, e.Currency,
             e.DocumentReferenceNumber, e.DocumentDate, supplierName, e.OriginalFileName,
             uploadedBy, e.UploadedAtUtc, allocationRows, versions);
-    }
-
-    public async Task<IReadOnlyList<EvidenceVersionRow>> GetVersionsAsync(int applicationId, int evidenceId, CancellationToken ct)
-    {
-        var belongs = await _db.Evidence.AsNoTracking()
-            .AnyAsync(e => e.Id == evidenceId && e.ApplicationId == applicationId, ct);
-        return belongs ? await VersionRowsAsync(evidenceId, ct) : [];
     }
 
     public async Task<EvidenceDownload?> OpenForDownloadAsync(int applicationId, int evidenceId, int? versionNumber, CancellationToken ct)
@@ -236,14 +229,40 @@ public sealed class EvidenceService : IEvidenceService
 
         try
         {
+            // The allocation rows carry the orphan-guard invariant (FR-007), so a failure of this
+            // second save must NOT leave the node committed with zero allocations. Compensate by
+            // deleting the just-committed node + version + blob (deep-review C4/P2).
             await _db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateConcurrencyException)
+        catch (Exception ex) when (ex is DbUpdateConcurrencyException or DbUpdateException)
         {
+            await CompensateFailedAttachAsync(evidence.Id, key.Value, ct);
             return Result<int>.Failure(new DomainError(EvidenceReasons.Codes.Concurrency, null, EvidenceReasons.Concurrency));
         }
 
         return Result<int>.Success(evidence.Id);
+    }
+
+    /// <summary>Deep-review C4/P2 — undo a committed evidence node (+ its owned version chain + blob)
+    /// when persisting its allocation rows fails, so the orphan-guard invariant (FR-007) is never
+    /// violated by a partial write. Best-effort; a failure here is logged, not surfaced.</summary>
+    private async Task CompensateFailedAttachAsync(int evidenceId, string blobKey, CancellationToken ct)
+    {
+        try
+        {
+            _db.ChangeTracker.Clear();
+            var node = await _db.Evidence.Include(e => e.Versions).FirstOrDefaultAsync(e => e.Id == evidenceId, ct);
+            if (node is not null)
+            {
+                _db.Evidence.Remove(node); // cascades the owned version chain
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception cleanupEx)
+        {
+            _logger.LogWarning(cleanupEx, "Compensation for a failed evidence attach ({EvidenceId}) could not remove the node.", evidenceId);
+        }
+        await DeleteBlobBestEffortAsync(blobKey, ct);
     }
 
     // ---------------------------------------------------------------- replace (US4)
@@ -271,6 +290,16 @@ public sealed class EvidenceService : IEvidenceService
         if (validation is not null)
         {
             return Result.Failure(validation);
+        }
+
+        // Deep-review C1 / FR-005 — a reconciliation-critical edit must not shrink the amount below the
+        // already-persisted per-line allocation total (that would strand an over-allocation the attach/
+        // allocate paths forbid). Re-check Σ existing allocations ≤ the new amount.
+        var allocatedTotal = await _db.EvidenceLineAllocations.AsNoTracking()
+            .Where(a => a.EvidenceId == cmd.EvidenceId).SumAsync(a => (decimal?)a.Amount, ct) ?? 0m;
+        if (allocatedTotal > cmd.Amount)
+        {
+            return Result.Failure(new DomainError(EvidenceReasons.Codes.AllocationExceedsAmount, null, EvidenceReasons.AllocationExceedsAmount));
         }
 
         var lockError = await EnsureEvidenceUnlockedAsync(cmd.EvidenceId, ct);
@@ -383,6 +412,14 @@ public sealed class EvidenceService : IEvidenceService
         {
             return Result.Failure(new DomainError(EvidenceReasons.Codes.Concurrency, null, EvidenceReasons.Concurrency));
         }
+        catch (DbUpdateException)
+        {
+            // Deep-review P1 — two operators concurrently allocating the same (EvidenceId, ItemId) with
+            // no pre-existing row to delete both INSERT; the UX_EvidenceLineAlloc_Evidence_Item unique
+            // index rejects the loser with a plain DbUpdateException. Surface it as a retryable
+            // concurrency error rather than a 500 (mirrors DocumentRuleService.UpsertAsync).
+            return Result.Failure(new DomainError(EvidenceReasons.Codes.Concurrency, null, EvidenceReasons.Concurrency));
+        }
 
         return Result.Success();
     }
@@ -493,9 +530,9 @@ public sealed class EvidenceService : IEvidenceService
         return null;
     }
 
-    /// <summary>Spec 047 / US3 (T049) — refuse an evidence write when any line the evidence is
-    /// allocated to is closed. In US1 no line can be closed, so this is inert until closure ships;
-    /// implemented as a query so US3 needs no re-wiring here.</summary>
+    /// <summary>Spec 047 / US3 / FR-016 — refuse an evidence write when any line the evidence is
+    /// allocated to is closed (the closed-line evidence lock is live). Reads the currently-allocated
+    /// lines and defers to <see cref="EnsureLinesUnlockedAsync"/>.</summary>
     private Task<DomainError?> EnsureEvidenceUnlockedAsync(int evidenceId, CancellationToken ct)
         => EnsureLinesUnlockedAsync(
             _db.EvidenceLineAllocations.Where(a => a.EvidenceId == evidenceId).Select(a => a.ItemId), ct);
@@ -560,11 +597,6 @@ public sealed class EvidenceService : IEvidenceService
         content.Position = 0;
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
-
-    private static string LineLabel(string? lineCode, string productName, int itemId)
-        => !string.IsNullOrWhiteSpace(lineCode) ? lineCode!
-            : !string.IsNullOrWhiteSpace(productName) ? productName
-            : $"L-{itemId.ToString(CultureInfo.InvariantCulture)}";
 
     private async Task DeleteBlobBestEffortAsync(string blobKey, CancellationToken ct)
     {

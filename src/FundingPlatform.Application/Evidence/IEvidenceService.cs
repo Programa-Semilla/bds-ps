@@ -19,9 +19,6 @@ public interface IEvidenceService
     /// does not belong to the application.</summary>
     Task<EvidenceDetail?> GetAsync(int applicationId, int evidenceId, CancellationToken ct);
 
-    /// <summary>The append-only version chain (newest first), or empty when the evidence is not found.</summary>
-    Task<IReadOnlyList<EvidenceVersionRow>> GetVersionsAsync(int applicationId, int evidenceId, CancellationToken ct);
-
     /// <summary>Resolves a BackendStream serving handle for a stored evidence document. When
     /// <paramref name="versionNumber"/> is null the current version is served; otherwise the named
     /// historical version. Null when not found.</summary>

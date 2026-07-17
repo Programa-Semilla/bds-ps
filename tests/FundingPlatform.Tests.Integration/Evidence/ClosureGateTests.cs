@@ -70,16 +70,63 @@ public class ClosureGateTests
         var storage = new InMemoryObjectStorage();
         var svc = EvidenceTestFactory.NewService(ctx, storage);
         var (appId, items) = await EvidenceTestFactory.SeedExecutedAppWithLinesAsync(ctx, 1);
-        // Require Invoice, but only provide a validated payment with... an invoice IS provided by the
-        // validated disbursement. So require CreditNote (never present) to force the missing-doc leg.
+        // Require CreditNote (never present). Make paid == accepted (100,000 each) so legs b/c/d pass
+        // and ONLY the missing-required-doc leg (a) blocks — an isolated leg-a test.
         await EvidenceTestFactory.SeedGlobalDefaultAsync(ctx, EvidenceType.CreditNote);
         await EvidenceTestFactory.SeedValidatedDisbursementWithInvoiceAsync(ctx, appId, items[0], 100_000m);
+        await svc.AttachAsync(
+            EvidenceTestFactory.AttachInvoice(appId, 100_000m, new[] { (items[0], 100_000m) }, type: EvidenceType.SignedAcceptance),
+            EvidenceTestFactory.Actor, CancellationToken.None);
 
         var result = await EvidenceTestFactory.NewClosureService(ctx)
             .CloseAsync(appId, items[0], null, EvidenceTestFactory.Actor, CancellationToken.None);
 
         Assert.That(result.Succeeded, Is.False);
         Assert.That(result.Errors[0].Code, Is.EqualTo(EvidenceReasons.Codes.MissingRequiredDocuments));
+    }
+
+    [Test]
+    public async Task Close_RequiredEvidenceUnderAllocated_Blocks()
+    {
+        // Deep-review T1 — the fourth closure leg (each required graph evidence fully allocated).
+        await using var ctx = EvidenceTestFactory.CreateContext(Db());
+        var storage = new InMemoryObjectStorage();
+        var svc = EvidenceTestFactory.NewService(ctx, storage);
+        var (appId, items) = await EvidenceTestFactory.SeedExecutedAppWithLinesAsync(ctx, 1);
+        // Require Invoice. Attach a graph Invoice of 100,000 but allocate only 60,000 to the line
+        // (Σ 60,000 < amount 100,000 → not fully allocated). A matching validated payment + acceptance
+        // of 60,000 make legs a (Invoice present via graph), b, c, and the payment-present guard pass;
+        // only leg (d) fails.
+        await EvidenceTestFactory.SeedGlobalDefaultAsync(ctx, EvidenceType.Invoice);
+        await svc.AttachAsync(
+            EvidenceTestFactory.AttachInvoice(appId, 100_000m, new[] { (items[0], 60_000m) }, type: EvidenceType.Invoice),
+            EvidenceTestFactory.Actor, CancellationToken.None);
+        await EvidenceTestFactory.SeedValidatedDisbursementWithInvoiceAsync(ctx, appId, items[0], 60_000m);
+        await svc.AttachAsync(
+            EvidenceTestFactory.AttachInvoice(appId, 60_000m, new[] { (items[0], 60_000m) }, type: EvidenceType.SignedAcceptance),
+            EvidenceTestFactory.Actor, CancellationToken.None);
+
+        var result = await EvidenceTestFactory.NewClosureService(ctx)
+            .CloseAsync(appId, items[0], null, EvidenceTestFactory.Actor, CancellationToken.None);
+
+        Assert.That(result.Succeeded, Is.False);
+        Assert.That(result.Errors[0].Code, Is.EqualTo(EvidenceReasons.Codes.RequiredEvidenceNotFullyAllocated));
+    }
+
+    [Test]
+    public async Task Close_NoValidatedPayment_Blocks()
+    {
+        // Deep-review C3 / spec.md line 95 — a line with no attributed validated payment cannot close.
+        await using var ctx = EvidenceTestFactory.CreateContext(Db());
+        var storage = new InMemoryObjectStorage();
+        var (appId, items) = await EvidenceTestFactory.SeedExecutedAppWithLinesAsync(ctx, 1);
+        await EvidenceTestFactory.SeedGlobalDefaultAsync(ctx); // no required docs → completeness passes
+
+        var result = await EvidenceTestFactory.NewClosureService(ctx)
+            .CloseAsync(appId, items[0], null, EvidenceTestFactory.Actor, CancellationToken.None);
+
+        Assert.That(result.Succeeded, Is.False);
+        Assert.That(result.Errors[0].Code, Is.EqualTo(EvidenceReasons.Codes.NoPaymentToClose));
     }
 
     [Test]

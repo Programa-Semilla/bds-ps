@@ -74,12 +74,17 @@ public class BudgetLineClosureTests : AuthenticatedTestBase
         var (appId, finopEmail, adminEmail) = await SeedAsync();
         await RequireNoDocumentsAsync(adminEmail);
 
-        // No required docs, no payments, no acceptance → paid==accepted==0 → the line closes cleanly.
+        // A line is closable only with ≥1 validated payment and paid==accepted (spec.md line 95 +
+        // FR-024). Seed a validated payment of ₡100,000 and attach a matching signed acceptance.
+        await EvidenceClosureSeeder.SeedValidatedPaymentForFirstLineAsync(ConnectionString, appId, 100_000m, finopEmail);
+
         await LoginAsync(Page, finopEmail, Pwd);
         var page = new EvidencePage(Page);
         await page.GotoAsync(BaseUrl, appId);
-        await Expect(page.CloseButton).ToBeVisibleAsync();
+        await page.AttachAsync("SignedAcceptance", 100_000m, "ACT-1", Today, _pdf, 100_000m);
+        await Expect(page.SuccessToast).ToBeVisibleAsync();
 
+        await Expect(page.CloseButton).ToBeVisibleAsync();
         await page.CloseButton.ClickAsync();
         await Expect(page.SuccessToast).ToBeVisibleAsync();
         await Expect(page.ClosedBadge).ToBeVisibleAsync();
@@ -101,8 +106,8 @@ public class BudgetLineClosureTests : AuthenticatedTestBase
         var page = new EvidencePage(Page);
         await page.GotoAsync(BaseUrl, appId);
 
-        // A signed acceptance (accepted = 100,000) with no matching validated payment (paid = 0)
-        // → the paid==accepted leg blocks the close.
+        // A signed acceptance with no matching validated payment (paid = 0) cannot close: the gate
+        // refuses (no validated payment / equality chain unsatisfiable). The line stays open.
         await page.AttachAsync("SignedAcceptance", 100_000m, "ACT-1", Today, _pdf, 100_000m);
         await Expect(page.SuccessToast).ToBeVisibleAsync();
 

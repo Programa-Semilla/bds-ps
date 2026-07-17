@@ -1,6 +1,5 @@
 // Spec 047 — see specs/047-evidence-graph-required-docs/contracts/interfaces.md and research D3/D6.
 
-using System.Globalization;
 using System.Text.Json;
 using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Admin.Users.DTOs;
@@ -80,12 +79,21 @@ public sealed class BudgetLineClosureService : IBudgetLineClosureService
             .Where(a => a.ItemId == itemId && _db.Disbursements.Any(d =>
                 d.Id == a.DisbursementId && d.State == DisbursementState.Validated))
             .SumAsync(a => (decimal?)a.Amount, ct) ?? 0m;
+
+        // Spec edge case (spec.md line 95) — a line with no attributed (validated) payment cannot
+        // satisfy the equality chain and is completed via cancellation, not closure. The zero==zero
+        // trivial pass would otherwise let a no-activity line close (deep-review C3).
+        if (linePaid < 0.01m)
+        {
+            return Result.Failure(new DomainError(EvidenceReasons.Codes.NoPaymentToClose, null, EvidenceReasons.NoPaymentToClose));
+        }
+
         var lineAccepted = await _db.EvidenceLineAllocations.AsNoTracking()
             .Where(a => a.ItemId == itemId && _db.Evidence.Any(e =>
                 e.Id == a.EvidenceId && e.ApplicationId == applicationId && e.Type == EvidenceType.SignedAcceptance))
             .SumAsync(a => (decimal?)a.Amount, ct) ?? 0m;
 
-        var label = LineLabel(item);
+        var label = Item.FormatLabel(item.LineCode, item.ProductName, item.Id);
         var mismatch = DisbursementLineReconciliation.EvaluateLineEquality(
             new[] { new LineEqualityInput(itemId, label, linePaid, lineAccepted) });
         if (mismatch.Count > 0)
@@ -159,11 +167,23 @@ public sealed class BudgetLineClosureService : IBudgetLineClosureService
             .Where(x => requiredTypes.Contains(x.Type))
             .Distinct()
             .ToListAsync(ct);
+        if (evidenceForLine.Count == 0)
+        {
+            return true;
+        }
+
+        // Deep-review P3 — one grouped read of the per-evidence allocation totals (was an N+1 SumAsync
+        // per evidence in a loop). Each required graph evidence must be fully allocated (Σ = amount).
+        var evidenceIds = evidenceForLine.Select(e => e.Id).ToList();
+        var allocatedById = await _db.EvidenceLineAllocations.AsNoTracking()
+            .Where(a => evidenceIds.Contains(a.EvidenceId))
+            .GroupBy(a => a.EvidenceId)
+            .Select(g => new { EvidenceId = g.Key, Total = g.Sum(x => x.Amount) })
+            .ToDictionaryAsync(x => x.EvidenceId, x => x.Total, ct);
 
         foreach (var e in evidenceForLine)
         {
-            var totalAllocated = await _db.EvidenceLineAllocations.AsNoTracking()
-                .Where(a => a.EvidenceId == e.Id).SumAsync(a => (decimal?)a.Amount, ct) ?? 0m;
+            var totalAllocated = allocatedById.GetValueOrDefault(e.Id, 0m);
             if (Math.Abs(totalAllocated - e.Amount) >= 0.01m)
             {
                 return false;
@@ -171,11 +191,6 @@ public sealed class BudgetLineClosureService : IBudgetLineClosureService
         }
         return true;
     }
-
-    private static string LineLabel(Item item)
-        => !string.IsNullOrWhiteSpace(item.LineCode) ? item.LineCode!
-            : !string.IsNullOrWhiteSpace(item.ProductName) ? item.ProductName
-            : $"L-{item.Id.ToString(CultureInfo.InvariantCulture)}";
 
     private async Task<Result> CommitAsync(CancellationToken ct)
     {
