@@ -1,0 +1,135 @@
+@using FundingPlatform.Web.Models
+@using FundingPlatform.Web.Resources
+@using FundingPlatform.Domain.Enums
+@model FundingPlatform.Web.ViewModels.Evidence.EvidenceIndexViewModel
+@{
+    ViewData["Title"] = EvidenceResources.Title;
+}
+
+<div data-testid="evidence-graph">
+    @await Html.PartialAsync("Components/_PageHeader",
+        new PageHeaderViewModel(
+            Title: $"{EvidenceResources.Title} · {Model.Context.ApplicationNumber}",
+            Subtitle: EvidenceResources.Subtitle,
+            Breadcrumbs: new[]
+            {
+                new BreadcrumbItem("Inicio", Url.Action("Index", "Home")),
+                new BreadcrumbItem(EvidenceResources.Nav_ViewDisbursements, Url.Action("Index", "Disbursement", new { applicationId = Model.ApplicationId })),
+                new BreadcrumbItem($"{EvidenceResources.Title} · {Model.Context.ApplicationNumber}"),
+            }))
+
+    @await Html.PartialAsync("_AppContextHeader", Model.Context)
+
+    @if (Model.CanWrite)
+    {
+        <div class="card mb-4">
+            <div class="card-header"><h3 class="card-title">@EvidenceResources.Action_Attach</h3></div>
+            <div class="card-body">
+                <form method="post" asp-controller="Evidence" asp-action="Attach"
+                      asp-route-applicationId="@Model.ApplicationId"
+                      enctype="multipart/form-data" data-testid="evidence-attach-form">
+                    @Html.AntiForgeryToken()
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">@EvidenceResources.Field_Type</label>
+                            <select name="type" class="form-select" data-testid="evidence-type" data-searchable>
+                                @foreach (var t in Enum.GetValues<EvidenceType>())
+                                {
+                                    <option value="@t">@EvidenceResources.TypeLabel(t)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">@EvidenceResources.Field_Amount</label>
+                            <input type="number" step="0.01" min="0" name="amount" class="form-control"
+                                   data-testid="evidence-amount" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">@EvidenceResources.Field_DocumentDate</label>
+                            <input type="date" name="documentDate" class="form-control" data-testid="evidence-date" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@EvidenceResources.Field_Reference</label>
+                            <input type="text" name="documentReferenceNumber" class="form-control" maxlength="100"
+                                   data-testid="evidence-reference" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">@EvidenceResources.Field_File @await Html.PartialAsync("_RequiredMark")</label>
+                            <input type="file" name="file" class="form-control" accept="@Model.AcceptExtensions"
+                                   data-testid="evidence-file" required />
+                        </div>
+                    </div>
+
+                    <hr />
+                    @await Html.PartialAsync("_AllocationEditor",
+                        new FundingPlatform.Web.ViewModels.Evidence.AllocationEditorViewModel { Lines = Model.Lines })
+
+                    <button type="submit" class="btn btn-primary mt-2" data-testid="evidence-attach-submit">
+                        <i class="ti ti-upload"></i> @EvidenceResources.Action_Attach
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
+
+    <div class="card mb-4" data-testid="completeness-matrix">
+        <div class="card-header"><h3 class="card-title">@DocRuleResources.Completeness_Heading</h3></div>
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+                <thead>
+                    <tr>
+                        <th>@EvidenceResources.Alloc_Line</th>
+                        <th>@DocRuleResources.Completeness_Heading</th>
+                        <th></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Completeness)
+                    {
+                        @await Html.PartialAsync("_CompletenessMatrix", row)
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty" data-testid="evidence-empty">
+            <p class="empty-title">@EvidenceResources.Empty</p>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-vcenter card-table" data-testid="evidence-list">
+                    <thead>
+                        <tr>
+                            <th>@EvidenceResources.Col_Type</th>
+                            <th>@EvidenceResources.Col_Reference</th>
+                            <th class="text-end">@EvidenceResources.Col_Amount</th>
+                            <th>@EvidenceResources.Col_Lines</th>
+                            <th>@EvidenceResources.Col_Version</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Items)
+                        {
+                            @await Html.PartialAsync("_EvidenceRow",
+                                new FundingPlatform.Web.ViewModels.Evidence.EvidenceRowViewModel
+                                {
+                                    ApplicationId = Model.ApplicationId,
+                                    Item = item,
+                                    CanWrite = Model.CanWrite,
+                                })
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

@@ -133,6 +133,24 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
         {
             return (AdminAuditEvent.TargetTypeItem, ExtractIntId(payloadJson, "itemId"));
         }
+        // Spec 047 — evidence-graph mutations (evidence.attached/replaced/allocated/deleted).
+        // Like disbursement.*, the real evidence id is parsed from the payload's `evidenceId`.
+        if (eventKind.StartsWith("evidence.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeEvidence, ExtractIntId(payloadJson, "evidenceId"));
+        }
+        // Spec 047 — budget-line closure mutations (closure.line_closed/line_reopened). Target the
+        // line Item; the real item id is parsed from the payload's `itemId`.
+        if (eventKind.StartsWith("closure.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeClosure, ExtractIntId(payloadJson, "itemId"));
+        }
+        // Spec 047 — required-document rule mutations (docrule.upserted). The category id is parsed
+        // from the payload's `categoryId` ("0" for the global-default set).
+        if (eventKind.StartsWith("docrule.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeDocRule, ExtractIntId(payloadJson, "categoryId"));
+        }
         return ("system", "0");
     }
 

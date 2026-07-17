@@ -1,0 +1,33 @@
+@using FundingPlatform.Web.Resources
+@model List<FundingPlatform.Web.ViewModels.Admin.DocumentRuleItemViewModel>
+
+<label class="form-label">@DocRuleResources.Matrix_Heading</label>
+<div class="table-responsive">
+    <table class="table table-sm align-middle" data-testid="docrule-matrix">
+        <thead>
+            <tr>
+                <th>@DocRuleResources.Col_Category</th>
+                <th style="width: 8rem;">@DocRuleResources.Matrix_Required</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < Model.Count; i++)
+            {
+                <tr data-testid="docrule-type-row" data-type="@Model[i].Type">
+                    <td>
+                        <input type="hidden" name="Items[@i].Type" value="@Model[i].Type" />
+                        @EvidenceResources.TypeLabel(Model[i].Type)
+                    </td>
+                    <td>
+                        <label class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   name="Items[@i].IsRequired" value="true"
+                                   data-testid="docrule-required" data-type="@Model[i].Type"
+                                   @(Model[i].IsRequired ? "checked" : "") />
+                        </label>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

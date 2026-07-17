@@ -42,6 +42,13 @@ public enum FileCategory
     // Own container; reuses the spec-036 storage/upload stack (20 MiB, BackendStream).
     [Description("disbursement-evidence")]
     DisbursementEvidence,
+
+    // Spec 047 / FR-002, FR-049 — evidence-graph files (bank receipt, invoice,
+    // signed acceptance, credit note, refund receipt, other) uploaded by a Financial
+    // Operator against an executed agreement, versioned. Own container; reuses the
+    // spec-036/045 storage/upload stack (20 MiB, BackendStream).
+    [Description("evidence")]
+    Evidence,
 }
 
 public static class FileCategoryExtensions
@@ -56,6 +63,7 @@ public static class FileCategoryExtensions
         FileCategory.FundRegulation => "fund-regulations",
         FileCategory.FundsUsageEvidence => "funds-usage-evidence",
         FileCategory.DisbursementEvidence => "disbursement-evidence",
+        FileCategory.Evidence => "evidence",
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
     };
 
@@ -71,5 +79,6 @@ public static class FileCategoryExtensions
         "fund-regulations",
         "funds-usage-evidence",
         "disbursement-evidence",
+        "evidence",
     ];
 }

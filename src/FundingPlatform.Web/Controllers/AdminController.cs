@@ -19,15 +19,19 @@ public class AdminController : Controller
     private readonly IAdminDashboardProjection _dashboard;
     // Spec 040 / US4 — admin checklist-template CRUD.
     private readonly IChecklistTemplateService _checklists;
+    // Spec 047 / US2 — admin required-document rule matrix.
+    private readonly FundingPlatform.Application.DocRules.IDocumentRuleService _docRules;
 
     public AdminController(
         AdminService adminService,
         IAdminDashboardProjection dashboard,
-        IChecklistTemplateService checklists)
+        IChecklistTemplateService checklists,
+        FundingPlatform.Application.DocRules.IDocumentRuleService docRules)
     {
         _adminService = adminService;
         _dashboard = dashboard;
         _checklists = checklists;
+        _docRules = docRules;
     }
 
     private string ActorUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -408,4 +412,93 @@ public class AdminController : Controller
         TempData["SuccessMessage"] = "Lista de verificación desactivada.";
         return RedirectToAction(nameof(Checklists));
     }
+
+    // ---------------- Spec 047 / US2 — required-document rule matrix (Admin only) ----------------
+
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> DocumentRules(CancellationToken ct)
+    {
+        var rows = await _docRules.ListAsync(ct);
+        return View(new FundingPlatform.Web.ViewModels.Admin.DocumentRuleAdminViewModel
+        {
+            Rows = rows.Select(r => new FundingPlatform.Web.ViewModels.Admin.DocumentRuleListItemViewModel
+            {
+                CategoryId = r.CategoryId,
+                CategoryName = r.CategoryId is null ? FundingPlatform.Web.Resources.DocRuleResources.GlobalDefaultName : r.CategoryName,
+                RequiredTypes = r.RequiredTypes.ToList(),
+            }).ToList(),
+        });
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CreateDocumentRule(CancellationToken ct)
+    {
+        var categories = await _adminService.GetAllCategoriesAsync();
+        return View(new FundingPlatform.Web.ViewModels.Admin.CreateDocumentRuleViewModel
+        {
+            Items = Enum.GetValues<FundingPlatform.Domain.Enums.EvidenceType>()
+                .Select(t => new FundingPlatform.Web.ViewModels.Admin.DocumentRuleItemViewModel { Type = t, IsRequired = false })
+                .ToList(),
+            CategoryOptions = categories.Select(c => (c.Id, c.Name)).ToList(),
+        });
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateDocumentRule(FundingPlatform.Web.ViewModels.Admin.CreateDocumentRuleViewModel model, CancellationToken ct)
+    {
+        var command = new FundingPlatform.Application.DocRules.UpsertDocumentRuleCommand(
+            NormalizeCategoryId(model.CategoryId),
+            (model.Items ?? []).Select(i => new FundingPlatform.Application.DocRules.DocumentRuleTypeSelection(i.Type, i.IsRequired)).ToList());
+
+        var result = await _docRules.UpsertAsync(command, ActorUserId, ct);
+        if (!result.Succeeded)
+        {
+            TempData["ErrorMessage"] = result.Errors.Count > 0 ? result.Errors[0].Message : FundingPlatform.Web.Resources.DocRuleResources.Title;
+            var categories = await _adminService.GetAllCategoriesAsync();
+            model.CategoryOptions = categories.Select(c => (c.Id, c.Name)).ToList();
+            return View(model);
+        }
+        TempData["SuccessMessage"] = FundingPlatform.Web.Resources.DocRuleResources.Flash_Saved;
+        return RedirectToAction(nameof(DocumentRules));
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> EditDocumentRule(int? categoryId, CancellationToken ct)
+    {
+        var detail = await _docRules.GetAsync(NormalizeCategoryId(categoryId), ct);
+        if (detail is null)
+        {
+            return NotFound();
+        }
+        return View(new FundingPlatform.Web.ViewModels.Admin.EditDocumentRuleViewModel
+        {
+            CategoryId = detail.CategoryId,
+            CategoryName = detail.CategoryId is null ? FundingPlatform.Web.Resources.DocRuleResources.GlobalDefaultName : detail.CategoryName,
+            Items = detail.Selections.Select(s => new FundingPlatform.Web.ViewModels.Admin.DocumentRuleItemViewModel { Type = s.Type, IsRequired = s.IsRequired }).ToList(),
+        });
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditDocumentRule(FundingPlatform.Web.ViewModels.Admin.EditDocumentRuleViewModel model, CancellationToken ct)
+    {
+        var command = new FundingPlatform.Application.DocRules.UpsertDocumentRuleCommand(
+            NormalizeCategoryId(model.CategoryId),
+            (model.Items ?? []).Select(i => new FundingPlatform.Application.DocRules.DocumentRuleTypeSelection(i.Type, i.IsRequired)).ToList());
+
+        var result = await _docRules.UpsertAsync(command, ActorUserId, ct);
+        TempData[result.Succeeded ? "SuccessMessage" : "ErrorMessage"] =
+            result.Succeeded ? FundingPlatform.Web.Resources.DocRuleResources.Flash_Saved
+                : (result.Errors.Count > 0 ? result.Errors[0].Message : FundingPlatform.Web.Resources.DocRuleResources.Title);
+        return RedirectToAction(nameof(DocumentRules));
+    }
+
+    // A CategoryId of 0 (the "global default" sentinel from the form select) maps to null.
+    private static int? NormalizeCategoryId(int? categoryId) => categoryId is > 0 ? categoryId : null;
 }

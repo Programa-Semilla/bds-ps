@@ -1,0 +1,68 @@
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Evidence.CompletenessRowViewModel
+@{
+    var c = Model.Completeness;
+    var presentSet = c.Present.ToHashSet();
+}
+
+<tr data-testid="completeness-row" data-item-id="@c.ItemId"
+    data-incomplete="@(c.EvidenceIncomplete ? "true" : "false")">
+    <td>@Model.LineLabel</td>
+    <td>
+        @if (c.Required.Count == 0)
+        {
+            <span class="text-muted">@DocRuleResources.Completeness_None</span>
+        }
+        else
+        {
+            foreach (var t in c.Required)
+            {
+                var present = presentSet.Contains(t);
+                <span class="badge @(present ? "bg-green-lt" : "bg-red-lt") me-1"
+                      data-testid="completeness-type" data-type="@t" data-present="@(present ? "true" : "false")">
+                    @EvidenceResources.TypeLabel(t): @(present ? DocRuleResources.Completeness_Present : DocRuleResources.Completeness_Missing)
+                </span>
+            }
+        }
+    </td>
+    <td>
+        @if (Model.IsClosed)
+        {
+            <span class="badge bg-dark-lt" data-testid="completeness-closed-badge">@EvidenceResources.Closure_Badge_Closed</span>
+        }
+        else if (c.EvidenceIncomplete)
+        {
+            <span class="badge bg-red-lt" data-testid="completeness-incomplete-badge">@DocRuleResources.Completeness_IncompleteBadge</span>
+        }
+        else
+        {
+            <span class="badge bg-green-lt" data-testid="completeness-complete-badge">@DocRuleResources.Completeness_Complete</span>
+        }
+    </td>
+    <td class="text-end">
+        @if (Model.CanWrite && !Model.IsClosed)
+        {
+            <form method="post" asp-controller="Evidence" asp-action="Close"
+                  asp-route-applicationId="@Model.ApplicationId" asp-route-itemId="@c.ItemId" class="d-inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="reason" value="" />
+                <button type="submit" class="btn btn-sm btn-outline-dark" data-testid="line-close">
+                    @EvidenceResources.Closure_Action_Close
+                </button>
+            </form>
+        }
+        else if (Model.CanWrite && Model.IsClosed)
+        {
+            <form method="post" asp-controller="Evidence" asp-action="Reopen"
+                  asp-route-applicationId="@Model.ApplicationId" asp-route-itemId="@c.ItemId" class="d-inline"
+                  data-testid="line-reopen-form">
+                @Html.AntiForgeryToken()
+                <input type="text" name="reason" class="form-control form-control-sm d-inline-block" style="width: 12rem;"
+                       placeholder="@EvidenceResources.Closure_ReopenReasonHint" data-testid="line-reopen-reason" required />
+                <button type="submit" class="btn btn-sm btn-outline-secondary" data-testid="line-reopen">
+                    @EvidenceResources.Closure_Action_Reopen
+                </button>
+            </form>
+        }
+    </td>
+</tr>

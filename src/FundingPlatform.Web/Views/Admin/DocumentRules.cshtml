@@ -1,0 +1,70 @@
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Admin.DocumentRuleAdminViewModel
+@{
+    ViewData["Title"] = DocRuleResources.Title;
+}
+
+<div class="page-header d-print-none">
+    <div class="row align-items-center">
+        <div class="col">
+            <h2 class="page-title">@DocRuleResources.Title</h2>
+            <div class="text-muted mt-1">@DocRuleResources.Subtitle</div>
+        </div>
+        <div class="col-auto">
+            <a asp-action="CreateDocumentRule" class="btn btn-primary" data-testid="docrule-create">
+                <i class="ti ti-plus"></i> @DocRuleResources.Action_Create
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="table-responsive">
+        <table class="table table-vcenter card-table" data-testid="docrule-list">
+            <thead>
+                <tr>
+                    <th>@DocRuleResources.Col_Category</th>
+                    <th>@DocRuleResources.Col_Required</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Rows.Count == 0)
+                {
+                    <tr><td colspan="3" class="text-muted">@DocRuleResources.Empty</td></tr>
+                }
+                @foreach (var row in Model.Rows)
+                {
+                    <tr data-testid="docrule-row" data-category-id="@(row.CategoryId?.ToString() ?? "global")">
+                        <td>
+                            @row.CategoryName
+                            @if (row.IsGlobalDefault)
+                            {
+                                <span class="badge bg-azure-lt">@DocRuleResources.Field_UseGlobalDefault</span>
+                            }
+                        </td>
+                        <td>
+                            @if (row.RequiredTypes.Count == 0)
+                            {
+                                <span class="text-muted">@DocRuleResources.Completeness_None</span>
+                            }
+                            else
+                            {
+                                foreach (var t in row.RequiredTypes)
+                                {
+                                    <span class="badge @EvidenceResources.TypeBadgeClass(t) me-1">@EvidenceResources.TypeLabel(t)</span>
+                                }
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="EditDocumentRule" asp-route-categoryId="@row.CategoryId"
+                               class="btn btn-sm btn-outline-secondary" data-testid="docrule-edit">
+                                @DocRuleResources.Action_Edit
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-07-16 (session #41 revisit — P2)
+Last updated: 2026-07-16 (session #41 revisit — P3)
 
 ## Sessions
 
@@ -47,7 +47,7 @@ Last updated: 2026-07-16 (session #41 revisit — P2)
 | 38 | 2026-06-19 | evidence-inbox | shipped (PR #72) | 041 |
 | 39 | 2026-06-21 | regulatory-freshness-hacienda-sync | shipped (PR #75) | 043 |
 | 40 | 2026-06-21 | process-reception-windows | shipped (PR #77) | 044 |
-| 41 | 2026-07-15 | financial-disbursement-platform | P1 shipped (PR #78); P2 spec-created (revisit 2026-07-16) | 045; 046 (P2) |
+| 41 | 2026-07-15 | financial-disbursement-platform | P1 shipped (PR #78); P2 shipped (PR #79); P3 spec-created (revisit 2026-07-16) | 045; 046 (P2); 047 (P3) |
 
 > Note: feature number **041** was used twice by parallel sessions —
 > `041-email-brand-lift` (this session #37) and `041-evidence-inbox` (#38, shipped
@@ -55,7 +55,8 @@ Last updated: 2026-07-16 (session #41 revisit — P2)
 
 ## Open Threads
 
-- **Financial-execution program (from #41):** 9-slice roadmap in `41-financial-disbursement-platform.md`. **P1 shipped (PR #78) → spec 045**; **P2 spec-created (revisit 2026-07-16) → spec 046** (tranches & budget-lines: budget-line = existing `Item`, derived tranche amounts, Committed dimension, per-line M:N attribution). P3–P9 unspecified and documented for resume (P3 evidence graph, P4 full reconciliation, P5 currency execution, P6 interest/fees/refunds/reversals, P7 reporting, P8 segregation-of-duties, P9 migration). Program-level threads: **P2 anchor RESOLVED** (budget-line = existing `Item`); **P4 balance-recognition revisit still open** (official "available" off payment vs validation — P1/P2 use payment); P6 ledger-vocabulary growth preserving the immutability boundary; P5 reuse-vs-extend of spec-015 multi-currency. (from #41)
+- **Financial-execution program (from #41):** 9-slice roadmap in `41-financial-disbursement-platform.md`. **P1 shipped (PR #78) → spec 045**; **P2 shipped (PR #79) → spec 046** (tranches & budget-lines: budget-line = existing `Item`, derived tranche amounts, Committed dimension, per-line M:N attribution); **P3 spec-created (revisit 2026-07-16) → spec 047** (evidence graph & required-doc rules: 6 evidence types + M:N per-line allocation, per-Category required-doc matrix + live completeness, per-line off-ledger closure gate with the paid=invoiced=accepted zero-colón chain + audited reopen, append-only version history). P4–P9 unspecified and documented for resume (P4 full reconciliation, P5 currency execution, P6 interest/fees/refunds/reversals, P7 reporting, P8 segregation-of-duties, P9 migration). Program-level threads: **P2 anchor RESOLVED** (budget-line = existing `Item`); **P4 balance-recognition revisit still open** (official "available" off payment vs validation — P1/P2 use payment); P6 ledger-vocabulary growth preserving the immutability boundary; P5 reuse-vs-extend of spec-015 multi-currency. (from #41)
+- **Spec-047 (evidence graph & required-doc rules) plan-time threads:** OQ-1 generalize the existing `DisbursementEvidence` table into the new Application-scoped evidence entity vs. add a table alongside (migration shape); OQ-2 exact `Closed` representation on `Item` + closure metadata; OQ-3 version chain as evidence child table vs. generic document-version table; plan note — completeness must read BOTH disbursement-anchored (P1 receipt/invoice) AND line-linked evidence; watch — largest slice yet, keep P1/P2 regression (SC-006) green at each story checkpoint. (from #41 revisit — P3)
 - **Spec-046 (tranches & budget-lines) plan-time threads:** (1) whether a line **commit** gets its own ledger entry type or stays a mutable off-ledger status (leaning off-ledger); (2) concrete per-line commit-state representation (enum on `Item` vs. separate row); (3) exact set of budget-line "status" filter values for FR-020. (from #41 revisit)
 - Spec-045 (financial-disbursement-core) plan-time thread: over-disbursement discrepancy data shape — attached-to-latest-disbursement vs. a distinct agreement-scoped record (deferred to `/speckit-plan`); optionally promote optimistic-concurrency from edge-case to a first-class FR. (from #41)
 - Spec-041 (evidence-inbox) business decision: should admins retain write access to funds-usage evidence after a process closes, or be frozen read-only like reviewers? (Spec assumes frozen.) Plus inbox row ordering (deferred to plan). (from #38)

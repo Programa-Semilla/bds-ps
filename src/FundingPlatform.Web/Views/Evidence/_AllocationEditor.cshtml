@@ -1,0 +1,47 @@
+@using FundingPlatform.Web.Resources
+@using FundingPlatform.Web.ViewModels.Evidence
+@model FundingPlatform.Web.ViewModels.Evidence.AllocationEditorViewModel
+@{
+    // Existing per-line amounts keyed by ItemId (empty for the attach form).
+    var current = Model.Current ?? new Dictionary<int, decimal>();
+}
+
+<div class="mb-2">
+    <label class="form-label">@EvidenceResources.Alloc_Heading</label>
+    <div class="form-hint">@EvidenceResources.Alloc_Subtitle</div>
+</div>
+
+@if (Model.Lines.Count == 0)
+{
+    <div class="text-muted small" data-testid="alloc-no-lines">@EvidenceResources.Alloc_None</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm align-middle" data-testid="alloc-editor">
+            <thead>
+                <tr>
+                    <th>@EvidenceResources.Alloc_Line</th>
+                    <th style="width: 12rem;">@EvidenceResources.Alloc_Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var line in Model.Lines)
+                {
+                    var value = current.TryGetValue(line.ItemId, out var v) ? v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "";
+                    <tr data-testid="alloc-row" data-item-id="@line.ItemId">
+                        <td>
+                            <input type="hidden" name="lineItemId" value="@line.ItemId" />
+                            @line.Label
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0" name="lineAmount" value="@value"
+                                   class="form-control form-control-sm"
+                                   data-testid="alloc-amount" data-item-id="@line.ItemId" />
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
