@@ -1,8 +1,12 @@
 using FundingPlatform.Application.Abstractions.Hacienda;
+using FundingPlatform.Domain.Entities;
+using FundingPlatform.Domain.Enums;
 using FundingPlatform.Infrastructure.BackgroundServices;
 using FundingPlatform.Infrastructure.Hacienda;
+using FundingPlatform.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FundingPlatform.Web.Controllers;
 
@@ -19,15 +23,52 @@ public sealed class DevController : Controller
     private readonly IWebHostEnvironment _env;
     private readonly HaciendaSyncService _haciendaSync;
     private readonly RegulatoryFreshnessDigestService _freshnessDigest;
+    private readonly AppDbContext _db;
 
     public DevController(
         IWebHostEnvironment env,
         HaciendaSyncService haciendaSync,
-        RegulatoryFreshnessDigestService freshnessDigest)
+        RegulatoryFreshnessDigestService freshnessDigest,
+        AppDbContext db)
     {
         _env = env;
         _haciendaSync = haciendaSync;
         _freshnessDigest = freshnessDigest;
+        _db = db;
+    }
+
+    /// <summary>
+    /// Spec 048 — seeds a persisted reconciliation <see cref="Discrepancy"/> for an application so E2E
+    /// can drive the lifecycle/dashboard/notification surfaces deterministically without constructing
+    /// the (complex) underlying warning conditions through the UI. The seeded row is engine-managed like
+    /// any other: it would auto-resolve on the next materialization if it is not backed by live data, so
+    /// tests act on it before triggering a mutation. <c>severity</c> = "Warning" | "Blocking".
+    /// </summary>
+    [HttpGet("SeedDiscrepancy")]
+    public async Task<IActionResult> SeedDiscrepancy(int applicationId, string severity, CancellationToken ct)
+    {
+        if (!_env.IsDevelopment()) return NotFound();
+
+        var sentinel = await _db.Users.IgnoreQueryFilters()
+            .Where(u => u.IsSystemSentinel).Select(u => u.Id).FirstOrDefaultAsync(ct);
+        if (string.IsNullOrEmpty(sentinel)) return BadRequest("no sentinel");
+
+        var isWarning = string.Equals(severity, "Warning", StringComparison.OrdinalIgnoreCase);
+        var sev = isWarning ? DiscrepancySeverity.Warning : DiscrepancySeverity.Blocking;
+        var comparison = isWarning
+            ? ReconciliationComparison.PossibleDuplicatePayment
+            : ReconciliationComparison.DisbursementVsInvoice;
+        // Unique scope-entity id per call so repeated seeds never collide on UX_Discrepancies_Identity.
+        var scopeEntityId = (int)(DateTimeOffset.UtcNow.Ticks % 1_000_000_0);
+        var expected = 100_000m;
+        var actual = isWarning ? 100_000m : 100_072m;
+
+        var d = Discrepancy.Detect(
+            applicationId, DiscrepancyScopeType.Payment, scopeEntityId, comparison, sev,
+            expected, actual, 0m, isWarning ? "posible pago duplicado" : "factura", sentinel, DateTimeOffset.UtcNow);
+        _db.Discrepancies.Add(d);
+        await _db.SaveChangesAsync(ct);
+        return Json(new { id = d.Id });
     }
 
     [HttpGet("RunHaciendaSync")]

@@ -86,7 +86,21 @@ public sealed record DisbursementDetail(
     DateTimeOffset? ValidatedAtUtc,
     IReadOnlyList<DisbursementEvidenceSummary> Evidence,
     IReadOnlyList<ReconciliationDiscrepancy> Discrepancies,
+    IReadOnlyList<PersistedDiscrepancyRow> PersistedDiscrepancies,
     bool IsValidatable);
+
+/// <summary>Spec 048 — one persisted (stateful) discrepancy row shown on the per-disbursement surface:
+/// its severity, lifecycle state, amounts, and source. The <c>Id</c> deep-links to the reconciliation
+/// dashboard detail (<c>/Reconciliation/{Id}</c>).</summary>
+public sealed record PersistedDiscrepancyRow(
+    int Id,
+    ReconciliationComparison Comparison,
+    DiscrepancySeverity Severity,
+    DiscrepancyState State,
+    decimal Expected,
+    decimal Actual,
+    decimal Difference,
+    string SourceDocument);
 
 /// <summary>Spec 045 — a resolved BackendStream serving handle for an evidence download.</summary>
 public sealed record DisbursementEvidenceDownload(

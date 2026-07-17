@@ -7,6 +7,7 @@ using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Admin.Users.DTOs;
 using FundingPlatform.Application.Evidence;
+using FundingPlatform.Application.Reconciliation;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Infrastructure.Persistence;
@@ -31,15 +32,19 @@ public sealed class EvidenceService : IEvidenceService
     private readonly IAdminAuditEventWriter _audit;
     private readonly ILogger<EvidenceService> _logger;
 
+    private readonly IReconciliationMaterializer _materializer;
+
     public EvidenceService(
         AppDbContext db,
         IObjectStorage storage,
         IAdminAuditEventWriter audit,
+        IReconciliationMaterializer materializer,
         ILogger<EvidenceService> logger)
     {
         _db = db;
         _storage = storage;
         _audit = audit;
+        _materializer = materializer;
         _logger = logger;
     }
 
@@ -240,6 +245,10 @@ public sealed class EvidenceService : IEvidenceService
             return Result<int>.Failure(new DomainError(EvidenceReasons.Codes.Concurrency, null, EvidenceReasons.Concurrency));
         }
 
+        // Spec 048 — a new evidence document changes the reconciliation picture (date anomaly, drift);
+        // refresh the visibility snapshot (best-effort, FR-004).
+        await _materializer.MaterializeAsync(cmd.ApplicationId, actorUserId, ct);
+
         return Result<int>.Success(evidence.Id);
     }
 
@@ -363,6 +372,9 @@ public sealed class EvidenceService : IEvidenceService
         await WriteAuditAsync(AdminAuditEvent.EvidenceReplaced, actorUserId, evidence.Id, cmd.ApplicationId, evidence.Type, ct);
         await _db.SaveChangesAsync(ct);
 
+        // Spec 048 — a replaced amount/date changes reconciliation; refresh the snapshot.
+        await _materializer.MaterializeAsync(cmd.ApplicationId, actorUserId, ct);
+
         return Result.Success();
     }
 
@@ -421,6 +433,9 @@ public sealed class EvidenceService : IEvidenceService
             return Result.Failure(new DomainError(EvidenceReasons.Codes.Concurrency, null, EvidenceReasons.Concurrency));
         }
 
+        // Spec 048 — reallocating a graph invoice across lines changes the graph-invoice-drift picture.
+        await _materializer.MaterializeAsync(cmd.ApplicationId, actorUserId, ct);
+
         return Result.Success();
     }
 
@@ -469,6 +484,9 @@ public sealed class EvidenceService : IEvidenceService
         {
             await DeleteBlobBestEffortAsync(bk, ct);
         }
+
+        // Spec 048 — removing an evidence document clears its date-anomaly / drift contribution.
+        await _materializer.MaterializeAsync(applicationId, actorUserId, ct);
 
         return Result.Success();
     }

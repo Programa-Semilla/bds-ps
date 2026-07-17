@@ -1,0 +1,75 @@
+@using System.Globalization
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Application.Reconciliation.ReconciliationSummaryDto
+@{
+    var crc = new CultureInfo("es-CR");
+    string Money(decimal v) => v.ToString("C2", crc);
+}
+<div class="row row-cards mb-3" data-testid="reconciliation-summary">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card" data-testid="reconciliation-tile-blocking">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <i class="ti ti-alert-octagon text-red me-2" aria-hidden="true"></i>
+                    <span class="text-secondary">@ReconciliationResources.Tile_OpenBlocking</span>
+                </div>
+                <div class="h1 mb-0 mt-2" data-testid="tile-blocking-count">@Model.OpenBlockingCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-secondary">@ReconciliationResources.Tile_OpenBlockingAmount</div>
+                <div class="h2 mb-0 mt-2">@Money(Model.OpenBlockingAmount)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card" data-testid="reconciliation-tile-warning">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <i class="ti ti-alert-triangle text-yellow me-2" aria-hidden="true"></i>
+                    <span class="text-secondary">@ReconciliationResources.Tile_OpenWarning</span>
+                </div>
+                <div class="h1 mb-0 mt-2" data-testid="tile-warning-count">@Model.OpenWarningCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-secondary">@ReconciliationResources.Tile_OpenWarningAmount</div>
+                <div class="h2 mb-0 mt-2">@Money(Model.OpenWarningAmount)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.ByFund.Count > 0)
+{
+    <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">@ReconciliationResources.Rollup_Heading</h3></div>
+        <div class="table-responsive">
+            <table class="table card-table table-vcenter" data-testid="reconciliation-rollup">
+                <thead>
+                    <tr>
+                        <th>@ReconciliationResources.Rollup_Fund</th>
+                        <th class="text-end">@ReconciliationResources.Rollup_Blocking</th>
+                        <th class="text-end">@ReconciliationResources.Rollup_Warning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in Model.ByFund)
+                    {
+                        <tr>
+                            <td>@f.FundName</td>
+                            <td class="text-end">@f.OpenBlockingCount</td>
+                            <td class="text-end">@f.OpenWarningCount</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

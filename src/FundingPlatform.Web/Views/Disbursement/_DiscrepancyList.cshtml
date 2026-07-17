@@ -1,6 +1,6 @@
 @using System.Globalization
 @using FundingPlatform.Web.Resources
-@model IReadOnlyList<FundingPlatform.Domain.ValueObjects.ReconciliationDiscrepancy>
+@model IReadOnlyList<FundingPlatform.Application.Disbursements.PersistedDiscrepancyRow>
 @{
     var crc = new CultureInfo("es-CR");
     string Money(decimal v) => v.ToString("C2", crc);
@@ -17,14 +17,28 @@ else
     <ul class="list-group" data-testid="disbursement-discrepancies">
         @foreach (var d in Model)
         {
-            <li class="list-group-item d-flex align-items-start" data-testid="disbursement-discrepancy">
-                <i class="ti ti-alert-triangle text-red me-2 mt-1" aria-hidden="true"></i>
-                <div>
+            <li class="list-group-item d-flex align-items-start" data-testid="disbursement-discrepancy"
+                data-severity="@d.Severity" data-state="@d.State">
+                <i class="@DisbursementResources.SeverityIcon(d.Severity) me-2 mt-1" aria-hidden="true"></i>
+                <div class="flex-fill">
                     <div class="fw-bold">@DisbursementResources.ComparisonLabel(d.Comparison) — @d.SourceDocument</div>
                     <div class="text-secondary small">
                         @DisbursementResources.Discrepancy_Expected @Money(d.Expected) ·
                         @DisbursementResources.Discrepancy_Actual @Money(d.Actual) ·
-                        @DisbursementResources.Discrepancy_Difference <span class="fw-bold text-red">@Money(Math.Abs(d.Difference))</span>
+                        @DisbursementResources.Discrepancy_Difference <span class="fw-bold">@Money(Math.Abs(d.Difference))</span>
+                    </div>
+                    <div class="mt-1">
+                        <span class="badge @DisbursementResources.SeverityBadgeClass(d.Severity)" data-testid="discrepancy-severity">
+                            @DisbursementResources.SeverityLabel(d.Severity)
+                        </span>
+                        <span class="badge @DisbursementResources.DiscrepancyStateBadgeClass(d.State)" data-testid="discrepancy-state">
+                            @DisbursementResources.DiscrepancyStateLabel(d.State)
+                        </span>
+                        @* Spec 048 / T043 — deep-link to the reconciliation dashboard detail. *@
+                        <a asp-controller="ReconciliationDashboard" asp-action="Detail" asp-route-id="@d.Id"
+                           class="small ms-1" data-testid="discrepancy-open" data-discrepancy-id="@d.Id">
+                            @DisbursementResources.Discrepancy_OpenDetail
+                        </a>
                     </div>
                 </div>
             </li>

@@ -151,6 +151,12 @@ public sealed class AdminAuditEventWriter : IAdminAuditEventWriter
         {
             return (AdminAuditEvent.TargetTypeDocRule, ExtractIntId(payloadJson, "categoryId"));
         }
+        // Spec 048 — discrepancy lifecycle mutations (discrepancy.assigned/under_correction/waived/...).
+        // The real discrepancy id is parsed from the payload's `discrepancyId`.
+        if (eventKind.StartsWith("discrepancy.", StringComparison.Ordinal))
+        {
+            return (AdminAuditEvent.TargetTypeDiscrepancy, ExtractIntId(payloadJson, "discrepancyId"));
+        }
         return ("system", "0");
     }
 

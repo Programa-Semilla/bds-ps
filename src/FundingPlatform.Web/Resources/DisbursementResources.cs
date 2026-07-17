@@ -133,8 +133,63 @@ public static class DisbursementResources
         ReconciliationComparison.TotalVsAllocation => "Total desembolsado vs. monto aprobado",
         ReconciliationComparison.DisbursementSplitVsTotal => "Suma de líneas vs. monto del desembolso",
         ReconciliationComparison.LinePaymentVsBudget => "Pago de la línea vs. presupuesto comprometido",
+        ReconciliationComparison.EvidenceDateAnomaly => "Anomalía en la fecha del documento",
+        ReconciliationComparison.PossibleDuplicatePayment => "Posible pago duplicado",
+        ReconciliationComparison.GraphInvoiceAllocationDrift => "Diferencia con la factura del grafo de evidencia",
         _ => comparison.ToString(),
     };
+
+    // Spec 048 — severity of a persisted discrepancy. Text + icon, never colour alone (FR-025).
+    public static string SeverityLabel(DiscrepancySeverity severity) => severity switch
+    {
+        DiscrepancySeverity.Blocking => "Bloqueante",
+        DiscrepancySeverity.Warning => "Advertencia",
+        _ => severity.ToString(),
+    };
+
+    /// <summary>Tabler badge colour for the severity pill. Never the sole signal — the
+    /// <see cref="SeverityLabel"/> text + <see cref="SeverityIcon"/> accompany it (FR-025).</summary>
+    public static string SeverityBadgeClass(DiscrepancySeverity severity) => severity switch
+    {
+        DiscrepancySeverity.Blocking => "bg-red-lt",
+        DiscrepancySeverity.Warning => "bg-yellow-lt",
+        _ => "bg-secondary-lt",
+    };
+
+    /// <summary>Tabler icon name accompanying the severity badge (redundant, non-colour signal).</summary>
+    public static string SeverityIcon(DiscrepancySeverity severity) => severity switch
+    {
+        DiscrepancySeverity.Blocking => "ti ti-alert-octagon",
+        DiscrepancySeverity.Warning => "ti ti-alert-triangle",
+        _ => "ti ti-info-circle",
+    };
+
+    // Spec 048 — lifecycle state of a persisted discrepancy.
+    public static string DiscrepancyStateLabel(DiscrepancyState state) => state switch
+    {
+        DiscrepancyState.Open => "Abierta",
+        DiscrepancyState.Assigned => "Asignada",
+        DiscrepancyState.UnderCorrection => "En corrección",
+        DiscrepancyState.Resolved => "Resuelta",
+        DiscrepancyState.Waived => "Exonerada",
+        _ => state.ToString(),
+    };
+
+    public static string DiscrepancyStateBadgeClass(DiscrepancyState state) => state switch
+    {
+        DiscrepancyState.Open => "bg-red-lt",
+        DiscrepancyState.Assigned => "bg-blue-lt",
+        DiscrepancyState.UnderCorrection => "bg-azure-lt",
+        DiscrepancyState.Resolved => "bg-green-lt",
+        DiscrepancyState.Waived => "bg-secondary-lt",
+        _ => "bg-secondary-lt",
+    };
+
+    // Spec 048 — per-application discrepancy list additions.
+    public const string Discrepancy_Severity = "Severidad";
+    public const string Discrepancy_State = "Estado";
+    public const string Discrepancy_Source = "Documento";
+    public const string Discrepancy_OpenDetail = "Ver detalle de reconciliación";
 
     // Spec 046 — Committed dimension (6th balance figure) + per-line commit actions.
     public const string Balance_Committed = "Comprometido";

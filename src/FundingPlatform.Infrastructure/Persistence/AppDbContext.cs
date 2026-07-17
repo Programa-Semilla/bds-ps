@@ -75,6 +75,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<DocumentRuleSet> DocumentRuleSets => Set<DocumentRuleSet>();
     public DbSet<DocumentRuleItem> DocumentRuleItems => Set<DocumentRuleItem>();
 
+    // Spec 048 — full reconciliation engine: persisted stateful discrepancies + append-only lifecycle history.
+    public DbSet<Discrepancy> Discrepancies => Set<Discrepancy>();
+    public DbSet<DiscrepancyEvent> DiscrepancyEvents => Set<DiscrepancyEvent>();
+
     // Spec 037 — admin-managed companies (Empresas) owned by applicants.
     public DbSet<Company> Companies => Set<Company>();
 

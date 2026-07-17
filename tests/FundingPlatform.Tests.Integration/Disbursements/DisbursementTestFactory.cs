@@ -30,7 +30,8 @@ internal static class DisbursementTestFactory
             .Options);
 
     public static DisbursementService NewService(AppDbContext ctx, InMemoryObjectStorage storage) =>
-        new(ctx, storage, new AdminAuditEventWriter(ctx), NullLogger<DisbursementService>.Instance);
+        new(ctx, storage, new AdminAuditEventWriter(ctx),
+            new Reconciliation.NoOpReconciliationMaterializer(), NullLogger<DisbursementService>.Instance);
 
     public static ParticipantBalanceProjection NewProjection(AppDbContext ctx) => new(ctx);
 

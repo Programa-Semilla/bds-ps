@@ -1,0 +1,156 @@
+@using System.Globalization
+@using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Reconciliation.ReconciliationDetailViewModel
+@{
+    var d = Model.Detail;
+    var r = d.Row;
+    ViewData["Title"] = ReconciliationResources.Detail_Title;
+    var crc = new CultureInfo("es-CR");
+    string Money(decimal v) => v.ToString("C2", crc);
+    var canWaive = Model.CanWrite && r.Severity == DiscrepancySeverity.Warning
+        && r.State != DiscrepancyState.Waived && r.State != DiscrepancyState.Resolved;
+    // Assign / under-correction only apply to a non-terminal discrepancy (Resolved + Waived are the
+    // engine's to leave via auto-reopen).
+    var canAct = Model.CanWrite && r.State != DiscrepancyState.Resolved && r.State != DiscrepancyState.Waived;
+}
+
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="page-pretitle">@r.ApplicationNumber · @r.ParticipantName</div>
+                <h2 class="page-title">@ReconciliationResources.Detail_Title</h2>
+            </div>
+            <div class="col-auto">
+                <a asp-action="Index" class="btn btn-link" data-testid="reconciliation-detail-back">@ReconciliationResources.Detail_Back</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl" data-testid="reconciliation-detail" data-severity="@r.Severity" data-state="@r.State">
+        <div class="row row-cards">
+            <div class="col-lg-7">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge @DisbursementResources.SeverityBadgeClass(r.Severity) me-2">
+                                <i class="@DisbursementResources.SeverityIcon(r.Severity) me-1" aria-hidden="true"></i>@DisbursementResources.SeverityLabel(r.Severity)
+                            </span>
+                            <span class="badge @DisbursementResources.DiscrepancyStateBadgeClass(r.State)" data-testid="detail-state">@DisbursementResources.DiscrepancyStateLabel(r.State)</span>
+                        </div>
+                        <h3 class="card-title">@DisbursementResources.ComparisonLabel(r.Comparison)</h3>
+                        <dl class="row">
+                            <dt class="col-5">@ReconciliationResources.Detail_Expected</dt>
+                            <dd class="col-7" data-testid="detail-expected">@Money(r.Expected)</dd>
+                            <dt class="col-5">@ReconciliationResources.Detail_Actual</dt>
+                            <dd class="col-7" data-testid="detail-actual">@Money(r.Actual)</dd>
+                            <dt class="col-5">@ReconciliationResources.Detail_Difference</dt>
+                            <dd class="col-7 fw-bold" data-testid="detail-difference">@Money(Math.Abs(r.Difference))</dd>
+                            <dt class="col-5">@ReconciliationResources.Detail_Source</dt>
+                            <dd class="col-7">@r.SourceDocument</dd>
+                            <dt class="col-5">@ReconciliationResources.Detail_Participant</dt>
+                            <dd class="col-7">@r.ApplicationNumber · @r.ParticipantName</dd>
+                            @if (r.LineLabel is not null)
+                            {
+                                <dt class="col-5">@ReconciliationResources.Detail_Line</dt>
+                                <dd class="col-7">@r.LineLabel</dd>
+                            }
+                            @if (r.TrancheName is not null)
+                            {
+                                <dt class="col-5">@ReconciliationResources.Detail_Tranche</dt>
+                                <dd class="col-7">@r.TrancheName</dd>
+                            }
+                            @if (r.SupplierName is not null)
+                            {
+                                <dt class="col-5">@ReconciliationResources.Detail_Supplier</dt>
+                                <dd class="col-7">@r.SupplierName</dd>
+                            }
+                            <dt class="col-5">@ReconciliationResources.Detail_RequiredAction</dt>
+                            <dd class="col-7" data-testid="detail-required-action">@d.RequiredAction</dd>
+                        </dl>
+                    </div>
+                </div>
+
+                @if (Model.CanWrite)
+                {
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            @if (canAct)
+                            {
+                                <form method="post" asp-action="Assign" asp-route-id="@r.Id" class="mb-3" data-testid="assign-form">
+                                    @Html.AntiForgeryToken()
+                                    <label class="form-label">@ReconciliationResources.Field_Assignee</label>
+                                    <div class="d-flex gap-2">
+                                        <select name="assigneeUserId" class="form-select" data-searchable data-testid="assign-assignee" required>
+                                            @foreach (var (uid, name) in Model.AssigneeOptions)
+                                            {
+                                                <option value="@uid" selected="@(r.AssigneeName == name)">@name</option>
+                                            }
+                                        </select>
+                                        <button type="submit" class="btn btn-primary" data-testid="assign-submit">@ReconciliationResources.Action_Assign</button>
+                                    </div>
+                                </form>
+
+                                <form method="post" asp-action="UnderCorrection" asp-route-id="@r.Id" class="mb-3" data-testid="undercorrection-form">
+                                    @Html.AntiForgeryToken()
+                                    <label class="form-label">@ReconciliationResources.Field_Note</label>
+                                    <div class="d-flex gap-2">
+                                        <input type="text" name="note" class="form-control" maxlength="500" />
+                                        <button type="submit" class="btn" data-testid="undercorrection-submit">@ReconciliationResources.Action_UnderCorrection</button>
+                                    </div>
+                                </form>
+                            }
+
+                            @if (canWaive)
+                            {
+                                <form method="post" asp-action="Waive" asp-route-id="@r.Id" data-testid="waive-form">
+                                    @Html.AntiForgeryToken()
+                                    <label class="form-label">@ReconciliationResources.Field_WaiveReason</label>
+                                    <div class="d-flex gap-2">
+                                        <input type="text" name="reason" class="form-control" maxlength="500" data-testid="waive-reason" required />
+                                        <button type="submit" class="btn btn-warning" data-testid="waive-submit">@ReconciliationResources.Action_Waive</button>
+                                    </div>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info" data-testid="reconciliation-readonly">@ReconciliationResources.ReadOnly_Notice</div>
+                }
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">@ReconciliationResources.Detail_Timeline</h3></div>
+                    <div class="card-body">
+                        <ul class="list-unstyled" data-testid="detail-timeline">
+                            @foreach (var e in d.Timeline)
+                            {
+                                <li class="mb-3" data-testid="timeline-event" data-kind="@e.Kind">
+                                    <div class="fw-bold">@DisbursementResources.DiscrepancyStateLabel(e.ToState)</div>
+                                    <div class="text-secondary small">
+                                        @e.OccurredAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm", crc)
+                                        · @ReconciliationResources.Timeline_By @e.ActorName
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(e.Reason))
+                                    {
+                                        <div class="small">@e.Reason</div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(e.Note))
+                                    {
+                                        <div class="small text-secondary">@e.Note</div>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

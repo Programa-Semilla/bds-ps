@@ -1,0 +1,76 @@
+@using FundingPlatform.Domain.Enums
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Reconciliation.ReconciliationIndexViewModel
+@{
+    var f = Model.Filter;
+}
+<form method="get" asp-controller="Reconciliation" asp-action="Index" class="card mb-3" data-testid="reconciliation-filter">
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-md-3">
+                <label class="form-label">@ReconciliationResources.Filter_Severity</label>
+                <select name="Severity" class="form-select" data-testid="filter-severity">
+                    <option value="">@ReconciliationResources.Filter_All</option>
+                    <option value="@DiscrepancySeverity.Blocking" selected="@(f.Severity == DiscrepancySeverity.Blocking)">@DisbursementResources.SeverityLabel(DiscrepancySeverity.Blocking)</option>
+                    <option value="@DiscrepancySeverity.Warning" selected="@(f.Severity == DiscrepancySeverity.Warning)">@DisbursementResources.SeverityLabel(DiscrepancySeverity.Warning)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">@ReconciliationResources.Filter_State</label>
+                <select name="State" class="form-select" data-testid="filter-state">
+                    <option value="">@ReconciliationResources.Filter_OpenOnly</option>
+                    @foreach (var s in Enum.GetValues<DiscrepancyState>())
+                    {
+                        <option value="@s" selected="@(f.State == s)">@DisbursementResources.DiscrepancyStateLabel(s)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">@ReconciliationResources.Filter_Supplier</label>
+                <select name="SupplierId" class="form-select" data-searchable data-testid="filter-supplier">
+                    <option value="">@ReconciliationResources.Filter_All</option>
+                    @foreach (var (id, name) in Model.SupplierOptions)
+                    {
+                        <option value="@id" selected="@(f.SupplierId == id)">@name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">@ReconciliationResources.Filter_Tranche</label>
+                <select name="TrancheId" class="form-select" data-searchable data-testid="filter-tranche">
+                    <option value="">@ReconciliationResources.Filter_All</option>
+                    @foreach (var (id, name) in Model.TrancheOptions)
+                    {
+                        <option value="@id" selected="@(f.TrancheId == id)">@name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">@ReconciliationResources.Filter_Responsible</label>
+                <select name="ResponsibleUserId" class="form-select" data-searchable data-testid="filter-responsible">
+                    <option value="">@ReconciliationResources.Filter_All</option>
+                    @foreach (var (uid, name) in Model.ResponsibleOptions)
+                    {
+                        <option value="@uid" selected="@(f.ResponsibleUserId == uid)">@name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">@ReconciliationResources.Filter_Participant</label>
+                <input type="number" name="ParticipantApplicationId" class="form-control" value="@f.ParticipantApplicationId" data-testid="filter-participant" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">@ReconciliationResources.Filter_DateFrom</label>
+                <input type="date" name="DateFrom" class="form-control" value="@(f.DateFrom?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">@ReconciliationResources.Filter_DateTo</label>
+                <input type="date" name="DateTo" class="form-control" value="@(f.DateTo?.ToString("yyyy-MM-dd"))" />
+            </div>
+        </div>
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary" data-testid="filter-apply">@ReconciliationResources.Filter_Apply</button>
+            <a asp-controller="Reconciliation" asp-action="Index" class="btn btn-link">@ReconciliationResources.Filter_Clear</a>
+        </div>
+    </div>
+</form>
