@@ -1,7 +1,7 @@
 # Brainstorm: Financial Disbursement Control Platform (program roadmap + slice P1)
 
 **Date:** 2026-07-15
-**Status:** P1 shipped (PR #78), P2 shipped (PR #79), **P3 shipped (PR #80)** — P4–P9 documented below for resume
+**Status:** P1 shipped (PR #78), P2 shipped (PR #79), P3 shipped (PR #80) — **P4 spec-created (spec 048)** — P5–P9 documented below for resume
 **Spec:** specs/045-financial-disbursement-core/ (slice P1 only)
 **Seed:** brainstorm/seeds/financial_disbursement_requirements_brainstorming.md (July 15 2026 requirements meeting — Danny Pérez, Pao Rodríguez Marín, Vivian Arias)
 
@@ -128,3 +128,37 @@ User chose **all four** capabilities (A+B+C+D) in one slice — the program's la
 - **Plan note (from REVIEW-SPEC):** the completeness check must read **both** disbursement-anchored (P1 receipt/invoice) and line-linked evidence, so a disbursement's invoice counts toward its paid lines' completeness.
 - **Watch (from REVIEW-SPEC):** largest slice yet — keep the P1/P2 regression (SC-006) green at each story checkpoint; consider landing US4 (version history) as an independent checkpoint.
 - Spec review (`REVIEW-SPEC.md`): **SOUND**, 0 critical / 0 important.
+
+---
+
+## Revisit: 2026-07-17 — Slice P4 brainstormed → spec 048
+
+**Status:** P4 spec-created (`specs/048-full-reconciliation-engine/`, branch `048-full-reconciliation-engine`). P1 (045, PR #78) + P2 (046, PR #79) + P3 (047, PR #80) remain shipped. P5–P9 still parked.
+
+### P4 scope confirmed (ratified this session)
+
+User chose the **full bundle** — all four capabilities in one slice (like P3): (A) severity + non-blocking warnings, (B) discrepancy lifecycle, (C) multi-level coverage, (D) reconciliation dashboard. This is the **program keystone**: P5/P6/P7 all reference the severity + lifecycle model it establishes.
+
+### P4 anchor decisions (all ratified)
+
+1. **Persistence model "C" — persisted snapshot for visibility + fresh recompute at the money gate.** Every reconciliation event upserts persisted `Discrepancy` rows (dashboard/lifecycle/history read these), but the money gate (`Validar`/close) still **recomputes fresh at the decision instant** — the race-proof final check from P1/P2 is preserved. Chosen over **A** (full materialize-and-read: single source of truth but weakens race-proofing) and **B** (compute-on-read stays, persist only lifecycle-needing rows: two sources that drift).
+2. **Stable discrepancy identity = (scope-type, scope-entity-id, comparison-rule).** On re-run: present → update amounts, keep lifecycle state + assignee; cleared → auto-`Resolved` (row kept, never deleted); new → insert `Open`. A **Waived warning reopens if its amount changes** (the thing waived is no longer what's happening); a resolved discrepancy reopens under the same identity if it recurs, prior history intact.
+3. **Severity is fixed per-rule (option B), not admin-configurable in P4.** Core zero-colón money identities are permanently **Blocking** (paid==receipt==invoice==accepted, Σ line-allocations==disbursement, Σ payments≤committed, participant Σ==allocation, P3 completeness/closure legs) — can't be waved down to advisory. **Warning starter set** (computable today): requested-vs-approved variance; evidence date anomalies; possible duplicate payment; graph-invoice allocation drift (**absorbs spec 047 FINDING-13**). Full per-rule severity config → **P8**.
+4. **Severity-dependent lifecycle.** Blocking: Open→Assigned→UnderCorrection→Resolved (Resolved only by numbers matching / within tolerance; auto on clean re-run; **never Waived**). Warning: adds **Waived** (reason-required, audited; auto-Resolves if condition clears). **Financial Operator drives all transitions; Auditor+Admin read-only.** P4 is **unsegregated** — audited self-waive allowed; the separate **"Approved" review state + no-self-approval defer to P8**. Per-discrepancy correction history in a dedicated `DiscrepancyEvent` child table (timeline); `discrepancy.*` `AdminAuditEvent` family also fires.
+5. **Multi-level coverage bounded by existing data.** Discrepancy-producing checks at **document, payment, budget-line, participant, tranche**. Program & agency = dashboard **roll-up views**, not new comparisons. **Bank-account external reconciliation (needs the P3-deferred Bank Statement evidence → P5) and agency-vs-SBD-received (needs an agency-received figure not modeled → P7) are the one honest deferral.**
+6. **Dashboard scoped group→agency.** Financial Operator → group-scoped work queue; Admin → agency-wide (FR-066); Auditor → group-scoped read-only. Summary tiles (open count + amount by severity, fund/process roll-ups) + FR-065 filters + detail with correction-history timeline. Status **never conveyed by color alone** (FR-059/NFR-011).
+7. **Materialization is synchronous, in-transaction** (no new background worker), matching the two-SaveChanges service pattern; the fresh gate recompute is authoritative regardless of snapshot freshness.
+8. **Configurable tolerance = parameterized seam now, config UI in P5.** Every rule carries a `tolerance` param (default 0 CRC); no admin config surface in P4 (the first real need — FX rounding — is P5). The one trim to "full bundle."
+9. **Assignment-based notification** via the existing spec-021 outbox (notify the assignee on assignment, **not** on detection — blocking discrepancies flicker during correction). New outbox event.
+
+### P4 scope boundaries (confirmed deferrals)
+- Tolerance config UI + FX + bank-statement evidence + bank-account external reconciliation → **P5**. Interest/fees/refunds/reversals/credit-note money semantics → **P6**. Reporting/statements/exports + agency-vs-SBD-received → **P7**. Approver role / no-self-approval / severity config / "Approved" state → **P8**. Import → **P9**. Multi-agency, Mentori, OCR, self-portal, e-signature, SBD API → parked.
+- **No new managed deps; additive dacpac-only schema** (new `Discrepancy` + `DiscrepancyEvent` tables; tolerance as a column/param seam). No new role (reuses Financial Operator).
+
+### Open threads (carry into `/speckit-plan` for spec 048)
+- **OQ-1:** `Discrepancy` scope-key shape — polymorphic (scope-type, scope-entity-id) vs nullable typed FKs to payment/line/participant/tranche/document.
+- **OQ-2:** refactor the pure evaluators (`DisbursementReconciliation`, `DisbursementLineReconciliation`, P3 closure legs) to **emit** persisted rows, vs a new **materializer** that wraps them and diffs computed-vs-persisted to apply the upsert/auto-resolve/insert rules.
+- **OQ-3:** dashboard placement / reuse-extend the existing per-application `_DiscrepancyList` surface vs a dedicated dashboard controller.
+- **OQ-4:** `Discrepancy` carries its own RowVersion for lifecycle-edit concurrency (constitution quality gate) — confirm no interaction with the standing deferred `dbo.Items`-RowVersion debt (surfaced in 046 + 047).
+- **OQ-5:** confirm the platform stores a distinct "requested" amount separate from the executed allocation surviving into execution; if not, **drop** the requested-vs-approved warning rather than ship it hollow.
+- Spec review (`REVIEW-SPEC.md`): **SOUND**, 0 critical / 0 important (2 clarity fixes + OQ-5 applied inline).
