@@ -136,7 +136,7 @@
 - [X] T062 [P] es-CR copy sweep (no English-only strings) across new views/resources; confirm sidebar `DocumentRules` admin entry + evidence link on the disbursement panel
 - [X] T063 Run the filtered E2E suite (`EvidenceGraphAllocation|RequiredDocMatrixCompleteness|BudgetLineClosure|EvidenceVersionHistory`) + P1/P2 `Disbursement*` regression; capture green results (delivery bar)
 - [X] T064 Deep review (`/speckit-spex-deep-review` or the plan-review gate follow-through); apply Critical/Important fixes; write `specs/047-evidence-graph-required-docs/review-findings.md`
-- [ ] T065 Post-merge: flip CLAUDE.md active-plan → shipped + PR#, add a Recent Changes entry, and update `brainstorm/41-financial-disbursement-platform.md` (P3 → shipped)
+- [X] T065 Post-merge: flip CLAUDE.md active-plan → shipped + PR#, add a Recent Changes entry, and update `brainstorm/41-financial-disbursement-platform.md` (P3 → shipped)
 
 ---
 
