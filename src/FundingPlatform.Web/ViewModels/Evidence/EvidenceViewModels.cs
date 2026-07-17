@@ -3,8 +3,13 @@ using FundingPlatform.Application.Evidence;
 
 namespace FundingPlatform.Web.ViewModels.Evidence;
 
-/// <summary>Spec 047 — one budget-line's required-document completeness for the matrix partial.</summary>
-public sealed record CompletenessRowViewModel(string LineLabel, LineCompleteness Completeness);
+/// <summary>Spec 047 — one budget-line's required-document completeness (+ closure state) for the matrix partial.</summary>
+public sealed record CompletenessRowViewModel(
+    int ApplicationId,
+    string LineLabel,
+    LineCompleteness Completeness,
+    bool IsClosed,
+    bool CanWrite);
 
 /// <summary>Spec 047 — a budget-line option for the allocation editor (line id + display label).</summary>
 public sealed record EvidenceLineOption(int ItemId, string Label);

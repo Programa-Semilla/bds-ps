@@ -190,6 +190,13 @@ public sealed class EvidenceService : IEvidenceService
             return Result<int>.Failure(validation);
         }
 
+        // A target line must be open (evidence is locked on a closed line, FR — US3).
+        var lockError = await EnsureLinesUnlockedAsync(cmd.Lines.Select(l => l.ItemId), ct);
+        if (lockError is not null)
+        {
+            return Result<int>.Failure(lockError);
+        }
+
         // Buffer already at position 0 (controller). Hash first, then upload.
         var fileHash = await ComputeSha256Async(cmd.Content, ct);
 

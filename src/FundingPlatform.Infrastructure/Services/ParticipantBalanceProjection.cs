@@ -78,6 +78,7 @@ public sealed class ParticipantBalanceProjection : IParticipantBalanceProjection
                 i.ProductName,
                 i.TrancheId,
                 i.CommitState,
+                i.ClosureState,
                 i.SelectedSupplierId,
                 SupplierName = i.SelectedSupplier != null ? i.SelectedSupplier.Name : null,
                 Budget = i.Quotations
@@ -119,11 +120,11 @@ public sealed class ParticipantBalanceProjection : IParticipantBalanceProjection
             IReadOnlyList<DateOnly> paymentDates = attributions?.Select(x => x.PaymentDate).ToList() ?? [];
 
             var balance = LineBalance(r.Budget, r.CommitState, validated, pending);
-            var status = DeriveStatus(r.CommitState, r.Budget, balance.Paid, pending);
+            var status = DeriveStatus(r.ClosureState, r.CommitState, r.Budget, balance.Paid, pending);
 
             return new LineNode(
                 r.TrancheId, r.SelectedSupplierId, paymentDates, status, balance,
-                new BudgetLineBalance(r.Id, r.LineCode, r.ProductName, r.SupplierName, r.CommitState, status, balance));
+                new BudgetLineBalance(r.Id, r.LineCode, r.ProductName, r.SupplierName, r.CommitState, status, balance, r.ClosureState));
         }).ToList();
 
         // 5) Apply US4 filters (FR-020) at the line level.
@@ -204,9 +205,14 @@ public sealed class ParticipantBalanceProjection : IParticipantBalanceProjection
         return new ParticipantBalance(alloc, committed, paid, validated, pending, available);
     }
 
-    /// <summary>Spec 046 / D3 — derive the budget-line status from commit + attribution sums.</summary>
-    private static BudgetLineStatus DeriveStatus(ItemCommitState commit, decimal budget, decimal paid, decimal pending)
+    /// <summary>Spec 046/047 / D3 — derive the budget-line status from closure + commit + attribution
+    /// sums. A closed line reads as <see cref="BudgetLineStatus.Closed"/> regardless of payment state.</summary>
+    private static BudgetLineStatus DeriveStatus(ItemClosureState closure, ItemCommitState commit, decimal budget, decimal paid, decimal pending)
     {
+        if (closure == ItemClosureState.Closed)
+        {
+            return BudgetLineStatus.Closed;
+        }
         if (commit == ItemCommitState.Uncommitted)
         {
             return BudgetLineStatus.Uncommitted;

@@ -496,6 +496,33 @@ public class Application
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Spec 047 / FR-016 — closes a budget-line. The closure gate (required docs + payments validated
+    /// + paid==accepted + fully allocated) is enforced by the closure service (it can see attributions/
+    /// evidence); the aggregate just flips the stored state + stamp. Idempotent.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The item is not part of this application.</exception>
+    public void CloseLine(int itemId, string userId, string? reason)
+    {
+        var item = _items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException($"Item {itemId} is not part of this application.");
+        item.Close(userId, reason);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Spec 047 / FR-017 — reopens a closed budget-line with a required reason. Off-ledger — no
+    /// balance change. Idempotent on an already-open line.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The item is not part of this application.</exception>
+    public void ReopenLine(int itemId, string userId, string reason)
+    {
+        var item = _items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException($"Item {itemId} is not part of this application.");
+        item.Reopen(userId, reason);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     private void EnsureTrancheNameAvailable(string trimmedName, int? excludeTrancheId)
     {
         if (trimmedName.Length == 0)

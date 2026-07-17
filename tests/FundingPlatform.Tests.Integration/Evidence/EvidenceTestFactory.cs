@@ -117,5 +117,20 @@ internal static class EvidenceTestFactory
         await ctx.SaveChangesAsync();
     }
 
+    /// <summary>Seeds a RECORDED (not validated) disbursement paying <paramref name="itemId"/>, so the
+    /// closure gate's "all attributed payments validated" leg fires.</summary>
+    public static async Task SeedRecordedPaymentAsync(AppDbContext ctx, int appId, int itemId, decimal amount)
+    {
+        var app = await ctx.Applications.FirstAsync(a => a.Id == appId);
+        var d = Domain.Entities.Disbursement.Record(app, Actor, new DateOnly(2026, 7, 16), amount, "TX-R", null);
+        ctx.Disbursements.Add(d);
+        await ctx.SaveChangesAsync();
+        ctx.DisbursementLineAllocations.Add(Domain.Entities.DisbursementLineAllocation.For(d.Id, itemId, amount));
+        await ctx.SaveChangesAsync();
+    }
+
+    public static BudgetLineClosureService NewClosureService(AppDbContext ctx) =>
+        new(ctx, NewCompletenessProjection(ctx), new AdminAuditEventWriter(ctx));
+
     public static Stream Pdf() => new MemoryStream("%PDF-1.4 body"u8.ToArray());
 }

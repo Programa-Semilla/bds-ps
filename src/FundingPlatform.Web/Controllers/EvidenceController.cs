@@ -34,6 +34,7 @@ public sealed class EvidenceController : Controller
 
     private readonly IEvidenceService _service;
     private readonly FundingPlatform.Application.DocRules.ILineCompletenessProjection _completeness;
+    private readonly IBudgetLineClosureService _closure;
     private readonly IReviewerScopeProvider _scopeProvider;
     private readonly IApplicationRepository _appRepo;
     private readonly AppDbContext _db;
@@ -41,12 +42,14 @@ public sealed class EvidenceController : Controller
     public EvidenceController(
         IEvidenceService service,
         FundingPlatform.Application.DocRules.ILineCompletenessProjection completeness,
+        IBudgetLineClosureService closure,
         IReviewerScopeProvider scopeProvider,
         IApplicationRepository appRepo,
         AppDbContext db)
     {
         _service = service;
         _completeness = completeness;
+        _closure = closure;
         _scopeProvider = scopeProvider;
         _appRepo = appRepo;
         _db = db;
@@ -62,9 +65,15 @@ public sealed class EvidenceController : Controller
 
         var lines = await LineOptionsAsync(applicationId, ct);
         var completeness = await _completeness.GetForApplicationAsync(applicationId, ct);
+        var closedItemIds = await _db.Items.AsNoTracking()
+            .Where(i => i.ApplicationId == applicationId && i.ClosureState == ItemClosureState.Closed)
+            .Select(i => i.Id).ToListAsync(ct);
+        var closedSet = closedItemIds.ToHashSet();
+        var canWrite = CanWrite();
         var completenessRows = lines
             .Where(l => completeness.ContainsKey(l.ItemId))
-            .Select(l => new CompletenessRowViewModel(l.Label, completeness[l.ItemId]))
+            .Select(l => new CompletenessRowViewModel(
+                applicationId, l.Label, completeness[l.ItemId], closedSet.Contains(l.ItemId), canWrite))
             .ToList();
 
         return View(new EvidenceIndexViewModel
@@ -261,6 +270,34 @@ public sealed class EvidenceController : Controller
 
         var result = await _service.DeleteAsync(applicationId, evidenceId, GetUserId(), ct);
         return Flash(result, EvidenceResources.Flash_Deleted, applicationId);
+    }
+
+    // Spec 047 / US3 — budget-line closure (app-level route per the contract, absolute so it is not
+    // nested under /Evidence). Financial Operator only; group-scope + read-only guards reused.
+    [HttpPost("/Applications/{applicationId:int}/Lines/{itemId:int}/Close")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Close(int applicationId, int itemId, string? reason, CancellationToken ct)
+    {
+        var guard = await GuardWriteAsync(applicationId, ct);
+        if (guard is not null)
+        {
+            return guard;
+        }
+        var result = await _closure.CloseAsync(applicationId, itemId, reason, GetUserId(), ct);
+        return Flash(result, EvidenceResources.Closure_Flash_Closed, applicationId);
+    }
+
+    [HttpPost("/Applications/{applicationId:int}/Lines/{itemId:int}/Reopen")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reopen(int applicationId, int itemId, string? reason, CancellationToken ct)
+    {
+        var guard = await GuardWriteAsync(applicationId, ct);
+        if (guard is not null)
+        {
+            return guard;
+        }
+        var result = await _closure.ReopenAsync(applicationId, itemId, reason ?? string.Empty, GetUserId(), ct);
+        return Flash(result, EvidenceResources.Closure_Flash_Reopened, applicationId);
     }
 
     [HttpGet("{evidenceId:int}/Download")]

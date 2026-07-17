@@ -226,6 +226,7 @@ public static class DependencyInjection
         services.AddScoped<Application.Evidence.IEvidenceService, Services.EvidenceService>();
         services.AddScoped<Application.DocRules.IDocumentRuleService, Services.DocumentRuleService>();
         services.AddScoped<Application.DocRules.ILineCompletenessProjection, Services.LineCompletenessProjection>();
+        services.AddScoped<Application.Evidence.IBudgetLineClosureService, Services.BudgetLineClosureService>();
 
         // Spec 043 — regulatory freshness gating + Hacienda API sync.
         services.AddRegulatoryFreshness(configuration);

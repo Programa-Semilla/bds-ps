@@ -46,7 +46,8 @@ public sealed record BudgetLineBalance(
     string? SupplierName,
     ItemCommitState CommitState,
     BudgetLineStatus Status,
-    ParticipantBalance Balance);
+    ParticipantBalance Balance,
+    ItemClosureState ClosureState = ItemClosureState.Open);
 
 /// <summary>
 /// Spec 046 / D3 — the derived (never-stored) budget-line status. A pure function of commit state +
@@ -68,4 +69,8 @@ public enum BudgetLineStatus
 
     /// <summary>Committed, all attributions on validated disbursements and Σ ≥ budget.</summary>
     Validated,
+
+    /// <summary>Spec 047 / D3 — the line has been explicitly closed (stored terminal). Takes
+    /// precedence over every other rung (a closed line reads as Closed regardless of payment state).</summary>
+    Closed,
 }

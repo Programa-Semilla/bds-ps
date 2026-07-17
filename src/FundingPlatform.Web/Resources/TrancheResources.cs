@@ -80,6 +80,7 @@ public static class TrancheResources
         BudgetLineStatus.PartiallyPaid => "Pago parcial",
         BudgetLineStatus.Paid => "Pagada",
         BudgetLineStatus.Validated => "Validada",
+        BudgetLineStatus.Closed => "Cerrada",
         _ => status.ToString(),
     };
 
@@ -91,6 +92,7 @@ public static class TrancheResources
         BudgetLineStatus.PartiallyPaid => "bg-yellow-lt",
         BudgetLineStatus.Paid => "bg-azure-lt",
         BudgetLineStatus.Validated => "bg-green-lt",
+        BudgetLineStatus.Closed => "bg-dark-lt",
         _ => "bg-secondary-lt",
     };
 }
