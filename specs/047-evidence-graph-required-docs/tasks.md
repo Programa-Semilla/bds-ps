@@ -67,23 +67,23 @@
 **Independent Test**: `RequiredDocMatrixCompletenessTests` — mark Invoice+Acceptance required; a line with only a receipt shows both missing (AC-005); disbursement invoice counts as present (D1); category falls back to global default.
 **Depends on**: US1 (evidence to check).
 
-- [ ] T025 [P] [US2] `DocumentRuleSet` aggregate (CategoryId nullable, owns `_items`, full-replace, `RowVersion`) in `src/FundingPlatform.Domain/Entities/DocumentRuleSet.cs`
-- [ ] T026 [P] [US2] `DocumentRuleItem` child (EvidenceType, IsRequired) in `src/FundingPlatform.Domain/Entities/DocumentRuleItem.cs`
-- [ ] T027 [US2] `Item.MissingRequiredDocuments(requiredTypes, presentTypes)` pure helper (mirror `MissingRequiredCategoryFields`) in `src/FundingPlatform.Domain/Entities/Item.cs`
-- [ ] T028 [US2] EF configs `DocumentRuleSetConfiguration.cs` + `DocumentRuleItemConfiguration.cs` (`HasConversion<byte>()` on EvidenceType; `UNIQUE (CategoryId)`; `UNIQUE (DocumentRuleSetId, EvidenceType)`; item FK CASCADE, Category FK NO ACTION) in `src/FundingPlatform.Infrastructure/Persistence/Configurations/`
-- [ ] T029 [US2] Dacpac tables `dbo.DocumentRuleSets.sql` + `dbo.DocumentRuleItems.sql` in `src/FundingPlatform.Database/Tables/`
-- [ ] T030 [US2] Post-deploy seed `src/FundingPlatform.Database/PostDeployment/NN_SeedDocumentRules.sql` (`NN` = next number in the existing `PostDeployment/` sequence) — global-default set (BankReceipt+Invoice+SignedAcceptance = Required); idempotent (`IF NOT EXISTS`)
-- [ ] T031 [US2] Register `DocumentRuleSets`, `DocumentRuleItems` DbSets in `AppDbContext.cs`
-- [ ] T032 [US2] `IDocumentRuleService` + DTOs (`ListAsync`, `GetAsync`, `UpsertAsync`, `ResolveRequiredTypes`) in `src/FundingPlatform.Application/DocRules/IDocumentRuleService.cs`
-- [ ] T033 [US2] `DocumentRuleService` impl (one-set-per-Category enforcement, full-replace items, `docrule.upserted` two-SaveChanges audit) in `src/FundingPlatform.Infrastructure/Services/DocumentRuleService.cs`
-- [ ] T034 [US2] Completeness resolver: extend `ParticipantBalanceProjection` (or a sibling projection) to compute, per line, required types (via `IDocumentRuleService.ResolveRequiredTypes`) vs present types — **union of** (a) `DisbursementEvidence.Kind` from the line's validated disbursements and (b) graph `Evidence.Type` linked to the line; add `EvidenceIncomplete` + missing-type list to `BudgetLineBalance` DTO in `src/FundingPlatform.Application/Disbursements/ComposedBalanceDtos.cs` + `src/FundingPlatform.Infrastructure/Services/ParticipantBalanceProjection.cs`
-- [ ] T035 [US2] Register `IDocumentRuleService → DocumentRuleService` in `DependencyInjection.cs`
-- [ ] T036 [US2] `AdminController` actions `DocumentRules` (list) / `CreateDocumentRule` / `EditDocumentRule` (`[Authorize(Roles="Admin")]`, antiforgery, `TempData` es-CR) in `src/FundingPlatform.Web/Controllers/AdminController.cs`
-- [ ] T037 [P] [US2] `Admin/DocumentRuleAdminViewModels.cs` in `src/FundingPlatform.Web/ViewModels/Admin/`
-- [ ] T038 [US2] Views `Views/Admin/DocumentRules.cshtml`, `CreateDocumentRule.cshtml`, `EditDocumentRule.cshtml`, `_DocumentRuleItemsEditor.cshtml` (six-type checkbox matrix) in `src/FundingPlatform.Web/Views/Admin/` + sidebar entry
-- [ ] T039 [US2] `_CompletenessMatrix.cshtml` partial + wire into `Views/Evidence/Index.cshtml` and the `Disbursement` `Index` line rows (present/missing per required type, `EvidenceIncomplete` badge)
-- [ ] T040 [P] [US2] Unit `DocumentRuleResolutionTests` (category → set → global fallback → empty; `MissingRequiredDocuments`) in `tests/FundingPlatform.Tests.Unit/`
-- [ ] T041 [P] [US2] Integration `DocumentRuleMatrixTests` (real SQL: one-per-category, full-replace, both-source completeness incl. disbursement invoice) in `tests/FundingPlatform.Tests.Integration/`
+- [X] T025 [P] [US2] `DocumentRuleSet` aggregate (CategoryId nullable, owns `_items`, full-replace, `RowVersion`) in `src/FundingPlatform.Domain/Entities/DocumentRuleSet.cs`
+- [X] T026 [P] [US2] `DocumentRuleItem` child (EvidenceType, IsRequired) in `src/FundingPlatform.Domain/Entities/DocumentRuleItem.cs`
+- [X] T027 [US2] `Item.MissingRequiredDocuments(requiredTypes, presentTypes)` pure helper (mirror `MissingRequiredCategoryFields`) in `src/FundingPlatform.Domain/Entities/Item.cs`
+- [X] T028 [US2] EF configs `DocumentRuleSetConfiguration.cs` + `DocumentRuleItemConfiguration.cs` (`HasConversion<byte>()` on EvidenceType; `UNIQUE (CategoryId)`; `UNIQUE (DocumentRuleSetId, EvidenceType)`; item FK CASCADE, Category FK NO ACTION) in `src/FundingPlatform.Infrastructure/Persistence/Configurations/`
+- [X] T029 [US2] Dacpac tables `dbo.DocumentRuleSets.sql` + `dbo.DocumentRuleItems.sql` in `src/FundingPlatform.Database/Tables/`
+- [X] T030 [US2] Post-deploy seed `src/FundingPlatform.Database/PostDeployment/NN_SeedDocumentRules.sql` (`NN` = next number in the existing `PostDeployment/` sequence) — global-default set (BankReceipt+Invoice+SignedAcceptance = Required); idempotent (`IF NOT EXISTS`)
+- [X] T031 [US2] Register `DocumentRuleSets`, `DocumentRuleItems` DbSets in `AppDbContext.cs`
+- [X] T032 [US2] `IDocumentRuleService` + DTOs (`ListAsync`, `GetAsync`, `UpsertAsync`, `ResolveRequiredTypes`) in `src/FundingPlatform.Application/DocRules/IDocumentRuleService.cs`
+- [X] T033 [US2] `DocumentRuleService` impl (one-set-per-Category enforcement, full-replace items, `docrule.upserted` two-SaveChanges audit) in `src/FundingPlatform.Infrastructure/Services/DocumentRuleService.cs`
+- [X] T034 [US2] Completeness resolver: extend `ParticipantBalanceProjection` (or a sibling projection) to compute, per line, required types (via `IDocumentRuleService.ResolveRequiredTypes`) vs present types — **union of** (a) `DisbursementEvidence.Kind` from the line's validated disbursements and (b) graph `Evidence.Type` linked to the line; add `EvidenceIncomplete` + missing-type list to `BudgetLineBalance` DTO in `src/FundingPlatform.Application/Disbursements/ComposedBalanceDtos.cs` + `src/FundingPlatform.Infrastructure/Services/ParticipantBalanceProjection.cs`
+- [X] T035 [US2] Register `IDocumentRuleService → DocumentRuleService` in `DependencyInjection.cs`
+- [X] T036 [US2] `AdminController` actions `DocumentRules` (list) / `CreateDocumentRule` / `EditDocumentRule` (`[Authorize(Roles="Admin")]`, antiforgery, `TempData` es-CR) in `src/FundingPlatform.Web/Controllers/AdminController.cs`
+- [X] T037 [P] [US2] `Admin/DocumentRuleAdminViewModels.cs` in `src/FundingPlatform.Web/ViewModels/Admin/`
+- [X] T038 [US2] Views `Views/Admin/DocumentRules.cshtml`, `CreateDocumentRule.cshtml`, `EditDocumentRule.cshtml`, `_DocumentRuleItemsEditor.cshtml` (six-type checkbox matrix) in `src/FundingPlatform.Web/Views/Admin/` + sidebar entry
+- [X] T039 [US2] `_CompletenessMatrix.cshtml` partial + wire into `Views/Evidence/Index.cshtml` and the `Disbursement` `Index` line rows (present/missing per required type, `EvidenceIncomplete` badge)
+- [X] T040 [P] [US2] Unit `DocumentRuleResolutionTests` (category → set → global fallback → empty; `MissingRequiredDocuments`) in `tests/FundingPlatform.Tests.Unit/`
+- [X] T041 [P] [US2] Integration `DocumentRuleMatrixTests` (real SQL: one-per-category, full-replace, both-source completeness incl. disbursement invoice) in `tests/FundingPlatform.Tests.Integration/`
 - [ ] T042 [US2] E2E `RequiredDocMatrixCompletenessTests` (admin marks required; line shows missing AC-005; disbursement invoice counts present; global-default fallback) in `tests/FundingPlatform.Tests.E2E/`
 
 **Checkpoint US2**: configurable required docs + live completeness delivered. Commit + push.

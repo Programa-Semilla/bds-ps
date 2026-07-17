@@ -386,6 +386,9 @@ GO
 :r .\09_DropSolicitudWindowDays.sql
 -- Spec 045 — seed the group-scoped Financial Operator role.
 :r .\10_SeedFinancialOperatorRole.sql
+-- Spec 047 — seed the global-default required-document rule set (Bank Receipt + Invoice +
+-- Signed Acceptance = Required). Idempotent by the existence of the CategoryId-IS-NULL set.
+:r .\11_SeedDocumentRules.sql
 
 -- =============================================================================
 -- Spec 021 / data-model.md — SystemConfiguration rows for stage windows and the

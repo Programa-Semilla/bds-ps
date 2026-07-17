@@ -213,6 +213,24 @@ public class Item
     }
 
     /// <summary>
+    /// Spec 047 / FR-013 — the required evidence types (from the line's resolved
+    /// <see cref="DocumentRuleSet"/>) that are NOT present for this line. Pure — the caller supplies
+    /// the resolved required set and the set of present types (union of disbursement-anchored
+    /// <c>DisbursementEvidence.Kind</c> and graph <c>Evidence.Type</c> linked to the line, research
+    /// D1). Mirrors <see cref="MissingRequiredCategoryFields"/>.
+    /// </summary>
+    public static IEnumerable<Enums.EvidenceType> MissingRequiredDocuments(
+        IEnumerable<Enums.EvidenceType> requiredTypes,
+        IEnumerable<Enums.EvidenceType> presentTypes)
+    {
+        ArgumentNullException.ThrowIfNull(requiredTypes);
+        ArgumentNullException.ThrowIfNull(presentTypes);
+
+        var present = presentTypes.ToHashSet();
+        return requiredTypes.Distinct().Where(t => !present.Contains(t));
+    }
+
+    /// <summary>
     /// Adds a quotation for the specified supplier branch. Prevents duplicate
     /// suppliers on the same item per the (item, supplier) UNIQUE constraint
     /// (research.md R1 — branches do not split a supplier into multiple quote

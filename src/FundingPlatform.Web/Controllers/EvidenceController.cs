@@ -33,17 +33,20 @@ public sealed class EvidenceController : Controller
     private const string EvidenceCurrency = "CRC";
 
     private readonly IEvidenceService _service;
+    private readonly FundingPlatform.Application.DocRules.ILineCompletenessProjection _completeness;
     private readonly IReviewerScopeProvider _scopeProvider;
     private readonly IApplicationRepository _appRepo;
     private readonly AppDbContext _db;
 
     public EvidenceController(
         IEvidenceService service,
+        FundingPlatform.Application.DocRules.ILineCompletenessProjection completeness,
         IReviewerScopeProvider scopeProvider,
         IApplicationRepository appRepo,
         AppDbContext db)
     {
         _service = service;
+        _completeness = completeness;
         _scopeProvider = scopeProvider;
         _appRepo = appRepo;
         _db = db;
@@ -57,13 +60,21 @@ public sealed class EvidenceController : Controller
             return NotFound();
         }
 
+        var lines = await LineOptionsAsync(applicationId, ct);
+        var completeness = await _completeness.GetForApplicationAsync(applicationId, ct);
+        var completenessRows = lines
+            .Where(l => completeness.ContainsKey(l.ItemId))
+            .Select(l => new CompletenessRowViewModel(l.Label, completeness[l.ItemId]))
+            .ToList();
+
         return View(new EvidenceIndexViewModel
         {
             ApplicationId = applicationId,
             Items = await _service.ListForApplicationAsync(applicationId, ct),
             CanWrite = CanWrite(),
             AcceptExtensions = string.Join(",", EvidenceFileTypePolicy.AllowedExtensions),
-            Lines = await LineOptionsAsync(applicationId, ct),
+            Lines = lines,
+            Completeness = completenessRows,
         });
     }
 

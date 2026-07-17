@@ -1,6 +1,10 @@
+using FundingPlatform.Application.DocRules;
 using FundingPlatform.Application.Evidence;
 
 namespace FundingPlatform.Web.ViewModels.Evidence;
+
+/// <summary>Spec 047 — one budget-line's required-document completeness for the matrix partial.</summary>
+public sealed record CompletenessRowViewModel(string LineLabel, LineCompleteness Completeness);
 
 /// <summary>Spec 047 — a budget-line option for the allocation editor (line id + display label).</summary>
 public sealed record EvidenceLineOption(int ItemId, string Label);
@@ -21,6 +25,7 @@ public sealed class EvidenceIndexViewModel
     public required bool CanWrite { get; init; }
     public required string AcceptExtensions { get; init; }
     public required IReadOnlyList<EvidenceLineOption> Lines { get; init; }
+    public required IReadOnlyList<CompletenessRowViewModel> Completeness { get; init; }
 }
 
 /// <summary>Spec 047 — one evidence list row.</summary>

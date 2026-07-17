@@ -80,5 +80,42 @@ internal static class EvidenceTestFactory
             lines.Select(l => new EvidenceLineAllocationInput(l.ItemId, l.Amount)).ToList(),
             Pdf(), "invoice.pdf", "application/pdf", 1024);
 
+    public static DocumentRuleService NewDocRuleService(AppDbContext ctx) =>
+        new(ctx, new AdminAuditEventWriter(ctx));
+
+    public static LineCompletenessProjection NewCompletenessProjection(AppDbContext ctx) =>
+        new(ctx, NewDocRuleService(ctx));
+
+    /// <summary>Seeds a global-default DocumentRuleSet (CategoryId null) requiring the given types.</summary>
+    public static async Task SeedGlobalDefaultAsync(AppDbContext ctx, params EvidenceType[] requiredTypes)
+    {
+        var set = DocumentRuleSet.Create(null);
+        set.ReplaceItems(requiredTypes.Select(t => (t, true)));
+        ctx.DocumentRuleSets.Add(set);
+        await ctx.SaveChangesAsync();
+    }
+
+    /// <summary>Seeds a VALIDATED disbursement paying <paramref name="itemId"/> with an Invoice
+    /// evidence, so the completeness projection sees an Invoice present for that line (D1 both-source).</summary>
+    public static async Task SeedValidatedDisbursementWithInvoiceAsync(AppDbContext ctx, int appId, int itemId, decimal amount)
+    {
+        var app = await ctx.Applications.FirstAsync(a => a.Id == appId);
+        var d = Domain.Entities.Disbursement.Record(app, Actor, new DateOnly(2026, 7, 16), amount, "TX-1", null);
+        ctx.Disbursements.Add(d);
+        await ctx.SaveChangesAsync();
+
+        var evidence = Domain.Entities.DisbursementEvidence.Attach(
+            d, EvidenceKind.Invoice, amount, "CRC", "F-INV", new DateOnly(2026, 7, 16),
+            "inv.pdf", "disbursement-evidence/application/1/1/x.pdf", 1024, "application/pdf", Actor);
+        ctx.DisbursementEvidence.Add(evidence);
+        ctx.DisbursementLineAllocations.Add(Domain.Entities.DisbursementLineAllocation.For(d.Id, itemId, amount));
+        await ctx.SaveChangesAsync();
+
+        // Flip to Validated (the completeness projection filters on d.State == Validated).
+        typeof(Domain.Entities.Disbursement).GetProperty(nameof(Domain.Entities.Disbursement.State))!
+            .SetValue(d, DisbursementState.Validated);
+        await ctx.SaveChangesAsync();
+    }
+
     public static Stream Pdf() => new MemoryStream("%PDF-1.4 body"u8.ToArray());
 }

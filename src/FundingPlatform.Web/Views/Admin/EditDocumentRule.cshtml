@@ -1,0 +1,23 @@
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Admin.EditDocumentRuleViewModel
+@{
+    ViewData["Title"] = DocRuleResources.EditTitle;
+}
+
+<div class="page-header"><h2 class="page-title">@DocRuleResources.EditTitle — @Model.CategoryName</h2></div>
+
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="post" asp-action="EditDocumentRule" data-testid="docrule-edit-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="CategoryId" value="@(Model.CategoryId?.ToString() ?? "0")" />
+
+            @await Html.PartialAsync("_DocumentRuleItemsEditor", Model.Items)
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary" data-testid="docrule-save">@DocRuleResources.Action_Save</button>
+                <a asp-action="DocumentRules" class="btn btn-link">@DocRuleResources.Action_Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

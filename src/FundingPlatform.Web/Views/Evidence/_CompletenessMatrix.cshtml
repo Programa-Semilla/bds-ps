@@ -1,0 +1,38 @@
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Evidence.CompletenessRowViewModel
+@{
+    var c = Model.Completeness;
+    var presentSet = c.Present.ToHashSet();
+}
+
+<tr data-testid="completeness-row" data-item-id="@c.ItemId"
+    data-incomplete="@(c.EvidenceIncomplete ? "true" : "false")">
+    <td>@Model.LineLabel</td>
+    <td>
+        @if (c.Required.Count == 0)
+        {
+            <span class="text-muted">@DocRuleResources.Completeness_None</span>
+        }
+        else
+        {
+            foreach (var t in c.Required)
+            {
+                var present = presentSet.Contains(t);
+                <span class="badge @(present ? "bg-green-lt" : "bg-red-lt") me-1"
+                      data-testid="completeness-type" data-type="@t" data-present="@(present ? "true" : "false")">
+                    @EvidenceResources.TypeLabel(t): @(present ? DocRuleResources.Completeness_Present : DocRuleResources.Completeness_Missing)
+                </span>
+            }
+        }
+    </td>
+    <td>
+        @if (c.EvidenceIncomplete)
+        {
+            <span class="badge bg-red-lt" data-testid="completeness-incomplete-badge">@DocRuleResources.Completeness_IncompleteBadge</span>
+        }
+        else
+        {
+            <span class="badge bg-green-lt" data-testid="completeness-complete-badge">@DocRuleResources.Completeness_Complete</span>
+        }
+    </td>
+</tr>
