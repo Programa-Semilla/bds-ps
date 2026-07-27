@@ -119,7 +119,7 @@
 - [X] T049 [P] Verify no new N+1 in the materializer and the dashboard projection (batched reads); add the query-count guard used in the P3 completeness projection
 - [X] T050 [P] Run the P1–P3 regression filtered E2E (`Disbursement*`/`Tranche*`/`BudgetLine*`/`Evidence*`) and confirm green (SC-004)
 - [X] T051 [P] es-CR copy sweep — no English literals in the new views/resources (constitution rule)
-- [ ] T052 Update `CLAUDE.md` Recent Changes + flip the active-plan pointer to shipped once merged; append the spec-048 revisit outcome to `brainstorm/41-financial-disbursement-platform.md`
+- [X] T052 Update `CLAUDE.md` Recent Changes + flip the active-plan pointer to shipped once merged; append the spec-048 revisit outcome to `brainstorm/41-financial-disbursement-platform.md`
 
 ---
 

@@ -1,7 +1,7 @@
 # Brainstorm: Financial Disbursement Control Platform (program roadmap + slice P1)
 
 **Date:** 2026-07-15
-**Status:** P1 shipped (PR #78), P2 shipped (PR #79), P3 shipped (PR #80) — **P4 spec-created (spec 048)** — P5–P9 documented below for resume
+**Status:** P1 shipped (PR #78), P2 shipped (PR #79), P3 shipped (PR #80), **P4 shipped (PR #81)** — P5–P9 documented below for resume
 **Spec:** specs/045-financial-disbursement-core/ (slice P1 only)
 **Seed:** brainstorm/seeds/financial_disbursement_requirements_brainstorming.md (July 15 2026 requirements meeting — Danny Pérez, Pao Rodríguez Marín, Vivian Arias)
 
@@ -45,9 +45,9 @@ Anchor for the whole program: **allocation = executed FundingAgreement total** (
 | Slice | Title | Core scope | Depends on | Seed FR / AC anchors |
 |-------|-------|-----------|-----------|----------------------|
 | **P1** ✅ shipped (PR #78) | Financial Disbursement Core | Disbursement + append-only ledger + 5-dim balance + zero-colón reconciliation (3 comparisons, all blocking); Financial Operator role; freely-correct-until-validated | — | FR-022/023/024/025/026/027, FR-051/052(subset)/055/057/060/062, FR-081/082/083, FR-124(subset)/164/165/168/169; AC-001, AC-005 | **→ spec 045** |
-| **P2** | Tranches & budget-lines | Subdivide the allocation into tranches + budget-lines; per-line attribution; **Committed** dimension; many-to-many payment↔line; balance composition by tranche/line | P1 | FR-011/012/013/014/016/017/018; §10.9 official-vs-provisional; AC-002/AC-003 (line side) |
+| **P2** ✅ shipped (PR #79) | Tranches & budget-lines | Subdivide the allocation into tranches + budget-lines; per-line attribution; **Committed** dimension; many-to-many payment↔line; balance composition by tranche/line | P1 | FR-011/012/013/014/016/017/018; §10.9 official-vs-provisional; AC-002/AC-003 (line side) |
 | **P3** ✅ shipped (PR #80) | Evidence graph & required-doc rules | Typed evidence (12 doc types), M:N linking + **allocation across lines**, document **version history**, configurable required-document rules, completeness matrix, "can't close with missing evidence" | P1 (P2 for line allocation) | FR-037–050; §10.8 completeness matrix; AC-002/AC-003 (evidence side) |
-| **P4** | Full reconciliation engine | Multi-level reconciliation (doc→payment→line→participant→tranche→bank), **non-blocking warnings**, severity model, **discrepancy lifecycle** (open→assigned→under-correction→resolved→approved→waived), reconciliation dashboard | P1–P3 | FR-051–067 (full); §10.10 reconciliation scope |
+| **P4** ✅ shipped (PR #81) | Full reconciliation engine | Multi-level reconciliation (doc→payment→line→participant→tranche→bank), **non-blocking warnings**, severity model, **discrepancy lifecycle** (open→assigned→under-correction→resolved→approved→waived), reconciliation dashboard | P1–P3 | FR-051–067 (full); §10.10 reconciliation scope |
 | **P5** | Currency execution | Foreign-currency payments at **bank-applied rate on payment date**; preserve approved-vs-paid; **re-acceptance / addendum** workflow linked to original approval; quotation currency-consistency warnings | P1 (extends spec 015) | FR-068–079; AC-004; BR-008/009/010/011 |
 | **P6** | Interest, fees, refunds, adjustments | Bank interest (incl. return-to-SBD), bank fees/commissions, refunds, reimbursements, **reversals, credit notes**, manual adjustments; agency-level classification **without contaminating participant balances**; new ledger entry types | P1 | FR-089–100; §10.1 ledger types; BR-015; AC-007 (agency side) |
 | **P7** | Reporting & statements | Detailed execution report, participant statement, tranche report, agency financial summary, SBD-code exports (Excel/CSV/PDF), validated-vs-provisional distinction, report reproducibility/snapshots | P1–P4 | FR-101–115; §10.9; AC-006/AC-007; BR-017/018/019 |
@@ -133,7 +133,7 @@ User chose **all four** capabilities (A+B+C+D) in one slice — the program's la
 
 ## Revisit: 2026-07-17 — Slice P4 brainstormed → spec 048
 
-**Status:** P4 spec-created (`specs/048-full-reconciliation-engine/`, branch `048-full-reconciliation-engine`). P1 (045, PR #78) + P2 (046, PR #79) + P3 (047, PR #80) remain shipped. P5–P9 still parked.
+**Status:** P4 **shipped (PR #81)** (`specs/048-full-reconciliation-engine/`). P1 (045, PR #78) + P2 (046, PR #79) + P3 (047, PR #80) remain shipped. P5–P9 still parked.
 
 ### P4 scope confirmed (ratified this session)
 
@@ -162,3 +162,17 @@ User chose the **full bundle** — all four capabilities in one slice (like P3):
 - **OQ-4:** `Discrepancy` carries its own RowVersion for lifecycle-edit concurrency (constitution quality gate) — confirm no interaction with the standing deferred `dbo.Items`-RowVersion debt (surfaced in 046 + 047).
 - **OQ-5:** confirm the platform stores a distinct "requested" amount separate from the executed allocation surviving into execution; if not, **drop** the requested-vs-approved warning rather than ship it hollow.
 - Spec review (`REVIEW-SPEC.md`): **SOUND**, 0 critical / 0 important (2 clarity fixes + OQ-5 applied inline).
+
+### P4 outcome — shipped 2026-07-27 (PR #81)
+
+All five open threads resolved during plan/implement:
+
+- **OQ-1 → polymorphic.** Stable identity is `(scope-type, scope-entity-id, comparison)` behind the unique index `UX_Discrepancies_Identity` — not nullable typed FKs. One shape covers document/payment/line/participant/tranche without five nullable columns, and it is what makes the upsert/auto-resolve/insert loop a single dictionary diff.
+- **OQ-2 → materializer (persistence model C).** The pure evaluators (`DisbursementReconciliation`, `DisbursementLineReconciliation`, P3 closure legs) were left **untouched**; a wrapping `IReconciliationMaterializer` diffs computed-vs-persisted and applies Detect/Refresh/AutoResolve/AutoReopen. The money gates still call the evaluators directly and still throw on fresh recompute — the snapshot is visibility-only and best-effort, so a materializer failure can never let bad money through (SC-004, proven by the P1–P3 regression E2E 12/12).
+- **OQ-3 → dedicated dashboard.** `ReconciliationDashboardController` + `IReconciliationDashboardProjection`, not an extension of the per-application surface. Group-scoped FinOp / agency-wide Admin / read-only Auditor.
+- **OQ-4 → yes, own `RowVersion`.** `Discrepancy.RowVersion` carries lifecycle-edit concurrency (`DbUpdateConcurrencyException` → retryable refusal). No interaction with the standing deferred `dbo.Items`-RowVersion debt — that debt is still open, still carried into P5+.
+- **OQ-5 → dropped.** No stored "requested" amount survives into execution, so the requested-vs-approved variance rule was **removed** rather than shipped hollow. The warning starter set is the remaining three: evidence date anomaly, possible duplicate payment, graph-invoice allocation drift (the last absorbing spec 047 FINDING-13).
+
+**One anchor-decision deviation:** anchor 9 called for the assignment notification to ride the spec-021 **outbox** with a new event type. Implementation used a **best-effort direct-send** `DiscrepancyAssignmentEmailFactory` inline in `AssignAsync` (log-and-continue) instead — no new `NotificationEvent`, no new outbox dedup key. Rationale matches the spec-043 digest precedent: the notification is operational rather than participant-facing, and the outbox's `(EventType, ApplicationId, VersionHistoryId, RecipientUserId)` dedup key has no natural anchor for a discrepancy assignment. If P7/P8 want retry semantics on it, promoting it to the outbox is a contained change.
+
+**Carried debt into P5+:** tolerance is a persisted column (`ToleranceApplied`, always 0 today) with no admin config surface — the config UI is P5, where FX rounding creates the first real need. Assignee options are agency-wide rather than group-scoped (deep-review S2, accepted: the write is still group-guarded; an out-of-group assignee merely gets a notification for a discrepancy they may not act on).
