@@ -35,11 +35,13 @@ Claiming work is complete without verification is dishonesty, not efficiency.
 Verify implementation is complete by running tests AND validating spec compliance.
 
 **Key Steps:**
+- **Step 0: Closeout gate** (blocks on unresolved Critical/Important findings)
+- Step 0a: Smoke test reminder
 - Step 1: Run tests (existing behavior)
 - **Step 2: Code hygiene review** (mechanical defect detection)
 - **Step 3: Validate spec compliance** (spec-driven)
 - **Step 4: Check for spec drift** (spec-driven)
-- Blocks completion if tests, code hygiene, OR spec compliance fails
+- Blocks completion if closeout gate, tests, code hygiene, OR spec compliance fails
 
 ## The Iron Law
 
@@ -105,6 +107,71 @@ Use `speckit-spex-brainstorm` or `/speckit-specify` to create one first.
 
 ## The Process
 
+### 0. Closeout Gate
+
+Before any other verification, check whether unresolved Critical or Important findings remain from a deep review.
+
+Resolve the spec directory (reuse the same `check-prerequisites.sh` logic from the Spec Selection section above):
+
+```bash
+PREREQS=$(.specify/scripts/bash/check-prerequisites.sh --json --paths-only 2>/dev/null) || true
+if [ -n "$PREREQS" ]; then
+  FEATURE_DIR=$(echo "$PREREQS" | jq -r '.FEATURE_DIR' 2>/dev/null)
+fi
+```
+
+Run the closeout gate script:
+
+```bash
+CLOSEOUT_GATE="$PLUGIN_ROOT/scripts/spex-closeout-gate.sh"
+if [ -x "$CLOSEOUT_GATE" ] && [ -n "${FEATURE_DIR:-}" ]; then
+  GATE_OUTPUT=$("$CLOSEOUT_GATE" "$FEATURE_DIR" 2>&1) || {
+    echo "Closeout gate failed: $GATE_OUTPUT"
+    # STOP: Do not proceed. Unresolved findings must be fixed and review re-run.
+    exit 1
+  }
+fi
+```
+
+**If the gate fails** (exit code non-zero): STOP. Report the blocking findings from the gate output and do not proceed to any further verification steps. The developer must fix the findings and re-run the deep review.
+
+**If the gate passes** (exit code 0, or script not found, or no spec dir): proceed to the next step.
+
+### 0a. Smoke Test Reminder
+
+Before running verification, check if the spec has acceptance scenarios and whether a smoke test has been recorded:
+
+```bash
+# Check if spec has acceptance scenarios
+SPEC_FILE=""
+PREREQS=$(.specify/scripts/bash/check-prerequisites.sh --json --paths-only 2>/dev/null) || true
+if [ -n "$PREREQS" ]; then
+  FEATURE_DIR=$(echo "$PREREQS" | jq -r '.FEATURE_DIR' 2>/dev/null)
+  SPEC_FILE="$FEATURE_DIR/spec.md"
+fi
+
+HAS_SCENARIOS=0
+if [ -n "$SPEC_FILE" ] && [ -f "$SPEC_FILE" ]; then
+  HAS_SCENARIOS=$(grep -c '\*\*Given\*\*' "$SPEC_FILE" 2>/dev/null || echo 0)
+fi
+
+# Check if smoke test was recorded
+SMOKE_TEST_DONE=false
+if [ -f ".specify/.spex-state" ]; then
+  SMOKE_TEST_DONE=$(jq -r '.smoke_test_completed // false' .specify/.spex-state 2>/dev/null)
+fi
+```
+
+**If the spec has acceptance scenarios AND no smoke test was recorded** (`HAS_SCENARIOS` > 0 AND `SMOKE_TEST_DONE` is not `true`):
+
+Display a reminder (informational only, does NOT block verification):
+```
+NOTE: Acceptance scenarios exist but no smoke test was recorded.
+Consider running `/speckit-spex-smoke-test` first to validate runtime behavior.
+```
+
+**If a smoke test was recorded** or **no acceptance scenarios exist**: proceed silently.
+
 ### 1. Run Tests
 
 **Execute all tests:**
@@ -159,34 +226,57 @@ These are craft-level issues that no spec describes but that cause real bugs.**
 cat specs/features/[feature-name].md
 ```
 
-**Check each requirement:**
+**Check each requirement and emit a machine-readable compliance matrix:**
+
+For each functional requirement in the spec, determine its status. There are exactly two valid statuses:
+
+- **IMPLEMENTED**: Code fully implements the requirement. You can point to the function, the test, and the behavior.
+- **MISSING**: Code does not implement the requirement, or implements it only partially.
+
+There is NO "PARTIAL" status. There is NO "COMPLIANT (with documented gap)" status. There is NO "IMPLEMENTED (known limitation)" status. If the code doesn't fully do what the spec says MUST happen, the status is MISSING.
 
 ```markdown
 Functional Requirement 1: [From spec]
-  IMPLEMENTED / MISSING
-  TESTED / UNTESTED
-  MATCHES SPEC / DEVIATION
+  Status: IMPLEMENTED | MISSING
+  Evidence: [file:line where it's implemented, or why it's missing]
 
 Functional Requirement 2: [From spec]
-  ...
+  Status: IMPLEMENTED | MISSING
+  Evidence: [file:line where it's implemented, or why it's missing]
 ```
 
-**Verify:**
-- All requirements implemented
-- All requirements tested
-- All behavior matches spec
-- No missing features
-- No extra features (or documented)
+**After checking ALL requirements, emit a machine-readable gate result block:**
 
-**Calculate compliance:**
 ```
-Spec Compliance: X/X requirements = XX%
+SPEC_COMPLIANCE_RESULT:
+  total: N
+  implemented: N
+  missing: N
+  percentage: XX%
+  gate: PASS | FAIL
 ```
 
-**If compliance < 100%:**
-- STOP: Use `speckit-spex-evolve` to reconcile
-- Document all deviations
-- Do not proceed until resolved
+The gate value is determined mechanically: if `missing > 0`, the gate is `FAIL`. No exceptions. No judgment calls. No "but it's a known gap." If the spec says MUST and the code doesn't, it's MISSING, and the gate is FAIL.
+
+**Anti-rationalization guardrails (read these before making your compliance decision):**
+
+You WILL be tempted to let partial compliance pass. You will find plausible reasons. All of them are wrong:
+
+| Rationalization | Why it's wrong |
+|-----------------|---------------|
+| "It's a known gap" | Known gaps are still gaps. MISSING. |
+| "It's documented as future work" | Future work means not implemented. MISSING. |
+| "There's a workaround" | Workarounds are not implementations. MISSING. |
+| "The spec assumption section mentions this" | Assumptions don't override MUST requirements. MISSING. |
+| "It's only partially implemented" | Partial is not complete. MISSING. |
+| "The user knows about this" | User awareness doesn't change compliance. MISSING. |
+
+The only valid paths when the gate is FAIL:
+1. Implement the missing requirement, then re-run verify
+2. Run `/speckit-spex-evolve` to formally remove or defer the requirement from the spec, then re-run verify
+
+**If compliance = 100%:** Proceed to next step.
+**If compliance < 100%:** STOP. Do not proceed. Report the MISSING requirements and suggest the two valid resolution paths above.
 
 ### 4. Check for Spec Drift
 
@@ -299,7 +389,7 @@ OR
 **All conditions must be true:**
 - [x] All tests passing
 - [x] Code hygiene review clean (no dead code, no mutation bugs, no orphans)
-- [x] Spec compliance 100%
+- [x] `SPEC_COMPLIANCE_RESULT.gate` is `PASS` (100% compliance, zero MISSING)
 - [x] No spec drift
 - [x] All success criteria met
 

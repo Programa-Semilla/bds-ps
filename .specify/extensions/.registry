@@ -22,7 +22,7 @@
     "spex": {
       "version": "1.0.0",
       "source": "local",
-      "manifest_hash": "sha256:468ba6469e5ca2ca54e07a36496076f3368613e619c29f3bb959bd20dad3bcc8",
+      "manifest_hash": "sha256:7f963c2e9551aab962542fe6a7e93004df5d5f58bd02882006bffe2a7412cac7",
       "enabled": true,
       "priority": 10,
       "registered_commands": {
@@ -30,17 +30,20 @@
           "speckit.spex.brainstorm",
           "speckit.spex.ship",
           "speckit.spex.help",
-          "speckit.spex.init",
           "speckit.spex.evolve",
           "speckit.spex.spec-refactoring",
           "speckit.spex.using-superpowers",
           "speckit.spex.spec-kit",
           "speckit.spex.extensions",
-          "speckit.spex.flow-state"
+          "speckit.spex.submit",
+          "speckit.spex.finish",
+          "speckit.spex.flow-state",
+          "speckit.spex.smoke-test",
+          "speckit.spex.clear"
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-05-07T05:11:32.629296+00:00"
+      "installed_at": "2026-07-27T14:35:12.292501+00:00"
     },
     "spex-gates": {
       "version": "1.0.0",
@@ -58,13 +61,13 @@
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-05-07T05:11:45.106224+00:00"
+      "installed_at": "2026-07-27T14:35:12.662221+00:00"
     },
     "spex-worktrees": {
       "version": "1.0.0",
       "source": "local",
-      "manifest_hash": "sha256:eabdad5cd992c34a52579ae5e691062e08c3a63345826f5559ddf4576fed5fdf",
-      "enabled": false,
+      "manifest_hash": "sha256:8e427d7d4c4c865401bcbb4f36dd16614fa1fc201ce7d314a27a02185e28461a",
+      "enabled": true,
       "priority": 10,
       "registered_commands": {
         "claude": [
@@ -72,21 +75,21 @@
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-05-07T05:11:45.441152+00:00"
+      "installed_at": "2026-07-27T14:35:13.037248+00:00"
     },
     "spex-deep-review": {
       "version": "1.0.0",
       "source": "local",
-      "manifest_hash": "sha256:7187fb3960ce600c5ed8911a9ad7a93bfcfb4f8917e9a421ad5e465dff640544",
+      "manifest_hash": "sha256:854146d677b35a744606d443316a6c7f1383d978b38635539410d8b8db34b1e8",
       "enabled": true,
       "priority": 10,
       "registered_commands": {
         "claude": [
-          "speckit.spex-deep-review.review"
+          "speckit.spex-deep-review.run"
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-05-07T05:11:45.803658+00:00"
+      "installed_at": "2026-07-27T14:35:13.375722+00:00"
     },
     "spex-teams": {
       "version": "1.0.0",
@@ -102,7 +105,40 @@
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-05-07T05:11:46.153517+00:00"
+      "installed_at": "2026-07-27T14:35:13.719410+00:00"
+    },
+    "spex-collab": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:6b46c811fb6794455544330d48f74e38a7d18a6ca419f00bedec7d65771596fd",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.spex-collab.reviewers",
+          "speckit.spex-collab.phase-split",
+          "speckit.spex-collab.phase-manager",
+          "speckit.spex-collab.revise",
+          "speckit.spex-collab.reconcile",
+          "speckit.spex-collab.triage"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-07-27T14:35:14.110156+00:00"
+    },
+    "spex-detach": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:00f8bbf47b16e19cb6474e4bd913a310b88022d283f98089f3f560e1a52954b6",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.spex-detach.detach"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-07-27T14:35:14.456634+00:00"
     }
   }
 }

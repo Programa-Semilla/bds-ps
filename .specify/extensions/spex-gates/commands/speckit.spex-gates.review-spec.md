@@ -7,7 +7,7 @@ description: "Review specifications for soundness, completeness, and implementab
 ## Ship Pipeline Guard
 
 If `.specify/.spex-state` exists and its `status` is `running`, this command is part of an autonomous pipeline. Check the `ask` field:
-- If `ask` is `"smart"` or `"never"`: suppress all user prompts (do NOT use AskUserQuestion), complete the review autonomously, and return immediately so the pipeline can advance.
+- If `ask` is `"smart"` or `"never"`: suppress all user prompts (do NOT prompt the user interactively), complete the review autonomously, and return immediately so the pipeline can advance.
 - If `ask` is `"always"`: prompt the user as normal.
 
 ```bash
@@ -25,6 +25,16 @@ fi
 ```
 
 In autonomous mode: do NOT output a completion summary, do NOT ask "Shall I proceed?", do NOT suggest next steps. Complete the review and return.
+
+## Step 0: Resolve Plugin Root
+
+Read the `<plugin-root>` tag from the `<spex-context>` system reminder and set it as a bash variable. All script references below use `$PLUGIN_ROOT`:
+
+```bash
+FLOW_STATE="$PLUGIN_ROOT/scripts/spex-flow-state.sh"
+```
+
+Set `PLUGIN_ROOT` from the `<plugin-root>` tag in the system reminder before running these commands.
 
 ## Overview
 
@@ -63,7 +73,7 @@ If this fails (not on a feature branch, no matching spec directory), fall back t
 find specs/ -name "spec.md" -type f 2>/dev/null | head -20
 ```
 
-**If specs found:** Present list and ask user to select one using AskUserQuestion (skip in autonomous mode).
+**If specs found:** Present list and ask user to select one using the agent's interactive prompt mechanism (skip in autonomous mode).
 
 **If no specs found:** Inform user:
 ```
@@ -251,104 +261,7 @@ Invoke `/speckit-analyze` to check consistency between:
 
 ### 9. Generate Review Report
 
-**Write the review report to `REVIEW-SPEC.md` in the spec directory** (e.g., `specs/[feature-name]/REVIEW-SPEC.md`). This enables artifact-based detection by the status line.
-
-**Report structure:**
-
-```markdown
-# Spec Review: [Feature Name]
-
-**Spec:** specs/features/[feature].md
-**Date:** YYYY-MM-DD
-**Reviewer:** Claude (speckit-spex-gates-review-spec)
-
-## Overall Assessment
-
-**Status:** SOUND / NEEDS WORK / MAJOR ISSUES
-
-**Summary:** [1-2 sentence overall assessment]
-
-## Completeness: [Score/5]
-
-### Structure
-- All required sections present
-- Recommended sections included
-- No placeholder text
-
-### Coverage
-- All functional requirements defined
-- Error cases identified
-- Edge cases covered
-- Success criteria specified
-
-**Issues:**
-- [List any completeness issues]
-
-## Clarity: [Score/5]
-
-### Language Quality
-- No ambiguous language
-- Requirements are specific
-- No vague terms
-
-**Ambiguities Found:**
-1. [Quote ambiguous text]
-   - Issue: [What's unclear]
-   - Suggestion: [Specific alternative]
-
-## Implementability: [Score/5]
-
-### Plan Generation
-- Can generate implementation plan
-- Dependencies identified
-- Constraints realistic
-- Scope manageable
-
-**Issues:**
-- [List any implementability issues]
-
-## Testability: [Score/5]
-
-### Verification
-- Success criteria measurable
-- Requirements verifiable
-- Acceptance criteria clear
-
-**Issues:**
-- [List any testability issues]
-
-## Constitution Alignment
-
-[If constitution exists]
-
-- Follows project principles
-- Patterns consistent
-- Error handling aligned
-
-**Violations:**
-- [List any violations]
-
-## Recommendations
-
-### Critical (Must Fix Before Implementation)
-- [ ] [Critical issue 1]
-- [ ] [Critical issue 2]
-
-### Important (Should Fix)
-- [ ] [Important issue 1]
-
-### Optional (Nice to Have)
-- [ ] [Optional improvement 1]
-
-## Conclusion
-
-[Final assessment and recommendation]
-
-**Ready for implementation:** Yes / No / After fixes
-
-**Next steps:**
-[What should be done]
-```
+Output the review findings to the console. Do NOT write a `REVIEW-SPEC.md` file. All review information is presented directly in the conversation output.
 
 ### 10. Make Recommendation
 
@@ -365,6 +278,43 @@ Invoke `/speckit-analyze` to check consistency between:
 - Significant rework needed
 - May need re-brainstorming
 
+### 11. Offer to Fix Issues
+
+After presenting the review report:
+
+**Autonomous mode:** Fix all issues (both Important and Minor) automatically without prompting.
+
+**If Important issues exist (with or without Minor):**
+
+Present a summary of all Important findings as a numbered list, then ask the user (single-select prompt, header: "Fix"):
+
+**"Found N Important issue(s). Fix them now?"**
+
+Options (if Minor issues also exist):
+1. **"Fix Important issues"**: "Apply fixes to the spec for all Important findings"
+2. **"Fix all (Important + Minor)"**: "Also fix Minor issues in the same pass"
+3. **"Skip fixes"**: "Proceed without fixing, review the findings manually"
+
+Options (if no Minor issues):
+1. **"Fix Important issues"**: "Apply fixes to the spec for all Important findings"
+2. **"Skip fixes"**: "Proceed without fixing, review the findings manually"
+
+If the user selects to fix: apply the fixes directly to `spec.md`, then re-display only the changed sections so the user can verify.
+
+**If only Minor issues exist (no Important):**
+
+Present a summary of all Minor findings, then ask the user (single-select prompt, header: "Fix"):
+
+**"Found N Minor issue(s). Fix them now?"**
+
+Options:
+1. **"Fix Minor issues"**: "Apply fixes to the spec"
+2. **"Skip fixes"**: "Proceed without fixing"
+
+If the user selects to fix: apply the fixes directly to `spec.md`, then re-display only the changed sections.
+
+**If no issues:** Skip this step entirely.
+
 ## Review Checklist
 
 - [ ] Load and read spec thoroughly
@@ -377,6 +327,7 @@ Invoke `/speckit-analyze` to check consistency between:
 - [ ] Run `/speckit-analyze` for cross-artifact consistency (if available)
 - [ ] Generate review report
 - [ ] Make recommendation (ready/needs work/major issues)
+- [ ] Offer to fix Important/Minor issues
 
 ## Quality Standards
 
@@ -416,3 +367,37 @@ Invoke `/speckit-analyze` to check consistency between:
 - Balance perfection with pragmatism
 
 **The goal is implementability, not perfection.**
+
+## Update Flow State
+
+**MANDATORY: Update flow state.** This MUST run on every exit path, including early returns (e.g., "already passed"). Use the flow state script:
+
+```bash
+FLOW_STATE="$PLUGIN_ROOT/scripts/spex-flow-state.sh" && [ -x "$FLOW_STATE" ] && "$FLOW_STATE" gate review-spec
+```
+
+This updates the status line to show `S ✓`.
+
+## Auto-Commit (if enabled)
+
+Check the git extension's auto-commit config. Only commit if the user has enabled auto-commit for this stage:
+
+```bash
+GIT_CONFIG=".specify/extensions/git/git-config.yml"
+AUTO_COMMIT=$(yq -r '.auto_commit.after_specify.enabled // .auto_commit.default // false' "$GIT_CONFIG" 2>/dev/null)
+AUTO_COMMIT=${AUTO_COMMIT:-false}
+```
+
+If `AUTO_COMMIT` is `true` and there are uncommitted changes:
+
+```bash
+if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard specs/ .specify/ 2>/dev/null)" ]; then
+  git add -u
+  git add specs/ .specify/ 2>/dev/null || true
+  git commit -m "review-spec: gate passed, spec updated
+
+Assisted-By: 🤖 Claude Code"
+fi
+```
+
+Do NOT suggest manual commit commands or next steps. The workflow continues automatically.

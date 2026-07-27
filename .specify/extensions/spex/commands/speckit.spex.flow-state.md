@@ -1,39 +1,54 @@
 ---
 description: "Create or update flow state for step-by-step SDD workflow tracking"
+argument-hint: "[running <phase>|clarified|implemented|gate <name>]"
 ---
 
 # Flow State Management
 
-This command creates the `.specify/.spex-state` file with `"mode": "flow"` to enable the status line during step-by-step SDD workflow (as opposed to the autonomous ship pipeline).
+This command manages the `.specify/.spex-state` file with `"mode": "flow"` to enable the status line during step-by-step SDD workflow (as opposed to the autonomous ship pipeline).
 
-## When Invoked
+## Step 0: Resolve Plugin Root
 
-Called automatically via the `after_specify` hook when a feature specification is created. This tracks progress through the manual workflow: specify, plan, tasks, implement.
-
-## Action
-
-1. Check if `.specify/.spex-state` already exists with `"mode": "ship"`. If so, do NOT overwrite (ship pipeline takes precedence).
-
-2. Get the current branch and spec directory:
+Read the `<plugin-root>` tag from the `<spex-context>` system reminder and set it as a bash variable. All script references below use `$PLUGIN_ROOT`:
 
 ```bash
-BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-SPEC_DIR="specs/$BRANCH"
+FLOW_STATE="$PLUGIN_ROOT/scripts/spex-flow-state.sh"
 ```
 
-3. Create or update the flow state file:
+Set `PLUGIN_ROOT` from the `<plugin-root>` tag in the system reminder before running these commands.
+
+## Execution
+
+Run the `spex-flow-state.sh` script, passing through all arguments:
 
 ```bash
-cat > .specify/.spex-state << EOF
-{
-  "mode": "flow",
-  "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "feature_branch": "$BRANCH",
-  "spec_dir": "$SPEC_DIR",
-  "implemented": false,
-  "clarified": false
-}
-EOF
+FLOW_STATE="$PLUGIN_ROOT/scripts/spex-flow-state.sh"
+[ -x "$FLOW_STATE" ] || { echo "ERROR: spex-flow-state.sh not found"; exit 1; }
+"$FLOW_STATE" "$@"
 ```
 
-4. Do NOT output anything to the user. This runs silently as a hook.
+If invoked with no arguments (from the `after_specify` hook), pass `create`:
+
+```bash
+"$FLOW_STATE" create
+```
+
+If invoked with `--spec-dir` context available (e.g., the spec directory is known), pass it:
+
+```bash
+"$FLOW_STATE" create --spec-dir "specs/034-unified-setup-command"
+```
+
+## Available Commands
+
+| Command | Hook | What it does |
+|---------|------|-------------|
+| `create [--spec-dir <dir>]` | `after_specify` | Create or update flow state (preserves gate fields if already exists) |
+| `running <phase>` | `before_*` | Set active phase shown as `▶` in status line |
+| `running done` | `after_*` | Clear active phase indicator |
+| `clarified` | `after_clarify` | Mark clarification complete |
+| `implemented` | `after_implement` | Mark implementation complete |
+| `gate <name>` | spex-gates hooks | Mark quality gate passed (review-spec, review-plan, review-code) |
+| `cleanup` | (manual) | Remove state file |
+
+All commands are silent (no output) unless an error occurs. Ship mode state files are never overwritten.

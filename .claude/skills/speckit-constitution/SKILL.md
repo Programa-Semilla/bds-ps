@@ -19,6 +19,25 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Scope Guard
+
+This command's own work is limited to updating the project constitution and propagating
+constitution-driven changes to the dependent artifacts identified in this command.
+
+- Classify every part of the user input as either constitution content or a separate,
+  non-governance intent.
+- If the input includes feature implementation, code generation, refactoring, building, or
+  deployment requests, you **MUST NOT** execute them. Extract them as deferred intents instead.
+- You **MUST NOT** create, modify, or delete application source files, feature routes,
+  components, tests, deployment files, or other artifacts unrelated to the constitution
+  workflow and its required propagation.
+- If it is unclear whether an instruction is constitution content, ask for clarification before
+  making changes.
+- After completing the constitution update, include a `Next Actions` section for each deferred
+  intent. List the original intent and suggest the appropriate follow-up Spec Kit command, such
+  as `/speckit-specify`, without invoking it.
+- If there are no non-governance intents, omit the `Next Actions` section.
+
 ## Pre-Execution Checks
 
 **Check for extension hooks (before constitution update)**:
@@ -52,6 +71,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
     Wait for the result of the hook command before proceeding to the Outline.
     ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
@@ -86,7 +106,7 @@ Follow this execution flow:
    - Read `.specify/templates/plan-template.md` and ensure any "Constitution Check" or rules align with updated principles.
    - Read `.specify/templates/spec-template.md` for scope/requirements alignment—update if constitution adds/removes mandatory sections or constraints.
    - Read `.specify/templates/tasks-template.md` and ensure task categorization reflects new or removed principle-driven task types (e.g., observability, versioning, testing discipline).
-   - Read each command file in `.specify/templates/commands/*.md` (including this one) to verify no outdated references (agent-specific names like CLAUDE only) remain when generic guidance is required.
+   - Read each installed Spec Kit command file for your agent (including this one) — named `speckit.*` or `speckit-*` (dot or hyphen depending on the agent), or laid out as `speckit-<name>/SKILL.md` for skills-based integrations, e.g. in `.github/agents/`, `.github/skills/`, `.claude/skills/`, or your agent's equivalent commands directory — to verify no outdated references (CLAUDE-only or other agent-specific names) remain when generic guidance is required.
    - Read any runtime guidance docs (e.g., `README.md`, `docs/quickstart.md`, or agent-specific guidance files if present). Update references to principles changed.
 
 5. Produce a Sync Impact Report (prepend as an HTML comment at top of the constitution file after update):
@@ -109,6 +129,7 @@ Follow this execution flow:
    - New version and bump rationale.
    - Any files flagged for manual follow-up.
    - Suggested commit message (e.g., `docs: amend constitution to vX.Y.Z (principle additions + governance update)`).
+   - A `Next Actions` section for any deferred non-governance intents.
 
 Formatting & Style Requirements:
 
@@ -154,4 +175,5 @@ Check if `.specify/extensions.yml` exists in the project root.
     Executing: `/{command}`
     EXECUTE_COMMAND: {command}
     ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
