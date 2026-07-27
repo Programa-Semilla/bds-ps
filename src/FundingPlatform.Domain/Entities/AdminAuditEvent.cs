@@ -221,6 +221,24 @@ public class AdminAuditEvent
     /// "0" for the global-default set).</summary>
     public const string TargetTypeDocRule = "docrule";
 
+    // ---------- Spec 048 — reconciliation discrepancy lifecycle. ----------
+
+    /// <summary>Spec 048 / FR-007 — an operator assigned a discrepancy to a responsible user
+    /// (payload: {discrepancyId, applicationId, before, after}).</summary>
+    public const string DiscrepancyAssigned = "discrepancy.assigned";
+    /// <summary>Spec 048 / FR-007 — an operator marked a discrepancy as under correction.</summary>
+    public const string DiscrepancyUnderCorrection = "discrepancy.under_correction";
+    /// <summary>Spec 048 / FR-008 — an operator waived a non-blocking Warning discrepancy (with a reason).</summary>
+    public const string DiscrepancyWaived = "discrepancy.waived";
+    /// <summary>Spec 048 / FR-011 — the engine auto-resolved a discrepancy (numbers matched again).</summary>
+    public const string DiscrepancyResolved = "discrepancy.resolved";
+    /// <summary>Spec 048 / FR-016 — the engine auto-reopened a discrepancy (it recurred).</summary>
+    public const string DiscrepancyReopened = "discrepancy.reopened";
+
+    /// <summary>Spec 048 — target-type discriminator for the <c>discrepancy.*</c> mutations. The
+    /// <c>discrepancy.</c> prefix routes here; <c>TargetId = discrepancyId</c> (parsed from the payload).</summary>
+    public const string TargetTypeDiscrepancy = "discrepancy";
+
     public long Id { get; private set; }
     public DateTimeOffset OccurredAt { get; private set; }
     public string ActorUserId { get; private set; } = string.Empty;

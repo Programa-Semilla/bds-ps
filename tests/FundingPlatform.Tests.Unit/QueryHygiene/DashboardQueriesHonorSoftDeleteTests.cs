@@ -175,6 +175,16 @@ public class DashboardQueriesHonorSoftDeleteTests
                 "Spec 047 — aggregate-mediated by-Id application load for the off-ledger Close/Reopen; not a dashboard surface.",
             ["src/FundingPlatform.Web/Controllers/EvidenceController.cs"] =
                 "Spec 047 — single-row by-Id state read for the evidence-surface executed-state gate; not a dashboard surface.",
+
+            // Spec 048 — reconciliation engine. The dashboard LIST routes through
+            // ReconciliationDashboardProjection (which uses ExcludeDeleted). These two are NOT list
+            // sources: DiscrepancyLifecycleService does a single-row by-Id applicant-name read for the
+            // best-effort assignment email; ReconciliationDashboardController's supplier/tranche filter
+            // options use `_db.Applications.Any(...)` group-overlap existence probes, not app-list reads.
+            ["src/FundingPlatform.Infrastructure/Services/DiscrepancyLifecycleService.cs"] =
+                "Spec 048 — single-row by-Id applicant-name read for the assignment email; not a dashboard surface.",
+            ["src/FundingPlatform.Web/Controllers/ReconciliationDashboardController.cs"] =
+                "Spec 048 — group-overlap existence probes for the filter dropdowns; the list routes through ReconciliationDashboardProjection.",
         };
 
     /// <summary>

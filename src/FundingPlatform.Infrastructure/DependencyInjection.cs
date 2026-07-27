@@ -155,6 +155,9 @@ public static class DependencyInjection
         // Spec 041 / US3 / T030 — branded password-changed confirmation factory.
         services.AddScoped<PasswordChangedEmailFactory>();
 
+        // Spec 048 / US4 — discrepancy-assignment notification (direct-send, best-effort).
+        services.AddScoped<DiscrepancyAssignmentEmailFactory>();
+
         // Spec 021 / T117 — hourly stage-expiry reminder hosted service.
         services.AddHostedService<StageExpiryReminderService>();
 
@@ -227,6 +230,12 @@ public static class DependencyInjection
         services.AddScoped<Application.DocRules.IDocumentRuleService, Services.DocumentRuleService>();
         services.AddScoped<Application.DocRules.ILineCompletenessProjection, Services.LineCompletenessProjection>();
         services.AddScoped<Application.Evidence.IBudgetLineClosureService, Services.BudgetLineClosureService>();
+
+        // Spec 048 — full reconciliation engine: persisted-discrepancy materializer (visibility snapshot)
+        // + the operator-driven discrepancy lifecycle (assign/under-correction/waive).
+        services.AddScoped<Application.Reconciliation.IReconciliationMaterializer, Services.ReconciliationMaterializer>();
+        services.AddScoped<Application.Reconciliation.IDiscrepancyLifecycleService, Services.DiscrepancyLifecycleService>();
+        services.AddScoped<Application.Reconciliation.IReconciliationDashboardProjection, Persistence.ReconciliationDashboardProjection>();
 
         // Spec 043 — regulatory freshness gating + Hacienda API sync.
         services.AddRegulatoryFreshness(configuration);

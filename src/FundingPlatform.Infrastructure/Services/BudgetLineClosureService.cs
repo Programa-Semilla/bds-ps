@@ -5,6 +5,7 @@ using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Admin.Users.DTOs;
 using FundingPlatform.Application.DocRules;
 using FundingPlatform.Application.Evidence;
+using FundingPlatform.Application.Reconciliation;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
 using FundingPlatform.Domain.Services;
@@ -24,15 +25,18 @@ public sealed class BudgetLineClosureService : IBudgetLineClosureService
     private readonly AppDbContext _db;
     private readonly ILineCompletenessProjection _completeness;
     private readonly IAdminAuditEventWriter _audit;
+    private readonly IReconciliationMaterializer _materializer;
 
     public BudgetLineClosureService(
         AppDbContext db,
         ILineCompletenessProjection completeness,
-        IAdminAuditEventWriter audit)
+        IAdminAuditEventWriter audit,
+        IReconciliationMaterializer materializer)
     {
         _db = db;
         _completeness = completeness;
         _audit = audit;
+        _materializer = materializer;
     }
 
     public async Task<LineCompleteness?> GetCompletenessAsync(int applicationId, int itemId, CancellationToken ct)
@@ -114,7 +118,12 @@ public sealed class BudgetLineClosureService : IBudgetLineClosureService
             JsonSerializer.Serialize(new { itemId, applicationId, reason }),
             ct);
 
-        return await CommitAsync(ct);
+        var closeResult = await CommitAsync(ct);
+        if (closeResult.Succeeded)
+        {
+            await _materializer.MaterializeAsync(applicationId, actorUserId, ct);
+        }
+        return closeResult;
     }
 
     public async Task<Result> ReopenAsync(int applicationId, int itemId, string reason, string actorUserId, CancellationToken ct)
@@ -145,7 +154,12 @@ public sealed class BudgetLineClosureService : IBudgetLineClosureService
             JsonSerializer.Serialize(new { itemId, applicationId, reason }),
             ct);
 
-        return await CommitAsync(ct);
+        var reopenResult = await CommitAsync(ct);
+        if (reopenResult.Succeeded)
+        {
+            await _materializer.MaterializeAsync(applicationId, actorUserId, ct);
+        }
+        return reopenResult;
     }
 
     /// <summary>For each required type, any graph evidence of that type linked to the line must be fully

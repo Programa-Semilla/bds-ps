@@ -1,0 +1,79 @@
+@using System.Globalization
+@using FundingPlatform.Web.Resources
+@model FundingPlatform.Web.ViewModels.Reconciliation.ReconciliationIndexViewModel
+@{
+    ViewData["Title"] = ReconciliationResources.Title;
+    var crc = new CultureInfo("es-CR");
+    string Money(decimal v) => v.ToString("C2", crc);
+}
+
+<div class="page-header d-print-none">
+    <div class="container-xl">
+        <h2 class="page-title">@ReconciliationResources.Title</h2>
+        <div class="text-secondary">@ReconciliationResources.Subtitle</div>
+    </div>
+</div>
+
+<div class="page-body">
+    <div class="container-xl">
+        <partial name="_SummaryTiles" model="Model.Summary" />
+        <partial name="_FilterToolbar" model="Model" />
+
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table card-table table-vcenter" data-testid="reconciliation-list">
+                    <thead>
+                        <tr>
+                            <th>@ReconciliationResources.Col_Participant</th>
+                            <th>@ReconciliationResources.Col_Scope</th>
+                            <th>@ReconciliationResources.Col_Comparison</th>
+                            <th>@ReconciliationResources.Col_Severity</th>
+                            <th>@ReconciliationResources.Col_State</th>
+                            <th class="text-end">@ReconciliationResources.Col_Difference</th>
+                            <th>@ReconciliationResources.Col_Responsible</th>
+                            <th>@ReconciliationResources.Col_Detected</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Rows.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="9" class="text-secondary" data-testid="reconciliation-empty">@ReconciliationResources.Empty</td>
+                            </tr>
+                        }
+                        @foreach (var r in Model.Rows)
+                        {
+                            <tr data-testid="reconciliation-row"
+                                data-application="@r.ApplicationNumber"
+                                data-severity="@r.Severity"
+                                data-state="@r.State"
+                                data-supplier="@r.SupplierName">
+                                <td>
+                                    <div>@r.ApplicationNumber</div>
+                                    <div class="text-secondary small">@r.ParticipantName</div>
+                                </td>
+                                <td>@r.ScopeLabel</td>
+                                <td>@DisbursementResources.ComparisonLabel(r.Comparison)</td>
+                                <td>
+                                    <span class="badge @DisbursementResources.SeverityBadgeClass(r.Severity)">
+                                        <i class="@DisbursementResources.SeverityIcon(r.Severity) me-1" aria-hidden="true"></i>@DisbursementResources.SeverityLabel(r.Severity)
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge @DisbursementResources.DiscrepancyStateBadgeClass(r.State)">@DisbursementResources.DiscrepancyStateLabel(r.State)</span>
+                                </td>
+                                <td class="text-end">@Money(Math.Abs(r.Difference))</td>
+                                <td>@(r.AssigneeName ?? ReconciliationResources.Unassigned)</td>
+                                <td>@r.FirstDetected.ToString("dd/MM/yyyy", crc)</td>
+                                <td class="text-end">
+                                    <a asp-action="Detail" asp-route-id="@r.Id" class="btn btn-sm" data-testid="reconciliation-open">@ReconciliationResources.Action_Open</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

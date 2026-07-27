@@ -6,6 +6,7 @@ using FundingPlatform.Application.Abstractions;
 using FundingPlatform.Application.Abstractions.Storage;
 using FundingPlatform.Application.Admin.Users.DTOs;
 using FundingPlatform.Application.Disbursements;
+using FundingPlatform.Application.Reconciliation;
 using FundingPlatform.Application.Services;
 using FundingPlatform.Domain.Entities;
 using FundingPlatform.Domain.Enums;
@@ -34,17 +35,20 @@ public sealed class DisbursementService : IDisbursementService
     private readonly AppDbContext _db;
     private readonly IObjectStorage _storage;
     private readonly IAdminAuditEventWriter _audit;
+    private readonly IReconciliationMaterializer _materializer;
     private readonly ILogger<DisbursementService> _logger;
 
     public DisbursementService(
         AppDbContext db,
         IObjectStorage storage,
         IAdminAuditEventWriter audit,
+        IReconciliationMaterializer materializer,
         ILogger<DisbursementService> logger)
     {
         _db = db;
         _storage = storage;
         _audit = audit;
+        _materializer = materializer;
         _logger = logger;
     }
 
@@ -105,9 +109,22 @@ public sealed class DisbursementService : IDisbursementService
         var isValidatable = d.State is not (DisbursementState.Validated or DisbursementState.Cancelled)
                             && bank.HasValue && invoice.HasValue && discrepancies.Count == 0;
 
+        // Spec 048 — the persisted (stateful) discrepancies shown on this surface: the Payment-scoped
+        // rows for this disbursement plus the application-level over-allocation (Participant), excluding
+        // auto-resolved ones. The isValidatable gate above still uses the FRESH computed set (FR-004).
+        var persisted = await _db.Discrepancies.AsNoTracking()
+            .Where(x => x.ApplicationId == applicationId
+                && x.State != DiscrepancyState.Resolved
+                && ((x.ScopeType == DiscrepancyScopeType.Payment && x.ScopeEntityId == disbursementId)
+                    || x.ScopeType == DiscrepancyScopeType.Participant))
+            .OrderBy(x => x.Severity).ThenBy(x => x.Comparison)
+            .Select(x => new PersistedDiscrepancyRow(
+                x.Id, x.Comparison, x.Severity, x.State, x.Expected, x.Actual, x.Difference, x.SourceDocument))
+            .ToListAsync(ct);
+
         return new DisbursementDetail(
             d.Id, d.ApplicationId, d.PaymentDate, d.Amount, d.BankTransactionReference, d.BankAccountReference,
-            d.State, createdBy, d.CreatedAtUtc, d.ValidatedAtUtc, evidenceSummaries, discrepancies, isValidatable);
+            d.State, createdBy, d.CreatedAtUtc, d.ValidatedAtUtc, evidenceSummaries, discrepancies, persisted, isValidatable);
     }
 
     // ---------------------------------------------------------------- record
@@ -219,6 +236,10 @@ public sealed class DisbursementService : IDisbursementService
             ct);
         await _db.SaveChangesAsync(ct);
 
+        // Spec 048 — persist the reconciliation visibility snapshot (best-effort; the money gate above
+        // is authoritative and independent, FR-004).
+        await _materializer.MaterializeAsync(cmd.ApplicationId, actorUserId, ct);
+
         return Result<int>.Success(disbursement.Id);
     }
 
@@ -292,7 +313,12 @@ public sealed class DisbursementService : IDisbursementService
             }),
             ct);
 
-        return await CommitAsync(ct);
+        var editResult = await CommitAsync(ct);
+        if (editResult.Succeeded)
+        {
+            await _materializer.MaterializeAsync(d.ApplicationId, actorUserId, ct);
+        }
+        return editResult;
     }
 
     // ---------------------------------------------------------------- evidence
@@ -400,6 +426,9 @@ public sealed class DisbursementService : IDisbursementService
             ct);
         await _db.SaveChangesAsync(ct);
 
+        // Spec 048 — an evidence amount just changed the reconciliation picture; refresh the snapshot.
+        await _materializer.MaterializeAsync(d.ApplicationId, actorUserId, ct);
+
         return Result<int>.Success(evidence.Id);
     }
 
@@ -500,6 +529,10 @@ public sealed class DisbursementService : IDisbursementService
             return Result.Failure(new DomainError(DisbursementReasons.Codes.Concurrency, null, DisbursementReasons.Concurrency));
         }
 
+        // Spec 048 — validation just posted the ledger entry + cleared this disbursement's discrepancies;
+        // refresh the snapshot (blocking rows auto-resolve, drift/duplicate warnings re-evaluate).
+        await _materializer.MaterializeAsync(applicationId, actorUserId, ct);
+
         return Result.Success();
     }
 
@@ -527,7 +560,12 @@ public sealed class DisbursementService : IDisbursementService
             JsonSerializer.Serialize(new { disbursementId = d.Id, applicationId = applicationId, after = new { state = d.State.ToString() } }),
             ct);
 
-        return await CommitAsync(ct);
+        var cancelResult = await CommitAsync(ct);
+        if (cancelResult.Succeeded)
+        {
+            await _materializer.MaterializeAsync(applicationId, actorUserId, ct);
+        }
+        return cancelResult;
     }
 
     // ---------------------------------------------------------------- commit (spec 046)
@@ -558,6 +596,9 @@ public sealed class DisbursementService : IDisbursementService
             AdminAuditEvent.LineCommitted, actorUserId,
             JsonSerializer.Serialize(new { itemId, applicationId }), ct);
         await _db.SaveChangesAsync(ct);
+
+        // Spec 048 — committing a line adds it to the over-payment surface; refresh the snapshot.
+        await _materializer.MaterializeAsync(applicationId, actorUserId, ct);
 
         return Result.Success();
     }
@@ -597,6 +638,9 @@ public sealed class DisbursementService : IDisbursementService
             AdminAuditEvent.LineUncommitted, actorUserId,
             JsonSerializer.Serialize(new { itemId, applicationId }), ct);
         await _db.SaveChangesAsync(ct);
+
+        // Spec 048 — uncommitting a line removes it from the over-payment surface; refresh the snapshot.
+        await _materializer.MaterializeAsync(applicationId, actorUserId, ct);
 
         return Result.Success();
     }

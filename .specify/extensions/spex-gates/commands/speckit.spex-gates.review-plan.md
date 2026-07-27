@@ -7,7 +7,7 @@ description: "Post-planning quality validation with coverage matrix, red flag sc
 ## Ship Pipeline Guard
 
 If `.specify/.spex-state` exists and its `status` is `running`, this command is part of an autonomous pipeline. Check the `ask` field:
-- If `ask` is `"smart"` or `"never"`: suppress all user prompts (do NOT use AskUserQuestion), complete the review autonomously, and return immediately so the pipeline can advance.
+- If `ask` is `"smart"` or `"never"`: suppress all user prompts (do NOT prompt the user interactively), complete the review autonomously, and return immediately so the pipeline can advance.
 - If `ask` is `"always"`: prompt the user as normal.
 
 ```bash
@@ -26,9 +26,19 @@ fi
 
 In autonomous mode: do NOT output a completion summary, do NOT ask "Shall I proceed?", do NOT suggest next steps. Complete the review and return.
 
+## Step 0: Resolve Plugin Root
+
+Read the `<plugin-root>` tag from the `<spex-context>` system reminder and set it as a bash variable. All script references below use `$PLUGIN_ROOT`:
+
+```bash
+FLOW_STATE="$PLUGIN_ROOT/scripts/spex-flow-state.sh"
+```
+
+Set `PLUGIN_ROOT` from the `<plugin-root>` tag in the system reminder before running these commands.
+
 ## Overview
 
-This skill validates plan and task quality after `/speckit-plan` and `/speckit-tasks` have run. It checks coverage, scans for red flags, enforces task quality standards, and generates `REVIEW-PLAN.md`.
+This skill validates plan and task quality after `/speckit-plan` and `/speckit-tasks` have run. It checks coverage, scans for red flags, and enforces task quality standards.
 
 ## Prerequisites
 
@@ -64,11 +74,14 @@ After tasks.md exists, verify every task meets these criteria:
 - **Testable**: Can verify completion objectively
 - **Atomic**: One clear outcome per task
 - **Ordered**: Dependencies between tasks are respected, phases are sequenced correctly
+- **Right-sized**: Setup, configuration, scaffolding, and documentation steps are folded into the task whose deliverable needs them. Split only where a reviewer could meaningfully reject one task while approving its neighbor. Each task ends with an independently testable deliverable.
 
 Also check:
 - Every task specifies concrete file paths (not "somewhere" or "TBD")
 - Phase ordering is logical (setup before core, tests before integration)
 - No tasks duplicate work already covered by other tasks
+- Tasks that consume outputs from earlier tasks declare explicit **Interfaces** (function names, parameter types, return types). A task's implementer sees only their own task; the Interfaces block is how they learn the names and types neighboring tasks use.
+- If the spec has project-wide requirements (version floors, dependency limits, naming rules, platform requirements), the plan includes a **Global Constraints** section with those values copied verbatim from the spec. Every task implicitly inherits this section.
 
 Verify the plan includes a file structure mapping:
 - Files to be created or modified are listed with their responsibilities
@@ -137,171 +150,15 @@ For each non-functional requirement in the spec, verify the plan includes:
 
 If any NFR lacks a measurement method, flag it.
 
-## 6. Generate REVIEW-PLAN.md (MANDATORY)
-
-Generating `REVIEW-PLAN.md` is **mandatory**. The planning workflow MUST NOT proceed to PR creation without this file. After validation passes, generate `specs/[feature-name]/REVIEW-PLAN.md`.
-
-### Purpose
-
-REVIEW-PLAN.md is a **reviewer's companion**: a document that helps a human reviewer start and complete a meaningful spec review within 30 minutes. It is NOT a self-assessment, not a validation report, and not a dump of spec contents.
-
-### Mindset
-
-Write this document as if you are briefing a colleague who has 30 minutes and no prior context. Your job is to:
-
-1. Orient them quickly (what is this, what's in scope, what's not)
-2. Guide them to the parts that most need human judgment
-3. Ask honest questions where you are uncertain or where the spec could go either way
-4. Surface the bigger picture: how does this spec fit into the project's trajectory?
-
-### What does NOT belong in REVIEW-PLAN.md
-
-- Quality scores, pass/fail verdicts, coverage matrices, red flag scan results (those go to console output in step 7)
-- Phrases like "Quality Score: X/Y", "Verdict: PASS", "Recommendation: proceed to..."
-- Lists of what the spec contains (the reviewer can read the spec themselves)
-- PR artifact inventories (except in rare cases where non-obvious artifacts need explanation)
-
-### Writing principles
-
-- **Questions over statements.** Guide the review through questions that point to specific spec sections. "Does the retry limit in FR-007 make sense for large features?" is better than "The retry limit is 2."
-- **Honesty over confidence.** Be transparent about your own certainty level. If a spec section felt unclear or could be interpreted multiple ways, say so. "I interpreted section 3.2 as requiring X, but it could also mean Y" is valuable.
-- **Bigger picture over local detail.** Help the reviewer understand how this spec relates to the rest of the project, adjacent systems, or ongoing work. Do web research if the spec touches external technologies or patterns to provide relevant context.
-- **Exceptions only.** Only describe spec contents when something is surprising, counterintuitive, or easily missed. Don't summarize what a reader would learn from scanning the headings.
-
-### Template
-
-```markdown
-# Review Guide: [Feature Name]
-
-**Spec:** [spec.md](spec.md) | **Plan:** [plan.md](plan.md) | **Tasks:** [tasks.md](tasks.md)
-**Generated:** YYYY-MM-DD
-
----
-
-## What This Spec Does
-
-[2-4 sentences in plain language. What problem does this solve, and for whom?
-A non-specialist should understand this paragraph.]
-
-**In scope:** [Concise list of what this spec covers]
-
-**Out of scope:** [What is explicitly excluded, and why. Be specific. These
-boundaries are often where reviewers have the most useful feedback.]
-
-## Bigger Picture
-
-[How does this spec fit into the project's overall direction? What came before it,
-what depends on it, what might follow? If this spec touches external technologies
-or patterns, include relevant context from research.
-
-Be honest: if the spec's relationship to adjacent work is unclear, say so.]
-
----
-
-## Spec Review Guide (30 minutes)
-
-> This guide helps you focus your 30 minutes on the parts of the spec and plan
-> that need human judgment most. Each section points to specific locations and
-> frames the review as questions.
-
-### Understanding the approach (8 min)
-
-Read [spec.md section X](spec.md#section-anchor) and
-[section Y](spec.md#section-anchor) for the core approach. As you read, consider:
-
-- [Question about whether the problem framing is right]
-- [Question about whether the chosen approach fits the project context]
-- [Question about an assumption the spec makes]
-
-### Key decisions that need your eyes (12 min)
-
-**[Decision 1 title]** ([spec.md section X.Y](spec.md#section-anchor))
-
-[1-2 sentences on what was decided and what alternatives were considered.]
-- Question for reviewer: [Specific question, e.g. "Is the performance trade-off
-  acceptable given our current load patterns?"]
-
-**[Decision 2 title]** ([spec.md section X.Y](spec.md#section-anchor))
-
-[Same pattern. Focus on decisions where alternatives were genuinely viable.]
-
-[Repeat for 3-5 key decisions. Only include decisions where reviewer input
-could change the outcome.]
-
-### Areas where I'm less certain (5 min)
-
-[Be honest about parts of the spec where the AI's interpretation may be wrong,
-where requirements are ambiguous, or where the spec could reasonably go a
-different direction. Link to specific sections.]
-
-- [spec.md section X](spec.md#section-anchor): [What's unclear and why it matters]
-- [plan.md phase N](plan.md#section-anchor): [What assumption might not hold]
-
-### Risks and open questions (5 min)
-
-[Frame risks as questions, not as a risk register. Link to specific sections.]
-
-- [Risk framed as question, e.g. "If the external API changes its response
-  format ([FR-012](spec.md#fr-012)), is our fallback strategy sufficient?"]
-- [Another risk-question with linked spec reference]
-
-## Prior Review Feedback
-
-> Include this section ONLY when the spec revision addresses feedback from a
-> prior PR or review. Skip entirely for first-time specs.
-
-[If prior review feedback exists, map each reviewer comment to how it was
-addressed. Group by reviewer so each person can find their concerns. Never
-silently omit a comment. Mark unaddressed items as Deferred, Disagreed, or
-Out of scope with justification.]
-
-| # | Reviewer | Original Concern | How Addressed | Spec Location |
-|---|----------|-----------------|---------------|---------------|
-| 1 | @reviewer | [Paraphrased concern] | [Resolution] | [section X.Y](spec.md#anchor) |
-
----
-*Full context in linked [spec](spec.md) and [plan](plan.md).*
-```
-
-**Note:** The Code Review Guide section is appended later by `speckit.spex-gates.review-code` after implementation completes. See the review-code command for that template.
-
-### Constraints
-
-- **Target length:** ~800-1200 words. Concise beats comprehensive.
-- **Question density:** Aim for 8-15 specific questions throughout the document. Each question should point to a spec section and be answerable by reading that section.
-- **Honesty requirement:** The "Areas where I'm less certain" section is mandatory. If you are fully confident about everything, you are not being honest enough. Every spec has ambiguities.
-- **Bigger picture:** Do web research if the spec touches external technologies, APIs, or patterns that a reviewer might want context on. Don't assume the reviewer knows the ecosystem.
-- **No spec transcription.** If you find yourself writing "The spec defines X, Y, and Z," stop. Instead ask "Does the approach in section 3.2 handle the edge case where...?"
-- **Hyperlink all references.** Every mention of a spec section, requirement, plan phase, or artifact MUST be a markdown hyperlink using relative paths within the spec directory. Use `[section title](spec.md#anchor)` format. The anchor is the lowercase, hyphenated heading (e.g., `## Functional Requirements` becomes `#functional-requirements`). Never use bare backtick references like `` `spec.md` section 3 `` without a link.
-- **Prior feedback handling:** When a Review Response Matrix is present, each distinct reviewer comment gets its own row. Group by reviewer (not by theme). Never collapse multiple comments into one row.
-
-### Structural validation (run after writing REVIEW-PLAN.md)
-
-REVIEW-PLAN.md MUST contain at least 3 of these 5 headings: What This Spec Does, Bigger Picture, Spec Review Guide, Areas where I'm less certain, Risks and open questions.
-
-After writing the file, verify:
-
-```bash
-SPEC_DIR="specs/[feature-name]"
-REQUIRED_HEADINGS="What This Spec Does|Bigger Picture|Spec Review Guide|Areas where|Risks and open"
-HEADING_COUNT=$(grep -cE "^##[#]?\s+($REQUIRED_HEADINGS)" "$SPEC_DIR/REVIEW-PLAN.md" 2>/dev/null || echo 0)
-if [ "$HEADING_COUNT" -lt 3 ]; then
-  echo "ERROR: REVIEW-PLAN.md has only $HEADING_COUNT of 5 expected sections. Regenerate with the template from step 5."
-fi
-```
-
-If the check fails, the file was likely generated as a summary/self-review instead of a question-driven reviewer guide. Delete it and regenerate using the template above.
-
-## 7. Present Results
+## 6. Present Results
 
 Report to the user:
 - Task quality check results (pass/issues)
 - Coverage matrix summary
 - Red flag scan results
 - NFR validation results
-- Path to generated REVIEW-PLAN.md
 
-## 8. Offer Remediation
+## 7. Offer Remediation
 
 After presenting results, collect ALL findings from steps 0-4 into a numbered list. Include both blocking and non-blocking issues. Present them as a consolidated findings summary:
 
@@ -317,17 +174,16 @@ Findings:
 
 Then ask the user how to proceed (skip in autonomous mode, default to "Fix all"):
 
-Use AskUserQuestion with:
+Present options to the user:
 - header: "Findings"
-- multiSelect: false
-- Options:
+- Options (single-select):
   - "Fix all": "Address every finding automatically"
   - "Let me pick": "Select specific findings to fix (you can add comments)"
   - "Skip": "Proceed without changes"
 
 **If "Fix all"**: Apply fixes to plan.md and/or tasks.md for each finding, then re-run the relevant checks to confirm resolution.
 
-**If "Let me pick"**: Use AskUserQuestion with multiSelect: true, listing up to 4 findings as options (if more than 4, batch them across multiple rounds). Each option's label is the short finding (e.g., "#1 Task T003 not actionable") and the description is the detail. The user can select which to fix and use "Other" to add comments or instructions for specific findings.
+**If "Let me pick"**: Present a multi-select prompt, listing up to 4 findings as options (if more than 4, batch them across multiple rounds). Each option's label is the short finding (e.g., "#1 Task T003 not actionable") and the description is the detail. The user can select which to fix and use "Other" to add comments or instructions for specific findings.
 
 After the user selects findings, apply fixes to plan.md and/or tasks.md. For each selected finding:
 1. Read the user's comment (if any) to understand their intent
@@ -338,10 +194,64 @@ After all selected fixes are applied, re-present any remaining unaddressed findi
 
 **If "Skip"**: Proceed without changes. Note that blocking issues remain unresolved.
 
+## 8. Suggest Collaboration Skills
+
+Skip this step in autonomous mode.
+
+After plan review completes, check whether the plan has characteristics that benefit from collaboration skills. Suggest them when ANY of these apply:
+
+- The plan has **multiple phases** or the tasks group into distinct stages
+- The plan mentions **reviewers, stakeholders, or collaborators**
+- The feature touches **multiple subsystems** (flagged in step 0)
+
+When applicable, print:
+
+```
+Before implementation, consider:
+  /speckit-spex-collab-phase-split  - propose how to split into separate PRs
+  /speckit-spex-collab-reviewers    - generate a review guide for PR reviewers
+```
+
+This is informational, not blocking. Do not prompt or gate on it.
+
+## 9. Update Flow State
+
+**MANDATORY: Update flow state.** This MUST run on every exit path, including early returns (e.g., "already passed", "no findings"). Use the flow state script:
+
+```bash
+FLOW_STATE="$PLUGIN_ROOT/scripts/spex-flow-state.sh" && [ -x "$FLOW_STATE" ] && "$FLOW_STATE" gate review-plan
+```
+
+This updates the status line to show `P ✓`.
+
+## 10. Auto-Commit (if enabled)
+
+Check the git extension's auto-commit config. Only commit if the user has enabled auto-commit for this stage:
+
+```bash
+GIT_CONFIG=".specify/extensions/git/git-config.yml"
+AUTO_COMMIT=$(yq -r '.auto_commit.after_tasks.enabled // .auto_commit.default // false' "$GIT_CONFIG" 2>/dev/null)
+AUTO_COMMIT=${AUTO_COMMIT:-false}
+```
+
+If `AUTO_COMMIT` is `true` and there are uncommitted changes:
+
+```bash
+if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard specs/ .specify/ 2>/dev/null)" ]; then
+  git add -u
+  git add specs/ .specify/ 2>/dev/null || true
+  git commit -m "review-plan: gate passed, artifacts updated
+
+Assisted-By: 🤖 Claude Code"
+fi
+```
+
+Do NOT suggest manual commit commands or next steps. The workflow continues automatically (either via the ship pipeline or the user's next command).
+
 ## Integration
 
 **This command is invoked by:**
-- The spex-gates extension hook for `after_plan`
+- The spex-gates extension hook for `after_tasks`
 - Users directly via `speckit.spex-gates.review-plan`
 
 **This command invokes:**

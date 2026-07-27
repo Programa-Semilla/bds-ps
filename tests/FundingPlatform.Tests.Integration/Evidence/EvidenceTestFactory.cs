@@ -29,7 +29,8 @@ internal static class EvidenceTestFactory
             .Options);
 
     public static EvidenceService NewService(AppDbContext ctx, InMemoryObjectStorage storage) =>
-        new(ctx, storage, new AdminAuditEventWriter(ctx), NullLogger<EvidenceService>.Instance);
+        new(ctx, storage, new AdminAuditEventWriter(ctx),
+            new Reconciliation.NoOpReconciliationMaterializer(), NullLogger<EvidenceService>.Instance);
 
     /// <summary>Seeds an executed application with <paramref name="lineCount"/> budget-lines and
     /// returns (applicationId, itemIds).</summary>
@@ -130,7 +131,8 @@ internal static class EvidenceTestFactory
     }
 
     public static BudgetLineClosureService NewClosureService(AppDbContext ctx) =>
-        new(ctx, NewCompletenessProjection(ctx), new AdminAuditEventWriter(ctx));
+        new(ctx, NewCompletenessProjection(ctx), new AdminAuditEventWriter(ctx),
+            new Reconciliation.NoOpReconciliationMaterializer());
 
     public static Stream Pdf() => new MemoryStream("%PDF-1.4 body"u8.ToArray());
 }

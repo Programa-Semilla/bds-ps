@@ -1,0 +1,7 @@
+@model DirectEmailModel
+@* Spec 048 / US4 — branded discrepancy-assignment notification. Rendered through the shared
+   _EmailLayout; copy + variables supplied by DiscrepancyAssignmentEmailFactory. *@
+@{
+    ViewData["Title"] = Model.Subject;
+}
+@await Html.PartialAsync("~/Views/Emails/Shared/_DirectBody.cshtml", Model)

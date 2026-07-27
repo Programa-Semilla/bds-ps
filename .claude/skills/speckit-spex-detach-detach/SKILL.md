@@ -1,0 +1,1 @@
+../../../.specify/extensions/spex-detach/.specify-dev/agent-commands/claude/speckit-spex-detach-detach/SKILL.md
