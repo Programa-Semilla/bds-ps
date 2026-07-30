@@ -73,6 +73,11 @@ properties:
             value: "50000"
           - name: AdminReports__DefaultCurrency
             value: CRC
+          # Ybug feedback widget (temporary). The view also requires
+          # environment != Development, so local + E2E runs never load it.
+          # Remove this entry to switch the widget off without a code change.
+          - name: Ybug__Id
+            value: rhpksjxja754ms2dy40z
           - name: Admin__DefaultPassword
             secretRef: admin--defaultpassword
           - name: BLOBS_URI

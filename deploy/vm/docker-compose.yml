@@ -96,6 +96,10 @@ services:
       SignedUpload__MaxSizeBytes: "20971520"
       Syncfusion__LicenseKey: ${SYNCFUSION_LICENSE_KEY}
       Admin__DefaultPassword: ${ADMIN_DEFAULT_PASSWORD}
+      # Ybug feedback widget (temporary). Only rendered on deployed environments —
+      # the view also requires environment != Development, so local/E2E runs never
+      # load it. Blank YBUG_ID= in .env to switch the widget off without a code change.
+      Ybug__Id: ${YBUG_ID:-rhpksjxja754ms2dy40z}
     volumes:
       - app_storage:/data/storage
       # Persist ASP.NET DataProtection keys across container recreates. Without
