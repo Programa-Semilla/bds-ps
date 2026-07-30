@@ -410,5 +410,7 @@
     <script src="~/js/motion.js" asp-append-version="true" defer></script>
     <script src="~/js/facelift-init.js" asp-append-version="true" defer></script>
     @await RenderSectionAsync("Scripts", required: false)
+    @* Ybug feedback widget — temporary third-party; delete this line + _YbugWidget.cshtml to remove. *@
+    @await Html.PartialAsync("_YbugWidget")
 </body>
 </html>

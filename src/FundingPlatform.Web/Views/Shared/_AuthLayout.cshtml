@@ -51,5 +51,7 @@
        tooltips; the hint module must load here too, not only in _Layout. *@
     <script src="~/js/hint-tooltip.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
+    @* Ybug feedback widget — temporary third-party; delete this line + _YbugWidget.cshtml to remove. *@
+    @await Html.PartialAsync("_YbugWidget")
 </body>
 </html>

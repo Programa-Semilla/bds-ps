@@ -1,0 +1,45 @@
+@using Microsoft.Extensions.Hosting
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnvironment
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@*
+    Ybug feedback widget (https://ybug.io) — third-party, temporary.
+
+    Deployed-only, gated on TWO conditions so it can never leak into a local or
+    E2E run:
+      1. environment != Development  — local AppHost runs and the E2E AspireFixture
+         are Development.
+      2. Ybug:Id configured          — only the deploy paths set `Ybug__Id`
+         (deploy/vm/docker-compose.yml and AppHost/infra/webapp.tmpl.yaml). Nothing
+         in appsettings*.json or launchSettings sets it, so a bare
+         `dotnet run` on the Web project (which defaults to Production when
+         ASPNETCORE_ENVIRONMENT is unset) still renders nothing.
+
+    Kill switch without a code change: blank `YBUG_ID=` in the VM's .env (or drop
+    the Ybug__Id env var from the Container App) and redeploy.
+
+    Isolated in this partial on purpose: to remove the widget entirely, delete this
+    file, the two `_YbugWidget` PartialAsync lines in Views/Shared/_Layout.cshtml
+    and Views/Shared/_AuthLayout.cshtml, and the Ybug__Id entries in the two deploy
+    configs. Nothing else references it.
+
+    Note: this is the one exception to the "No CDN — all static assets are local"
+    convention (CLAUDE.md), since the widget loads its script from widget.ybug.io.
+    Deliberately NOT included in Views/FundingAgreement/_FundingAgreementLayout.cshtml
+    (the Syncfusion PDF layout).
+*@
+@{
+    var ybugId = Configuration["Ybug:Id"];
+}
+@if (!HostEnvironment.IsDevelopment() && !string.IsNullOrWhiteSpace(ybugId))
+{
+    <!-- Ybug code start (https://ybug.io) -->
+    <script type='text/javascript'>
+    (function() {
+        window.ybug_settings = {"id":"@ybugId"};
+        var ybug = document.createElement('script'); ybug.type = 'text/javascript'; ybug.async = true;
+        ybug.src = 'https://widget.ybug.io/button/'+window.ybug_settings.id+'.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ybug, s);
+    })();
+    </script>
+    <!-- Ybug code end -->
+}
