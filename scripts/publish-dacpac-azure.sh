@@ -10,6 +10,7 @@
 set -euo pipefail
 
 # --- Defaults (override via env or flags) ---
+SUBSCRIPTION="${SUBSCRIPTION:-d428f98f-a3c4-49c3-ae24-06ec3de08477}"  # LinaSys-DevEnv
 RESOURCE_GROUP="${RESOURCE_GROUP:-rg-CapitalSemilla-D}"
 SQL_SERVER="${SQL_SERVER:-sqlserver-negelwcexrtzc}"
 SQL_DATABASE="${SQL_DATABASE:-fundingdb}"
@@ -38,7 +39,7 @@ Options:
 
 Defaults: BlockOnPossibleDataLoss=false, DropObjectsNotInSource=true (dev).
 
-Env overrides: RESOURCE_GROUP, SQL_SERVER, SQL_DATABASE, AAD_USER,
+Env overrides: SUBSCRIPTION, RESOURCE_GROUP, SQL_SERVER, SQL_DATABASE, AAD_USER,
 DACPAC_CONFIG, BLOCK_DATA_LOSS, DROP_OBJECTS_NOT_IN_SOURCE,
 SKIP_BUILD, SKIP_FIREWALL.
 EOF
@@ -72,7 +73,17 @@ command -v sqlpackage >/dev/null || { echo "sqlpackage missing. Install: dotnet 
 command -v az >/dev/null || { echo "az CLI missing." >&2; exit 1; }
 az account show >/dev/null 2>&1 || { echo "Not logged in. Run: az login" >&2; exit 1; }
 
+# Pin every az call to $SUBSCRIPTION instead of inheriting the CLI's default.
+# Matters twice here: the transient firewall rule must land on the SQL server in
+# the right subscription, and the access token below must be issued for it.
+az() { command az "$@" --subscription "$SUBSCRIPTION"; }
+az account show -o none 2>/dev/null || {
+  echo "Subscription '$SUBSCRIPTION' not accessible. Run 'az account list -o table' and set SUBSCRIPTION=<id>." >&2
+  exit 1
+}
+
 echo "== Target =="
+echo "  Subscr.:  $SUBSCRIPTION"
 echo "  Server:   $SERVER_FQDN"
 echo "  Database: $SQL_DATABASE"
 echo "  User:     $AAD_USER"

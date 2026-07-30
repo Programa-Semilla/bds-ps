@@ -10,6 +10,7 @@
 # survives VM loss, which the LocalFilesystem provider does not.
 set -euo pipefail
 
+SUB="${SUBSCRIPTION:-d428f98f-a3c4-49c3-ae24-06ec3de08477}"  # LinaSys-DevEnv
 RG="${RESOURCE_GROUP:-rg-CapitalSemilla-D}"
 LOC="${LOCATION:-centralus}"
 VM="${VM_NAME:-vm-capitalsemilla-dev}"
@@ -19,6 +20,15 @@ ACCT="${STORAGE_ACCOUNT:-stcapitalsemilladev}"
 
 command -v az >/dev/null || { echo "az CLI missing." >&2; exit 1; }
 az account show >/dev/null 2>&1 || { echo "Not logged in. Run: az login" >&2; exit 1; }
+
+# Pin every az call to $SUB instead of inheriting the CLI's default subscription.
+# Without this, a wrong default creates the storage account + role assignment in
+# the wrong subscription (or fails as a misleading "ResourceGroupNotFound").
+az() { command az "$@" --subscription "$SUB"; }
+az account show -o none 2>/dev/null || {
+  echo "Subscription '$SUB' not accessible. Run 'az account list -o table' and set SUBSCRIPTION=<id>." >&2
+  exit 1
+}
 
 echo "== Creating storage account $ACCT in $RG / $LOC =="
 az storage account create \

@@ -12,6 +12,7 @@
 #   ./aspire-dashboard.sh status    # report tunnel / container / export state
 #
 # Env:
+#   SUBSCRIPTION     Azure sub  (default: LinaSys-DevEnv)
 #   RESOURCE_GROUP   Azure RG   (default: rg-CapitalSemilla-D)
 #   VM_NAME          VM name    (default: vm-capitalsemilla-dev)
 #   ADMIN_USER       SSH user   (default: azureuser)
@@ -27,6 +28,7 @@ case "$ACTION" in
   *) echo "Usage: aspire-dashboard.sh {on|off|status}" >&2; exit 1 ;;
 esac
 
+SUB="${SUBSCRIPTION:-d428f98f-a3c4-49c3-ae24-06ec3de08477}"  # LinaSys-DevEnv
 RG="${RESOURCE_GROUP:-rg-CapitalSemilla-D}"
 VM="${VM_NAME:-vm-capitalsemilla-dev}"
 ADMIN="${ADMIN_USER:-azureuser}"
@@ -38,6 +40,14 @@ TUNNEL_PATTERN="ssh -f -N -L ${LOCAL_PORT}:localhost:${LOCAL_PORT}"
 
 command -v az >/dev/null || { echo "az CLI missing." >&2; exit 1; }
 az account show >/dev/null 2>&1 || { echo "Not logged in. Run: az login" >&2; exit 1; }
+
+# Pin every az call to $SUB instead of inheriting the CLI's default subscription.
+# Without this, a wrong default fails as a misleading "ResourceGroupNotFound".
+az() { command az "$@" --subscription "$SUB"; }
+az account show -o none 2>/dev/null || {
+  echo "Subscription '$SUB' not accessible. Run 'az account list -o table' and set SUBSCRIPTION=<id>." >&2
+  exit 1
+}
 
 echo "== Resolving public IP for $VM in $RG =="
 IP="$(az vm show -d -g "$RG" -n "$VM" --query publicIps -o tsv)"

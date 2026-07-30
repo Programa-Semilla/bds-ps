@@ -60,14 +60,40 @@ services:
       # it only flags a key in Storage:ConnectionString. A full account connection
       # string also works (key auth). Empty for LocalFilesystem.
       ConnectionStrings__blobs: ${BLOB_CONNECTION:-}
-      # Notifications: off by default. Set NOTIFICATIONS_PROVIDER=Mailgun + keys in .env to enable.
+      # Notifications: off by default (NoOp). Two ways to enable real mail — see
+      # .env.example for the full matrix:
+      #   NOTIFICATIONS_PROVIDER=Mailgun   -> Mailgun HTTP API (needs a Sending API key)
+      #   NOTIFICATIONS_PROVIDER=Mailtrap  -> generic SMTP sender (MailKit); works
+      #                                       against smtp.mailgun.org:587 with the
+      #                                       domain's SMTP login/password.
+      # "Mailtrap" is just the spec-021 switch value for the SMTP sender; the host
+      # it talks to is whatever SMTP_HOST points at.
       Notifications__Provider: ${NOTIFICATIONS_PROVIDER:-NoOp}
       Notifications__BaseUrl: https://${APP_DOMAIN}
       Notifications__Mailgun__ApiKey: ${MAILGUN_API_KEY:-}
       Notifications__Mailgun__Domain: ${MAILGUN_DOMAIN:-}
-      Notifications__Mailgun__BaseUrl: https://api.mailgun.net/v3
-      Notifications__Sender__Name: "Programa Semilla / Sistema de Banca para el Desarrollo"
+      Notifications__Mailgun__BaseUrl: ${MAILGUN_BASE_URL:-https://api.mailgun.net/v3}
+      # SMTP path. Port drives TLS policy in MailtrapSmtpEmailSender:
+      # 25 -> none, 465 -> implicit TLS, anything else (587) -> STARTTLS.
+      Notifications__Mailtrap__Host: ${SMTP_HOST:-localhost}
+      Notifications__Mailtrap__Port: ${SMTP_PORT:-25}
+      Notifications__Mailtrap__Username: ${SMTP_USERNAME:-}
+      Notifications__Mailtrap__Password: ${SMTP_PASSWORD:-}
+      Notifications__Sender__Name: ${NOTIFICATIONS_SENDER_NAME:-Programa Semilla / Sistema de Banca para el Desarrollo}
       Notifications__Sender__Email: ${NOTIFICATIONS_SENDER_EMAIL:-no-reply@programa-semilla.cr}
+      # SECOND email stack (spec 021-feedback-session-may13). The direct-send
+      # identity/stage/supplier emails — set-password invitation, forgot-password,
+      # password-changed, stage reminders — resolve
+      # Application.Abstractions.IEmailSender, which Infrastructure/DependencyInjection.cs
+      # binds off Smtp:Host: empty => LoggingEmailSender (logs, never sends).
+      # Notifications__* does NOT drive this path. Same credentials, both stacks.
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__Username: ${SMTP_USERNAME:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Smtp__UseSsl: "true"
+      # Must be on the verified sending domain or the relay rejects the message.
+      Smtp__FromAddress: ${NOTIFICATIONS_SENDER_EMAIL:-no-reply@programa-semilla.cr}
       # AI quote comparison (spec 020). Default Stub (no key, fake output) so a
       # keyless deploy works — provider=Anthropic *requires* a key or the client
       # ctor throws and both the worker and the /Review comparison region 500.
@@ -79,7 +105,16 @@ services:
       Logging__LogLevel__Default: Warning
       Logging__LogLevel__Microsoft.AspNetCore: Warning
       Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Warning
-      Logging__LogLevel__FundingPlatform.Infrastructure.Notifications: Warning
+      # Raise to Debug in .env to trace the email path (endpoint resolution +
+      # per-send outcome) when diagnosing delivery issues; keep at Warning
+      # normally — the log-cost guard.
+      Logging__LogLevel__FundingPlatform.Infrastructure.Notifications: ${LOG_NOTIFICATIONS:-Warning}
+      Logging__LogLevel__FundingPlatform.Web.Controllers.Admin: ${LOG_ADMIN:-Warning}
+      # Information (one line per direct-send email) so a silently-swallowed
+      # send is visible. LoggingEmailSender — the no-transport fallback — also
+      # logs here; if you see "[LoggingEmailSender]" then Smtp:Host is unset
+      # and nothing is actually being delivered.
+      Logging__LogLevel__FundingPlatform.Infrastructure.Email: ${LOG_EMAIL:-Information}
       Logging__LogLevel__FundingPlatform.Application.Services: Information
       Notifications__Worker__PollIntervalSeconds: "30"
       AdminReports__DefaultCurrency: CRC
@@ -120,7 +155,7 @@ services:
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
       MSSQL_PID: Developer
       # Cap the SQL buffer pool so the webapp (+ Syncfusion Chromium) has headroom
-      # on a 4 GB B2s. Raise if you move to a larger VM.
+      # on the 4 GB VM (Standard_B2als_v2). Raise if you move to a larger VM.
       MSSQL_MEMORY_LIMIT_MB: "2048"
     volumes:
       - mssql_data:/var/opt/mssql
