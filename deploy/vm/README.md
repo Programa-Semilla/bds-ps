@@ -22,18 +22,44 @@ alert → automation runbook that **deallocates** the VM (see bottom).
 
 | Item | Choice | ~Cost |
 |---|---|---|
-| VM | `Standard_B2s` (2 vCPU, 4 GB) | $30–38 |
+| VM | `Standard_B2als_v2` (2 vCPU, 4 GB) | $31–38 |
 | OS disk | 64 GB StandardSSD | $5 |
 | Static public IP | Standard | $3–4 |
 | Egress | low for this app | ~$0–5 |
 | **Total** | | **~$40, predictable** |
 
-> B2s (4 GB) is the lowest size that runs SQL Server + the webapp. It's tight
-> once Syncfusion launches Chromium for a PDF. If you hit OOM kills, set
-> `VM_SIZE=Standard_B2ms` (8 GB, ~$60) before running `provision-vm.sh`, or
-> resize later: `az vm resize -g rg-CapitalSemilla-D -n vm-capitalsemilla-dev --size Standard_B2ms`.
+> 4 GB is the lowest size that runs SQL Server + the webapp. It's tight once
+> Syncfusion launches Chromium for a PDF. If you hit OOM kills, set
+> `VM_SIZE=Standard_B2as_v2` (8 GB, ~$65) before running `provision-vm.sh`, or
+> resize later: `az vm resize -g rg-CapitalSemilla-D -n vm-capitalsemilla-dev --size Standard_B2as_v2`.
+
+> **Do not go back to `Standard_B2s` / `B2ms`.** Azure put the v1–v4 series —
+> which includes `B`/`Bs` — under **capacity growth restrictions from
+> 2026-07-31** (new deployments, scale-out and quota increases are not approved)
+> with **retirement on 2028-07-31**. Already-running VMs keep running
+> uninterrupted, but a re-provision or a resize onto those sizes can be refused,
+> which would strand exactly the green-field recovery path this directory
+> exists for. The v2 B-series is on neither list, costs the same at 4 GB, and is
+> *cheaper* than `B2ms` at 8 GB. `provision-vm.sh` preflights the SKU and fails
+> early with the fix if it is ever restricted.
+>
+> The live `vm-capitalsemilla-dev` is still `Standard_B2s`. It is safe where it
+> is until 2028, but resize it to `Standard_B2als_v2` at the next convenient
+> maintenance window (deallocate → resize → start; a reboot, not a rebuild —
+> the data volume and IP survive):
+>
+> ```bash
+> az vm deallocate -g rg-CapitalSemilla-D -n vm-capitalsemilla-dev --subscription d428f98f-a3c4-49c3-ae24-06ec3de08477
+> az vm resize     -g rg-CapitalSemilla-D -n vm-capitalsemilla-dev --size Standard_B2als_v2 --subscription d428f98f-a3c4-49c3-ae24-06ec3de08477
+> az vm start      -g rg-CapitalSemilla-D -n vm-capitalsemilla-dev --subscription d428f98f-a3c4-49c3-ae24-06ec3de08477
+> ```
 
 ## One-time setup
+
+**Subscription:** every script here pins its `az` calls to the LinaSys-DevEnv
+subscription (`d428f98f-…`), so you do *not* need it to be your active `az`
+default. Override with `SUBSCRIPTION=<id>` if the stack ever moves. If you get
+`Subscription '…' not accessible`, run `az login` / `az account list -o table`.
 
 ```bash
 cd deploy/vm
@@ -88,9 +114,9 @@ MSSQL_SA_PASSWORD='…' ./deploy.sh <VM IP> --schema
 ./deploy.sh <VM IP> --logs
 ```
 
-> The image builds on the VM (the Dockerfile COPYs from the synced source). On a
-> 4 GB B2s the .NET SDK build is heavy but fine; it won't interrupt the running
-> container until the new image is ready.
+> The image builds on the VM (the Dockerfile COPYs from the synced source). On
+> the 4 GB VM the .NET SDK build is heavy but fine; it won't interrupt the
+> running container until the new image is ready.
 
 ## Logs
 
@@ -149,9 +175,9 @@ nano .env        # re-comment OTEL_ENDPOINT
 docker compose up -d webapp
 ```
 
-**RAM cost:** dashboard ~150–250 MB while running. On a 4 GB B2s that's tight
+**RAM cost:** dashboard ~150–250 MB while running. On the 4 GB VM that's tight
 alongside SQL — fine for short debugging bursts, but if you want it **always on**
-move to `Standard_B2ms` (8 GB). Lower the `MAXLOGCOUNT`/`MAXTRACECOUNT` env in
+move to `Standard_B2as_v2` (8 GB). Lower the `MAXLOGCOUNT`/`MAXTRACECOUNT` env in
 `docker-compose.yml` to shrink its footprint.
 
 **Security:** the UI runs `AUTHMODE=Unsecured` and is bound to `127.0.0.1` only —

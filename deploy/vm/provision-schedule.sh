@@ -14,12 +14,13 @@
 #   ./provision-schedule.sh enable      # turn both schedules back on
 #
 # Configurable via env (defaults match the live dev VM):
-#   RESOURCE_GROUP VM_NAME LOCATION AUTOMATION_ACCOUNT RUNBOOK_NAME SCHEDULE_NAME
+#   SUBSCRIPTION RESOURCE_GROUP VM_NAME LOCATION AUTOMATION_ACCOUNT RUNBOOK_NAME SCHEDULE_NAME
 #   START_TIME(0645) STOP_TIME(1900) TIMEZONE_IANA(America/Costa_Rica)
 #   TIMEZONE_WINDOWS("Central America Standard Time") UTC_OFFSET(-06:00)
 #   WEEKDAYS(Monday,Tuesday,Wednesday,Thursday,Friday)
 set -euo pipefail
 
+SUB="${SUBSCRIPTION:-d428f98f-a3c4-49c3-ae24-06ec3de08477}"  # LinaSys-DevEnv
 RG="${RESOURCE_GROUP:-rg-CapitalSemilla-D}"
 VM="${VM_NAME:-vm-capitalsemilla-dev}"
 LOC="${LOCATION:-centralus}"
@@ -36,6 +37,16 @@ API="2023-11-01"
 
 command -v az >/dev/null || { echo "az CLI missing." >&2; exit 1; }
 az account show >/dev/null 2>&1 || { echo "Not logged in. Run: az login" >&2; exit 1; }
+
+# Pin every az call to $SUB instead of inheriting the CLI's default subscription.
+# The VM lives in LinaSys-DevEnv, which is often not the active default; without
+# this, every command fails as a misleading "ResourceGroupNotFound", and
+# `provision` could otherwise create resources in the wrong subscription.
+az() { command az "$@" --subscription "$SUB"; }
+az account show -o none 2>/dev/null || {
+  echo "Subscription '$SUB' not accessible. Run 'az account list -o table' and set SUBSCRIPTION=<id>." >&2
+  exit 1
+}
 
 vm_id() { az vm show -g "$RG" -n "$VM" --query id -o tsv; }
 aa_id() { az automation account show -g "$RG" -n "$AA" --query id -o tsv; }
