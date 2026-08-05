@@ -94,10 +94,13 @@ services:
       Smtp__UseSsl: "true"
       # Must be on the verified sending domain or the relay rejects the message.
       Smtp__FromAddress: ${NOTIFICATIONS_SENDER_EMAIL:-no-reply@programa-semilla.cr}
-      # AI quote comparison (spec 020). Default Stub (no key, fake output) so a
-      # keyless deploy works — provider=Anthropic *requires* a key or the client
-      # ctor throws and both the worker and the /Review comparison region 500.
-      # For real AI: set AI_PROVIDER=Anthropic and ANTHROPIC_API_KEY in .env.
+      # AI quote comparison (spec 020). The Stub default is TEST-ONLY: its canned
+      # fixtures live under tests/, which the image does not ship, so on this VM
+      # every generation fails with provider_hard:stub_fixture_missing (a per-item
+      # failure — it no longer takes the whole /Review surface down). Deployed
+      # environments must set AI_PROVIDER=Anthropic and ANTHROPIC_API_KEY in .env;
+      # provider=Anthropic with an empty key still throws in the client ctor and
+      # 500s /Review.
       AiComparison__Provider: ${AI_PROVIDER:-Stub}
       AiComparison__Anthropic__ApiKey: ${ANTHROPIC_API_KEY:-}
       AiComparison__WorkerIdleDelaySeconds: "10"

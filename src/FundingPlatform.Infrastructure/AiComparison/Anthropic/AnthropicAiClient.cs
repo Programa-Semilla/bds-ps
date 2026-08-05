@@ -17,6 +17,15 @@ namespace FundingPlatform.Infrastructure.AiComparison.Anthropic;
 /// Wraps <c>Anthropic.SDK.AnthropicClient</c>. No retry. Surfaces transient
 /// vs hard provider errors as typed exceptions (FR-I1/I2). Never logs raw
 /// bodies; only token counts + latency for the audit row.
+///
+/// NFR-S1 carve-out: the provider's own <i>error</i> text is logged on failure
+/// (see <see cref="LogProviderFailure"/>). Only the numeric status survives
+/// into <see cref="AiProviderHardException.ProviderCode"/> and the audit
+/// payload, so without this the sentence that explains the failure — expired
+/// key, model not available, credit balance too low — is discarded and the
+/// operator is left with a bare "provider_hard:400". Anthropic error messages
+/// describe the request envelope, not its contents; request payloads, prompts,
+/// and redacted supplier documents are still never logged.
 /// </summary>
 public class AnthropicAiClient : IAiClient
 {
@@ -133,15 +142,15 @@ public class AnthropicAiClient : IAiClient
         {
             // SDK raises TaskCanceledException for upstream HTTP timeouts when
             // the caller's CT is not cancelled — treat as transient (FR-I1).
-            throw new AiProviderTransientException("Anthropic request timed out.", ex);
+            throw LogProviderFailure(model, toolName, new AiProviderTransientException("Anthropic request timed out.", ex), ex);
         }
         catch (TimeoutException ex)
         {
-            throw new AiProviderTransientException("Anthropic request timed out.", ex);
+            throw LogProviderFailure(model, toolName, new AiProviderTransientException("Anthropic request timed out.", ex), ex);
         }
         catch (HttpRequestException ex)
         {
-            throw ClassifyHttpFailure(ex);
+            throw LogProviderFailure(model, toolName, ClassifyHttpFailure(ex), ex);
         }
         catch (Exception ex)
         {
@@ -149,9 +158,8 @@ public class AnthropicAiClient : IAiClient
             // (only standard System types). If a status code surfaces in the
             // message, classify it; otherwise fail-safe to transient so the user
             // sees "Reintentar" rather than "Contacte un administrador".
-            var classified = TryClassifyByMessage(ex);
-            if (classified is not null) throw classified;
-            throw new AiProviderTransientException(ex.Message, ex);
+            var classified = TryClassifyByMessage(ex) ?? new AiProviderTransientException(ex.Message, ex);
+            throw LogProviderFailure(model, toolName, classified, ex);
         }
         sw.Stop();
 
@@ -165,9 +173,9 @@ public class AnthropicAiClient : IAiClient
             // produce text instead of a tool_use block. Surface as hard so the
             // orchestrator records a precise reason.
             var stopReason = response.StopReason ?? "unknown";
-            throw new AiProviderHardException(
+            throw LogProviderFailure(model, toolName, new AiProviderHardException(
                 $"no_tool_call:{stopReason}",
-                $"Anthropic did not emit the forced '{toolName}' tool call (stop_reason={stopReason}).");
+                $"Anthropic did not emit the forced '{toolName}' tool call (stop_reason={stopReason})."), provider: null);
         }
 
         var text = toolUse.Input.ToJsonString();
@@ -197,6 +205,37 @@ public class AnthropicAiClient : IAiClient
             root.Remove("description");
         }
         return node;
+    }
+
+    /// <summary>
+    /// Writes the provider's own failure text to the log, then returns the
+    /// classified exception so call sites read <c>throw LogProviderFailure(...)</c>.
+    ///
+    /// Hard failures are operator-actionable (bad key, model not available,
+    /// billing) and log at Error; transient ones log at Warning. Both clear the
+    /// <c>Warning</c> default log level pinned in <c>deploy/vm/docker-compose.yml</c>,
+    /// so no deployment config change is needed to see them.
+    /// </summary>
+    private TException LogProviderFailure<TException>(
+        string model, string toolName, TException classified, Exception? provider)
+        where TException : Exception
+    {
+        var providerMessage = provider?.Message ?? classified.Message;
+
+        if (classified is AiProviderHardException hard)
+        {
+            _logger.LogError(provider,
+                "Anthropic call failed (hard): model={Model} tool={Tool} providerCode={ProviderCode}. Provider said: {ProviderMessage}",
+                model, toolName, hard.ProviderCode, providerMessage);
+        }
+        else
+        {
+            _logger.LogWarning(provider,
+                "Anthropic call failed (transient, retryable): model={Model} tool={Tool}. Provider said: {ProviderMessage}",
+                model, toolName, providerMessage);
+        }
+
+        return classified;
     }
 
     /// <summary>
