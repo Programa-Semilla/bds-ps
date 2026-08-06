@@ -544,7 +544,29 @@ public class ComparisonOrchestrator : IComparisonOrchestrator
             // bytes leave the platform. The PDF bytes themselves go directly to
             // the AI provider over the same secure transport as the structured
             // text; the provider is contractually bound to handle the data.
-            blocks.Add(new PdfBlock(blob.BlobId, bytes));
+            // Classify by content, not by the stored ContentType or the original
+            // file name. Sending a non-PDF as application/pdf fails the entire
+            // extract call at the provider with an opaque hard error; refusing
+            // here instead names the offending blob to the reviewer.
+            var classification = ComparisonAttachmentPolicy.Classify(bytes);
+            switch (classification.Kind)
+            {
+                case ComparisonAttachmentPolicy.AttachmentKind.Pdf:
+                    blocks.Add(new PdfBlock(blob.BlobId, bytes));
+                    break;
+                case ComparisonAttachmentPolicy.AttachmentKind.Image:
+                    blocks.Add(new ImageBlock(blob.BlobId, bytes, classification.MediaType!));
+                    break;
+                default:
+                    _logger.LogWarning(
+                        "AiComparison refusing unreadable attachment supplierIdx={SupplierIdx} blobId={BlobId} — " +
+                        "not a PDF or supported image. Uploads are restricted to .pdf/.jpg/.jpeg/.png; this is " +
+                        "most likely a row predating that restriction.",
+                        supplierIdx, blob.BlobId);
+                    throw new UnsupportedFormatException(
+                        blob.BlobId, "unsupported_file_type",
+                        new InvalidOperationException("Attachment is neither a PDF nor a supported image."));
+            }
         }
 
         return blocks;

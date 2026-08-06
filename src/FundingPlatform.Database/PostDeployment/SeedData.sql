@@ -79,9 +79,14 @@ IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'MinQuo
     INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])
     VALUES (N'MinQuotationsPerItem', N'2', N'Minimum number of quotations required per item', GETUTCDATE());
 
+-- Spec 020 — restricted to PDF + images. Office formats were previously seeded
+-- here and are unreadable by the AI quote-comparison provider: an uploaded .xls
+-- reached it declared as application/pdf and failed the whole comparison. This
+-- guard only fires for a fresh database; environments seeded before the change
+-- keep their stored value and must be narrowed via /Admin/Configuration.
 IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'AllowedFileTypes')
     INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])
-    VALUES (N'AllowedFileTypes', N'.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx', N'Comma-separated list of allowed file extensions for uploads', GETUTCDATE());
+    VALUES (N'AllowedFileTypes', N'.pdf,.jpg,.jpeg,.png', N'Comma-separated list of allowed file extensions for uploads', GETUTCDATE());
 
 IF NOT EXISTS (SELECT 1 FROM [dbo].[SystemConfigurations] WHERE [Key] = N'MaxFileSizeMB')
     INSERT INTO [dbo].[SystemConfigurations] ([Key], [Value], [Description], [UpdatedAt])

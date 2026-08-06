@@ -92,6 +92,19 @@ public class AnthropicAiClient : IAiClient
                         },
                     });
                     break;
+                case ImageBlock img:
+                    // Images must go up as an image block, not a document block —
+                    // image bytes declared as application/pdf are rejected with
+                    // "The PDF specified was not valid" and fail the whole call.
+                    contents.Add(new ImageContent
+                    {
+                        Source = new ImageSource
+                        {
+                            MediaType = img.MediaType,
+                            Data = Convert.ToBase64String(img.Bytes.Span),
+                        },
+                    });
+                    break;
             }
         }
         return contents;
