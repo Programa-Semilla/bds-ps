@@ -60,6 +60,10 @@
         else if (code === 'token_cap_exceeded') {
             var offending = (payload && payload.offendingInput) || 'una entrada';
             msg = 'El proveedor ' + offending + ' adjuntó un PDF demasiado grande; pida una versión recortada o ejecute como administrador para anular el límite.';
+        } else if (code === 'unsupported_format') {
+            // offendingInput is a blob GUID — useful in a support ticket, meaningless
+            // to a reviewer, so it stays out of the sentence.
+            msg = 'No se puede comparar: uno de los archivos adjuntos no es un PDF ni una imagen. Pida al proveedor la cotización en PDF, JPG o PNG y vuelva a adjuntarla.';
         } else if (code === 'pii_redaction_failed') msg = 'No se pudo procesar de forma segura el archivo. Pida una versión legible.';
         else if (code === 'single_supplier') msg = 'Se necesitan al menos 2 cotizaciones para comparar.';
         else if (code === 'timeout') msg = 'Tiempo de espera agotado. Reintentar.';

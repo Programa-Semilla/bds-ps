@@ -19,7 +19,13 @@ public class GenerateComparisonTests : AuthenticatedTestBase
     public void SetUp()
     {
         _testFilePath = Path.Combine(Path.GetTempPath(), $"test-quotation-{Guid.NewGuid():N}.pdf");
-        File.WriteAllText(_testFilePath, "Test quotation document content");
+        // Must be a real PDF, not text in a .pdf-named file. ComparisonOrchestrator
+        // classifies attachments by magic bytes and refuses anything that is not a
+        // PDF or a supported image, because sending non-PDF bytes as
+        // application/pdf fails the whole extract call at the provider. A text
+        // placeholder passed here only because the Stub provider ignores content —
+        // the same upload would have 400'd against the live API.
+        File.WriteAllBytes(_testFilePath, MinimalPdfBytes());
     }
 
     [TearDown]
@@ -27,6 +33,41 @@ public class GenerateComparisonTests : AuthenticatedTestBase
     {
         if (File.Exists(_testFilePath))
             File.Delete(_testFilePath);
+    }
+
+    /// <summary>
+    /// A single-page PDF: correct <c>%PDF-</c> header, object graph and xref, so it
+    /// is a genuine PDF rather than a file that merely starts with the signature.
+    /// </summary>
+    private static byte[] MinimalPdfBytes()
+    {
+        var objects = new[]
+        {
+            "<</Type/Catalog/Pages 2 0 R>>",
+            "<</Type/Pages/Kids[3 0 R]/Count 1>>",
+            "<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>",
+        };
+
+        var body = new System.Text.StringBuilder("%PDF-1.4\n");
+        var offsets = new List<int>(objects.Length);
+        for (var i = 0; i < objects.Length; i++)
+        {
+            offsets.Add(body.Length);
+            body.Append(i + 1).Append(" 0 obj").Append(objects[i]).Append("endobj\n");
+        }
+
+        var xrefOffset = body.Length;
+        body.Append("xref\n0 ").Append(objects.Length + 1).Append('\n');
+        body.Append("0000000000 65535 f \n");
+        foreach (var offset in offsets)
+        {
+            body.Append(offset.ToString("D10")).Append(" 00000 n \n");
+        }
+
+        body.Append("trailer<</Size ").Append(objects.Length + 1).Append("/Root 1 0 R>>\n")
+            .Append("startxref\n").Append(xrefOffset).Append("\n%%EOF\n");
+
+        return System.Text.Encoding.ASCII.GetBytes(body.ToString());
     }
 
     [Test]

@@ -29,6 +29,15 @@ public sealed record TextBlock(string Text) : AiInputBlock;
 
 public sealed record PdfBlock(Guid BlobId, ReadOnlyMemory<byte> Bytes) : AiInputBlock;
 
+/// <summary>
+/// Spec 020 — a supplier attachment the provider reads as an image rather than
+/// a document (phone photos of a printed quotation are a normal upload). Kept
+/// distinct from <see cref="PdfBlock"/> because the two map to different
+/// provider content blocks; sending image bytes as <c>application/pdf</c> is
+/// rejected outright.
+/// </summary>
+public sealed record ImageBlock(Guid BlobId, ReadOnlyMemory<byte> Bytes, string MediaType) : AiInputBlock;
+
 public sealed record ExtractResult(
     string Json,
     int TokenCostInput,
